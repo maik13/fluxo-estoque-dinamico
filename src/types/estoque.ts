@@ -1,0 +1,46 @@
+// Tipos de dados para o sistema de estoque
+// Este arquivo define a estrutura de dados que será usada em todo o sistema
+
+export interface Item {
+  id: string;
+  codigoBarras: string;
+  origem: string;
+  caixaOrganizador: string;
+  localizacao: string;
+  responsavel: string;
+  nome: string;
+  metragem?: number; // Para cabos
+  peso?: number;
+  comprimentoLixa?: number;
+  polaridadeDisjuntor?: string;
+  especificacao: string; // Amperagem bateria, bitola, tipo de pisca, etc.
+  marca: string;
+  quantidade: number;
+  unidade: string; // metro, peça, kg, etc.
+  condicao: 'Novo' | 'Usado' | 'Defeito' | 'Descarte';
+  categoria: string;
+  subcategoria: string;
+  dataCriacao: string;
+  quantidadeMinima?: number; // Para alertas de estoque baixo
+}
+
+export interface Movimentacao {
+  id: string;
+  itemId: string;
+  tipo: 'ENTRADA' | 'SAIDA' | 'CADASTRO';
+  quantidade: number;
+  quantidadeAnterior: number;
+  quantidadeAtual: number;
+  responsavel: string;
+  observacoes?: string;
+  dataHora: string;
+  // Dados do item no momento da movimentação (para histórico)
+  itemSnapshot: Partial<Item>;
+}
+
+export interface EstoqueItem extends Item {
+  ultimaMovimentacao?: Movimentacao;
+  estoqueAtual: number;
+}
+
+export type TipoMovimentacao = 'ENTRADA' | 'SAIDA' | 'CADASTRO';
