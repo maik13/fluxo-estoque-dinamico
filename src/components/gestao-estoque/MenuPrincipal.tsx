@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Package, Plus, ArrowUp, ArrowDown, Scan } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { Item } from '@/types/estoque';
+import { Configuracoes } from './Configuracoes';
 
 interface MenuPrincipalProps {
   onMovimentacaoRealizada: () => void;
@@ -127,13 +128,16 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
 
   return (
     <div className="p-6 space-y-6">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
-          🏭 Sistema de Gestão de Estoque
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Controle completo do seu estoque de materiais elétricos
-        </p>
+      <div className="flex justify-between items-center mb-8">
+        <div className="text-center flex-1">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
+            🏭 Sistema de Gestão de Estoque
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Controle completo do seu estoque de materiais elétricos
+          </p>
+        </div>
+        <Configuracoes onConfigChange={onMovimentacaoRealizada} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
