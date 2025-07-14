@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,17 +6,20 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, Plus, ArrowUp, ArrowDown, Scan } from 'lucide-react';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
-import { Item } from '@/types/estoque';
+import { Item, EstoqueItem } from '@/types/estoque';
 import { Configuracoes } from './Configuracoes';
+import { cn } from '@/lib/utils';
 
 interface MenuPrincipalProps {
   onMovimentacaoRealizada: () => void;
 }
 
 export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) => {
-  const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo } = useEstoque();
+  const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, obterEstoque } = useEstoque();
   
   // Estados para controlar os diálogos
   const [dialogoCadastro, setDialogoCadastro] = useState(false);
@@ -47,6 +50,28 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     observacoes: ''
   });
 
+  // Estados para busca inteligente na saída
+  const [buscaSaida, setBuscaSaida] = useState('');
+  const [popoverSaidaAberto, setPopoverSaidaAberto] = useState(false);
+  const [itemSelecionadoSaida, setItemSelecionadoSaida] = useState<EstoqueItem | null>(null);
+
+  // Obter todos os itens do estoque para busca inteligente
+  const itensEstoque = useMemo(() => {
+    return obterEstoque().filter(item => item.estoqueAtual > 0);
+  }, [obterEstoque]);
+
+  // Filtrar itens para busca inteligente
+  const itensFiltrarados = useMemo(() => {
+    if (!buscaSaida) return itensEstoque;
+    
+    const termo = buscaSaida.toLowerCase();
+    return itensEstoque.filter(item => 
+      item.nome.toLowerCase().includes(termo) ||
+      item.codigoBarras.toLowerCase().includes(termo) ||
+      item.marca.toLowerCase().includes(termo)
+    );
+  }, [buscaSaida, itensEstoque]);
+
   // Função para resetar formulários
   const resetarFormularios = () => {
     setFormCadastro({
@@ -70,6 +95,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       responsavel: '',
       observacoes: ''
     });
+    setBuscaSaida('');
+    setItemSelecionadoSaida(null);
   };
 
   // Função para lidar com cadastro
@@ -103,8 +130,10 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const handleSaida = (e: React.FormEvent) => {
     e.preventDefault();
     
+    const codigoParaUsar = itemSelecionadoSaida?.codigoBarras || formMovimentacao.codigoBarras;
+    
     if (registrarSaida(
-      formMovimentacao.codigoBarras,
+      codigoParaUsar,
       formMovimentacao.quantidade,
       formMovimentacao.responsavel,
       formMovimentacao.observacoes
@@ -113,6 +142,17 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       resetarFormularios();
       onMovimentacaoRealizada();
     }
+  };
+
+  // Função para selecionar item na busca inteligente
+  const selecionarItemSaida = (item: EstoqueItem) => {
+    setItemSelecionadoSaida(item);
+    setBuscaSaida(item.nome);
+    setFormMovimentacao(prev => ({
+      ...prev,
+      codigoBarras: item.codigoBarras
+    }));
+    setPopoverSaidaAberto(false);
   };
 
   // Função para buscar item quando código for digitado
@@ -439,22 +479,69 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
             
             <form onSubmit={handleSaida} className="space-y-4">
               <div>
-                <Label htmlFor="codigoBarrasSaida">Código de Barras *</Label>
+                <Label htmlFor="buscaSaida">Buscar Item (Nome ou Código de Barras) *</Label>
                 <div className="flex space-x-2">
-                  <Input
-                    id="codigoBarrasSaida"
-                    value={formMovimentacao.codigoBarras}
-                    onChange={(e) => {
-                      setFormMovimentacao(prev => ({...prev, codigoBarras: e.target.value}));
-                      buscarItemAoDigitarCodigo(e.target.value, 'saida');
-                    }}
-                    placeholder="Digite ou escaneie o código"
-                    required
-                  />
+                  <Popover open={popoverSaidaAberto} onOpenChange={setPopoverSaidaAberto}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={popoverSaidaAberto}
+                        className="flex-1 justify-between"
+                      >
+                        {itemSelecionadoSaida ? itemSelecionadoSaida.nome : "Selecione um item..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput
+                          placeholder="Buscar por nome ou código..."
+                          value={buscaSaida}
+                          onValueChange={setBuscaSaida}
+                        />
+                        <CommandList>
+                          <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
+                          <CommandGroup>
+                            {itensFiltrarados.map((item) => (
+                              <CommandItem
+                                key={item.id}
+                                onSelect={() => selecionarItemSaida(item)}
+                                className="cursor-pointer"
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    itemSelecionadoSaida?.id === item.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex-1">
+                                  <div className="font-medium">{item.nome}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {item.codigoBarras} • {item.marca} • Estoque: {item.estoqueAtual} {item.unidade}
+                                  </div>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <Button type="button" variant="outline" size="icon">
                     <Scan className="h-4 w-4" />
                   </Button>
                 </div>
+                {itemSelecionadoSaida && (
+                  <div className="mt-2 p-3 bg-muted rounded-md">
+                    <div className="text-sm">
+                      <p><strong>Nome:</strong> {itemSelecionadoSaida.nome}</p>
+                      <p><strong>Código:</strong> {itemSelecionadoSaida.codigoBarras}</p>
+                      <p><strong>Estoque Atual:</strong> {itemSelecionadoSaida.estoqueAtual} {itemSelecionadoSaida.unidade}</p>
+                      <p><strong>Localização:</strong> {itemSelecionadoSaida.localizacao}</p>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div>

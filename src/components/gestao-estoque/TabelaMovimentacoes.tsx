@@ -13,6 +13,7 @@ export const TabelaMovimentacoes = () => {
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<TipoMovimentacao | 'todas'>('todas');
   const [filtroResponsavel, setFiltroResponsavel] = useState('todos');
+  const [filtroDestino, setFiltroDestino] = useState('todos');
 
   // Ordenar movimentações por data (mais recente primeiro)
   const movimentacoesOrdenadas = useMemo(() => {
@@ -25,6 +26,12 @@ export const TabelaMovimentacoes = () => {
   const responsaveis = useMemo(() => {
     const resp = new Set(movimentacoes.map(mov => mov.responsavel).filter(Boolean));
     return Array.from(resp);
+  }, [movimentacoes]);
+
+  // Obter destinos únicos para filtro
+  const destinos = useMemo(() => {
+    const dest = new Set(movimentacoes.map(mov => mov.itemSnapshot?.localizacao).filter(Boolean));
+    return Array.from(dest);
   }, [movimentacoes]);
 
   // Filtrar movimentações
@@ -43,10 +50,13 @@ export const TabelaMovimentacoes = () => {
       
       // Filtro por responsável
       const matchResponsavel = filtroResponsavel === 'todos' || mov.responsavel === filtroResponsavel;
+      
+      // Filtro por destino
+      const matchDestino = filtroDestino === 'todos' || mov.itemSnapshot?.localizacao === filtroDestino;
 
-      return matchTexto && matchTipo && matchResponsavel;
+      return matchTexto && matchTipo && matchResponsavel && matchDestino;
     });
-  }, [movimentacoesOrdenadas, filtroTexto, filtroTipo, filtroResponsavel]);
+  }, [movimentacoesOrdenadas, filtroTexto, filtroTipo, filtroResponsavel, filtroDestino]);
 
   // Estatísticas das movimentações
   const estatisticas = useMemo(() => {
@@ -204,7 +214,7 @@ export const TabelaMovimentacoes = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -236,6 +246,20 @@ export const TabelaMovimentacoes = () => {
                 {responsaveis.map(responsavel => (
                   <SelectItem key={responsavel} value={responsavel}>
                     {responsavel}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Select value={filtroDestino} onValueChange={setFiltroDestino}>
+              <SelectTrigger>
+                <SelectValue placeholder="Destino/Localização" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os destinos</SelectItem>
+                {destinos.map(destino => (
+                  <SelectItem key={destino} value={destino}>
+                    {destino}
                   </SelectItem>
                 ))}
               </SelectContent>
