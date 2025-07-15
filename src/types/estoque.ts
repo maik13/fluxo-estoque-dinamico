@@ -20,6 +20,8 @@ export interface Item {
   condicao: 'Novo' | 'Usado' | 'Defeito' | 'Descarte';
   categoria: string;
   subcategoria: string;
+  subDestino: string; // Estoque eterno/múltiplos estoques
+  tipoServico: string;
   dataCriacao: string;
   quantidadeMinima?: number; // Para alertas de estoque baixo
 }
@@ -44,3 +46,28 @@ export interface EstoqueItem extends Item {
 }
 
 export type TipoMovimentacao = 'ENTRADA' | 'SAIDA' | 'CADASTRO';
+
+// Interfaces para configurações pré-cadastradas
+export interface EstoqueConfig {
+  id: string;
+  nome: string;
+  descricao?: string;
+  ativo: boolean;
+  dataCriacao: string;
+}
+
+export interface TipoServicoConfig {
+  id: string;
+  nome: string;
+  descricao?: string;
+  ativo: boolean;
+  dataCriacao: string;
+}
+
+export interface SubcategoriaConfig {
+  id: string;
+  nome: string;
+  categoria: string;
+  ativo: boolean;
+  dataCriacao: string;
+}

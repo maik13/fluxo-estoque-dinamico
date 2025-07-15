@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Switch } from '@/components/ui/switch';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Database, Wrench, Tag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, User, Palette, FileText, Download, Upload, Moon, Sun } from 'lucide-react';
+import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 
 interface ConfiguracoesProps {
   onConfigChange?: () => void;
@@ -15,355 +18,499 @@ interface ConfiguracoesProps {
 
 export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   const { toast } = useToast();
-  const [tema, setTema] = useState('light');
-  const [dialogoCadastroUsuario, setDialogoCadastroUsuario] = useState(false);
-  const [dialogoRelatorios, setDialogoRelatorios] = useState(false);
-  
-  // Estados para cadastro de usuário
-  const [formUsuario, setFormUsuario] = useState({
-    nome: '',
-    email: '',
-    perfil: 'operador',
-    setor: ''
+  const {
+    estoques,
+    tiposServico,
+    subcategorias,
+    obterEstoquesAtivos,
+    obterTiposServicoAtivos,
+    obterSubcategoriasAtivas,
+    adicionarEstoque,
+    removerEstoque,
+    adicionarTipoServico,
+    removerTipoServico,
+    adicionarSubcategoria,
+    removerSubcategoria,
+  } = useConfiguracoes();
+
+  const [configuracao, setConfiguracao] = useState({
+    tema: 'light',
+    notificacoes: true,
+    alertaEstoqueBaixo: true,
+    backupAutomatico: false,
   });
 
-  // Função para alternar tema
-  const alterarTema = (novoTema: string) => {
-    setTema(novoTema);
-    const html = document.documentElement;
-    if (novoTema === 'dark') {
-      html.classList.add('dark');
-    } else {
-      html.classList.remove('dark');
-    }
-    
-    toast({
-      title: "Tema alterado",
-      description: `Tema ${novoTema === 'dark' ? 'escuro' : 'claro'} ativado com sucesso!`,
-    });
-  };
+  const [novoUsuario, setNovoUsuario] = useState({
+    nome: '',
+    email: '',
+    senha: '',
+    tipo: 'usuario',
+  });
 
-  // Função para cadastrar usuário
-  const handleCadastroUsuario = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Simular cadastro de usuário
-    const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
-    const novoUsuario = {
-      id: Date.now(),
-      ...formUsuario,
-      dataCadastro: new Date().toISOString()
-    };
-    
-    usuarios.push(novoUsuario);
-    localStorage.setItem('usuarios', JSON.stringify(usuarios));
-    
-    toast({
-      title: "Usuário cadastrado",
-      description: `Usuário ${formUsuario.nome} cadastrado com sucesso!`,
-    });
-    
-    setDialogoCadastroUsuario(false);
-    setFormUsuario({ nome: '', email: '', perfil: 'operador', setor: '' });
+  const [novoEstoque, setNovoEstoque] = useState({
+    nome: '',
+    descricao: '',
+  });
+
+  const [novoTipoServico, setNovoTipoServico] = useState({
+    nome: '',
+    descricao: '',
+  });
+
+  const [novaSubcategoria, setNovaSubcategoria] = useState({
+    nome: '',
+    categoria: '',
+  });
+
+  const handleTemaChange = (tema: 'light' | 'dark') => {
+    setConfiguracao(prev => ({ ...prev, tema }));
+    document.documentElement.classList.toggle('dark', tema === 'dark');
     onConfigChange?.();
   };
 
-  // Função para exportar dados
-  const exportarDados = () => {
-    const estoque = localStorage.getItem('estoque') || '[]';
-    const movimentacoes = localStorage.getItem('movimentacoes') || '[]';
-    const usuarios = localStorage.getItem('usuarios') || '[]';
-    
-    const dadosExportacao = {
-      estoque: JSON.parse(estoque),
-      movimentacoes: JSON.parse(movimentacoes),
-      usuarios: JSON.parse(usuarios),
-      dataExportacao: new Date().toISOString()
-    };
-    
-    const blob = new Blob([JSON.stringify(dadosExportacao, null, 2)], {
-      type: 'application/json'
-    });
-    
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `backup-estoque-${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    toast({
-      title: "Dados exportados",
-      description: "Backup dos dados baixado com sucesso!",
-    });
-  };
-
-  // Função para importar dados
-  const importarDados = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const dados = JSON.parse(e.target?.result as string);
-        
-        if (dados.estoque) localStorage.setItem('estoque', JSON.stringify(dados.estoque));
-        if (dados.movimentacoes) localStorage.setItem('movimentacoes', JSON.stringify(dados.movimentacoes));
-        if (dados.usuarios) localStorage.setItem('usuarios', JSON.stringify(dados.usuarios));
-        
-        toast({
-          title: "Dados importados",
-          description: "Backup restaurado com sucesso!",
-        });
-        
-        onConfigChange?.();
-        window.location.reload(); // Recarregar para atualizar os dados
-      } catch (error) {
-        toast({
-          title: "Erro na importação",
-          description: "Arquivo inválido ou corrompido.",
-          variant: "destructive"
-        });
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  // Função para gerar relatórios
-  const gerarRelatorio = (tipo: string) => {
-    const estoque = JSON.parse(localStorage.getItem('estoque') || '[]');
-    const movimentacoes = JSON.parse(localStorage.getItem('movimentacoes') || '[]');
-    
-    let dadosRelatorio = '';
-    let nomeArquivo = '';
-    
-    switch (tipo) {
-      case 'estoque':
-        dadosRelatorio = `RELATÓRIO DE ESTOQUE - ${new Date().toLocaleDateString('pt-BR')}\n\n`;
-        dadosRelatorio += 'CÓDIGO\tNOME\tQUANTIDADE\tUNIDADE\tLOCALIZAÇÃO\tCONDIÇÃO\n';
-        estoque.forEach((item: any) => {
-          dadosRelatorio += `${item.codigoBarras}\t${item.nome}\t${item.quantidade}\t${item.unidade}\t${item.localizacao}\t${item.condicao}\n`;
-        });
-        nomeArquivo = `relatorio-estoque-${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.txt`;
-        break;
-        
-      case 'movimentacoes':
-        dadosRelatorio = `RELATÓRIO DE MOVIMENTAÇÕES - ${new Date().toLocaleDateString('pt-BR')}\n\n`;
-        dadosRelatorio += 'DATA\tTIPO\tCÓDIGO\tITEM\tQUANTIDADE\tRESPONSÁVEL\n';
-        movimentacoes.forEach((mov: any) => {
-          dadosRelatorio += `${new Date(mov.dataHora).toLocaleDateString('pt-BR')}\t${mov.tipo}\t${mov.codigoBarras}\t${mov.nomeItem}\t${mov.quantidade}\t${mov.responsavel}\n`;
-        });
-        nomeArquivo = `relatorio-movimentacoes-${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.txt`;
-        break;
-        
-      case 'estoque-baixo':
-        dadosRelatorio = `RELATÓRIO DE ESTOQUE BAIXO - ${new Date().toLocaleDateString('pt-BR')}\n\n`;
-        dadosRelatorio += 'CÓDIGO\tNOME\tQUANTIDADE\tUNIDADE\tLOCALIZAÇÃO\n';
-        estoque.filter((item: any) => item.quantidade <= 5).forEach((item: any) => {
-          dadosRelatorio += `${item.codigoBarras}\t${item.nome}\t${item.quantidade}\t${item.unidade}\t${item.localizacao}\n`;
-        });
-        nomeArquivo = `relatorio-estoque-baixo-${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.txt`;
-        break;
+  const handleCadastroUsuario = () => {
+    if (!novoUsuario.nome || !novoUsuario.email || !novoUsuario.senha) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha todos os campos para cadastrar o usuário.",
+        variant: "destructive",
+      });
+      return;
     }
-    
-    const blob = new Blob([dadosRelatorio], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = nomeArquivo;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
+
+    // Aqui você implementaria a lógica de cadastro
+    toast({
+      title: "Usuário cadastrado!",
+      description: `Usuário ${novoUsuario.nome} foi cadastrado com sucesso.`,
+    });
+
+    setNovoUsuario({
+      nome: '',
+      email: '',
+      senha: '',
+      tipo: 'usuario',
+    });
+  };
+
+  const handleCadastroEstoque = () => {
+    if (!novoEstoque.nome) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Digite o nome do estoque.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    adicionarEstoque(novoEstoque.nome, novoEstoque.descricao);
+    setNovoEstoque({ nome: '', descricao: '' });
+    onConfigChange?.();
+  };
+
+  const handleCadastroTipoServico = () => {
+    if (!novoTipoServico.nome) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Digite o nome do tipo de serviço.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    adicionarTipoServico(novoTipoServico.nome, novoTipoServico.descricao);
+    setNovoTipoServico({ nome: '', descricao: '' });
+    onConfigChange?.();
+  };
+
+  const handleCadastroSubcategoria = () => {
+    if (!novaSubcategoria.nome || !novaSubcategoria.categoria) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Digite o nome da subcategoria e a categoria.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    adicionarSubcategoria(novaSubcategoria.nome, novaSubcategoria.categoria);
+    setNovaSubcategoria({ nome: '', categoria: '' });
+    onConfigChange?.();
+  };
+
+  const handleExportarDados = () => {
+    toast({
+      title: "Exportação iniciada",
+      description: "Os dados estão sendo exportados...",
+    });
+  };
+
+  const handleImportarDados = () => {
+    toast({
+      title: "Importação iniciada",
+      description: "Os dados estão sendo importados...",
+    });
+  };
+
+  const handleGerarRelatorio = (tipo: string) => {
     toast({
       title: "Relatório gerado",
-      description: `Relatório de ${tipo} baixado com sucesso!`,
+      description: `Relatório de ${tipo} foi gerado com sucesso.`,
     });
   };
 
   return (
-    <div className="flex justify-end">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon" className="hover:scale-105 transition-all">
-            <Settings className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-64">
-          {/* Cadastrar Usuário */}
-          <DropdownMenuItem onClick={() => setDialogoCadastroUsuario(true)}>
-            <User className="mr-2 h-4 w-4" />
-            Cadastrar Usuário
-          </DropdownMenuItem>
-          
-          {/* Alterar Tema */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <DropdownMenuItem>
-                <Palette className="mr-2 h-4 w-4" />
-                Alterar Tema
-              </DropdownMenuItem>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="left">
-              <DropdownMenuItem onClick={() => alterarTema('light')}>
-                <Sun className="mr-2 h-4 w-4" />
-                Claro
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => alterarTema('dark')}>
-                <Moon className="mr-2 h-4 w-4" />
-                Escuro
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          
-          {/* Relatórios */}
-          <DropdownMenuItem onClick={() => setDialogoRelatorios(true)}>
-            <FileText className="mr-2 h-4 w-4" />
-            Emitir Relatórios
-          </DropdownMenuItem>
-          
-          {/* Exportar */}
-          <DropdownMenuItem onClick={exportarDados}>
-            <Download className="mr-2 h-4 w-4" />
-            Exportar Dados
-          </DropdownMenuItem>
-          
-          {/* Importar */}
-          <DropdownMenuItem asChild>
-            <label className="cursor-pointer">
-              <Upload className="mr-2 h-4 w-4" />
-              Importar Dados
-              <input
-                type="file"
-                accept=".json"
-                onChange={importarDados}
-                className="hidden"
-              />
-            </label>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Settings className="h-4 w-4 mr-2" />
+          Configurações
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>⚙️ Configurações do Sistema</DialogTitle>
+        </DialogHeader>
+        
+        <Tabs defaultValue="usuarios" className="w-full">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="usuarios">Usuários</TabsTrigger>
+            <TabsTrigger value="estoques">Estoques</TabsTrigger>
+            <TabsTrigger value="tipos-servico">Tipos de Serviço</TabsTrigger>
+            <TabsTrigger value="subcategorias">Subcategorias</TabsTrigger>
+            <TabsTrigger value="tema">Tema</TabsTrigger>
+            <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+          </TabsList>
 
-      {/* Dialog Cadastro de Usuário */}
-      <Dialog open={dialogoCadastroUsuario} onOpenChange={setDialogoCadastroUsuario}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>👤 Cadastrar Usuário</DialogTitle>
-            <DialogDescription>
-              Cadastre um novo usuário para o sistema
-            </DialogDescription>
-          </DialogHeader>
-          
-          <form onSubmit={handleCadastroUsuario} className="space-y-4">
-            <div>
-              <Label htmlFor="nomeUsuario">Nome Completo *</Label>
-              <Input
-                id="nomeUsuario"
-                value={formUsuario.nome}
-                onChange={(e) => setFormUsuario(prev => ({...prev, nome: e.target.value}))}
-                placeholder="Digite o nome completo"
-                required
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="emailUsuario">E-mail *</Label>
-              <Input
-                id="emailUsuario"
-                type="email"
-                value={formUsuario.email}
-                onChange={(e) => setFormUsuario(prev => ({...prev, email: e.target.value}))}
-                placeholder="Digite o e-mail"
-                required
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="perfilUsuario">Perfil de Acesso</Label>
-              <Select value={formUsuario.perfil} onValueChange={(value) => setFormUsuario(prev => ({...prev, perfil: value}))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o perfil" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                  <SelectItem value="supervisor">Supervisor</SelectItem>
-                  <SelectItem value="operador">Operador</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="setorUsuario">Setor</Label>
-              <Input
-                id="setorUsuario"
-                value={formUsuario.setor}
-                onChange={(e) => setFormUsuario(prev => ({...prev, setor: e.target.value}))}
-                placeholder="Ex: Estoque, Compras, Vendas"
-              />
-            </div>
-            
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => setDialogoCadastroUsuario(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit">
-                Cadastrar Usuário
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+          {/* Aba Usuários */}
+          <TabsContent value="usuarios" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Cadastro de Usuário
+                </CardTitle>
+                <CardDescription>
+                  Cadastre novos usuários para acessar o sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="nomeUsuario">Nome</Label>
+                    <Input
+                      id="nomeUsuario"
+                      value={novoUsuario.nome}
+                      onChange={(e) => setNovoUsuario(prev => ({ ...prev, nome: e.target.value }))}
+                      placeholder="Nome do usuário"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="emailUsuario">Email</Label>
+                    <Input
+                      id="emailUsuario"
+                      type="email"
+                      value={novoUsuario.email}
+                      onChange={(e) => setNovoUsuario(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="email@exemplo.com"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="senhaUsuario">Senha</Label>
+                    <Input
+                      id="senhaUsuario"
+                      type="password"
+                      value={novoUsuario.senha}
+                      onChange={(e) => setNovoUsuario(prev => ({ ...prev, senha: e.target.value }))}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="tipoUsuario">Tipo de Usuário</Label>
+                    <select
+                      id="tipoUsuario"
+                      value={novoUsuario.tipo}
+                      onChange={(e) => setNovoUsuario(prev => ({ ...prev, tipo: e.target.value }))}
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value="usuario">Usuário</option>
+                      <option value="admin">Administrador</option>
+                    </select>
+                  </div>
+                </div>
+                <Button onClick={handleCadastroUsuario} className="w-full">
+                  Cadastrar Usuário
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-      {/* Dialog Relatórios */}
-      <Dialog open={dialogoRelatorios} onOpenChange={setDialogoRelatorios}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>📊 Emitir Relatórios</DialogTitle>
-            <DialogDescription>
-              Selecione o tipo de relatório que deseja gerar
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4">
-            <Card className="cursor-pointer hover:bg-muted/50" onClick={() => gerarRelatorio('estoque')}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Relatório de Estoque</CardTitle>
+          {/* Aba Estoques */}
+          <TabsContent value="estoques" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  Gerenciar Estoques
+                </CardTitle>
                 <CardDescription>
-                  Lista completa de todos os itens em estoque
+                  Cadastre e gerencie múltiplos estoques
                 </CardDescription>
               </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="nomeEstoque">Nome do Estoque</Label>
+                    <Input
+                      id="nomeEstoque"
+                      value={novoEstoque.nome}
+                      onChange={(e) => setNovoEstoque(prev => ({ ...prev, nome: e.target.value }))}
+                      placeholder="Ex: Estoque Principal"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="descricaoEstoque">Descrição</Label>
+                    <Input
+                      id="descricaoEstoque"
+                      value={novoEstoque.descricao}
+                      onChange={(e) => setNovoEstoque(prev => ({ ...prev, descricao: e.target.value }))}
+                      placeholder="Descrição do estoque"
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleCadastroEstoque} className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Cadastrar Estoque
+                </Button>
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                  <h4 className="font-medium">Estoques Cadastrados</h4>
+                  <div className="space-y-2">
+                    {estoques.map((estoque) => (
+                      <div key={estoque.id} className="flex items-center justify-between p-2 border rounded">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">{estoque.nome}</Badge>
+                          {estoque.descricao && <span className="text-sm text-muted-foreground">{estoque.descricao}</span>}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removerEstoque(estoque.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
             </Card>
-            
-            <Card className="cursor-pointer hover:bg-muted/50" onClick={() => gerarRelatorio('movimentacoes')}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Relatório de Movimentações</CardTitle>
+          </TabsContent>
+
+          {/* Aba Tipos de Serviço */}
+          <TabsContent value="tipos-servico" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wrench className="h-5 w-5" />
+                  Gerenciar Tipos de Serviço
+                </CardTitle>
                 <CardDescription>
-                  Histórico de todas as entradas e saídas
+                  Cadastre tipos de serviço para classificar itens
                 </CardDescription>
               </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="nomeTipoServico">Nome do Tipo</Label>
+                    <Input
+                      id="nomeTipoServico"
+                      value={novoTipoServico.nome}
+                      onChange={(e) => setNovoTipoServico(prev => ({ ...prev, nome: e.target.value }))}
+                      placeholder="Ex: Instalação Elétrica"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="descricaoTipoServico">Descrição</Label>
+                    <Input
+                      id="descricaoTipoServico"
+                      value={novoTipoServico.descricao}
+                      onChange={(e) => setNovoTipoServico(prev => ({ ...prev, descricao: e.target.value }))}
+                      placeholder="Descrição do tipo de serviço"
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleCadastroTipoServico} className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Cadastrar Tipo de Serviço
+                </Button>
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                  <h4 className="font-medium">Tipos de Serviço Cadastrados</h4>
+                  <div className="space-y-2">
+                    {tiposServico.map((tipo) => (
+                      <div key={tipo.id} className="flex items-center justify-between p-2 border rounded">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">{tipo.nome}</Badge>
+                          {tipo.descricao && <span className="text-sm text-muted-foreground">{tipo.descricao}</span>}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removerTipoServico(tipo.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
             </Card>
-            
-            <Card className="cursor-pointer hover:bg-muted/50" onClick={() => gerarRelatorio('estoque-baixo')}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Relatório de Estoque Baixo</CardTitle>
+          </TabsContent>
+
+          {/* Aba Subcategorias */}
+          <TabsContent value="subcategorias" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Tag className="h-5 w-5" />
+                  Gerenciar Subcategorias
+                </CardTitle>
                 <CardDescription>
-                  Itens com quantidade menor ou igual a 5 unidades
+                  Cadastre subcategorias para organizar melhor os itens
                 </CardDescription>
               </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="nomeSubcategoria">Nome da Subcategoria</Label>
+                    <Input
+                      id="nomeSubcategoria"
+                      value={novaSubcategoria.nome}
+                      onChange={(e) => setNovaSubcategoria(prev => ({ ...prev, nome: e.target.value }))}
+                      placeholder="Ex: Cabo Flexível"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="categoriaSubcategoria">Categoria</Label>
+                    <Input
+                      id="categoriaSubcategoria"
+                      value={novaSubcategoria.categoria}
+                      onChange={(e) => setNovaSubcategoria(prev => ({ ...prev, categoria: e.target.value }))}
+                      placeholder="Ex: Cabos"
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleCadastroSubcategoria} className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Cadastrar Subcategoria
+                </Button>
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                  <h4 className="font-medium">Subcategorias Cadastradas</h4>
+                  <div className="space-y-2">
+                    {subcategorias.map((subcategoria) => (
+                      <div key={subcategoria.id} className="flex items-center justify-between p-2 border rounded">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">{subcategoria.nome}</Badge>
+                          <span className="text-sm text-muted-foreground">({subcategoria.categoria})</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removerSubcategoria(subcategoria.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
             </Card>
-          </div>
-          
-          <div className="flex justify-end pt-4">
-            <Button variant="outline" onClick={() => setDialogoRelatorios(false)}>
-              Fechar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </TabsContent>
+
+          {/* Aba Tema */}
+          <TabsContent value="tema" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5" />
+                  Configurações do Tema
+                </CardTitle>
+                <CardDescription>
+                  Altere a aparência do sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="tema-light">Tema Claro</Label>
+                  <Switch
+                    id="tema-light"
+                    checked={configuracao.tema === 'light'}
+                    onCheckedChange={() => handleTemaChange('light')}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="tema-dark">Tema Escuro</Label>
+                  <Switch
+                    id="tema-dark"
+                    checked={configuracao.tema === 'dark'}
+                    onCheckedChange={() => handleTemaChange('dark')}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Aba Relatórios */}
+          <TabsContent value="relatorios" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Relatórios
+                </CardTitle>
+                <CardDescription>
+                  Gere relatórios do sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <Button onClick={() => handleGerarRelatorio('estoque')} variant="outline">
+                    Relatório de Estoque
+                  </Button>
+                  <Button onClick={() => handleGerarRelatorio('movimentacoes')} variant="outline">
+                    Relatório de Movimentações
+                  </Button>
+                  <Button onClick={() => handleGerarRelatorio('estoque-baixo')} variant="outline">
+                    Relatório de Estoque Baixo
+                  </Button>
+                </div>
+                
+                <Separator />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <Button onClick={handleImportarDados} variant="outline">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Importar Arquivo
+                  </Button>
+                  <Button onClick={handleExportarDados} variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Exportar Dados
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
   );
 };

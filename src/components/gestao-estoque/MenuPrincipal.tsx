@@ -12,6 +12,8 @@ import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown } from '
 import { useEstoque } from '@/hooks/useEstoque';
 import { Item, EstoqueItem } from '@/types/estoque';
 import { Configuracoes } from './Configuracoes';
+import { SeletorEstoque } from './SeletorEstoque';
+import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { cn } from '@/lib/utils';
 
 interface MenuPrincipalProps {
@@ -20,6 +22,7 @@ interface MenuPrincipalProps {
 
 export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) => {
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, obterEstoque } = useEstoque();
+  const { obterTiposServicoAtivos, obterSubcategoriasAtivas } = useConfiguracoes();
   
   // Estados para controlar os diálogos
   const [dialogoCadastro, setDialogoCadastro] = useState(false);
@@ -40,7 +43,9 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     unidade: '',
     condicao: 'Novo',
     categoria: '',
-    subcategoria: ''
+    subcategoria: '',
+    subDestino: '',
+    tipoServico: ''
   });
 
   const [formMovimentacao, setFormMovimentacao] = useState({
@@ -177,7 +182,10 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
             Controle completo do seu estoque de materiais elétricos
           </p>
         </div>
-        <Configuracoes onConfigChange={onMovimentacaoRealizada} />
+        <div className="flex items-center gap-4">
+          <SeletorEstoque />
+          <Configuracoes onConfigChange={onMovimentacaoRealizada} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

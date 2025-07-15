@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Item, Movimentacao, EstoqueItem, TipoMovimentacao } from '@/types/estoque';
 import { toast } from '@/hooks/use-toast';
+import { useConfiguracoes } from './useConfiguracoes';
 
 // Hook personalizado para gerenciar todo o sistema de estoque
 // Este é o "cérebro" do sistema - aqui ficam todas as regras de negócio
@@ -9,19 +10,26 @@ export const useEstoque = () => {
   const [itens, setItens] = useState<Item[]>([]);
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
   const [loading, setLoading] = useState(true);
+  const { estoqueAtivo } = useConfiguracoes();
 
   // Carregar dados do localStorage quando o componente inicializar
   useEffect(() => {
+    if (!estoqueAtivo) return;
+    
     try {
-      const itensSalvos = localStorage.getItem('estoque-itens');
-      const movimentacoesSalvas = localStorage.getItem('estoque-movimentacoes');
+      const itensSalvos = localStorage.getItem(`estoque-itens-${estoqueAtivo}`);
+      const movimentacoesSalvas = localStorage.getItem(`estoque-movimentacoes-${estoqueAtivo}`);
       
       if (itensSalvos) {
         setItens(JSON.parse(itensSalvos));
+      } else {
+        setItens([]);
       }
       
       if (movimentacoesSalvas) {
         setMovimentacoes(JSON.parse(movimentacoesSalvas));
+      } else {
+        setMovimentacoes([]);
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -33,20 +41,20 @@ export const useEstoque = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [estoqueAtivo]);
 
   // Salvar no localStorage sempre que os dados mudarem
   useEffect(() => {
-    if (!loading) {
-      localStorage.setItem('estoque-itens', JSON.stringify(itens));
+    if (!loading && estoqueAtivo) {
+      localStorage.setItem(`estoque-itens-${estoqueAtivo}`, JSON.stringify(itens));
     }
-  }, [itens, loading]);
+  }, [itens, loading, estoqueAtivo]);
 
   useEffect(() => {
-    if (!loading) {
-      localStorage.setItem('estoque-movimentacoes', JSON.stringify(movimentacoes));
+    if (!loading && estoqueAtivo) {
+      localStorage.setItem(`estoque-movimentacoes-${estoqueAtivo}`, JSON.stringify(movimentacoes));
     }
-  }, [movimentacoes, loading]);
+  }, [movimentacoes, loading, estoqueAtivo]);
 
   // Função para gerar ID único
   const gerarId = () => {
