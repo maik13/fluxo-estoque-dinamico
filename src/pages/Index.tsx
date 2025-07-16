@@ -16,6 +16,15 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="bg-card border-b">
+        <div className="container mx-auto p-4">
+          <h1 className="text-2xl font-bold text-foreground">
+            Controle completo do seu estoque de materiais
+          </h1>
+        </div>
+      </div>
+      
       <div className="container mx-auto p-4">
         <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6">
