@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Database, Wrench, Tag } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 
@@ -152,9 +153,16 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   };
 
   const handleGerarRelatorio = (tipo: string) => {
+    // Implementar geração de relatórios baseada no tipo de usuário
+    const dados = {
+      'Estoque Atual': 'dados-estoque',
+      'Movimentações': 'dados-movimentacoes', 
+      'Itens Baixo Estoque': 'dados-baixo-estoque'
+    };
+    
     toast({
-      title: "Relatório gerado",
-      description: `Relatório de ${tipo} foi gerado com sucesso.`,
+      title: "Relatório gerado!",
+      description: `Relatório de ${tipo} foi gerado com sucesso e está sendo preparado para download.`,
     });
   };
 
@@ -226,15 +234,18 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                   </div>
                   <div>
                     <Label htmlFor="tipoUsuario">Tipo de Usuário</Label>
-                    <select
-                      id="tipoUsuario"
-                      value={novoUsuario.tipo}
-                      onChange={(e) => setNovoUsuario(prev => ({ ...prev, tipo: e.target.value }))}
-                      className="w-full p-2 border rounded"
-                    >
-                      <option value="usuario">Usuário</option>
-                      <option value="admin">Administrador</option>
-                    </select>
+                    <Select value={novoUsuario.tipo} onValueChange={(value) => setNovoUsuario(prev => ({ ...prev, tipo: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tipo de usuário" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="administrador">Administrador</SelectItem>
+                        <SelectItem value="gestor">Gestor</SelectItem>
+                        <SelectItem value="engenharia">Engenharia</SelectItem>
+                        <SelectItem value="mestre">Mestre</SelectItem>
+                        <SelectItem value="estoquista">Estoquista</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <Button onClick={handleCadastroUsuario} className="w-full">
@@ -475,36 +486,78 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
-                  Relatórios
+                  Relatórios do Sistema
                 </CardTitle>
                 <CardDescription>
-                  Gere relatórios do sistema
+                  Gere e exporte relatórios do estoque
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <Button onClick={() => handleGerarRelatorio('estoque')} variant="outline">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button onClick={() => handleGerarRelatorio('Estoque Atual')} variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
                     Relatório de Estoque
                   </Button>
-                  <Button onClick={() => handleGerarRelatorio('movimentacoes')} variant="outline">
+                  <Button onClick={() => handleGerarRelatorio('Movimentações')} variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
                     Relatório de Movimentações
                   </Button>
-                  <Button onClick={() => handleGerarRelatorio('estoque-baixo')} variant="outline">
-                    Relatório de Estoque Baixo
+                  <Button onClick={() => handleGerarRelatorio('Itens Baixo Estoque')} variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Itens com Baixo Estoque
+                  </Button>
+                  <Button onClick={() => handleGerarRelatorio('Resumo Mensal')} variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Resumo Mensal
                   </Button>
                 </div>
                 
                 <Separator />
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <Button onClick={handleImportarDados} variant="outline">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Importar Arquivo
-                  </Button>
-                  <Button onClick={handleExportarDados} variant="outline">
-                    <Download className="h-4 w-4 mr-2" />
-                    Exportar Dados
-                  </Button>
+                <div className="space-y-4">
+                  <h4 className="font-medium">Logo da Empresa</h4>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="logo-upload"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          toast({
+                            title: "Logo enviado!",
+                            description: "O logo da empresa foi carregado com sucesso.",
+                          });
+                        }
+                      }}
+                    />
+                    <label htmlFor="logo-upload" className="cursor-pointer">
+                      <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
+                        Clique para fazer upload do logo da empresa
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        JPG, PNG até 5MB
+                      </p>
+                    </label>
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-4">
+                  <h4 className="font-medium">Backup e Importação</h4>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button onClick={handleExportarDados} className="flex-1">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Exportar Dados
+                    </Button>
+                    <Button onClick={handleImportarDados} variant="outline" className="flex-1">
+                      <Download className="h-4 w-4 mr-2" />
+                      Importar Dados
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

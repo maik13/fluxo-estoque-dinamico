@@ -256,7 +256,7 @@ export const useEstoque = () => {
       if (item.quantidadeMinima && estoqueAtual <= item.quantidadeMinima) {
         toast({
           title: "⚠️ Estoque baixo!",
-          description: `${item.nome} está com estoque baixo: ${estoqueAtual} ${item.unidade}`,
+          description: `${item.nome} está com estoque baixo: ${estoqueAtual} ${item.unidade}. Quantidade mínima: ${item.quantidadeMinima}`,
           variant: "destructive",
         });
       }

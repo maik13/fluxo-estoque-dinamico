@@ -12,7 +12,7 @@ export const SeletorEstoque = () => {
     <div className="flex items-center gap-2">
       <Database className="h-4 w-4" />
       <Select value={estoqueAtivo} onValueChange={alterarEstoqueAtivo}>
-        <SelectTrigger className="w-48">
+        <SelectTrigger className="w-40">
           <SelectValue placeholder="Selecione o estoque" />
         </SelectTrigger>
         <SelectContent>
@@ -23,11 +23,6 @@ export const SeletorEstoque = () => {
           ))}
         </SelectContent>
       </Select>
-      {estoqueAtivoInfo && (
-        <span className="text-sm text-muted-foreground">
-          ({estoqueAtivoInfo.nome})
-        </span>
-      )}
     </div>
   );
 };

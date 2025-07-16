@@ -92,7 +92,9 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       unidade: '',
       condicao: 'Novo',
       categoria: '',
-      subcategoria: ''
+      subcategoria: '',
+      subDestino: '',
+      tipoServico: ''
     });
     setFormMovimentacao({
       codigoBarras: '',
@@ -299,12 +301,50 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                 
                 <div>
                   <Label htmlFor="subcategoria">Subcategoria</Label>
-                  <Input
-                    id="subcategoria"
-                    value={formCadastro.subcategoria}
-                    onChange={(e) => setFormCadastro(prev => ({...prev, subcategoria: e.target.value}))}
-                    placeholder="Ex: Cabo flexível, Monopolar"
-                  />
+                  <Select value={formCadastro.subcategoria} onValueChange={(value) => setFormCadastro(prev => ({...prev, subcategoria: value}))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a subcategoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {obterSubcategoriasAtivas().map((sub) => (
+                        <SelectItem key={sub.id} value={sub.nome}>
+                          {sub.nome} ({sub.categoria})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="subDestino">Sub Destino (Estoque)</Label>
+                  <Select value={formCadastro.subDestino} onValueChange={(value) => setFormCadastro(prev => ({...prev, subDestino: value}))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o sub destino" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {obterTiposServicoAtivos().map((estoque) => (
+                        <SelectItem key={estoque.id} value={estoque.nome}>
+                          {estoque.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="tipoServico">Tipo de Serviço</Label>
+                  <Select value={formCadastro.tipoServico} onValueChange={(value) => setFormCadastro(prev => ({...prev, tipoServico: value}))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo de serviço" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {obterTiposServicoAtivos().map((tipo) => (
+                        <SelectItem key={tipo.id} value={tipo.nome}>
+                          {tipo.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div>
@@ -396,24 +436,28 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
             </DialogHeader>
             
             <form onSubmit={handleEntrada} className="space-y-4">
-              <div>
-                <Label htmlFor="codigoBarrasEntrada">Código de Barras *</Label>
-                <div className="flex space-x-2">
-                  <Input
-                    id="codigoBarrasEntrada"
-                    value={formMovimentacao.codigoBarras}
-                    onChange={(e) => {
-                      setFormMovimentacao(prev => ({...prev, codigoBarras: e.target.value}));
-                      buscarItemAoDigitarCodigo(e.target.value, 'entrada');
-                    }}
-                    placeholder="Digite ou escaneie o código"
-                    required
-                  />
-                  <Button type="button" variant="outline" size="icon">
-                    <Scan className="h-4 w-4" />
-                  </Button>
+                <div>
+                  <Label htmlFor="codigoBarrasEntrada">Código de Barras ou Nome do Item *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <div className="flex space-x-2">
+                        <Input
+                          id="codigoBarrasEntrada"
+                          value={formMovimentacao.codigoBarras}
+                          onChange={(e) => {
+                            setFormMovimentacao(prev => ({...prev, codigoBarras: e.target.value}));
+                            buscarItemAoDigitarCodigo(e.target.value, 'entrada');
+                          }}
+                          placeholder="Digite código de barras ou nome do item"
+                          required
+                        />
+                        <Button type="button" variant="outline" size="icon">
+                          <Scan className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </PopoverTrigger>
+                  </Popover>
                 </div>
-              </div>
               
               <div>
                 <Label htmlFor="quantidadeEntrada">Quantidade *</Label>
@@ -552,18 +596,28 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                 )}
               </div>
               
-              <div>
-                <Label htmlFor="quantidadeSaida">Quantidade *</Label>
-                <Input
-                  id="quantidadeSaida"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={formMovimentacao.quantidade}
-                  onChange={(e) => setFormMovimentacao(prev => ({...prev, quantidade: Number(e.target.value)}))}
-                  required
-                />
-              </div>
+                <div>
+                  <Label htmlFor="quantidadeSaida">Quantidade *</Label>
+                  <Input
+                    id="quantidadeSaida"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={formMovimentacao.quantidade}
+                    onChange={(e) => setFormMovimentacao(prev => ({...prev, quantidade: Number(e.target.value)}))}
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="destinoSaida">Destino da Saída</Label>
+                  <Input
+                    id="destinoSaida"
+                    value={formMovimentacao.observacoes}
+                    onChange={(e) => setFormMovimentacao(prev => ({...prev, observacoes: e.target.value}))}
+                    placeholder="Para onde está indo (ex: Obra ABC, Estoque 2)"
+                  />
+                </div>
               
               <div>
                 <Label htmlFor="responsavelSaida">Responsável *</Label>
@@ -575,17 +629,15 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   required
                 />
               </div>
-              
-              <div>
-                <Label htmlFor="observacoesSaida">Observações</Label>
-                <Textarea
-                  id="observacoesSaida"
-                  value={formMovimentacao.observacoes}
-                  onChange={(e) => setFormMovimentacao(prev => ({...prev, observacoes: e.target.value}))}
-                  placeholder="Observações sobre a saída (opcional)"
-                  rows={3}
-                />
-              </div>
+                
+                <div>
+                  <Label htmlFor="observacoesSaida">Observações Adicionais</Label>
+                  <Textarea
+                    id="observacoesSaida"
+                    placeholder="Observações adicionais sobre a saída (opcional)"
+                    rows={2}
+                  />
+                </div>
               
               <div className="flex justify-end space-x-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => setDialogoSaida(false)}>

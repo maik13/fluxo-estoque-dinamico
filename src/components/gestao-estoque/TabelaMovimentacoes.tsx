@@ -295,13 +295,14 @@ export const TabelaMovimentacoes = () => {
                   <TableHead>Anterior</TableHead>
                   <TableHead>Atual</TableHead>
                   <TableHead>Responsável</TableHead>
+                  <TableHead>Estoque/Destino</TableHead>
                   <TableHead>Observações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {movimentacoesFiltradas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                    <TableCell colSpan={10} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-muted-foreground">
@@ -366,7 +367,18 @@ export const TabelaMovimentacoes = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {mov.observacoes ? (
+                          <div className="text-sm">
+                            {mov.tipo === 'SAIDA' && mov.observacoes ? (
+                              <Badge variant="outline">{mov.observacoes}</Badge>
+                            ) : mov.itemSnapshot?.localizacao ? (
+                              <span className="text-muted-foreground">{mov.itemSnapshot.localizacao}</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {mov.observacoes && mov.tipo !== 'SAIDA' ? (
                             <span className="text-sm">{mov.observacoes}</span>
                           ) : (
                             <span className="text-xs text-muted-foreground">-</span>
