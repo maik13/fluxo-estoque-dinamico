@@ -21,8 +21,8 @@ interface MenuPrincipalProps {
 }
 
 export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) => {
-  const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, obterEstoque } = useEstoque();
-  const { obterTiposServicoAtivos, obterSubcategoriasAtivas } = useConfiguracoes();
+  const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, obterEstoque, isEstoquePrincipal } = useEstoque();
+  const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterEstoqueAtivoInfo } = useConfiguracoes();
   
   // Estados para controlar os diálogos
   const [dialogoCadastro, setDialogoCadastro] = useState(false);
@@ -76,6 +76,10 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       item.marca.toLowerCase().includes(termo)
     );
   }, [buscaSaida, itensEstoque]);
+
+  // Obter informações do estoque ativo
+  const estoqueAtivoInfo = obterEstoqueAtivoInfo();
+  const podeUsarCadastro = isEstoquePrincipal();
 
   // Função para resetar formulários
   const resetarFormularios = () => {
@@ -181,8 +185,13 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
             🏭 Sistema de Gestão de Estoque
           </h1>
           <p className="text-muted-foreground mt-2">
-            Controle completo do seu estoque de materiais elétricos
+            Controle completo do seu estoque de materiais
           </p>
+          {!podeUsarCadastro && (
+            <p className="text-warning text-sm mt-1">
+              📋 Cadastros só podem ser feitos no Estoque Principal. Estoque atual: {estoqueAtivoInfo?.nome}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-4">
           <SeletorEstoque />
@@ -194,14 +203,27 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
         {/* BOTÃO CADASTRO */}
         <Dialog open={dialogoCadastro} onOpenChange={setDialogoCadastro}>
           <DialogTrigger asChild>
-            <Card className="cursor-pointer hover:scale-105 transition-all duration-300 border-success/20 hover:border-success/40">
+            <Card className={cn(
+              "cursor-pointer hover:scale-105 transition-all duration-300",
+              podeUsarCadastro 
+                ? "border-success/20 hover:border-success/40" 
+                : "border-muted/20 hover:border-muted/40 opacity-60"
+            )}>
               <CardHeader className="text-center">
-                <div className="mx-auto w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mb-4">
-                  <Plus className="h-8 w-8 text-success" />
+                <div className={cn(
+                  "mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4",
+                  podeUsarCadastro ? "bg-success/10" : "bg-muted/10"
+                )}>
+                  <Plus className={cn("h-8 w-8", podeUsarCadastro ? "text-success" : "text-muted-foreground")} />
                 </div>
-                <CardTitle className="text-success">Cadastrar Item</CardTitle>
+                <CardTitle className={cn(podeUsarCadastro ? "text-success" : "text-muted-foreground")}>
+                  Cadastrar Item
+                </CardTitle>
                 <CardDescription>
-                  Cadastrar novos materiais no estoque
+                  {podeUsarCadastro 
+                    ? "Cadastrar novos materiais no estoque"
+                    : "Disponível apenas no Estoque Principal"
+                  }
                 </CardDescription>
               </CardHeader>
             </Card>

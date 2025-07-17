@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Item, Movimentacao, EstoqueItem, TipoMovimentacao } from '@/types/estoque';
 import { toast } from '@/hooks/use-toast';
@@ -10,14 +11,17 @@ export const useEstoque = () => {
   const [itens, setItens] = useState<Item[]>([]);
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
   const [loading, setLoading] = useState(true);
-  const { estoqueAtivo } = useConfiguracoes();
+  const { estoqueAtivo, obterEstoqueAtivoInfo } = useConfiguracoes();
 
   // Carregar dados do localStorage quando o componente inicializar
   useEffect(() => {
     if (!estoqueAtivo) return;
     
     try {
-      const itensSalvos = localStorage.getItem(`estoque-itens-${estoqueAtivo}`);
+      // ITENS: sempre carregar do estoque principal (compartilhado)
+      const itensSalvos = localStorage.getItem('estoque-itens-estoque-principal');
+      
+      // MOVIMENTAÇÕES: carregar específicas do estoque ativo
       const movimentacoesSalvas = localStorage.getItem(`estoque-movimentacoes-${estoqueAtivo}`);
       
       if (itensSalvos) {
@@ -45,13 +49,15 @@ export const useEstoque = () => {
 
   // Salvar no localStorage sempre que os dados mudarem
   useEffect(() => {
-    if (!loading && estoqueAtivo) {
-      localStorage.setItem(`estoque-itens-${estoqueAtivo}`, JSON.stringify(itens));
+    if (!loading) {
+      // ITENS: sempre salvar no estoque principal (compartilhado)
+      localStorage.setItem('estoque-itens-estoque-principal', JSON.stringify(itens));
     }
-  }, [itens, loading, estoqueAtivo]);
+  }, [itens, loading]);
 
   useEffect(() => {
     if (!loading && estoqueAtivo) {
+      // MOVIMENTAÇÕES: salvar específicas do estoque ativo
       localStorage.setItem(`estoque-movimentacoes-${estoqueAtivo}`, JSON.stringify(movimentacoes));
     }
   }, [movimentacoes, loading, estoqueAtivo]);
@@ -98,9 +104,24 @@ export const useEstoque = () => {
     });
   };
 
-  // Função para cadastrar novo item
+  // Verificar se estoque atual é o principal
+  const isEstoquePrincipal = () => {
+    return estoqueAtivo === 'estoque-principal';
+  };
+
+  // Função para cadastrar novo item (só funciona no estoque principal)
   const cadastrarItem = (dadosItem: Omit<Item, 'id' | 'dataCriacao'>) => {
     try {
+      // Verificar se está no estoque principal
+      if (!isEstoquePrincipal()) {
+        toast({
+          title: "Operação não permitida",
+          description: "Novos itens só podem ser cadastrados no Estoque Principal.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
       // Verificar se já existe item com mesmo código de barras
       if (buscarItemPorCodigo(dadosItem.codigoBarras)) {
         toast({
@@ -288,5 +309,6 @@ export const useEstoque = () => {
     cadastrarItem,
     registrarEntrada,
     registrarSaida,
+    isEstoquePrincipal,
   };
 };
