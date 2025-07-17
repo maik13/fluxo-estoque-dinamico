@@ -299,6 +299,41 @@ export const useEstoque = () => {
     }
   };
 
+  // Função para editar item (só funciona no estoque principal)
+  const editarItem = (itemEditado: Item) => {
+    try {
+      // Verificar se está no estoque principal
+      if (!isEstoquePrincipal()) {
+        toast({
+          title: "Operação não permitida",
+          description: "Itens só podem ser editados no Estoque Principal.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Atualizar o item na lista
+      setItens(prev => prev.map(item => 
+        item.id === itemEditado.id ? itemEditado : item
+      ));
+
+      toast({
+        title: "Item atualizado!",
+        description: `${itemEditado.nome} foi atualizado com sucesso.`,
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao editar item:', error);
+      toast({
+        title: "Erro ao editar",
+        description: "Ocorreu um erro ao editar o item.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     itens,
     movimentacoes,
@@ -307,6 +342,7 @@ export const useEstoque = () => {
     calcularEstoqueAtual,
     obterEstoque,
     cadastrarItem,
+    editarItem,
     registrarEntrada,
     registrarSaida,
     isEstoquePrincipal,

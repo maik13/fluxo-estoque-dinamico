@@ -5,16 +5,24 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingDown } from 'lucide-react';
+import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingDown, Edit, FileText } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { EstoqueItem } from '@/types/estoque';
+import { DialogoEditarItem } from './DialogoEditarItem';
+import { gerarRelatorioPDF } from '@/utils/pdfExport';
+import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 
 export const TabelaEstoque = () => {
-  const { obterEstoque, loading } = useEstoque();
+  const { obterEstoque, loading, editarItem, isEstoquePrincipal } = useEstoque();
+  const { obterEstoqueAtivoInfo } = useConfiguracoes();
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroCondicao, setFiltroCondicao] = useState('todas');
   const [filtroEstoque, setFiltroEstoque] = useState('todos'); // todos, baixo, zerado
+  
+  // Estados para edição
+  const [dialogoEdicao, setDialogoEdicao] = useState(false);
+  const [itemParaEditar, setItemParaEditar] = useState<EstoqueItem | null>(null);
 
   // Obter dados do estoque
   const estoque = useMemo(() => obterEstoque(), [obterEstoque]);
@@ -101,8 +109,8 @@ export const TabelaEstoque = () => {
     });
   };
 
-  // Função para exportar dados
-  const exportarDados = () => {
+  // Função para exportar dados em CSV
+  const exportarCSV = () => {
     const dadosExport = itensFiltrados.map(item => ({
       'Código': item.codigoBarras,
       'Nome': item.nome,
@@ -135,6 +143,28 @@ export const TabelaEstoque = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Função para exportar dados em PDF
+  const exportarPDF = async () => {
+    const estoqueInfo = obterEstoqueAtivoInfo();
+    await gerarRelatorioPDF({
+      titulo: 'RELATÓRIO DE ESTOQUE',
+      nomeEstoque: estoqueInfo?.nome || 'Estoque Atual',
+      itens: itensFiltrados,
+      incluirLogo: false // Pode ser configurado depois
+    });
+  };
+
+  // Função para editar item
+  const handleEditarItem = (item: EstoqueItem) => {
+    setItemParaEditar(item);
+    setDialogoEdicao(true);
+  };
+
+  // Função para salvar edição
+  const handleSalvarEdicao = (itemEditado: any) => {
+    return editarItem(itemEditado);
   };
 
   if (loading) {
@@ -267,10 +297,16 @@ export const TabelaEstoque = () => {
             <p className="text-sm text-muted-foreground">
               Mostrando {itensFiltrados.length} de {estoque.length} itens
             </p>
-            <Button onClick={exportarDados} variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Exportar
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={exportarCSV} variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                CSV
+              </Button>
+              <Button onClick={exportarPDF} variant="outline" size="sm">
+                <FileText className="h-4 w-4 mr-2" />
+                PDF
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -298,12 +334,13 @@ export const TabelaEstoque = () => {
                   <TableHead>Condição</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Última Mov.</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {itensFiltrados.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
+                <TableRow>
+                  <TableCell colSpan={11} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-muted-foreground">
@@ -372,6 +409,17 @@ export const TabelaEstoque = () => {
                           <span className="text-muted-foreground text-xs">Sem movimentação</span>
                         )}
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          onClick={() => handleEditarItem(item)}
+                          variant="ghost"
+                          size="sm"
+                          disabled={!isEstoquePrincipal()}
+                          title={!isEstoquePrincipal() ? "Edição disponível apenas no Estoque Principal" : "Editar item"}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -380,6 +428,17 @@ export const TabelaEstoque = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Diálogo de Edição */}
+      <DialogoEditarItem
+        aberto={dialogoEdicao}
+        onClose={() => {
+          setDialogoEdicao(false);
+          setItemParaEditar(null);
+        }}
+        item={itemParaEditar}
+        onSalvar={handleSalvarEdicao}
+      />
     </div>
   );
 };
