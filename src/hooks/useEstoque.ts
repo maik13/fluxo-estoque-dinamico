@@ -334,6 +334,84 @@ export const useEstoque = () => {
     }
   };
 
+  // Função para importar itens em lote (só funciona no estoque principal)
+  const importarItens = (itens: Omit<Item, 'id' | 'dataCriacao'>[]) => {
+    try {
+      // Verificar se está no estoque principal
+      if (!isEstoquePrincipal()) {
+        toast({
+          title: "Operação não permitida",
+          description: "Importação só pode ser feita no Estoque Principal.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      let sucessos = 0;
+      let erros = 0;
+      const codigosExistentes: string[] = [];
+
+      itens.forEach(itemData => {
+        // Verificar se já existe item com mesmo código de barras
+        if (buscarItemPorCodigo(itemData.codigoBarras)) {
+          codigosExistentes.push(itemData.codigoBarras);
+          erros++;
+          return;
+        }
+
+        const novoItem: Item = {
+          ...itemData,
+          id: gerarId(),
+          dataCriacao: new Date().toISOString(),
+        };
+
+        setItens(prev => [...prev, novoItem]);
+
+        // Registrar movimentação de cadastro
+        const movimentacao: Movimentacao = {
+          id: gerarId(),
+          itemId: novoItem.id,
+          tipo: 'CADASTRO',
+          quantidade: itemData.quantidade,
+          quantidadeAnterior: 0,
+          quantidadeAtual: itemData.quantidade,
+          responsavel: itemData.responsavel,
+          dataHora: new Date().toISOString(),
+          itemSnapshot: novoItem,
+        };
+
+        setMovimentacoes(prev => [...prev, movimentacao]);
+        sucessos++;
+      });
+
+      // Mostrar resultado da importação
+      if (sucessos > 0) {
+        toast({
+          title: "Importação concluída!",
+          description: `${sucessos} itens importados com sucesso.${erros > 0 ? ` ${erros} itens com códigos já existentes foram ignorados.` : ''}`,
+        });
+      }
+
+      if (codigosExistentes.length > 0) {
+        toast({
+          title: "Códigos duplicados",
+          description: `Os seguintes códigos já existem: ${codigosExistentes.slice(0, 3).join(', ')}${codigosExistentes.length > 3 ? '...' : ''}`,
+          variant: "destructive",
+        });
+      }
+
+      return sucessos > 0;
+    } catch (error) {
+      console.error('Erro ao importar itens:', error);
+      toast({
+        title: "Erro na importação",
+        description: "Ocorreu um erro ao importar os itens.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     itens,
     movimentacoes,
@@ -343,6 +421,7 @@ export const useEstoque = () => {
     obterEstoque,
     cadastrarItem,
     editarItem,
+    importarItens,
     registrarEntrada,
     registrarSaida,
     isEstoquePrincipal,

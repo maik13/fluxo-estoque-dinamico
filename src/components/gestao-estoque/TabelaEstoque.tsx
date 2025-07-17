@@ -297,16 +297,10 @@ export const TabelaEstoque = () => {
             <p className="text-sm text-muted-foreground">
               Mostrando {itensFiltrados.length} de {estoque.length} itens
             </p>
-            <div className="flex gap-2">
-              <Button onClick={exportarCSV} variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                CSV
-              </Button>
-              <Button onClick={exportarPDF} variant="outline" size="sm">
-                <FileText className="h-4 w-4 mr-2" />
-                PDF
-              </Button>
-            </div>
+            <Button onClick={exportarPDF} variant="outline" size="sm">
+              <FileText className="h-4 w-4 mr-2" />
+              Exportar PDF
+            </Button>
           </div>
         </CardContent>
       </Card>

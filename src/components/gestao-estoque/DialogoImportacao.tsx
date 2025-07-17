@@ -1,0 +1,326 @@
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
+import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, X } from 'lucide-react';
+import { Item } from '@/types/estoque';
+import { toast } from '@/hooks/use-toast';
+
+interface DialogoImportacaoProps {
+  aberto: boolean;
+  onClose: () => void;
+  onImportar: (itens: Omit<Item, 'id' | 'dataCriacao'>[]) => void;
+}
+
+interface ResultadoValidacao {
+  validos: Omit<Item, 'id' | 'dataCriacao'>[];
+  erros: { linha: number; erro: string; dados: any }[];
+}
+
+export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImportacaoProps) => {
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [validando, setValidando] = useState(false);
+  const [resultado, setResultado] = useState<ResultadoValidacao | null>(null);
+  const [progresso, setProgresso] = useState(0);
+
+  const camposObrigatorios = ['codigoBarras', 'nome', 'responsavel', 'quantidade', 'unidade'];
+
+  const validarLinha = (dados: any, linha: number): { item?: Omit<Item, 'id' | 'dataCriacao'>; erro?: string } => {
+    // Verificar campos obrigatórios
+    for (const campo of camposObrigatorios) {
+      if (!dados[campo] || dados[campo].toString().trim() === '') {
+        return { erro: `Campo obrigatório '${campo}' está vazio` };
+      }
+    }
+
+    // Validar quantidade
+    const quantidade = parseFloat(dados.quantidade);
+    if (isNaN(quantidade) || quantidade < 0) {
+      return { erro: 'Quantidade deve ser um número maior ou igual a zero' };
+    }
+
+    // Validar quantidade mínima se fornecida
+    let quantidadeMinima;
+    if (dados.quantidadeMinima && dados.quantidadeMinima.toString().trim() !== '') {
+      quantidadeMinima = parseFloat(dados.quantidadeMinima);
+      if (isNaN(quantidadeMinima) || quantidadeMinima < 0) {
+        return { erro: 'Quantidade mínima deve ser um número maior ou igual a zero' };
+      }
+    }
+
+    // Validar condição
+    const condicao = dados.condicao || 'Novo';
+    if (!['Novo', 'Usado', 'Defeito', 'Descarte'].includes(condicao)) {
+      return { erro: 'Condição deve ser: Novo, Usado, Defeito ou Descarte' };
+    }
+
+    // Validar campos numéricos opcionais
+    const camposNumericos = ['metragem', 'peso', 'comprimentoLixa'];
+    for (const campo of camposNumericos) {
+      if (dados[campo] && dados[campo].toString().trim() !== '') {
+        const valor = parseFloat(dados[campo]);
+        if (isNaN(valor)) {
+          return { erro: `${campo} deve ser um número válido` };
+        }
+      }
+    }
+
+    const item: Omit<Item, 'id' | 'dataCriacao'> = {
+      codigoBarras: dados.codigoBarras.toString().trim(),
+      origem: dados.origem?.toString().trim() || '',
+      caixaOrganizador: dados.caixaOrganizador?.toString().trim() || '',
+      localizacao: dados.localizacao?.toString().trim() || '',
+      responsavel: dados.responsavel.toString().trim(),
+      nome: dados.nome.toString().trim(),
+      metragem: dados.metragem ? parseFloat(dados.metragem) : undefined,
+      peso: dados.peso ? parseFloat(dados.peso) : undefined,
+      comprimentoLixa: dados.comprimentoLixa ? parseFloat(dados.comprimentoLixa) : undefined,
+      polaridadeDisjuntor: dados.polaridadeDisjuntor?.toString().trim() || '',
+      especificacao: dados.especificacao?.toString().trim() || '',
+      marca: dados.marca?.toString().trim() || '',
+      quantidade: quantidade,
+      unidade: dados.unidade.toString().trim(),
+      condicao: condicao as 'Novo' | 'Usado' | 'Defeito' | 'Descarte',
+      categoria: dados.categoria?.toString().trim() || '',
+      subcategoria: dados.subcategoria?.toString().trim() || '',
+      subDestino: dados.subDestino?.toString().trim() || '',
+      tipoServico: dados.tipoServico?.toString().trim() || '',
+      quantidadeMinima: quantidadeMinima
+    };
+
+    return { item };
+  };
+
+  const processarArquivo = async (arquivo: File) => {
+    setValidando(true);
+    setProgresso(0);
+    
+    try {
+      const texto = await arquivo.text();
+      const linhas = texto.split('\n').map(linha => linha.trim()).filter(linha => linha);
+      
+      if (linhas.length < 2) {
+        throw new Error('Arquivo deve ter pelo menos uma linha de cabeçalho e uma de dados');
+      }
+
+      const cabecalho = linhas[0].split(',').map(campo => campo.replace(/"/g, '').trim());
+      const dadosLinhas = linhas.slice(1);
+
+      const validos: Omit<Item, 'id' | 'dataCriacao'>[] = [];
+      const erros: { linha: number; erro: string; dados: any }[] = [];
+      const codigosUsados = new Set<string>();
+
+      for (let i = 0; i < dadosLinhas.length; i++) {
+        setProgresso(((i + 1) / dadosLinhas.length) * 100);
+        
+        const linha = dadosLinhas[i];
+        const valores = linha.split(',').map(valor => valor.replace(/"/g, '').trim());
+        
+        if (valores.length !== cabecalho.length) {
+          erros.push({
+            linha: i + 2,
+            erro: `Número de colunas incorreto. Esperado: ${cabecalho.length}, Encontrado: ${valores.length}`,
+            dados: valores
+          });
+          continue;
+        }
+
+        const dados: any = {};
+        cabecalho.forEach((campo, index) => {
+          dados[campo] = valores[index];
+        });
+
+        const validacao = validarLinha(dados, i + 2);
+        
+        if (validacao.erro) {
+          erros.push({
+            linha: i + 2,
+            erro: validacao.erro,
+            dados
+          });
+        } else if (validacao.item) {
+          // Verificar código duplicado no arquivo
+          if (codigosUsados.has(validacao.item.codigoBarras)) {
+            erros.push({
+              linha: i + 2,
+              erro: `Código de barras duplicado no arquivo: ${validacao.item.codigoBarras}`,
+              dados
+            });
+          } else {
+            codigosUsados.add(validacao.item.codigoBarras);
+            validos.push(validacao.item);
+          }
+        }
+
+        // Pequena pausa para não travar a UI
+        if (i % 100 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 1));
+        }
+      }
+
+      setResultado({ validos, erros });
+    } catch (error) {
+      toast({
+        title: "Erro ao processar arquivo",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setValidando(false);
+    }
+  };
+
+  const handleArquivoSelecionado = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        toast({
+          title: "Formato inválido",
+          description: "Por favor, selecione um arquivo CSV.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setArquivo(file);
+      setResultado(null);
+    }
+  };
+
+  const handleImportar = () => {
+    if (resultado?.validos) {
+      onImportar(resultado.validos);
+      handleClose();
+    }
+  };
+
+  const handleClose = () => {
+    setArquivo(null);
+    setResultado(null);
+    setValidando(false);
+    setProgresso(0);
+    onClose();
+  };
+
+  return (
+    <Dialog open={aberto} onOpenChange={handleClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            Importar Itens em Lote
+          </DialogTitle>
+          <DialogDescription>
+            Importe múltiplos itens de uma vez usando um arquivo CSV
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Upload de arquivo */}
+          <div>
+            <Label htmlFor="arquivo">Selecionar Arquivo CSV</Label>
+            <div className="mt-2">
+              <Input
+                id="arquivo"
+                type="file"
+                accept=".csv"
+                onChange={handleArquivoSelecionado}
+                className="cursor-pointer"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Apenas arquivos CSV são aceitos. Use o modelo fornecido nas configurações.
+            </p>
+          </div>
+
+          {/* Processar arquivo */}
+          {arquivo && !resultado && !validando && (
+            <div className="flex justify-center">
+              <Button onClick={() => processarArquivo(arquivo)} className="flex items-center gap-2">
+                <FileSpreadsheet className="h-4 w-4" />
+                Validar Arquivo
+              </Button>
+            </div>
+          )}
+
+          {/* Progresso da validação */}
+          {validando && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="h-4 w-4 animate-spin" />
+                <span>Validando arquivo...</span>
+              </div>
+              <Progress value={progresso} className="w-full" />
+              <p className="text-xs text-muted-foreground text-center">
+                {progresso.toFixed(0)}% concluído
+              </p>
+            </div>
+          )}
+
+          {/* Resultado da validação */}
+          {resultado && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Alert className="border-green-200 bg-green-50">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-800">
+                    <strong>{resultado.validos.length}</strong> itens válidos para importação
+                  </AlertDescription>
+                </Alert>
+
+                {resultado.erros.length > 0 && (
+                  <Alert className="border-red-200 bg-red-50">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                    <AlertDescription className="text-red-800">
+                      <strong>{resultado.erros.length}</strong> erros encontrados
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+
+              {/* Lista de erros */}
+              {resultado.erros.length > 0 && (
+                <div className="max-h-48 overflow-y-auto border rounded p-3">
+                  <h4 className="font-semibold text-red-800 mb-2">Erros encontrados:</h4>
+                  <div className="space-y-1">
+                    {resultado.erros.slice(0, 10).map((erro, index) => (
+                      <div key={index} className="text-sm flex items-start gap-2">
+                        <X className="h-3 w-3 text-red-500 mt-0.5 flex-shrink-0" />
+                        <span>
+                          <strong>Linha {erro.linha}:</strong> {erro.erro}
+                        </span>
+                      </div>
+                    ))}
+                    {resultado.erros.length > 10 && (
+                      <p className="text-xs text-muted-foreground">
+                        ... e mais {resultado.erros.length - 10} erros
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Botões de ação */}
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={handleClose}>
+                  Cancelar
+                </Button>
+                
+                <Button 
+                  onClick={handleImportar}
+                  disabled={resultado.validos.length === 0}
+                  className="flex items-center gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  Importar {resultado.validos.length} Itens
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};

@@ -81,25 +81,21 @@ export const gerarRelatorioPDF = async ({
 
   yPosition += 35;
 
-  // Preparar dados da tabela
+  // Preparar dados da tabela (campos essenciais para caber na página)
   const dadosTabela = itens.map(item => [
     item.codigoBarras,
-    item.nome,
+    item.nome.length > 25 ? item.nome.substring(0, 25) + '...' : item.nome,
     item.categoria,
     item.marca,
-    item.localizacao,
     item.estoqueAtual.toString(),
     item.unidade,
     item.condicao,
-    getStatusEstoque(item),
-    item.ultimaMovimentacao ? 
-      new Date(item.ultimaMovimentacao.dataHora).toLocaleDateString('pt-BR') : 
-      'N/A'
+    getStatusEstoque(item)
   ]);
 
   // Criar tabela
   autoTable(doc, {
-    head: [['Código', 'Nome', 'Categoria', 'Marca', 'Localização', 'Estoque', 'Unidade', 'Condição', 'Status', 'Última Mov.']],
+    head: [['Código', 'Nome', 'Categoria', 'Marca', 'Estoque', 'Unidade', 'Condição', 'Status']],
     body: dadosTabela,
     startY: yPosition,
     styles: {
@@ -116,16 +112,14 @@ export const gerarRelatorioPDF = async ({
       fillColor: [245, 245, 245]
     },
     columnStyles: {
-      0: { cellWidth: 25 }, // Código
-      1: { cellWidth: 35 }, // Nome
+      0: { cellWidth: 30 }, // Código
+      1: { cellWidth: 50 }, // Nome
       2: { cellWidth: 25 }, // Categoria
-      3: { cellWidth: 20 }, // Marca
-      4: { cellWidth: 25 }, // Localização
-      5: { cellWidth: 15, halign: 'right' }, // Estoque
-      6: { cellWidth: 15 }, // Unidade
-      7: { cellWidth: 18 }, // Condição
-      8: { cellWidth: 15 }, // Status
-      9: { cellWidth: 20 } // Última Mov.
+      3: { cellWidth: 25 }, // Marca
+      4: { cellWidth: 20, halign: 'right' }, // Estoque
+      5: { cellWidth: 15 }, // Unidade
+      6: { cellWidth: 20 }, // Condição
+      7: { cellWidth: 15 } // Status
     },
     margin: { top: 10, right: 20, bottom: 20, left: 20 },
     didDrawPage: function (data) {
