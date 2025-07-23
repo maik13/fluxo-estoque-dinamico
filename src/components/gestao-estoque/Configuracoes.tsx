@@ -12,6 +12,7 @@ import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Data
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { GuiaImportacaoExcel } from './GuiaImportacaoExcel';
 
 interface ConfiguracoesProps {
   onConfigChange?: () => void;
@@ -180,11 +181,12 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
         </DialogHeader>
         
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="usuarios">Usuários</TabsTrigger>
             <TabsTrigger value="estoques">Estoques</TabsTrigger>
             <TabsTrigger value="tipos-servico">Tipos de Serviço</TabsTrigger>
             <TabsTrigger value="subcategorias">Subcategorias</TabsTrigger>
+            <TabsTrigger value="importacao">Importação</TabsTrigger>
             <TabsTrigger value="tema">Tema</TabsTrigger>
             <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
           </TabsList>
@@ -445,6 +447,11 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Aba Importação */}
+          <TabsContent value="importacao" className="space-y-4">
+            <GuiaImportacaoExcel />
           </TabsContent>
 
           {/* Aba Tema */}
