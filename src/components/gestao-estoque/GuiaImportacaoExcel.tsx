@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FileSpreadsheet, Download, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import * as XLSX from 'xlsx';
 
 export const GuiaImportacaoExcel = () => {
   
@@ -45,12 +46,12 @@ export const GuiaImportacaoExcel = () => {
         'Cabos Flexíveis',
         'Estoque Principal',
         'Instalação Elétrica',
-        '100',
-        '10',
+        100,
+        10,
         'metro',
         'Novo',
         'Cabo flexível 2,5mm² isolação 750V',
-        '100',
+        100,
         '',
         '',
         ''
@@ -67,13 +68,13 @@ export const GuiaImportacaoExcel = () => {
         'Disjuntores',
         'Estoque Obra',
         'Quadro Elétrico',
-        '5',
-        '2',
+        5,
+        2,
         'peça',
         'Novo',
         'Disjuntor bipolar 32A curva C',
         '',
-        '0.2',
+        0.2,
         '',
         'Bipolar'
       ],
@@ -89,34 +90,65 @@ export const GuiaImportacaoExcel = () => {
         'Abrasivos',
         'Estoque Geral',
         'Acabamento',
-        '50',
-        '5',
+        50,
+        5,
         'folha',
         'Novo',
         'Lixa d\'água granulação 220',
         '',
         '',
-        '23',
+        23,
         ''
       ]
     ];
 
-    // Criar conteúdo CSV
-    const csvContent = [
-      headers.join(','),
-      ...exemploData.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
+    // Criar workbook e worksheet
+    const workbook = XLSX.utils.book_new();
+    const worksheetData = [headers, ...exemploData];
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
 
-    // Download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'modelo-importacao-estoque.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Definir larguras das colunas
+    const colWidths = [
+      { wch: 15 }, // codigoBarras
+      { wch: 25 }, // nome
+      { wch: 20 }, // origem
+      { wch: 15 }, // caixaOrganizador
+      { wch: 25 }, // localizacao
+      { wch: 15 }, // responsavel
+      { wch: 15 }, // marca
+      { wch: 15 }, // categoria
+      { wch: 18 }, // subcategoria
+      { wch: 18 }, // subDestino
+      { wch: 18 }, // tipoServico
+      { wch: 12 }, // quantidade
+      { wch: 15 }, // quantidadeMinima
+      { wch: 10 }, // unidade
+      { wch: 10 }, // condicao
+      { wch: 35 }, // especificacao
+      { wch: 12 }, // metragem
+      { wch: 8 },  // peso
+      { wch: 15 }, // comprimentoLixa
+      { wch: 18 }  // polaridadeDisjuntor
+    ];
+    worksheet['!cols'] = colWidths;
+
+    // Estilizar cabeçalho
+    const headerRange = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+    for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+      if (!worksheet[cellAddress]) continue;
+      worksheet[cellAddress].s = {
+        font: { bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "366092" } },
+        alignment: { horizontal: "center" }
+      };
+    }
+
+    // Adicionar worksheet ao workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Modelo Importação");
+
+    // Salvar arquivo
+    XLSX.writeFile(workbook, 'modelo-importacao-estoque.xlsx');
   };
 
   const camposObrigatorios = [
@@ -163,7 +195,7 @@ export const GuiaImportacaoExcel = () => {
           <div className="flex justify-center">
             <Button onClick={gerarArquivoModelo} className="flex items-center gap-2">
               <Download className="h-4 w-4" />
-              Baixar Arquivo Modelo (CSV)
+              Baixar Arquivo Modelo Excel (.xlsx)
             </Button>
           </div>
 
@@ -172,16 +204,16 @@ export const GuiaImportacaoExcel = () => {
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                <strong>Importante:</strong> O arquivo deve estar no formato CSV (separado por vírgulas) 
-                ou Excel (.xlsx). Certifique-se de que os nomes das colunas estão exatamente como especificado.
+                <strong>Importante:</strong> O arquivo deve estar no formato Excel (.xlsx) ou CSV (separado por vírgulas). 
+                Certifique-se de que os nomes das colunas estão exatamente como especificado.
               </AlertDescription>
             </Alert>
 
             <Alert>
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>
-                <strong>Dica:</strong> Baixe o arquivo modelo acima para ter a estrutura correta. 
-                Ele já vem com exemplos de dados para orientar o preenchimento.
+                <strong>Dica:</strong> Baixe o arquivo modelo Excel acima para ter a estrutura correta. 
+                Ele já vem com exemplos de dados e formatação adequada para orientar o preenchimento.
               </AlertDescription>
             </Alert>
           </div>
