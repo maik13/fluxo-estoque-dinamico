@@ -31,39 +31,50 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
   const validarLinha = (dados: any, linha: number): { item?: Omit<Item, 'id' | 'dataCriacao'>; erro?: string } => {
     // Verificar campos obrigatórios
     for (const campo of camposObrigatorios) {
-      if (!dados[campo] || dados[campo].toString().trim() === '') {
-        return { erro: `Campo obrigatório '${campo}' está vazio` };
+      const valor = dados[campo];
+      if (!valor || valor.toString().trim() === '') {
+        return { erro: `Campo obrigatório '${campo}' está vazio ou não foi encontrado` };
       }
     }
 
+    // Validar código de barras (não pode ser só números ou muito curto)
+    const codigoBarras = dados.codigoBarras.toString().trim();
+    if (codigoBarras.length < 3) {
+      return { erro: 'Código de barras deve ter pelo menos 3 caracteres' };
+    }
+
     // Validar quantidade
-    const quantidade = parseFloat(dados.quantidade);
+    const quantidadeStr = dados.quantidade.toString().trim().replace(',', '.');
+    const quantidade = parseFloat(quantidadeStr);
     if (isNaN(quantidade) || quantidade < 0) {
-      return { erro: 'Quantidade deve ser um número maior ou igual a zero' };
+      return { erro: `Quantidade inválida: "${dados.quantidade}". Deve ser um número maior ou igual a zero` };
     }
 
     // Validar quantidade mínima se fornecida
     let quantidadeMinima;
     if (dados.quantidadeMinima && dados.quantidadeMinima.toString().trim() !== '') {
-      quantidadeMinima = parseFloat(dados.quantidadeMinima);
+      const quantidadeMinimaStr = dados.quantidadeMinima.toString().trim().replace(',', '.');
+      quantidadeMinima = parseFloat(quantidadeMinimaStr);
       if (isNaN(quantidadeMinima) || quantidadeMinima < 0) {
-        return { erro: 'Quantidade mínima deve ser um número maior ou igual a zero' };
+        return { erro: `Quantidade mínima inválida: "${dados.quantidadeMinima}". Deve ser um número maior ou igual a zero` };
       }
     }
 
     // Validar condição
-    const condicao = dados.condicao || 'Novo';
-    if (!['Novo', 'Usado', 'Defeito', 'Descarte'].includes(condicao)) {
-      return { erro: 'Condição deve ser: Novo, Usado, Defeito ou Descarte' };
+    const condicao = dados.condicao ? dados.condicao.toString().trim() : 'Novo';
+    const condicoesValidas = ['Novo', 'Usado', 'Defeito', 'Descarte'];
+    if (!condicoesValidas.includes(condicao)) {
+      return { erro: `Condição inválida: "${dados.condicao}". Deve ser: ${condicoesValidas.join(', ')}` };
     }
 
     // Validar campos numéricos opcionais
     const camposNumericos = ['metragem', 'peso', 'comprimentoLixa'];
     for (const campo of camposNumericos) {
       if (dados[campo] && dados[campo].toString().trim() !== '') {
-        const valor = parseFloat(dados[campo]);
-        if (isNaN(valor)) {
-          return { erro: `${campo} deve ser um número válido` };
+        const valorStr = dados[campo].toString().trim().replace(',', '.');
+        const valor = parseFloat(valorStr);
+        if (isNaN(valor) || valor < 0) {
+          return { erro: `${campo} inválido: "${dados[campo]}". Deve ser um número válido maior ou igual a zero` };
         }
       }
     }
@@ -106,8 +117,46 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
         throw new Error('Arquivo deve ter pelo menos uma linha de cabeçalho e uma de dados');
       }
 
-      const cabecalho = linhas[0].split(',').map(campo => campo.replace(/"/g, '').trim());
+      // Parse CSV mais robusto
+      const parseCSVLine = (linha: string): string[] => {
+        const resultado: string[] = [];
+        let atual = '';
+        let dentroAspas = false;
+        
+        for (let i = 0; i < linha.length; i++) {
+          const char = linha[i];
+          
+          if (char === '"') {
+            if (dentroAspas && linha[i + 1] === '"') {
+              // Aspas duplas escapadas
+              atual += '"';
+              i++; // Pular próxima aspa
+            } else {
+              // Iniciar ou finalizar campo com aspas
+              dentroAspas = !dentroAspas;
+            }
+          } else if (char === ',' && !dentroAspas) {
+            // Separador de campo
+            resultado.push(atual.trim());
+            atual = '';
+          } else {
+            atual += char;
+          }
+        }
+        
+        // Adicionar último campo
+        resultado.push(atual.trim());
+        return resultado;
+      };
+
+      const cabecalho = parseCSVLine(linhas[0]).map(campo => campo.trim());
       const dadosLinhas = linhas.slice(1);
+
+      // Verificar se todos os campos obrigatórios estão no cabeçalho
+      const camposFaltando = camposObrigatorios.filter(campo => !cabecalho.includes(campo));
+      if (camposFaltando.length > 0) {
+        throw new Error(`Campos obrigatórios faltando no cabeçalho: ${camposFaltando.join(', ')}`);
+      }
 
       const validos: Omit<Item, 'id' | 'dataCriacao'>[] = [];
       const erros: { linha: number; erro: string; dados: any }[] = [];
@@ -117,20 +166,27 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
         setProgresso(((i + 1) / dadosLinhas.length) * 100);
         
         const linha = dadosLinhas[i];
-        const valores = linha.split(',').map(valor => valor.replace(/"/g, '').trim());
+        if (!linha) continue; // Pular linhas vazias
         
-        if (valores.length !== cabecalho.length) {
+        const valores = parseCSVLine(linha);
+        
+        // Permitir linhas com menos colunas (preencher com vazio)
+        while (valores.length < cabecalho.length) {
+          valores.push('');
+        }
+        
+        if (valores.length > cabecalho.length) {
           erros.push({
             linha: i + 2,
-            erro: `Número de colunas incorreto. Esperado: ${cabecalho.length}, Encontrado: ${valores.length}`,
-            dados: valores
+            erro: `Muitas colunas. Esperado: ${cabecalho.length}, Encontrado: ${valores.length}`,
+            dados: valores.slice(0, 5) // Mostrar apenas primeiras 5 colunas
           });
           continue;
         }
 
         const dados: any = {};
         cabecalho.forEach((campo, index) => {
-          dados[campo] = valores[index];
+          dados[campo] = valores[index] || '';
         });
 
         const validacao = validarLinha(dados, i + 2);
