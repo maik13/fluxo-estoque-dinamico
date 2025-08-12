@@ -14,7 +14,137 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      items: {
+        Row: {
+          caixa_organizador: string | null
+          categoria: string | null
+          codigo_barras: string
+          comprimento_lixa: number | null
+          condicao: string | null
+          created_at: string
+          data_criacao: string
+          especificacao: string | null
+          id: string
+          localizacao: string | null
+          marca: string | null
+          metragem: number | null
+          nome: string
+          origem: string | null
+          peso: number | null
+          polaridade_disjuntor: string | null
+          quantidade: number
+          quantidade_minima: number | null
+          responsavel: string | null
+          sub_destino: string | null
+          subcategoria: string | null
+          tipo_servico: string | null
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          caixa_organizador?: string | null
+          categoria?: string | null
+          codigo_barras: string
+          comprimento_lixa?: number | null
+          condicao?: string | null
+          created_at?: string
+          data_criacao?: string
+          especificacao?: string | null
+          id?: string
+          localizacao?: string | null
+          marca?: string | null
+          metragem?: number | null
+          nome: string
+          origem?: string | null
+          peso?: number | null
+          polaridade_disjuntor?: string | null
+          quantidade?: number
+          quantidade_minima?: number | null
+          responsavel?: string | null
+          sub_destino?: string | null
+          subcategoria?: string | null
+          tipo_servico?: string | null
+          unidade: string
+          updated_at?: string
+        }
+        Update: {
+          caixa_organizador?: string | null
+          categoria?: string | null
+          codigo_barras?: string
+          comprimento_lixa?: number | null
+          condicao?: string | null
+          created_at?: string
+          data_criacao?: string
+          especificacao?: string | null
+          id?: string
+          localizacao?: string | null
+          marca?: string | null
+          metragem?: number | null
+          nome?: string
+          origem?: string | null
+          peso?: number | null
+          polaridade_disjuntor?: string | null
+          quantidade?: number
+          quantidade_minima?: number | null
+          responsavel?: string | null
+          sub_destino?: string | null
+          subcategoria?: string | null
+          tipo_servico?: string | null
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      movements: {
+        Row: {
+          created_at: string
+          data_hora: string
+          id: string
+          item_id: string
+          item_snapshot: Json
+          observacoes: string | null
+          quantidade: number
+          quantidade_anterior: number
+          quantidade_atual: number
+          responsavel: string
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          data_hora?: string
+          id?: string
+          item_id: string
+          item_snapshot: Json
+          observacoes?: string | null
+          quantidade: number
+          quantidade_anterior: number
+          quantidade_atual: number
+          responsavel: string
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          data_hora?: string
+          id?: string
+          item_id?: string
+          item_snapshot?: Json
+          observacoes?: string | null
+          quantidade?: number
+          quantidade_anterior?: number
+          quantidade_atual?: number
+          responsavel?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
