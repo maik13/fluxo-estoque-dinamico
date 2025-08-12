@@ -1,66 +1,89 @@
-
 import { useState, useEffect } from 'react';
-import { Item, Movimentacao, EstoqueItem, TipoMovimentacao } from '@/types/estoque';
+import { Item, Movimentacao, EstoqueItem } from '@/types/estoque';
 import { toast } from '@/hooks/use-toast';
 import { useConfiguracoes } from './useConfiguracoes';
-
-// Hook personalizado para gerenciar todo o sistema de estoque
-// Este é o "cérebro" do sistema - aqui ficam todas as regras de negócio
+import { supabase } from '@/integrations/supabase/client';
 
 export const useEstoque = () => {
   const [itens, setItens] = useState<Item[]>([]);
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
   const [loading, setLoading] = useState(true);
-  const { estoqueAtivo, obterEstoqueAtivoInfo } = useConfiguracoes();
+  const { estoqueAtivo } = useConfiguracoes();
 
-  // Carregar dados do localStorage quando o componente inicializar
+  // Carregar dados do Supabase quando o componente inicializar
   useEffect(() => {
-    if (!estoqueAtivo) return;
-    
-    try {
-      // ITENS: sempre carregar do estoque principal (compartilhado)
-      const itensSalvos = localStorage.getItem('estoque-itens-estoque-principal');
-      
-      // MOVIMENTAÇÕES: carregar específicas do estoque ativo
-      const movimentacoesSalvas = localStorage.getItem(`estoque-movimentacoes-${estoqueAtivo}`);
-      
-      if (itensSalvos) {
-        setItens(JSON.parse(itensSalvos));
-      } else {
-        setItens([]);
+    const carregar = async () => {
+      if (!estoqueAtivo) return;
+      try {
+        setLoading(true);
+        const { data: itensData, error: itensError } = await supabase
+          .from('items')
+          .select('*')
+          .order('created_at', { ascending: true });
+        if (itensError) throw itensError;
+
+        const { data: movsData, error: movsError } = await supabase
+          .from('movements')
+          .select('*')
+          .order('data_hora', { ascending: true });
+        if (movsError) throw movsError;
+
+        // Mapear DB -> Tipos locais
+        const itensMapped: Item[] = (itensData ?? []).map((row: any) => ({
+          id: row.id,
+          codigoBarras: row.codigo_barras,
+          origem: row.origem ?? '',
+          caixaOrganizador: row.caixa_organizador ?? '',
+          localizacao: row.localizacao ?? '',
+          responsavel: row.responsavel ?? '',
+          nome: row.nome,
+          metragem: row.metragem ?? undefined,
+          peso: row.peso ?? undefined,
+          comprimentoLixa: row.comprimento_lixa ?? undefined,
+          polaridadeDisjuntor: row.polaridade_disjuntor ?? undefined,
+          especificacao: row.especificacao ?? '',
+          marca: row.marca ?? '',
+          quantidade: Number(row.quantidade ?? 0),
+          unidade: row.unidade,
+          condicao: row.condicao ?? 'Novo',
+          categoria: row.categoria ?? '',
+          subcategoria: row.subcategoria ?? '',
+          subDestino: row.sub_destino ?? '',
+          tipoServico: row.tipo_servico ?? '',
+          dataCriacao: row.data_criacao ?? new Date().toISOString(),
+          quantidadeMinima: row.quantidade_minima ?? undefined,
+        }));
+
+        const movsMapped: Movimentacao[] = (movsData ?? []).map((row: any) => ({
+          id: row.id,
+          itemId: row.item_id,
+          tipo: row.tipo,
+          quantidade: Number(row.quantidade),
+          quantidadeAnterior: Number(row.quantidade_anterior),
+          quantidadeAtual: Number(row.quantidade_atual),
+          responsavel: row.responsavel,
+          observacoes: row.observacoes ?? undefined,
+          dataHora: row.data_hora,
+          itemSnapshot: row.item_snapshot as Partial<Item>,
+        }));
+
+        setItens(itensMapped);
+        setMovimentacoes(movsMapped);
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        toast({
+          title: 'Erro ao carregar dados',
+          description: 'Não foi possível carregar os dados do servidor.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
       }
-      
-      if (movimentacoesSalvas) {
-        setMovimentacoes(JSON.parse(movimentacoesSalvas));
-      } else {
-        setMovimentacoes([]);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-      toast({
-        title: "Erro ao carregar dados",
-        description: "Não foi possível carregar os dados salvos anteriormente.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    };
+    carregar();
   }, [estoqueAtivo]);
 
-  // Salvar no localStorage sempre que os dados mudarem
-  useEffect(() => {
-    if (!loading) {
-      // ITENS: sempre salvar no estoque principal (compartilhado)
-      localStorage.setItem('estoque-itens-estoque-principal', JSON.stringify(itens));
-    }
-  }, [itens, loading]);
-
-  useEffect(() => {
-    if (!loading && estoqueAtivo) {
-      // MOVIMENTAÇÕES: salvar específicas do estoque ativo
-      localStorage.setItem(`estoque-movimentacoes-${estoqueAtivo}`, JSON.stringify(movimentacoes));
-    }
-  }, [movimentacoes, loading, estoqueAtivo]);
+// Removido: persistência em localStorage (agora usamos Supabase)
 
   // Função para gerar ID único
   const gerarId = () => {
@@ -104,313 +127,344 @@ export const useEstoque = () => {
     });
   };
 
-  // Verificar se estoque atual é o principal
-  const isEstoquePrincipal = () => {
-    return estoqueAtivo === 'estoque-principal';
-  };
+const isEstoquePrincipal = () => estoqueAtivo === 'estoque-principal';
 
-  // Função para cadastrar novo item (só funciona no estoque principal)
-  const cadastrarItem = (dadosItem: Omit<Item, 'id' | 'dataCriacao'>) => {
-    try {
-      // Verificar se está no estoque principal
-      if (!isEstoquePrincipal()) {
-        toast({
-          title: "Operação não permitida",
-          description: "Novos itens só podem ser cadastrados no Estoque Principal.",
-          variant: "destructive",
-        });
-        return false;
+// Função para cadastrar novo item (só funciona no estoque principal)
+const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao'>) => {
+  try {
+    if (!isEstoquePrincipal()) {
+      toast({
+        title: 'Operação não permitida',
+        description: 'Novos itens só podem ser cadastrados no Estoque Principal.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    // Verificar duplicidade pelo estado local
+    if (buscarItemPorCodigo(dadosItem.codigoBarras)) {
+      toast({
+        title: 'Código já existe',
+        description: 'Já existe um item com este código de barras.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    const insertItem = {
+      codigo_barras: dadosItem.codigoBarras,
+      origem: dadosItem.origem,
+      caixa_organizador: dadosItem.caixaOrganizador,
+      localizacao: dadosItem.localizacao,
+      responsavel: dadosItem.responsavel,
+      nome: dadosItem.nome,
+      metragem: dadosItem.metragem ?? null,
+      peso: dadosItem.peso ?? null,
+      comprimento_lixa: dadosItem.comprimentoLixa ?? null,
+      polaridade_disjuntor: dadosItem.polaridadeDisjuntor ?? null,
+      especificacao: dadosItem.especificacao,
+      marca: dadosItem.marca,
+      quantidade: dadosItem.quantidade,
+      unidade: dadosItem.unidade,
+      condicao: dadosItem.condicao,
+      categoria: dadosItem.categoria,
+      subcategoria: dadosItem.subcategoria,
+      sub_destino: dadosItem.subDestino,
+      tipo_servico: dadosItem.tipoServico,
+      data_criacao: new Date().toISOString(),
+      quantidade_minima: dadosItem.quantidadeMinima ?? null,
+    };
+
+    const { data, error } = await supabase.from('items').insert(insertItem).select('*').maybeSingle();
+    if (error) throw error;
+
+    const novoItemId = data?.id as string;
+    const novoItem: Item = {
+      ...dadosItem,
+      id: novoItemId,
+      dataCriacao: insertItem.data_criacao,
+    };
+    setItens(prev => [...prev, novoItem]);
+
+    // Registrar movimentação de cadastro
+    const movimentacao: Omit<Movimentacao, 'id'> = {
+      itemId: novoItemId,
+      tipo: 'CADASTRO',
+      quantidade: dadosItem.quantidade,
+      quantidadeAnterior: 0,
+      quantidadeAtual: dadosItem.quantidade,
+      responsavel: dadosItem.responsavel,
+      observacoes: undefined,
+      dataHora: new Date().toISOString(),
+      itemSnapshot: novoItem,
+    };
+
+    const { data: movData, error: movError } = await supabase.from('movements').insert({
+      item_id: movimentacao.itemId,
+      tipo: movimentacao.tipo,
+      quantidade: movimentacao.quantidade,
+      quantidade_anterior: movimentacao.quantidadeAnterior,
+      quantidade_atual: movimentacao.quantidadeAtual,
+      responsavel: movimentacao.responsavel,
+      observacoes: movimentacao.observacoes ?? null,
+      data_hora: movimentacao.dataHora,
+      item_snapshot: movimentacao.itemSnapshot,
+    }).select('*').maybeSingle();
+    if (movError) throw movError;
+
+    setMovimentacoes(prev => [...prev, { ...movimentacao, id: movData!.id }]);
+
+    toast({ title: 'Item cadastrado!', description: `${novoItem.nome} foi cadastrado com sucesso.` });
+    return true;
+  } catch (error) {
+    console.error('Erro ao cadastrar item:', error);
+    toast({ title: 'Erro ao cadastrar', description: 'Ocorreu um erro ao cadastrar o item.', variant: 'destructive' });
+    return false;
+  }
+};
+
+// Registrar entrada
+const registrarEntrada = async (
+  codigoBarras: string,
+  quantidade: number,
+  responsavel: string,
+  observacoes?: string
+) => {
+  try {
+    const item = buscarItemPorCodigo(codigoBarras);
+    if (!item) {
+      toast({ title: 'Item não encontrado', description: 'Não foi encontrado item com este código de barras.', variant: 'destructive' });
+      return false;
+    }
+
+    const estoqueAnterior = calcularEstoqueAtual(item.id);
+    const estoqueAtual = estoqueAnterior + quantidade;
+
+    const movimento: Omit<Movimentacao, 'id'> = {
+      itemId: item.id,
+      tipo: 'ENTRADA',
+      quantidade,
+      quantidadeAnterior: estoqueAnterior,
+      quantidadeAtual: estoqueAtual,
+      responsavel,
+      observacoes,
+      dataHora: new Date().toISOString(),
+      itemSnapshot: item,
+    };
+
+    const { data, error } = await supabase.from('movements').insert({
+      item_id: movimento.itemId,
+      tipo: movimento.tipo,
+      quantidade: movimento.quantidade,
+      quantidade_anterior: movimento.quantidadeAnterior,
+      quantidade_atual: movimento.quantidadeAtual,
+      responsavel: movimento.responsavel,
+      observacoes: movimento.observacoes ?? null,
+      data_hora: movimento.dataHora,
+      item_snapshot: movimento.itemSnapshot,
+    }).select('*').maybeSingle();
+    if (error) throw error;
+
+    setMovimentacoes(prev => [...prev, { ...movimento, id: data!.id }]);
+
+    toast({ title: 'Entrada registrado!', description: `Entrada de ${quantidade} ${item.unidade} de ${item.nome}.` });
+    return true;
+  } catch (error) {
+    console.error('Erro ao registrar entrada:', error);
+    toast({ title: 'Erro na entrada', description: 'Ocorreu um erro ao registrar a entrada.', variant: 'destructive' });
+    return false;
+  }
+};
+
+// Registrar saída
+const registrarSaida = async (
+  codigoBarras: string,
+  quantidade: number,
+  responsavel: string,
+  observacoes?: string
+) => {
+  try {
+    const item = buscarItemPorCodigo(codigoBarras);
+    if (!item) {
+      toast({ title: 'Item não encontrado', description: 'Não foi encontrado item com este código de barras.', variant: 'destructive' });
+      return false;
+    }
+
+    const estoqueAnterior = calcularEstoqueAtual(item.id);
+    if (estoqueAnterior < quantidade) {
+      toast({ title: 'Estoque insuficiente', description: `Estoque atual: ${estoqueAnterior} ${item.unidade}. Quantidade solicitada: ${quantidade} ${item.unidade}.`, variant: 'destructive' });
+      return false;
+    }
+
+    const estoqueAtual = estoqueAnterior - quantidade;
+
+    const movimento: Omit<Movimentacao, 'id'> = {
+      itemId: item.id,
+      tipo: 'SAIDA',
+      quantidade,
+      quantidadeAnterior: estoqueAnterior,
+      quantidadeAtual: estoqueAtual,
+      responsavel,
+      observacoes,
+      dataHora: new Date().toISOString(),
+      itemSnapshot: item,
+    };
+
+    const { data, error } = await supabase.from('movements').insert({
+      item_id: movimento.itemId,
+      tipo: movimento.tipo,
+      quantidade: movimento.quantidade,
+      quantidade_anterior: movimento.quantidadeAnterior,
+      quantidade_atual: movimento.quantidadeAtual,
+      responsavel: movimento.responsavel,
+      observacoes: movimento.observacoes ?? null,
+      data_hora: movimento.dataHora,
+      item_snapshot: movimento.itemSnapshot,
+    }).select('*').maybeSingle();
+    if (error) throw error;
+
+    setMovimentacoes(prev => [...prev, { ...movimento, id: data!.id }]);
+
+    if (item.quantidadeMinima && estoqueAtual <= item.quantidadeMinima) {
+      toast({ title: '⚠️ Estoque baixo!', description: `${item.nome} está com estoque baixo: ${estoqueAtual} ${item.unidade}. Quantidade mínima: ${item.quantidadeMinima}`, variant: 'destructive' });
+    }
+
+    toast({ title: 'Saída registrada!', description: `Saída de ${quantidade} ${item.unidade} de ${item.nome}.` });
+    return true;
+  } catch (error) {
+    console.error('Erro ao registrar saída:', error);
+    toast({ title: 'Erro na saída', description: 'Ocorreu um erro ao registrar a saída.', variant: 'destructive' });
+    return false;
+  }
+};
+
+// Editar item (só no principal)
+const editarItem = async (itemEditado: Item) => {
+  try {
+    if (!isEstoquePrincipal()) {
+      toast({ title: 'Operação não permitida', description: 'Itens só podem ser editados no Estoque Principal.', variant: 'destructive' });
+      return false;
+    }
+
+    const update = {
+      codigo_barras: itemEditado.codigoBarras,
+      origem: itemEditado.origem,
+      caixa_organizador: itemEditado.caixaOrganizador,
+      localizacao: itemEditado.localizacao,
+      responsavel: itemEditado.responsavel,
+      nome: itemEditado.nome,
+      metragem: itemEditado.metragem ?? null,
+      peso: itemEditado.peso ?? null,
+      comprimento_lixa: itemEditado.comprimentoLixa ?? null,
+      polaridade_disjuntor: itemEditado.polaridadeDisjuntor ?? null,
+      especificacao: itemEditado.especificacao,
+      marca: itemEditado.marca,
+      quantidade: itemEditado.quantidade,
+      unidade: itemEditado.unidade,
+      condicao: itemEditado.condicao,
+      categoria: itemEditado.categoria,
+      subcategoria: itemEditado.subcategoria,
+      sub_destino: itemEditado.subDestino,
+      tipo_servico: itemEditado.tipoServico,
+      quantidade_minima: itemEditado.quantidadeMinima ?? null,
+    };
+
+    const { error } = await supabase.from('items').update(update).eq('id', itemEditado.id);
+    if (error) throw error;
+
+    setItens(prev => prev.map(i => (i.id === itemEditado.id ? itemEditado : i)));
+    toast({ title: 'Item atualizado!', description: `${itemEditado.nome} foi atualizado com sucesso.` });
+    return true;
+  } catch (error) {
+    console.error('Erro ao editar item:', error);
+    toast({ title: 'Erro ao editar', description: 'Ocorreu um erro ao editar o item.', variant: 'destructive' });
+    return false;
+  }
+};
+
+// Importar itens (só no principal)
+const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao'>[]) => {
+  try {
+    if (!isEstoquePrincipal()) {
+      toast({ title: 'Operação não permitida', description: 'Importação só pode ser feita no Estoque Principal.', variant: 'destructive' });
+      return false;
+    }
+
+    let sucessos = 0;
+    let erros = 0;
+    const codigosExistentes: string[] = [];
+
+    for (const itemData of lista) {
+      if (buscarItemPorCodigo(itemData.codigoBarras)) {
+        codigosExistentes.push(itemData.codigoBarras);
+        erros++;
+        continue;
       }
 
-      // Verificar se já existe item com mesmo código de barras
-      if (buscarItemPorCodigo(dadosItem.codigoBarras)) {
-        toast({
-          title: "Código já existe",
-          description: "Já existe um item com este código de barras.",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      const novoItem: Item = {
-        ...dadosItem,
-        id: gerarId(),
-        dataCriacao: new Date().toISOString(),
+      const insertItem = {
+        codigo_barras: itemData.codigoBarras,
+        origem: itemData.origem,
+        caixa_organizador: itemData.caixaOrganizador,
+        localizacao: itemData.localizacao,
+        responsavel: itemData.responsavel,
+        nome: itemData.nome,
+        metragem: itemData.metragem ?? null,
+        peso: itemData.peso ?? null,
+        comprimento_lixa: itemData.comprimentoLixa ?? null,
+        polaridade_disjuntor: itemData.polaridadeDisjuntor ?? null,
+        especificacao: itemData.especificacao,
+        marca: itemData.marca,
+        quantidade: itemData.quantidade,
+        unidade: itemData.unidade,
+        condicao: itemData.condicao,
+        categoria: itemData.categoria,
+        subcategoria: itemData.subcategoria,
+        sub_destino: itemData.subDestino,
+        tipo_servico: itemData.tipoServico,
+        data_criacao: new Date().toISOString(),
+        quantidade_minima: itemData.quantidadeMinima ?? null,
       };
 
+      const { data: itemRow, error: itemErr } = await supabase.from('items').insert(insertItem).select('*').maybeSingle();
+      if (itemErr) {
+        erros++;
+        continue;
+      }
+
+      const novoItem: Item = { ...itemData, id: itemRow!.id, dataCriacao: insertItem.data_criacao };
       setItens(prev => [...prev, novoItem]);
 
-      // Registrar movimentação de cadastro
-      const movimentacao: Movimentacao = {
-        id: gerarId(),
-        itemId: novoItem.id,
+      const { error: movErr } = await supabase.from('movements').insert({
+        item_id: itemRow!.id,
         tipo: 'CADASTRO',
-        quantidade: dadosItem.quantidade,
-        quantidadeAnterior: 0,
-        quantidadeAtual: dadosItem.quantidade,
-        responsavel: dadosItem.responsavel,
-        dataHora: new Date().toISOString(),
-        itemSnapshot: novoItem,
-      };
-
-      setMovimentacoes(prev => [...prev, movimentacao]);
-
-      toast({
-        title: "Item cadastrado!",
-        description: `${novoItem.nome} foi cadastrado com sucesso.`,
+        quantidade: itemData.quantidade,
+        quantidade_anterior: 0,
+        quantidade_atual: itemData.quantidade,
+        responsavel: itemData.responsavel,
+        observacoes: null,
+        data_hora: new Date().toISOString(),
+        item_snapshot: novoItem,
       });
-
-      return true;
-    } catch (error) {
-      console.error('Erro ao cadastrar item:', error);
-      toast({
-        title: "Erro ao cadastrar",
-        description: "Ocorreu um erro ao cadastrar o item.",
-        variant: "destructive",
-      });
-      return false;
+      if (movErr) {
+        // não bloquear importação por falha no log, apenas registrar erro
+      }
+      sucessos++;
     }
-  };
 
-  // Função para registrar entrada de estoque
-  const registrarEntrada = (
-    codigoBarras: string, 
-    quantidade: number, 
-    responsavel: string,
-    observacoes?: string
-  ) => {
-    try {
-      const item = buscarItemPorCodigo(codigoBarras);
-      
-      if (!item) {
-        toast({
-          title: "Item não encontrado",
-          description: "Não foi encontrado item com este código de barras.",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      const estoqueAnterior = calcularEstoqueAtual(item.id);
-      const estoqueAtual = estoqueAnterior + quantidade;
-
-      const movimentacao: Movimentacao = {
-        id: gerarId(),
-        itemId: item.id,
-        tipo: 'ENTRADA',
-        quantidade,
-        quantidadeAnterior: estoqueAnterior,
-        quantidadeAtual: estoqueAtual,
-        responsavel,
-        observacoes,
-        dataHora: new Date().toISOString(),
-        itemSnapshot: item,
-      };
-
-      setMovimentacoes(prev => [...prev, movimentacao]);
-
-      toast({
-        title: "Entrada registrada!",
-        description: `Entrada de ${quantidade} ${item.unidade} de ${item.nome}.`,
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Erro ao registrar entrada:', error);
-      toast({
-        title: "Erro na entrada",
-        description: "Ocorreu um erro ao registrar a entrada.",
-        variant: "destructive",
-      });
-      return false;
+    if (sucessos > 0) {
+      toast({ title: 'Importação concluída!', description: `${sucessos} itens importados com sucesso.${erros > 0 ? ` ${erros} itens com códigos já existentes foram ignorados.` : ''}` });
     }
-  };
-
-  // Função para registrar saída de estoque
-  const registrarSaida = (
-    codigoBarras: string, 
-    quantidade: number, 
-    responsavel: string,
-    observacoes?: string
-  ) => {
-    try {
-      const item = buscarItemPorCodigo(codigoBarras);
-      
-      if (!item) {
-        toast({
-          title: "Item não encontrado",
-          description: "Não foi encontrado item com este código de barras.",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      const estoqueAnterior = calcularEstoqueAtual(item.id);
-      
-      if (estoqueAnterior < quantidade) {
-        toast({
-          title: "Estoque insuficiente",
-          description: `Estoque atual: ${estoqueAnterior} ${item.unidade}. Quantidade solicitada: ${quantidade} ${item.unidade}.`,
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      const estoqueAtual = estoqueAnterior - quantidade;
-
-      const movimentacao: Movimentacao = {
-        id: gerarId(),
-        itemId: item.id,
-        tipo: 'SAIDA',
-        quantidade,
-        quantidadeAnterior: estoqueAnterior,
-        quantidadeAtual: estoqueAtual,
-        responsavel,
-        observacoes,
-        dataHora: new Date().toISOString(),
-        itemSnapshot: item,
-      };
-
-      setMovimentacoes(prev => [...prev, movimentacao]);
-
-      // Verificar se precisa alertar sobre estoque baixo
-      if (item.quantidadeMinima && estoqueAtual <= item.quantidadeMinima) {
-        toast({
-          title: "⚠️ Estoque baixo!",
-          description: `${item.nome} está com estoque baixo: ${estoqueAtual} ${item.unidade}. Quantidade mínima: ${item.quantidadeMinima}`,
-          variant: "destructive",
-        });
-      }
-
-      toast({
-        title: "Saída registrada!",
-        description: `Saída de ${quantidade} ${item.unidade} de ${item.nome}.`,
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Erro ao registrar saída:', error);
-      toast({
-        title: "Erro na saída",
-        description: "Ocorreu um erro ao registrar a saída.",
-        variant: "destructive",
-      });
-      return false;
+    if (codigosExistentes.length > 0) {
+      toast({ title: 'Códigos duplicados', description: `Os seguintes códigos já existem: ${codigosExistentes.slice(0, 3).join(', ')}${codigosExistentes.length > 3 ? '...' : ''}`, variant: 'destructive' });
     }
-  };
 
-  // Função para editar item (só funciona no estoque principal)
-  const editarItem = (itemEditado: Item) => {
-    try {
-      // Verificar se está no estoque principal
-      if (!isEstoquePrincipal()) {
-        toast({
-          title: "Operação não permitida",
-          description: "Itens só podem ser editados no Estoque Principal.",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      // Atualizar o item na lista
-      setItens(prev => prev.map(item => 
-        item.id === itemEditado.id ? itemEditado : item
-      ));
-
-      toast({
-        title: "Item atualizado!",
-        description: `${itemEditado.nome} foi atualizado com sucesso.`,
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Erro ao editar item:', error);
-      toast({
-        title: "Erro ao editar",
-        description: "Ocorreu um erro ao editar o item.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
-
-  // Função para importar itens em lote (só funciona no estoque principal)
-  const importarItens = (itens: Omit<Item, 'id' | 'dataCriacao'>[]) => {
-    try {
-      // Verificar se está no estoque principal
-      if (!isEstoquePrincipal()) {
-        toast({
-          title: "Operação não permitida",
-          description: "Importação só pode ser feita no Estoque Principal.",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      let sucessos = 0;
-      let erros = 0;
-      const codigosExistentes: string[] = [];
-
-      itens.forEach(itemData => {
-        // Verificar se já existe item com mesmo código de barras
-        if (buscarItemPorCodigo(itemData.codigoBarras)) {
-          codigosExistentes.push(itemData.codigoBarras);
-          erros++;
-          return;
-        }
-
-        const novoItem: Item = {
-          ...itemData,
-          id: gerarId(),
-          dataCriacao: new Date().toISOString(),
-        };
-
-        setItens(prev => [...prev, novoItem]);
-
-        // Registrar movimentação de cadastro
-        const movimentacao: Movimentacao = {
-          id: gerarId(),
-          itemId: novoItem.id,
-          tipo: 'CADASTRO',
-          quantidade: itemData.quantidade,
-          quantidadeAnterior: 0,
-          quantidadeAtual: itemData.quantidade,
-          responsavel: itemData.responsavel,
-          dataHora: new Date().toISOString(),
-          itemSnapshot: novoItem,
-        };
-
-        setMovimentacoes(prev => [...prev, movimentacao]);
-        sucessos++;
-      });
-
-      // Mostrar resultado da importação
-      if (sucessos > 0) {
-        toast({
-          title: "Importação concluída!",
-          description: `${sucessos} itens importados com sucesso.${erros > 0 ? ` ${erros} itens com códigos já existentes foram ignorados.` : ''}`,
-        });
-      }
-
-      if (codigosExistentes.length > 0) {
-        toast({
-          title: "Códigos duplicados",
-          description: `Os seguintes códigos já existem: ${codigosExistentes.slice(0, 3).join(', ')}${codigosExistentes.length > 3 ? '...' : ''}`,
-          variant: "destructive",
-        });
-      }
-
-      return sucessos > 0;
-    } catch (error) {
-      console.error('Erro ao importar itens:', error);
-      toast({
-        title: "Erro na importação",
-        description: "Ocorreu um erro ao importar os itens.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
+    return sucessos > 0;
+  } catch (error) {
+    console.error('Erro ao importar itens:', error);
+    toast({ title: 'Erro na importação', description: 'Ocorreu um erro ao importar os itens.', variant: 'destructive' });
+    return false;
+  }
+};
 
   return {
     itens,

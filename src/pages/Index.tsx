@@ -1,13 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MenuPrincipal } from '@/components/gestao-estoque/MenuPrincipal';
 import { TabelaEstoque } from '@/components/gestao-estoque/TabelaEstoque';
 import { TabelaMovimentacoes } from '@/components/gestao-estoque/TabelaMovimentacoes';
-import { Package, Menu, History } from 'lucide-react';
+import { Package, Menu, History, LogOut } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 const Index = () => {
   const [tabAtiva, setTabAtiva] = useState('menu');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const { session, loading, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && !session) {
+      navigate('/auth');
+    }
+  }, [loading, session, navigate]);
 
   // Função chamada quando uma movimentação é realizada
   const handleMovimentacaoRealizada = () => {
@@ -18,10 +29,15 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-card border-b">
-        <div className="container mx-auto p-4">
+        <div className="container mx-auto p-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-foreground">
             Controle completo do seu estoque de materiais
           </h1>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={signOut}>
+              <LogOut className="h-4 w-4 mr-2" /> Sair
+            </Button>
+          </div>
         </div>
       </div>
       
