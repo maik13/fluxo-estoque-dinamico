@@ -81,47 +81,47 @@ export const gerarRelatorioPDF = async ({
 
   yPosition += 35;
 
-  // Preparar dados da tabela (campos essenciais para caber na página)
+  // Preparar dados da tabela otimizados para A4
   const dadosTabela = itens.map(item => [
     item.codigoBarras,
-    item.nome.length > 25 ? item.nome.substring(0, 25) + '...' : item.nome,
-    item.categoria,
-    item.marca,
+    item.nome.length > 40 ? item.nome.substring(0, 40) + '...' : item.nome,
+    item.categoria || '-',
     item.estoqueAtual.toString(),
     item.unidade,
-    item.condicao,
     getStatusEstoque(item)
   ]);
 
-  // Criar tabela
+  // Criar tabela otimizada para A4
   autoTable(doc, {
-    head: [['Código', 'Nome', 'Categoria', 'Marca', 'Estoque', 'Unidade', 'Condição', 'Status']],
+    head: [['Código', 'Nome', 'Categoria', 'Estoque', 'Unidade', 'Status']],
     body: dadosTabela,
     startY: yPosition,
+    theme: 'striped',
     styles: {
-      fontSize: 8,
-      cellPadding: 2,
+      fontSize: 7,
+      cellPadding: 1.5,
+      lineColor: [200, 200, 200],
+      lineWidth: 0.1,
     },
     headStyles: {
       fillColor: [41, 128, 185],
       textColor: [255, 255, 255],
-      fontSize: 9,
-      fontStyle: 'bold'
+      fontSize: 8,
+      fontStyle: 'bold',
+      halign: 'center'
     },
     alternateRowStyles: {
-      fillColor: [245, 245, 245]
+      fillColor: [248, 248, 248]
     },
     columnStyles: {
-      0: { cellWidth: 30 }, // Código
-      1: { cellWidth: 50 }, // Nome
-      2: { cellWidth: 25 }, // Categoria
-      3: { cellWidth: 25 }, // Marca
-      4: { cellWidth: 20, halign: 'right' }, // Estoque
-      5: { cellWidth: 15 }, // Unidade
-      6: { cellWidth: 20 }, // Condição
-      7: { cellWidth: 15 } // Status
+      0: { cellWidth: 25, halign: 'center' }, // Código
+      1: { cellWidth: 65 }, // Nome
+      2: { cellWidth: 30, halign: 'center' }, // Categoria
+      3: { cellWidth: 20, halign: 'right' }, // Estoque
+      4: { cellWidth: 15, halign: 'center' }, // Unidade
+      5: { cellWidth: 15, halign: 'center' } // Status
     },
-    margin: { top: 10, right: 20, bottom: 20, left: 20 },
+    margin: { top: 5, right: 10, bottom: 20, left: 10 },
     didDrawPage: function (data) {
       // Adicionar rodapé
       const pageNumber = (doc as any).internal.getNumberOfPages();

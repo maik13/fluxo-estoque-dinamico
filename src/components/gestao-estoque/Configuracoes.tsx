@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { GuiaImportacaoExcel } from './GuiaImportacaoExcel';
+import { UsuariosList } from './UsuariosList';
 
 interface ConfiguracoesProps {
   onConfigChange?: () => void;
@@ -197,62 +198,14 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <User className="h-5 w-5" />
-                  Cadastro de Usuário
+                  Usuários Cadastrados
                 </CardTitle>
                 <CardDescription>
-                  Cadastre novos usuários para acessar o sistema
+                  Visualize e gerencie os usuários do sistema
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="nomeUsuario">Nome</Label>
-                    <Input
-                      id="nomeUsuario"
-                      value={novoUsuario.nome}
-                      onChange={(e) => setNovoUsuario(prev => ({ ...prev, nome: e.target.value }))}
-                      placeholder="Nome do usuário"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="emailUsuario">Email</Label>
-                    <Input
-                      id="emailUsuario"
-                      type="email"
-                      value={novoUsuario.email}
-                      onChange={(e) => setNovoUsuario(prev => ({ ...prev, email: e.target.value }))}
-                      placeholder="email@exemplo.com"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="senhaUsuario">Senha</Label>
-                    <Input
-                      id="senhaUsuario"
-                      type="password"
-                      value={novoUsuario.senha}
-                      onChange={(e) => setNovoUsuario(prev => ({ ...prev, senha: e.target.value }))}
-                      placeholder="••••••••"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="tipoUsuario">Tipo de Usuário</Label>
-                    <Select value={novoUsuario.tipo} onValueChange={(value) => setNovoUsuario(prev => ({ ...prev, tipo: value }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o tipo de usuário" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="administrador">Administrador</SelectItem>
-                        <SelectItem value="gestor">Gestor</SelectItem>
-                        <SelectItem value="engenharia">Engenharia</SelectItem>
-                        <SelectItem value="mestre">Mestre</SelectItem>
-                        <SelectItem value="estoquista">Estoquista</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <Button onClick={handleCadastroUsuario} className="w-full">
-                  Cadastrar Usuário
-                </Button>
+                <UsuariosList />
               </CardContent>
             </Card>
           </TabsContent>
