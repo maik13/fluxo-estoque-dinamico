@@ -208,7 +208,7 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao'>) => {
       responsavel: movimentacao.responsavel,
       observacoes: movimentacao.observacoes ?? null,
       data_hora: movimentacao.dataHora,
-      item_snapshot: movimentacao.itemSnapshot,
+      item_snapshot: JSON.parse(JSON.stringify(movimentacao.itemSnapshot)),
     }).select('*').maybeSingle();
     if (movError) throw movError;
 
@@ -261,7 +261,7 @@ const registrarEntrada = async (
       responsavel: movimento.responsavel,
       observacoes: movimento.observacoes ?? null,
       data_hora: movimento.dataHora,
-      item_snapshot: movimento.itemSnapshot,
+      item_snapshot: JSON.parse(JSON.stringify(movimento.itemSnapshot)),
     }).select('*').maybeSingle();
     if (error) throw error;
 
@@ -319,7 +319,7 @@ const registrarSaida = async (
       responsavel: movimento.responsavel,
       observacoes: movimento.observacoes ?? null,
       data_hora: movimento.dataHora,
-      item_snapshot: movimento.itemSnapshot,
+      item_snapshot: JSON.parse(JSON.stringify(movimento.itemSnapshot)),
     }).select('*').maybeSingle();
     if (error) throw error;
 
@@ -443,7 +443,7 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao'>[]) => {
         responsavel: itemData.responsavel,
         observacoes: null,
         data_hora: new Date().toISOString(),
-        item_snapshot: novoItem,
+        item_snapshot: JSON.parse(JSON.stringify(novoItem)),
       });
       if (movErr) {
         // não bloquear importação por falha no log, apenas registrar erro

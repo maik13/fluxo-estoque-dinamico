@@ -12,7 +12,7 @@ interface DialogoEditarItemProps {
   aberto: boolean;
   onClose: () => void;
   item: Item | null;
-  onSalvar: (itemEditado: Item) => boolean;
+  onSalvar: (itemEditado: Item) => Promise<boolean>;
 }
 
 export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEditarItemProps) => {
@@ -25,11 +25,11 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
     }
   }, [item]);
 
-  const handleSalvar = (e: React.FormEvent) => {
+  const handleSalvar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formItem) return;
 
-    const sucesso = onSalvar(formItem);
+    const sucesso = await onSalvar(formItem);
     if (sucesso) {
       onClose();
     }

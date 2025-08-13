@@ -163,8 +163,8 @@ export const TabelaEstoque = () => {
   };
 
   // Função para salvar edição
-  const handleSalvarEdicao = (itemEditado: any) => {
-    return editarItem(itemEditado);
+  const handleSalvarEdicao = async (itemEditado: any) => {
+    return await editarItem(itemEditado);
   };
 
   if (loading) {
