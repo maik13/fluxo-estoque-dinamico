@@ -8,14 +8,24 @@ export const useEstoque = () => {
   const [itens, setItens] = useState<Item[]>([]);
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
   const [loading, setLoading] = useState(true);
-  const { estoqueAtivo } = useConfiguracoes();
+  const { estoqueAtivo, obterEstoqueAtivoInfo } = useConfiguracoes();
 
-  // Carregar dados do Supabase quando o componente inicializar
+  // Obter dados iniciais quando o estoque ativo mudar
   useEffect(() => {
-    const carregar = async () => {
-      if (!estoqueAtivo) return;
-      try {
-        setLoading(true);
+    if (estoqueAtivo) {
+      carregarDados();
+    } else {
+      // Se não há estoque ativo, limpar os dados
+      setItens([]);
+      setMovimentacoes([]);
+      setLoading(false);
+    }
+  }, [estoqueAtivo]);
+
+  // Função para carregar dados do Supabase
+  const carregarDados = async () => {
+    try {
+      setLoading(true);
         const { data: itensData, error: itensError } = await supabase
           .from('items')
           .select('*')
@@ -80,8 +90,7 @@ export const useEstoque = () => {
         setLoading(false);
       }
     };
-    carregar();
-  }, [estoqueAtivo]);
+  };
 
 // Removido: persistência em localStorage (agora usamos Supabase)
 
@@ -111,18 +120,32 @@ export const useEstoque = () => {
     return Math.max(0, estoque); // Não pode ser negativo
   };
 
-  // Função para obter todos os itens com estoque atual
+  // Obter estoque com quantidades atuais (filtrado por estoque ativo)
   const obterEstoque = (): EstoqueItem[] => {
-    return itens.map(item => {
-      const estoqueAtual = calcularEstoqueAtual(item.id);
-      const ultimasMovimentacoes = movimentacoes
-        .filter(mov => mov.itemId === item.id)
-        .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime());
+    // Filtrar itens apenas do estoque ativo
+    const itensFiltrados = itens.filter(item => {
+      // Se não há informação de estoque no item, considerar que pertence ao estoque principal
+      const itemEstoque = item.subDestino || 'estoque-principal';
+      const estoqueAtivoInfo = obterEstoqueAtivoInfo();
+      const estoqueAtivoNome = estoqueAtivoInfo?.nome || 'Estoque Principal';
       
+      // Mapear nomes para IDs consistentes
+      const estoqueAtivo = estoqueAtivoNome.toLowerCase().replace(/\s+/g, '-');
+      const itemEstoqueNormalizado = itemEstoque.toLowerCase().replace(/\s+/g, '-');
+      
+      return itemEstoqueNormalizado === estoqueAtivo;
+    });
+
+    return itensFiltrados.map(item => {
+      const estoqueAtual = calcularEstoqueAtual(item.id);
+      const ultimaMovimentacao = movimentacoes
+        .filter(mov => mov.itemId === item.id)
+        .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())[0];
+
       return {
         ...item,
         estoqueAtual,
-        ultimaMovimentacao: ultimasMovimentacoes[0]
+        ultimaMovimentacao: ultimaMovimentacao || null
       };
     });
   };

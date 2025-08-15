@@ -15,6 +15,7 @@ import { Configuracoes } from './Configuracoes';
 import { SeletorEstoque } from './SeletorEstoque';
 import { DialogoImportacao } from './DialogoImportacao';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
 
 interface MenuPrincipalProps {
@@ -24,6 +25,7 @@ interface MenuPrincipalProps {
 export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) => {
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, obterEstoque, isEstoquePrincipal, importarItens } = useEstoque();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterEstoqueAtivoInfo } = useConfiguracoes();
+  const { canCreateItems, canManageStock } = usePermissions();
   
   // Estados para controlar os diálogos
   const [dialogoCadastro, setDialogoCadastro] = useState(false);
@@ -81,7 +83,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
 
   // Obter informações do estoque ativo
   const estoqueAtivoInfo = obterEstoqueAtivoInfo();
-  const podeUsarCadastro = isEstoquePrincipal();
+  const podeUsarCadastro = isEstoquePrincipal() && canCreateItems;
+  const podeMovimentar = canManageStock;
 
   // Função para resetar formulários
   const resetarFormularios = () => {
@@ -199,7 +202,10 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
           </p>
           {!podeUsarCadastro && (
             <p className="text-warning text-sm mt-1">
-              📋 Cadastros só podem ser feitos no Estoque Principal. Estoque atual: {estoqueAtivoInfo?.nome}
+              📋 {!canCreateItems 
+                ? "Sem permissão para cadastrar itens" 
+                : "Cadastros só podem ser feitos no Estoque Principal"
+              }. Estoque atual: {estoqueAtivoInfo?.nome}
             </p>
           )}
         </div>
@@ -232,7 +238,9 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                 <CardDescription>
                   {podeUsarCadastro 
                     ? "Cadastrar novos materiais no estoque"
-                    : "Disponível apenas no Estoque Principal"
+                    : !canCreateItems
+                      ? "Sem permissão para cadastrar"
+                      : "Disponível apenas no Estoque Principal"
                   }
                 </CardDescription>
               </CardHeader>
@@ -447,7 +455,12 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
         {/* BOTÃO ENTRADA */}
         <Dialog open={dialogoEntrada} onOpenChange={setDialogoEntrada}>
           <DialogTrigger asChild>
-            <Card className="cursor-pointer hover:scale-105 transition-all duration-300 border-info/20 hover:border-info/40">
+            <Card className={cn(
+              "cursor-pointer hover:scale-105 transition-all duration-300",
+              podeMovimentar 
+                ? "border-info/20 hover:border-info/40" 
+                : "border-muted/20 hover:border-muted/40 opacity-60"
+            )}>
               <CardHeader className="text-center">
                 <div className="mx-auto w-16 h-16 bg-info/10 rounded-full flex items-center justify-center mb-4">
                   <ArrowUp className="h-8 w-8 text-info" />
@@ -541,7 +554,12 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
         {/* BOTÃO SAÍDA */}
         <Dialog open={dialogoSaida} onOpenChange={setDialogoSaida}>
           <DialogTrigger asChild>
-            <Card className="cursor-pointer hover:scale-105 transition-all duration-300 border-warning/20 hover:border-warning/40">
+            <Card className={cn(
+              "cursor-pointer hover:scale-105 transition-all duration-300",
+              podeMovimentar 
+                ? "border-warning/20 hover:border-warning/40" 
+                : "border-muted/20 hover:border-muted/40 opacity-60"
+            )}>
               <CardHeader className="text-center">
                 <div className="mx-auto w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center mb-4">
                   <ArrowDown className="h-8 w-8 text-warning" />

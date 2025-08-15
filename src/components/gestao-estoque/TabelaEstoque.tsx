@@ -11,10 +11,12 @@ import { EstoqueItem } from '@/types/estoque';
 import { DialogoEditarItem } from './DialogoEditarItem';
 import { gerarRelatorioPDF } from '@/utils/pdfExport';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export const TabelaEstoque = () => {
   const { obterEstoque, loading, editarItem, isEstoquePrincipal } = useEstoque();
   const { obterEstoqueAtivoInfo } = useConfiguracoes();
+  const { canEditItems } = usePermissions();
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroCondicao, setFiltroCondicao] = useState('todas');
@@ -408,8 +410,14 @@ export const TabelaEstoque = () => {
                           onClick={() => handleEditarItem(item)}
                           variant="ghost"
                           size="sm"
-                          disabled={!isEstoquePrincipal()}
-                          title={!isEstoquePrincipal() ? "Edição disponível apenas no Estoque Principal" : "Editar item"}
+                          disabled={!isEstoquePrincipal() || !canEditItems}
+                          title={
+                            !canEditItems 
+                              ? "Sem permissão para editar itens" 
+                              : !isEstoquePrincipal() 
+                                ? "Edição disponível apenas no Estoque Principal" 
+                                : "Editar item"
+                          }
                         >
                           <Edit className="h-4 w-4" />
                         </Button>

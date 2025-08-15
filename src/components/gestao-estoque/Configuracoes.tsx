@@ -9,6 +9,9 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Database, Wrench, Tag } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { gerarRelatorioPDF } from '@/utils/pdfExport';
+import { useEstoque } from '@/hooks/useEstoque';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
@@ -21,6 +24,7 @@ interface ConfiguracoesProps {
 
 export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   const { toast } = useToast();
+  const { obterEstoque } = useEstoque();
   const {
     estoques,
     tiposServico,
@@ -47,7 +51,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     nome: '',
     email: '',
     senha: '',
-    tipo: 'usuario',
+    tipo: 'estoquista',
   });
 
   const [novoEstoque, setNovoEstoque] = useState({
@@ -71,7 +75,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     onConfigChange?.();
   };
 
-  const handleCadastroUsuario = () => {
+  const handleCadastroUsuario = async () => {
     if (!novoUsuario.nome || !novoUsuario.email || !novoUsuario.senha) {
       toast({
         title: "Campos obrigatórios",
@@ -81,18 +85,62 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
       return;
     }
 
-    // Aqui você implementaria a lógica de cadastro
-    toast({
-      title: "Usuário cadastrado!",
-      description: `Usuário ${novoUsuario.nome} foi cadastrado com sucesso.`,
-    });
+    try {
+      // Criar usuário no Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: novoUsuario.email,
+        password: novoUsuario.senha,
+      });
 
-    setNovoUsuario({
-      nome: '',
-      email: '',
-      senha: '',
-      tipo: 'usuario',
-    });
+      if (authError) {
+        toast({
+          title: "Erro ao criar usuário",
+          description: authError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Criar perfil do usuário
+      if (authData.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: authData.user.id,
+            nome: novoUsuario.nome,
+            email: novoUsuario.email,
+            tipo_usuario: novoUsuario.tipo,
+          });
+
+        if (profileError) {
+          toast({
+            title: "Erro ao criar perfil",
+            description: profileError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      toast({
+        title: "Usuário cadastrado!",
+        description: `Usuário ${novoUsuario.nome} foi cadastrado com sucesso.`,
+      });
+
+      setNovoUsuario({
+        nome: '',
+        email: '',
+        senha: '',
+        tipo: 'estoquista',
+      });
+    } catch (error) {
+      console.error('Erro:', error);
+      toast({
+        title: "Erro inesperado",
+        description: "Ocorreu um erro ao cadastrar o usuário.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleCadastroEstoque = () => {
@@ -154,18 +202,47 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     });
   };
 
-  const handleGerarRelatorio = (tipo: string) => {
-    // Implementar geração de relatórios baseada no tipo de usuário
-    const dados = {
-      'Estoque Atual': 'dados-estoque',
-      'Movimentações': 'dados-movimentacoes', 
-      'Itens Baixo Estoque': 'dados-baixo-estoque'
-    };
-    
-    toast({
-      title: "Relatório gerado!",
-      description: `Relatório de ${tipo} foi gerado com sucesso e está sendo preparado para download.`,
-    });
+  const handleGerarRelatorio = async (tipo: string) => {
+    try {
+      const itensEstoque = obterEstoque();
+      let itensFiltrados = itensEstoque;
+      let titulo = '';
+
+      switch (tipo) {
+        case 'Estoque Atual':
+          titulo = 'RELATÓRIO DE ESTOQUE ATUAL';
+          break;
+        case 'Movimentações':
+          titulo = 'RELATÓRIO DE MOVIMENTAÇÕES';
+          // Para relatório de movimentações, seria necessário dados específicos
+          break;
+        case 'Itens Baixo Estoque':
+          titulo = 'RELATÓRIO DE ITENS COM BAIXO ESTOQUE';
+          itensFiltrados = itensEstoque.filter(item => 
+            item.quantidadeMinima && item.estoqueAtual <= item.quantidadeMinima
+          );
+          break;
+      }
+
+      await gerarRelatorioPDF({
+        titulo,
+        nomeEstoque: `Relatório: ${tipo}`,
+        itens: itensFiltrados,
+        incluirLogo: false
+      });
+
+      toast({
+        title: "Relatório gerado!",
+        description: `Relatório de ${tipo} foi gerado com sucesso.`,
+      });
+    } catch (error) {
+      console.error('Erro ao gerar relatório:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível gerar o relatório.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -194,6 +271,72 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
 
           {/* Aba Usuários */}
           <TabsContent value="usuarios" className="space-y-4">
+            {/* Cadastro de Usuário */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Plus className="h-5 w-5" />
+                  Cadastrar Novo Usuário
+                </CardTitle>
+                <CardDescription>
+                  Adicione novos usuários ao sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="nomeUsuario">Nome Completo</Label>
+                    <Input
+                      id="nomeUsuario"
+                      value={novoUsuario.nome}
+                      onChange={(e) => setNovoUsuario(prev => ({ ...prev, nome: e.target.value }))}
+                      placeholder="Nome do usuário"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="emailUsuario">Email</Label>
+                    <Input
+                      id="emailUsuario"
+                      type="email"
+                      value={novoUsuario.email}
+                      onChange={(e) => setNovoUsuario(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="email@exemplo.com"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="senhaUsuario">Senha</Label>
+                    <Input
+                      id="senhaUsuario"
+                      type="password"
+                      value={novoUsuario.senha}
+                      onChange={(e) => setNovoUsuario(prev => ({ ...prev, senha: e.target.value }))}
+                      placeholder="Senha inicial"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="tipoUsuario">Tipo de Usuário</Label>
+                    <Select value={novoUsuario.tipo} onValueChange={(value) => setNovoUsuario(prev => ({ ...prev, tipo: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="administrador">Administrador</SelectItem>
+                        <SelectItem value="gestor">Gestor</SelectItem>
+                        <SelectItem value="engenharia">Engenharia</SelectItem>
+                        <SelectItem value="mestre">Mestre</SelectItem>
+                        <SelectItem value="estoquista">Estoquista</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button onClick={handleCadastroUsuario} className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Cadastrar Usuário
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Lista de Usuários */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
