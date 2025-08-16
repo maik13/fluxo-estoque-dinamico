@@ -26,20 +26,20 @@ export const useEstoque = () => {
   const carregarDados = async () => {
     try {
       setLoading(true);
-        const { data: itensData, error: itensError } = await supabase
-          .from('items')
-          .select('*')
-          .order('created_at', { ascending: true });
-        if (itensError) throw itensError;
+      const { data: itensData, error: itensError } = await supabase
+        .from('items')
+        .select('*')
+        .order('created_at', { ascending: true });
+      if (itensError) throw itensError;
 
-        const { data: movsData, error: movsError } = await supabase
-          .from('movements')
-          .select('*')
-          .order('data_hora', { ascending: true });
-        if (movsError) throw movsError;
+      const { data: movsData, error: movsError } = await supabase
+        .from('movements')
+        .select('*')
+        .order('data_hora', { ascending: true });
+      if (movsError) throw movsError;
 
-        // Mapear DB -> Tipos locais
-        const itensMapped: Item[] = (itensData ?? []).map((row: any) => ({
+      // Mapear DB -> Tipos locais
+      const itensMapped: Item[] = (itensData ?? []).map((row: any) => ({
           id: row.id,
           codigoBarras: row.codigo_barras,
           origem: row.origem ?? '',
@@ -60,11 +60,11 @@ export const useEstoque = () => {
           subcategoria: row.subcategoria ?? '',
           subDestino: row.sub_destino ?? '',
           tipoServico: row.tipo_servico ?? '',
-          dataCriacao: row.data_criacao ?? new Date().toISOString(),
-          quantidadeMinima: row.quantidade_minima ?? undefined,
-        }));
+        dataCriacao: row.data_criacao ?? new Date().toISOString(),
+        quantidadeMinima: row.quantidade_minima ?? undefined,
+      }));
 
-        const movsMapped: Movimentacao[] = (movsData ?? []).map((row: any) => ({
+      const movsMapped: Movimentacao[] = (movsData ?? []).map((row: any) => ({
           id: row.id,
           itemId: row.item_id,
           tipo: row.tipo,
@@ -73,23 +73,22 @@ export const useEstoque = () => {
           quantidadeAtual: Number(row.quantidade_atual),
           responsavel: row.responsavel,
           observacoes: row.observacoes ?? undefined,
-          dataHora: row.data_hora,
-          itemSnapshot: row.item_snapshot as Partial<Item>,
-        }));
+        dataHora: row.data_hora,
+        itemSnapshot: row.item_snapshot as Partial<Item>,
+      }));
 
-        setItens(itensMapped);
-        setMovimentacoes(movsMapped);
-      } catch (error) {
-        console.error('Erro ao carregar dados:', error);
-        toast({
-          title: 'Erro ao carregar dados',
-          description: 'Não foi possível carregar os dados do servidor.',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+      setItens(itensMapped);
+      setMovimentacoes(movsMapped);
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toast({
+        title: 'Erro ao carregar dados',
+        description: 'Não foi possível carregar os dados do servidor.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
 // Removido: persistência em localStorage (agora usamos Supabase)
