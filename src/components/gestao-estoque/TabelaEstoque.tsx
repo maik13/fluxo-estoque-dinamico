@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingDown, Edit, FileText } from 'lucide-react';
+import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingDown, Edit, FileText, FileSpreadsheet, Printer } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { EstoqueItem } from '@/types/estoque';
 import { DialogoEditarItem } from './DialogoEditarItem';
 import { gerarRelatorioPDF } from '@/utils/pdfExport';
+import { exportarExcel } from '@/utils/excelExport';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
 
@@ -158,6 +159,22 @@ export const TabelaEstoque = () => {
     });
   };
 
+  // Função para exportar dados em Excel
+  const exportarExcelCompleto = () => {
+    const estoqueInfo = obterEstoqueAtivoInfo();
+    exportarExcel({
+      titulo: 'RELATÓRIO DE ESTOQUE',
+      nomeEstoque: estoqueInfo?.nome || 'Estoque Atual',
+      itens: itensFiltrados,
+      incluirEstatisticas: true
+    });
+  };
+
+  // Função para imprimir página atual
+  const imprimirPagina = () => {
+    window.print();
+  };
+
   // Função para editar item
   const handleEditarItem = (item: EstoqueItem) => {
     setItemParaEditar(item);
@@ -299,10 +316,20 @@ export const TabelaEstoque = () => {
             <p className="text-sm text-muted-foreground">
               Mostrando {itensFiltrados.length} de {estoque.length} itens
             </p>
-            <Button onClick={exportarPDF} variant="outline" size="sm">
-              <FileText className="h-4 w-4 mr-2" />
-              Exportar PDF
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={imprimirPagina} variant="outline" size="sm">
+                <Printer className="h-4 w-4 mr-2" />
+                Imprimir
+              </Button>
+              <Button onClick={exportarPDF} variant="outline" size="sm">
+                <FileText className="h-4 w-4 mr-2" />
+                PDF
+              </Button>
+              <Button onClick={exportarExcelCompleto} variant="outline" size="sm">
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Excel
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
