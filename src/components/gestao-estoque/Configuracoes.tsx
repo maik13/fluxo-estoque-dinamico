@@ -227,8 +227,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
       await gerarRelatorioPDF({
         titulo,
         nomeEstoque: `Relatório: ${tipo}`,
-        itens: itensFiltrados,
-        incluirLogo: false
+        itens: itensFiltrados
       });
 
       toast({

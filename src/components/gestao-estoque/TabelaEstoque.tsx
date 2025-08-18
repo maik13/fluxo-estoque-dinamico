@@ -9,7 +9,8 @@ import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingD
 import { useEstoque } from '@/hooks/useEstoque';
 import { EstoqueItem } from '@/types/estoque';
 import { DialogoEditarItem } from './DialogoEditarItem';
-import { gerarRelatorioPDF } from '@/utils/pdfExport';
+import { gerarRelatorioPDF, gerarRelatorioPDFComUsuarios } from '@/utils/pdfExport';
+import { supabase } from '@/integrations/supabase/client';
 import { exportarExcel } from '@/utils/excelExport';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -154,9 +155,34 @@ export const TabelaEstoque = () => {
     await gerarRelatorioPDF({
       titulo: 'RELATÓRIO DE ESTOQUE',
       nomeEstoque: estoqueInfo?.nome || 'Estoque Atual',
-      itens: itensFiltrados,
-      incluirLogo: false // Pode ser configurado depois
+      itens: itensFiltrados
     });
+  };
+
+  // Função para exportar PDF com usuários
+  const exportarPDFComUsuarios = async () => {
+    try {
+      // Buscar usuários do Supabase
+      const { data: usuarios, error } = await supabase
+        .from('profiles')
+        .select('id, nome, email, tipo_usuario, ativo, created_at')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar usuários:', error);
+        return;
+      }
+
+      const estoqueInfo = obterEstoqueAtivoInfo();
+      await gerarRelatorioPDFComUsuarios(
+        'RELATÓRIO COMPLETO - ESTOQUE E USUÁRIOS',
+        estoqueInfo?.nome || 'Estoque Atual',
+        itensFiltrados,
+        usuarios || []
+      );
+    } catch (error) {
+      console.error('Erro ao gerar PDF com usuários:', error);
+    }
   };
 
   // Função para exportar dados em Excel
@@ -323,7 +349,11 @@ export const TabelaEstoque = () => {
               </Button>
               <Button onClick={exportarPDF} variant="outline" size="sm">
                 <FileText className="h-4 w-4 mr-2" />
-                PDF
+                PDF Estoque
+              </Button>
+              <Button onClick={exportarPDFComUsuarios} variant="outline" size="sm">
+                <FileText className="h-4 w-4 mr-2" />
+                PDF + Usuários
               </Button>
               <Button onClick={exportarExcelCompleto} variant="outline" size="sm">
                 <FileSpreadsheet className="h-4 w-4 mr-2" />

@@ -2,20 +2,29 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { EstoqueItem } from '@/types/estoque';
 
+interface Usuario {
+  id: string;
+  nome: string;
+  email: string;
+  tipo_usuario: string;
+  ativo: boolean;
+  created_at: string;
+}
+
 interface RelatorioOptions {
   titulo: string;
   nomeEstoque: string;
   itens: EstoqueItem[];
-  incluirLogo?: boolean;
-  logoBase64?: string;
+  usuarios?: Usuario[];
+  incluirUsuarios?: boolean;
 }
 
 export const gerarRelatorioPDF = async ({
   titulo,
   nomeEstoque,
   itens,
-  incluirLogo = true,
-  logoBase64
+  usuarios = [],
+  incluirUsuarios = false
 }: RelatorioOptions) => {
   const doc = new jsPDF();
   
@@ -24,15 +33,7 @@ export const gerarRelatorioPDF = async ({
   const pageHeight = doc.internal.pageSize.height;
   let yPosition = 20;
 
-  // Logo (se fornecido)
-  if (incluirLogo && logoBase64) {
-    try {
-      doc.addImage(logoBase64, 'PNG', 20, yPosition, 30, 30);
-      yPosition += 35;
-    } catch (error) {
-      console.warn('Erro ao adicionar logo:', error);
-    }
-  }
+  // Removido logo - sem logo da empresa
 
   // Cabeçalho
   doc.setFontSize(20);
@@ -80,6 +81,92 @@ export const gerarRelatorioPDF = async ({
   });
 
   yPosition += 35;
+
+  // Lista de usuários (se solicitado)
+  if (incluirUsuarios && usuarios.length > 0) {
+    // Nova página para usuários
+    doc.addPage();
+    yPosition = 20;
+
+    // Título da seção de usuários
+    doc.setFontSize(16);
+    doc.setTextColor(41, 128, 185);
+    doc.text('👥 USUÁRIOS CADASTRADOS', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 15;
+
+    // Estatísticas de usuários
+    const totalUsuarios = usuarios.length;
+    const usuariosAtivos = usuarios.filter(u => u.ativo).length;
+    const usuariosInativos = usuarios.filter(u => !u.ativo).length;
+
+    doc.setFillColor(240, 248, 255);
+    doc.rect(20, yPosition, pageWidth - 40, 20, 'F');
+    
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    const resumoUsuarios = [
+      `Total: ${totalUsuarios}`,
+      `Ativos: ${usuariosAtivos}`,
+      `Inativos: ${usuariosInativos}`
+    ];
+    
+    resumoUsuarios.forEach((texto, index) => {
+      const x = 30 + (index * 50);
+      doc.text(texto, x, yPosition + 12);
+    });
+
+    yPosition += 30;
+
+    // Tabela de usuários
+    const dadosUsuarios = usuarios.map(usuario => [
+      usuario.nome,
+      usuario.email,
+      usuario.tipo_usuario,
+      usuario.ativo ? 'Ativo' : 'Inativo',
+      new Date(usuario.created_at).toLocaleDateString('pt-BR')
+    ]);
+
+    autoTable(doc, {
+      head: [['Nome', 'Email', 'Tipo', 'Status', 'Cadastrado em']],
+      body: dadosUsuarios,
+      startY: yPosition,
+      theme: 'striped',
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1,
+      },
+      headStyles: {
+        fillColor: [41, 128, 185],
+        textColor: [255, 255, 255],
+        fontSize: 9,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      alternateRowStyles: {
+        fillColor: [248, 248, 248]
+      },
+      columnStyles: {
+        0: { cellWidth: 45 }, // Nome
+        1: { cellWidth: 55 }, // Email
+        2: { cellWidth: 30 }, // Tipo
+        3: { cellWidth: 25 }, // Status
+        4: { cellWidth: 35 } // Data
+      },
+      margin: { top: 5, right: 10, bottom: 20, left: 10 },
+    });
+
+    // Nova página para tabela de estoque
+    doc.addPage();
+    yPosition = 20;
+
+    // Título da seção de estoque
+    doc.setFontSize(16);
+    doc.setTextColor(41, 128, 185);
+    doc.text('📦 ITENS DO ESTOQUE', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 20;
+  }
 
   // Preparar dados da tabela otimizados para A4
   const dadosTabela = itens.map(item => [
@@ -152,12 +239,18 @@ const getStatusEstoque = (item: EstoqueItem): string => {
   return 'OK';
 };
 
-// Função para converter imagem para base64 (caso o usuário queira adicionar logo)
-export const converterImagemParaBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+// Função para gerar relatório com usuários
+export const gerarRelatorioPDFComUsuarios = async (
+  titulo: string,
+  nomeEstoque: string,
+  itens: EstoqueItem[],
+  usuarios: Usuario[]
+) => {
+  return gerarRelatorioPDF({
+    titulo,
+    nomeEstoque,
+    itens,
+    usuarios,
+    incluirUsuarios: true
   });
 };
