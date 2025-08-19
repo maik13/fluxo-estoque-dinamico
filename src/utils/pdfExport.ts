@@ -203,14 +203,14 @@ export const gerarRelatorioPDF = async ({
       fillColor: [248, 248, 248]
     },
     columnStyles: {
-      0: { cellWidth: 22, halign: 'center' }, // Código
-      1: { cellWidth: 45 }, // Nome
-      2: { cellWidth: 22, halign: 'center' }, // Categoria
-      3: { cellWidth: 25 }, // Localização
-      4: { cellWidth: 20 }, // Caixa/Org
-      5: { cellWidth: 15, halign: 'right' }, // Estoque
-      6: { cellWidth: 10, halign: 'center' }, // Unidade
-      7: { cellWidth: 12, halign: 'center' } // Status
+      0: { cellWidth: 18, halign: 'center' }, // Código
+      1: { cellWidth: 38 }, // Nome
+      2: { cellWidth: 20, halign: 'center' }, // Categoria
+      3: { cellWidth: 22 }, // Localização
+      4: { cellWidth: 18 }, // Caixa/Org
+      5: { cellWidth: 13, halign: 'right' }, // Estoque
+      6: { cellWidth: 8, halign: 'center' }, // Unidade
+      7: { cellWidth: 10, halign: 'center' } // Status
     },
     margin: { top: 5, right: 10, bottom: 20, left: 10 },
     didDrawPage: function (data) {

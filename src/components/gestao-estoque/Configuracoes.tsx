@@ -546,7 +546,39 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
 
           {/* Aba Importação */}
           <TabsContent value="importacao" className="space-y-4">
-            <GuiaImportacaoExcel />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="h-5 w-5" />
+                  Importação e Exportação de Dados
+                </CardTitle>
+                <CardDescription>
+                  Importe dados de planilhas Excel ou exporte dados do sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button onClick={handleExportarDados} variant="outline" className="h-12">
+                    <Download className="h-5 w-5 mr-2" />
+                    <div className="text-left">
+                      <div className="font-medium">Exportar Dados</div>
+                      <div className="text-xs text-muted-foreground">Baixar backup completo</div>
+                    </div>
+                  </Button>
+                  <Button onClick={handleImportarDados} variant="outline" className="h-12">
+                    <Upload className="h-5 w-5 mr-2" />
+                    <div className="text-left">
+                      <div className="font-medium">Importar Dados</div>
+                      <div className="text-xs text-muted-foreground">Carregar arquivo de backup</div>
+                    </div>
+                  </Button>
+                </div>
+                
+                <Separator />
+                
+                <GuiaImportacaoExcel />
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Aba Tema */}
@@ -612,38 +644,6 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                     <Download className="h-4 w-4 mr-2" />
                     Resumo Mensal
                   </Button>
-                </div>
-                
-                <Separator />
-                
-                <div className="space-y-4">
-                  <h4 className="font-medium">Logo da Empresa</h4>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      id="logo-upload"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          toast({
-                            title: "Logo enviado!",
-                            description: "O logo da empresa foi carregado com sucesso.",
-                          });
-                        }
-                      }}
-                    />
-                    <label htmlFor="logo-upload" className="cursor-pointer">
-                      <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        Clique para fazer upload do logo da empresa
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        JPG, PNG até 5MB
-                      </p>
-                    </label>
-                  </div>
                 </div>
                 
                 <Separator />

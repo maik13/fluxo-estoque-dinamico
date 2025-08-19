@@ -9,14 +9,15 @@ import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingD
 import { useEstoque } from '@/hooks/useEstoque';
 import { EstoqueItem } from '@/types/estoque';
 import { DialogoEditarItem } from './DialogoEditarItem';
-import { gerarRelatorioPDF, gerarRelatorioPDFComUsuarios } from '@/utils/pdfExport';
+import { EditarQuantidadeInline } from './EditarQuantidadeInline';
+import { gerarRelatorioPDF } from '@/utils/pdfExport';
 import { supabase } from '@/integrations/supabase/client';
 import { exportarExcel } from '@/utils/excelExport';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
 
 export const TabelaEstoque = () => {
-  const { obterEstoque, loading, editarItem, isEstoquePrincipal } = useEstoque();
+  const { obterEstoque, loading, editarItem, isEstoquePrincipal, registrarEntrada, registrarSaida } = useEstoque();
   const { obterEstoqueAtivoInfo } = useConfiguracoes();
   const { canEditItems } = usePermissions();
   const [filtroTexto, setFiltroTexto] = useState('');
@@ -159,30 +160,22 @@ export const TabelaEstoque = () => {
     });
   };
 
-  // Função para exportar PDF com usuários
-  const exportarPDFComUsuarios = async () => {
-    try {
-      // Buscar usuários do Supabase
-      const { data: usuarios, error } = await supabase
-        .from('profiles')
-        .select('id, nome, email, tipo_usuario, ativo, created_at')
-        .order('created_at', { ascending: false });
+  // Função para editar quantidade diretamente
+  const handleEditarQuantidade = async (itemId: string, novaQuantidade: number): Promise<boolean> => {
+    const item = estoque.find(i => i.id === itemId);
+    if (!item) return false;
 
-      if (error) {
-        console.error('Erro ao buscar usuários:', error);
-        return;
-      }
-
-      const estoqueInfo = obterEstoqueAtivoInfo();
-      await gerarRelatorioPDFComUsuarios(
-        'RELATÓRIO COMPLETO - ESTOQUE E USUÁRIOS',
-        estoqueInfo?.nome || 'Estoque Atual',
-        itensFiltrados,
-        usuarios || []
-      );
-    } catch (error) {
-      console.error('Erro ao gerar PDF com usuários:', error);
+    const diferenca = novaQuantidade - item.estoqueAtual;
+    
+    if (diferenca > 0) {
+      // Entrada
+      return await registrarEntrada(item.codigoBarras, diferenca, 'Sistema', 'Ajuste de estoque');
+    } else if (diferenca < 0) {
+      // Saída
+      return await registrarSaida(item.codigoBarras, Math.abs(diferenca), 'Sistema', 'Ajuste de estoque');
     }
+    
+    return true; // Sem alteração
   };
 
   // Função para exportar dados em Excel
@@ -351,10 +344,6 @@ export const TabelaEstoque = () => {
                 <FileText className="h-4 w-4 mr-2" />
                 PDF Estoque
               </Button>
-              <Button onClick={exportarPDFComUsuarios} variant="outline" size="sm">
-                <FileText className="h-4 w-4 mr-2" />
-                PDF + Usuários
-              </Button>
               <Button onClick={exportarExcelCompleto} variant="outline" size="sm">
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
                 Excel
@@ -438,8 +427,12 @@ export const TabelaEstoque = () => {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right font-bold">
-                        {item.estoqueAtual.toLocaleString('pt-BR')}
+                      <TableCell>
+                        <EditarQuantidadeInline
+                          item={item}
+                          onSalvar={handleEditarQuantidade}
+                          disabled={!isEstoquePrincipal()}
+                        />
                       </TableCell>
                       <TableCell>{item.unidade}</TableCell>
                       <TableCell>
