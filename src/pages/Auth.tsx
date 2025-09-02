@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 const Auth = () => {
   const { session, loading, error, signIn, signUp } = useAuth();
@@ -14,6 +15,7 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && session) {
@@ -23,8 +25,27 @@ const Auth = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setResetMessage(null);
     if (mode === 'login') await signIn(email, password);
     else await signUp(email, password);
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setResetMessage('Digite seu email primeiro.');
+      return;
+    }
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/`
+      });
+      
+      if (error) throw error;
+      setResetMessage('Email de recuperação enviado! Verifique sua caixa de entrada.');
+    } catch (e: any) {
+      setResetMessage(`Erro: ${e.message}`);
+    }
   };
 
   return (
@@ -44,7 +65,16 @@ const Auth = () => {
                 <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
                 <Input type="password" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required />
                 {error && <p className="text-destructive text-sm">{error}</p>}
+                {resetMessage && <p className="text-muted-foreground text-sm">{resetMessage}</p>}
                 <Button type="submit" className="w-full">Entrar</Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={handleForgotPassword}
+                >
+                  Esqueci a senha
+                </Button>
               </form>
             </TabsContent>
             <TabsContent value="signup">
