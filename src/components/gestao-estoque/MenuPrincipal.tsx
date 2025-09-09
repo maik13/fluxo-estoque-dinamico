@@ -8,12 +8,15 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, Upload } from 'lucide-react';
+import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, Upload, FileText } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { Item, EstoqueItem } from '@/types/estoque';
 import { Configuracoes } from './Configuracoes';
 import { SeletorEstoque } from './SeletorEstoque';
 import { DialogoImportacao } from './DialogoImportacao';
+import { SolicitarMaterial } from './SolicitarMaterial';
+import { ConsultarSolicitacoes } from './ConsultarSolicitacoes';
+import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
@@ -192,6 +195,13 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
 
   return (
     <div className="p-6 space-y-6">
+      {/* Logo da empresa */}
+      <div className="flex justify-start mb-4">
+        <div className="bg-primary/10 p-4 rounded-lg border border-primary/20">
+          <h2 className="text-lg font-bold text-primary">LOGO EMPRESA</h2>
+        </div>
+      </div>
+
       <div className="flex justify-between items-center mb-8">
         <div className="text-center flex-1">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
@@ -216,6 +226,14 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* Solicitação de Material */}
+        <SolicitarMaterial />
+
+        {/* Consultar Solicitações */}
+        <ConsultarSolicitacoes />
+
+        {/* Relatórios com Filtros */}
+        <RelatoriosComFiltros />
         {/* BOTÃO CADASTRO */}
         <Dialog open={dialogoCadastro} onOpenChange={setDialogoCadastro}>
           <DialogTrigger asChild>

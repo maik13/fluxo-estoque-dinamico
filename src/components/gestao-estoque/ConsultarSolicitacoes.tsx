@@ -1,0 +1,392 @@
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { FileText, Check, X, Printer, Eye } from 'lucide-react';
+import { useSolicitacoes } from '@/hooks/useSolicitacoes';
+import { usePermissions } from '@/hooks/usePermissions';
+import { SolicitacaoCompleta } from '@/types/solicitacao';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+export const ConsultarSolicitacoes = () => {
+  const [dialogoAberto, setDialogoAberto] = useState(false);
+  const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState<SolicitacaoCompleta | null>(null);
+  const [quantidadesAprovadas, setQuantidadesAprovadas] = useState<Record<string, number>>({});
+  
+  const { solicitacoes, loading, aprovarSolicitacao, rejeitarSolicitacao, atualizarAceites } = useSolicitacoes();
+  const { canManageStock, userProfile } = usePermissions();
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pendente':
+        return <Badge variant="outline">Pendente</Badge>;
+      case 'aprovada':
+        return <Badge className="bg-green-100 text-green-800">Aprovada</Badge>;
+      case 'rejeitada':
+        return <Badge variant="destructive">Rejeitada</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const abrirDetalhes = (solicitacao: SolicitacaoCompleta) => {
+    setSolicitacaoSelecionada(solicitacao);
+    
+    // Inicializar quantidades aprovadas
+    const qtdInicial: Record<string, number> = {};
+    solicitacao.itens.forEach(item => {
+      qtdInicial[item.id] = item.quantidade_aprovada || item.quantidade_solicitada;
+    });
+    setQuantidadesAprovadas(qtdInicial);
+    
+    setDialogoAberto(true);
+  };
+
+  const handleAprovar = async () => {
+    if (!solicitacaoSelecionada) return;
+
+    const itensAprovados = solicitacaoSelecionada.itens.map(item => ({
+      id: item.id,
+      quantidade: quantidadesAprovadas[item.id] || 0
+    }));
+
+    const sucesso = await aprovarSolicitacao(solicitacaoSelecionada.id, itensAprovados);
+    if (sucesso) {
+      setDialogoAberto(false);
+    }
+  };
+
+  const handleRejeitar = async () => {
+    if (!solicitacaoSelecionada) return;
+
+    const sucesso = await rejeitarSolicitacao(solicitacaoSelecionada.id);
+    if (sucesso) {
+      setDialogoAberto(false);
+    }
+  };
+
+  const imprimirSolicitacao = (solicitacao: SolicitacaoCompleta) => {
+    const conteudo = `
+      <html>
+        <head>
+          <title>Solicitação de Material - ${solicitacao.id}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+            .logo { font-size: 24px; font-weight: bold; color: #333; }
+            .titulo { text-align: center; font-size: 20px; margin: 20px 0; }
+            .info { margin: 10px 0; }
+            .table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            .table th { background-color: #f2f2f2; }
+            .assinaturas { display: flex; justify-content: space-between; margin-top: 50px; }
+            .assinatura { width: 45%; text-align: center; border-top: 1px solid #333; padding-top: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo">LOGO EMPRESA</div>
+            <div>
+              <div><strong>Solicitação Nº:</strong> ${solicitacao.id.slice(-8)}</div>
+              <div><strong>Data:</strong> ${format(new Date(solicitacao.data_solicitacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</div>
+            </div>
+          </div>
+          
+          <div class="titulo">SOLICITAÇÃO DE MATERIAL</div>
+          
+          <div class="info">
+            <strong>Solicitante:</strong> ${solicitacao.solicitante_nome}
+          </div>
+          
+          <div class="info">
+            <strong>Status:</strong> ${solicitacao.status.toUpperCase()}
+          </div>
+          
+          ${solicitacao.observacoes ? `<div class="info"><strong>Observações:</strong> ${solicitacao.observacoes}</div>` : ''}
+          
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Código</th>
+                <th>Categoria</th>
+                <th>Qtd. Solicitada</th>
+                <th>Qtd. Aprovada</th>
+                <th>Unidade</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${solicitacao.itens.map(item => `
+                <tr>
+                  <td>${item.item_snapshot.nome}</td>
+                  <td>${item.item_snapshot.codigoBarras}</td>
+                  <td>${item.item_snapshot.categoria}</td>
+                  <td>${item.quantidade_solicitada}</td>
+                  <td>${item.quantidade_aprovada}</td>
+                  <td>${item.item_snapshot.unidade}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div class="assinaturas">
+            <div class="assinatura">
+              <div>Responsável pela Separação</div>
+              <div style="margin-top: 20px;">
+                <input type="checkbox" ${solicitacao.aceite_separador ? 'checked' : ''}> Aceito
+              </div>
+            </div>
+            <div class="assinatura">
+              <div>Solicitante</div>
+              <div style="margin-top: 20px;">
+                <input type="checkbox" ${solicitacao.aceite_solicitante ? 'checked' : ''}> Aceito
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const novaJanela = window.open('', '_blank');
+    if (novaJanela) {
+      novaJanela.document.write(conteudo);
+      novaJanela.document.close();
+      novaJanela.print();
+    }
+  };
+
+  if (loading) {
+    return <div>Carregando solicitações...</div>;
+  }
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Consultar Solicitações
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {solicitacoes.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">
+                Nenhuma solicitação encontrada.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {solicitacoes.map((solicitacao) => (
+                  <Card key={solicitacao.id} className="hover:shadow-sm transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-medium">
+                              Solicitação #{solicitacao.id.slice(-8)}
+                            </span>
+                            {getStatusBadge(solicitacao.status)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            <div>Solicitante: {solicitacao.solicitante_nome}</div>
+                            <div>Data: {format(new Date(solicitacao.data_solicitacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</div>
+                            <div>{solicitacao.itens.length} item(ns)</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => imprimirSolicitacao(solicitacao)}
+                          >
+                            <Printer className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => abrirDetalhes(solicitacao)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Dialog de detalhes */}
+      <Dialog open={dialogoAberto} onOpenChange={setDialogoAberto}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Detalhes da Solicitação #{solicitacaoSelecionada?.id.slice(-8)}
+            </DialogTitle>
+          </DialogHeader>
+
+          {solicitacaoSelecionada && (
+            <div className="space-y-6">
+              {/* Informações gerais */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Solicitante</Label>
+                  <p className="font-medium">{solicitacaoSelecionada.solicitante_nome}</p>
+                </div>
+                <div>
+                  <Label>Status</Label>
+                  <div className="mt-1">
+                    {getStatusBadge(solicitacaoSelecionada.status)}
+                  </div>
+                </div>
+                <div>
+                  <Label>Data da Solicitação</Label>
+                  <p>{format(new Date(solicitacaoSelecionada.data_solicitacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</p>
+                </div>
+                {solicitacaoSelecionada.data_aprovacao && (
+                  <div>
+                    <Label>Data da Aprovação</Label>
+                    <p>{format(new Date(solicitacaoSelecionada.data_aprovacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</p>
+                  </div>
+                )}
+              </div>
+
+              {solicitacaoSelecionada.observacoes && (
+                <div>
+                  <Label>Observações</Label>
+                  <p className="mt-1">{solicitacaoSelecionada.observacoes}</p>
+                </div>
+              )}
+
+              {/* Itens */}
+              <div>
+                <Label>Itens Solicitados</Label>
+                <Table className="mt-2">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead>Qtd. Solicitada</TableHead>
+                      {canManageStock() && solicitacaoSelecionada.status === 'pendente' && (
+                        <TableHead>Qtd. Aprovada</TableHead>
+                      )}
+                      {solicitacaoSelecionada.status === 'aprovada' && (
+                        <TableHead>Qtd. Aprovada</TableHead>
+                      )}
+                      <TableHead>Unidade</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {solicitacaoSelecionada.itens.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>{item.item_snapshot.nome}</TableCell>
+                        <TableCell>{item.item_snapshot.codigoBarras}</TableCell>
+                        <TableCell>{item.item_snapshot.categoria}</TableCell>
+                        <TableCell>{item.quantidade_solicitada}</TableCell>
+                        {canManageStock() && solicitacaoSelecionada.status === 'pendente' && (
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min="0"
+                              max={item.quantidade_solicitada}
+                              value={quantidadesAprovadas[item.id] || 0}
+                              onChange={(e) => setQuantidadesAprovadas(prev => ({
+                                ...prev,
+                                [item.id]: parseInt(e.target.value) || 0
+                              }))}
+                              className="w-20"
+                            />
+                          </TableCell>
+                        )}
+                        {solicitacaoSelecionada.status === 'aprovada' && (
+                          <TableCell>{item.quantidade_aprovada}</TableCell>
+                        )}
+                        <TableCell>{item.item_snapshot.unidade}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Aceites */}
+              {solicitacaoSelecionada.status === 'aprovada' && (
+                <div className="space-y-4">
+                  <Label>Aceites</Label>
+                  <div className="flex gap-6">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="aceite-separador"
+                        checked={solicitacaoSelecionada.aceite_separador}
+                        onCheckedChange={(checked) => 
+                          atualizarAceites(solicitacaoSelecionada.id, !!checked, undefined)
+                        }
+                        disabled={!canManageStock()}
+                      />
+                      <Label htmlFor="aceite-separador">Aceite do Responsável pela Separação</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="aceite-solicitante"
+                        checked={solicitacaoSelecionada.aceite_solicitante}
+                        onCheckedChange={(checked) => 
+                          atualizarAceites(solicitacaoSelecionada.id, undefined, !!checked)
+                        }
+                        disabled={solicitacaoSelecionada.solicitante_id !== userProfile?.user_id}
+                      />
+                      <Label htmlFor="aceite-solicitante">Aceite do Solicitante</Label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Botões de ação */}
+              <div className="flex justify-between">
+                <Button
+                  variant="outline"
+                  onClick={() => imprimirSolicitacao(solicitacaoSelecionada)}
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Imprimir
+                </Button>
+
+                <div className="flex gap-2">
+                  {canManageStock() && solicitacaoSelecionada.status === 'pendente' && (
+                    <>
+                      <Button
+                        variant="destructive"
+                        onClick={handleRejeitar}
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Rejeitar
+                      </Button>
+                      <Button onClick={handleAprovar}>
+                        <Check className="h-4 w-4 mr-2" />
+                        Aprovar
+                      </Button>
+                    </>
+                  )}
+                  <Button
+                    variant="outline"
+                    onClick={() => setDialogoAberto(false)}
+                  >
+                    Fechar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};

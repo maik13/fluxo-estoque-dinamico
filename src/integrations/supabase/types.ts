@@ -178,6 +178,99 @@ export type Database = {
         }
         Relationships: []
       }
+      solicitacao_itens: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          item_snapshot: Json
+          quantidade_aprovada: number | null
+          quantidade_solicitada: number
+          solicitacao_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          item_snapshot: Json
+          quantidade_aprovada?: number | null
+          quantidade_solicitada: number
+          solicitacao_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_snapshot?: Json
+          quantidade_aprovada?: number | null
+          quantidade_solicitada?: number
+          solicitacao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacao_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacao_itens_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitacoes: {
+        Row: {
+          aceite_separador: boolean | null
+          aceite_solicitante: boolean | null
+          aprovado_por_id: string | null
+          aprovado_por_nome: string | null
+          created_at: string
+          data_aprovacao: string | null
+          data_solicitacao: string
+          id: string
+          observacoes: string | null
+          solicitante_id: string
+          solicitante_nome: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          aceite_separador?: boolean | null
+          aceite_solicitante?: boolean | null
+          aprovado_por_id?: string | null
+          aprovado_por_nome?: string | null
+          created_at?: string
+          data_aprovacao?: string | null
+          data_solicitacao?: string
+          id?: string
+          observacoes?: string | null
+          solicitante_id: string
+          solicitante_nome: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          aceite_separador?: boolean | null
+          aceite_solicitante?: boolean | null
+          aprovado_por_id?: string | null
+          aprovado_por_nome?: string | null
+          created_at?: string
+          data_aprovacao?: string | null
+          data_solicitacao?: string
+          id?: string
+          observacoes?: string | null
+          solicitante_id?: string
+          solicitante_nome?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
