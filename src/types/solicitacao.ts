@@ -6,6 +6,7 @@ export interface Solicitacao {
   solicitante_nome: string;
   status: 'pendente' | 'aprovada' | 'rejeitada';
   observacoes?: string;
+  local_utilizacao?: string;
   data_solicitacao: string;
   data_aprovacao?: string;
   aprovado_por_id?: string;
@@ -38,5 +39,6 @@ export interface NovoItemSolicitacao {
 
 export interface NovaSolicitacao {
   observacoes?: string;
+  local_utilizacao?: string;
   itens: NovoItemSolicitacao[];
 }

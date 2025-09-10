@@ -69,7 +69,8 @@ export const useSolicitacoes = () => {
         .insert([{
           solicitante_id: user.id,
           solicitante_nome: userProfile.nome,
-          observacoes: novaSolicitacao.observacoes
+          observacoes: novaSolicitacao.observacoes,
+          local_utilizacao: novaSolicitacao.local_utilizacao
         }])
         .select()
         .single();

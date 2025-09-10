@@ -233,6 +233,7 @@ export type Database = {
           data_aprovacao: string | null
           data_solicitacao: string
           id: string
+          local_utilizacao: string | null
           observacoes: string | null
           solicitante_id: string
           solicitante_nome: string
@@ -248,6 +249,7 @@ export type Database = {
           data_aprovacao?: string | null
           data_solicitacao?: string
           id?: string
+          local_utilizacao?: string | null
           observacoes?: string | null
           solicitante_id: string
           solicitante_nome: string
@@ -263,6 +265,7 @@ export type Database = {
           data_aprovacao?: string | null
           data_solicitacao?: string
           id?: string
+          local_utilizacao?: string | null
           observacoes?: string | null
           solicitante_id?: string
           solicitante_nome?: string
