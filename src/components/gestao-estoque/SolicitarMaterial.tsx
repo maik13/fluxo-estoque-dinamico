@@ -6,15 +6,19 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Package, Plus, FileText, Printer, Eye } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Trash2, Package, Plus, FileText, Printer, Eye, Check, X } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { useSolicitacoes } from '@/hooks/useSolicitacoes';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Item } from '@/types/estoque';
 import { NovoItemSolicitacao, SolicitacaoCompleta } from '@/types/solicitacao';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 export const SolicitarMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
@@ -26,9 +30,11 @@ export const SolicitarMaterial = () => {
   const [visualizarSolicitacoes, setVisualizarSolicitacoes] = useState(false);
   const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState<SolicitacaoCompleta | null>(null);
   const [detalhesAberto, setDetalhesAberto] = useState(false);
+  const [quantidadesAprovadas, setQuantidadesAprovadas] = useState<Record<string, number>>({});
 
   const { obterEstoque } = useEstoque();
-  const { criarSolicitacao, solicitacoes, loading } = useSolicitacoes();
+  const { criarSolicitacao, solicitacoes, loading, aprovarSolicitacao, rejeitarSolicitacao, atualizarAceites } = useSolicitacoes();
+  const { canManageStock, userProfile } = usePermissions();
   
   const itensDisponiveis = obterEstoque();
 
@@ -111,55 +117,136 @@ export const SolicitarMaterial = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    const variants = {
-      pendente: 'default' as const,
-      aprovada: 'secondary' as const,
-      rejeitada: 'destructive' as const
-    };
-    
-    return <Badge variant={variants[status as keyof typeof variants] || 'default'}>{status}</Badge>;
+    switch (status) {
+      case 'pendente':
+        return <Badge variant="outline">Pendente</Badge>;
+      case 'aprovada':
+        return <Badge className="bg-green-100 text-green-800">Aprovada</Badge>;
+      case 'rejeitada':
+        return <Badge variant="destructive">Rejeitada</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
   };
 
   const abrirDetalhes = (solicitacao: SolicitacaoCompleta) => {
     setSolicitacaoSelecionada(solicitacao);
+    
+    // Inicializar quantidades aprovadas
+    const qtdInicial: Record<string, number> = {};
+    solicitacao.itens.forEach(item => {
+      qtdInicial[item.id] = item.quantidade_aprovada || item.quantidade_solicitada;
+    });
+    setQuantidadesAprovadas(qtdInicial);
+    
     setDetalhesAberto(true);
+  };
+
+  const handleAprovar = async () => {
+    if (!solicitacaoSelecionada) return;
+
+    const itensAprovados = solicitacaoSelecionada.itens.map(item => ({
+      id: item.id,
+      quantidade: quantidadesAprovadas[item.id] || 0
+    }));
+
+    const sucesso = await aprovarSolicitacao(solicitacaoSelecionada.id, itensAprovados);
+    if (sucesso) {
+      setDetalhesAberto(false);
+    }
+  };
+
+  const handleRejeitar = async () => {
+    if (!solicitacaoSelecionada) return;
+
+    const sucesso = await rejeitarSolicitacao(solicitacaoSelecionada.id);
+    if (sucesso) {
+      setDetalhesAberto(false);
+    }
   };
 
   const imprimirSolicitacao = (solicitacao: SolicitacaoCompleta) => {
     const conteudo = `
-      <div style="font-family: Arial, sans-serif; padding: 20px;">
-        <h1>Solicitação de Material</h1>
-        <p><strong>ID:</strong> ${solicitacao.id}</p>
-        <p><strong>Solicitante:</strong> ${solicitacao.solicitante_nome}</p>
-        <p><strong>Data:</strong> ${new Date(solicitacao.data_solicitacao).toLocaleDateString()}</p>
-        <p><strong>Status:</strong> ${solicitacao.status}</p>
-        <p><strong>Local de Utilização:</strong> ${solicitacao.local_utilizacao || 'Não informado'}</p>
-        <p><strong>Observações:</strong> ${solicitacao.observacoes || 'Nenhuma'}</p>
-        
-        <h2>Itens Solicitados</h2>
-        <table border="1" style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr>
-              <th style="padding: 8px; text-align: left;">Item</th>
-              <th style="padding: 8px; text-align: left;">Código</th>
-              <th style="padding: 8px; text-align: left;">Qtd Solicitada</th>
-              <th style="padding: 8px; text-align: left;">Qtd Aprovada</th>
-              <th style="padding: 8px; text-align: left;">Unidade</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${solicitacao.itens.map(item => `
+      <html>
+        <head>
+          <title>Solicitação de Material - ${solicitacao.id}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+            .logo { font-size: 24px; font-weight: bold; color: #333; }
+            .titulo { text-align: center; font-size: 20px; margin: 20px 0; }
+            .info { margin: 10px 0; }
+            .table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            .table th { background-color: #f2f2f2; }
+            .assinaturas { display: flex; justify-content: space-between; margin-top: 50px; }
+            .assinatura { width: 45%; text-align: center; border-top: 1px solid #333; padding-top: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo">LOGO EMPRESA</div>
+            <div>
+              <div><strong>Solicitação Nº:</strong> ${solicitacao.id.slice(-8)}</div>
+              <div><strong>Data:</strong> ${format(new Date(solicitacao.data_solicitacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</div>
+            </div>
+          </div>
+          
+          <div class="titulo">SOLICITAÇÃO DE MATERIAL</div>
+          
+          <div class="info">
+            <strong>Solicitante:</strong> ${solicitacao.solicitante_nome}
+          </div>
+          
+          <div class="info">
+            <strong>Status:</strong> ${solicitacao.status.toUpperCase()}
+          </div>
+          
+          ${solicitacao.local_utilizacao ? `<div class="info"><strong>Local de Utilização:</strong> ${solicitacao.local_utilizacao}</div>` : ''}
+          
+          ${solicitacao.observacoes ? `<div class="info"><strong>Observações:</strong> ${solicitacao.observacoes}</div>` : ''}
+          
+          <table class="table">
+            <thead>
               <tr>
-                <td style="padding: 8px;">${item.item_snapshot.nome || ''}</td>
-                <td style="padding: 8px;">${item.item_snapshot.codigoBarras || ''}</td>
-                <td style="padding: 8px;">${item.quantidade_solicitada}</td>
-                <td style="padding: 8px;">${item.quantidade_aprovada}</td>
-                <td style="padding: 8px;">${item.item_snapshot.unidade || ''}</td>
+                <th>Item</th>
+                <th>Código</th>
+                <th>Categoria</th>
+                <th>Qtd. Solicitada</th>
+                <th>Qtd. Aprovada</th>
+                <th>Unidade</th>
               </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              ${solicitacao.itens.map(item => `
+                <tr>
+                  <td>${item.item_snapshot.nome}</td>
+                  <td>${item.item_snapshot.codigoBarras}</td>
+                  <td>${item.item_snapshot.categoria}</td>
+                  <td>${item.quantidade_solicitada}</td>
+                  <td>${item.quantidade_aprovada}</td>
+                  <td>${item.item_snapshot.unidade}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div class="assinaturas">
+            <div class="assinatura">
+              <div>Responsável pela Separação</div>
+              <div style="margin-top: 20px;">
+                <input type="checkbox" ${solicitacao.aceite_separador ? 'checked' : ''}> Aceito
+              </div>
+            </div>
+            <div class="assinatura">
+              <div>Solicitante</div>
+              <div style="margin-top: 20px;">
+                <input type="checkbox" ${solicitacao.aceite_solicitante ? 'checked' : ''}> Aceito
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
     `;
 
     const novaJanela = window.open('', '_blank');
@@ -357,7 +444,7 @@ export const SolicitarMaterial = () => {
           <div className="space-y-4">
             {loading ? (
               <p>Carregando solicitações...</p>
-            ) : solicitacoes.length === 0 ? (
+            {solicitacoes.length === 0 ? (
               <p className="text-muted-foreground">Nenhuma solicitação encontrada.</p>
             ) : (
               <div className="grid gap-4">
@@ -367,17 +454,20 @@ export const SolicitarMaterial = () => {
                       <div className="flex items-center justify-between">
                         <div className="space-y-1">
                           <div className="flex items-center space-x-2">
-                            <span className="font-medium">#{solicitacao.id.slice(0, 8)}</span>
+                            <span className="font-medium">#{solicitacao.id.slice(-8)}</span>
                             {getStatusBadge(solicitacao.status)}
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            {solicitacao.solicitante_nome} • {new Date(solicitacao.data_solicitacao).toLocaleDateString()}
+                            {solicitacao.solicitante_nome} • {format(new Date(solicitacao.data_solicitacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                           </p>
                           {solicitacao.local_utilizacao && (
                             <p className="text-sm">
                               <strong>Local:</strong> {solicitacao.local_utilizacao}
                             </p>
                           )}
+                          <p className="text-sm text-muted-foreground">
+                            {solicitacao.itens.length} item(ns)
+                          </p>
                         </div>
                         
                         <div className="flex items-center space-x-2">
