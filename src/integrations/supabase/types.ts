@@ -154,7 +154,7 @@ export type Database = {
           nome: string
           tipo_usuario: string
           updated_at: string
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           ativo?: boolean
@@ -164,7 +164,7 @@ export type Database = {
           nome: string
           tipo_usuario?: string
           updated_at?: string
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           ativo?: boolean
@@ -174,7 +174,7 @@ export type Database = {
           nome?: string
           tipo_usuario?: string
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -301,6 +301,10 @@ export type Database = {
       }
       make_user_admin_by_email: {
         Args: { user_email: string }
+        Returns: undefined
+      }
+      promote_user_to_admin: {
+        Args: { target_email: string }
         Returns: undefined
       }
     }

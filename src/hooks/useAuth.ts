@@ -33,17 +33,6 @@ export const useAuth = () => {
       try { await supabase.auth.signOut({ scope: 'global' }); } catch {}
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        // Se for o email master e falhar o login, tenta recuperação automática
-        if (email === 'maikom708@gmail.com') {
-          // Tenta resetar a senha usando o recovery do Supabase
-          const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/reset-password`
-          });
-          if (!resetError) {
-            setError('Um email de recuperação foi enviado. Verifique sua caixa de entrada.');
-            return;
-          }
-        }
         throw error;
       }
       window.location.href = '/';
@@ -64,11 +53,6 @@ export const useAuth = () => {
       });
       
       if (error) {
-        // Se for o email master e já existir, orienta para usar o login
-        if (email === 'maikom708@gmail.com' && error.message.includes('already registered')) {
-          setError('Esta conta já existe. Use "Entrar" e se necessário, clique em "Esqueci a senha".');
-          return;
-        }
         throw error;
       }
       // Most Supabase projects need email confirmation depending on settings
