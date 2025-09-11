@@ -444,7 +444,7 @@ export const SolicitarMaterial = () => {
           <div className="space-y-4">
             {loading ? (
               <p>Carregando solicitações...</p>
-            {solicitacoes.length === 0 ? (
+            ) : solicitacoes.length === 0 ? (
               <p className="text-muted-foreground">Nenhuma solicitação encontrada.</p>
             ) : (
               <div className="grid gap-4">
