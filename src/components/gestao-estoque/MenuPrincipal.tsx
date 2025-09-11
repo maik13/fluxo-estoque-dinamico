@@ -15,7 +15,6 @@ import { Configuracoes } from './Configuracoes';
 import { SeletorEstoque } from './SeletorEstoque';
 import { DialogoImportacao } from './DialogoImportacao';
 import { SolicitarMaterial } from './SolicitarMaterial';
-import { ConsultarSolicitacoes } from './ConsultarSolicitacoes';
 import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -228,9 +227,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {/* Solicitação de Material */}
         <SolicitarMaterial />
-
-        {/* Consultar Solicitações */}
-        <ConsultarSolicitacoes />
 
         {/* Relatórios com Filtros */}
         <RelatoriosComFiltros />
