@@ -8,13 +8,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, Upload, FileText } from 'lucide-react';
+import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, Upload, FileBarChart, Send } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { Item, EstoqueItem } from '@/types/estoque';
 import { Configuracoes } from './Configuracoes';
 import { SeletorEstoque } from './SeletorEstoque';
 import { DialogoImportacao } from './DialogoImportacao';
 import { SolicitarMaterial } from './SolicitarMaterial';
+import { SolicitarMaterialModerno } from './SolicitarMaterialModerno';
 import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -58,7 +59,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     codigoBarras: '',
     quantidade: 0,
     responsavel: '',
-    observacoes: ''
+    observacoes: '',
+    localUtilizacao: ''
   });
 
   // Estados para busca inteligente na saída
@@ -111,7 +113,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       codigoBarras: '',
       quantidade: 0,
       responsavel: '',
-      observacoes: ''
+      observacoes: '',
+      localUtilizacao: ''
     });
     setBuscaSaida('');
     setDialogoImportacao(false);
@@ -149,13 +152,18 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const handleSaida = (e: React.FormEvent) => {
     e.preventDefault();
     
+    const formElement = e.target as HTMLFormElement;
+    const formData = new FormData(formElement);
+    const localUtilizacao = formData.get('localUtilizacaoSaida') as string;
+    
     const codigoParaUsar = itemSelecionadoSaida?.codigoBarras || formMovimentacao.codigoBarras;
     
     if (registrarSaida(
       codigoParaUsar,
       formMovimentacao.quantidade,
       formMovimentacao.responsavel,
-      formMovimentacao.observacoes
+      formMovimentacao.observacoes,
+      localUtilizacao
     )) {
       setDialogoSaida(false);
       resetarFormularios();
@@ -225,11 +233,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* Solicitação de Material */}
-        <SolicitarMaterial />
-
-        {/* Relatórios com Filtros */}
-        <RelatoriosComFiltros />
+        {/* Solicitação de Material com Design Moderno */}
+        <SolicitarMaterialModerno />
         {/* BOTÃO CADASTRO */}
         <Dialog open={dialogoCadastro} onOpenChange={setDialogoCadastro}>
           <DialogTrigger asChild>
@@ -673,15 +678,15 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   />
                 </div>
                 
-                <div>
-                  <Label htmlFor="destinoSaida">Destino da Saída</Label>
-                  <Input
-                    id="destinoSaida"
-                    value={formMovimentacao.observacoes}
-                    onChange={(e) => setFormMovimentacao(prev => ({...prev, observacoes: e.target.value}))}
-                    placeholder="Para onde está indo (ex: Obra ABC, Estoque 2)"
-                  />
-                </div>
+               <div>
+                 <Label htmlFor="localUtilizacaoSaida">Local de Utilização *</Label>
+                 <Input
+                   id="localUtilizacaoSaida"
+                   name="localUtilizacaoSaida"
+                   placeholder="Onde será utilizado (ex: Obra ABC, Sala 101)"
+                   required
+                 />
+               </div>
               
               <div>
                 <Label htmlFor="responsavelSaida">Responsável *</Label>
@@ -694,14 +699,16 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                 />
               </div>
                 
-                <div>
-                  <Label htmlFor="observacoesSaida">Observações Adicionais</Label>
-                  <Textarea
-                    id="observacoesSaida"
-                    placeholder="Observações adicionais sobre a saída (opcional)"
-                    rows={2}
-                  />
-                </div>
+                 <div>
+                   <Label htmlFor="observacoesSaida">Observações Adicionais</Label>
+                   <Textarea
+                     id="observacoesSaida"
+                     value={formMovimentacao.observacoes}
+                     onChange={(e) => setFormMovimentacao(prev => ({...prev, observacoes: e.target.value}))}
+                     placeholder="Observações adicionais sobre a saída (opcional)"
+                     rows={2}
+                   />
+                 </div>
               
               <div className="flex justify-end space-x-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => setDialogoSaida(false)}>

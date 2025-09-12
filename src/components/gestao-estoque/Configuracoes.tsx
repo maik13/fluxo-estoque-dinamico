@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { GuiaImportacaoExcel } from './GuiaImportacaoExcel';
 import { UsuariosList } from './UsuariosList';
+import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 
 interface ConfiguracoesProps {
   onConfigChange?: () => void;
@@ -86,13 +87,42 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     }
 
     try {
-      // Criar usuário no Supabase Auth
+      // Primeiro verificar se o usuário já existe
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('email', novoUsuario.email)
+        .maybeSingle();
+
+      if (existingUser) {
+        toast({
+          title: "Email já existe",
+          description: "Já existe um usuário cadastrado com este email.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Criar usuário no Supabase Auth (sem confirmação por email)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: novoUsuario.email,
         password: novoUsuario.senha,
+        options: {
+          emailRedirectTo: undefined // Evitar confirmação por email
+        }
       });
 
       if (authError) {
+        // Verificar se é erro de rate limiting (59 segundos)
+        if (authError.message.includes('For security purposes')) {
+          toast({
+            title: "Aguarde um momento",
+            description: "Por motivos de segurança, aguarde 59 segundos antes de tentar novamente.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
         toast({
           title: "Erro ao criar usuário",
           description: authError.message,
@@ -101,7 +131,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
         return;
       }
 
-      // Criar perfil do usuário
+      // Se o usuário foi criado (mesmo sem confirmação), criar o perfil
       if (authData.user) {
         const { error: profileError } = await supabase
           .from('profiles')
@@ -110,6 +140,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
             nome: novoUsuario.nome,
             email: novoUsuario.email,
             tipo_usuario: novoUsuario.tipo,
+            ativo: true,
           });
 
         if (profileError) {
@@ -120,24 +151,24 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
           });
           return;
         }
+
+        toast({
+          title: "Usuário cadastrado!",
+          description: `Usuário ${novoUsuario.nome} foi cadastrado com sucesso.`,
+        });
+
+        setNovoUsuario({
+          nome: '',
+          email: '',
+          senha: '',
+          tipo: 'estoquista',
+        });
       }
-
-      toast({
-        title: "Usuário cadastrado!",
-        description: `Usuário ${novoUsuario.nome} foi cadastrado com sucesso.`,
-      });
-
-      setNovoUsuario({
-        nome: '',
-        email: '',
-        senha: '',
-        tipo: 'estoquista',
-      });
     } catch (error) {
       console.error('Erro:', error);
       toast({
         title: "Erro inesperado",
-        description: "Ocorreu um erro ao cadastrar o usuário.",
+        description: "Ocorreu um erro ao cadastrar o usuário. Verifique se todos os campos estão preenchidos corretamente.",
         variant: "destructive",
       });
     }
@@ -623,31 +654,78 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                   Relatórios do Sistema
                 </CardTitle>
                 <CardDescription>
-                  Gere e exporte relatórios do estoque
+                  Gere e exporte relatórios do estoque e configurações da empresa
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Button onClick={() => handleGerarRelatorio('Estoque Atual')} variant="outline">
-                    <Download className="h-4 w-4 mr-2" />
-                    Relatório de Estoque
-                  </Button>
-                  <Button onClick={() => handleGerarRelatorio('Movimentações')} variant="outline">
-                    <Download className="h-4 w-4 mr-2" />
-                    Relatório de Movimentações
-                  </Button>
-                  <Button onClick={() => handleGerarRelatorio('Itens Baixo Estoque')} variant="outline">
-                    <Download className="h-4 w-4 mr-2" />
-                    Itens com Baixo Estoque
-                  </Button>
-                  <Button onClick={() => handleGerarRelatorio('Resumo Mensal')} variant="outline">
-                    <Download className="h-4 w-4 mr-2" />
-                    Resumo Mensal
-                  </Button>
+              <CardContent className="space-y-6">
+                {/* Relatórios Filtrados */}
+                <div className="space-y-4">
+                  <h4 className="font-medium">Relatórios Avançados</h4>
+                  <RelatoriosComFiltros />
+                </div>
+
+                <Separator />
+
+                {/* Relatórios Básicos */}
+                <div className="space-y-4">
+                  <h4 className="font-medium">Relatórios Básicos</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Button onClick={() => handleGerarRelatorio('Estoque Atual')} variant="outline">
+                      <Download className="h-4 w-4 mr-2" />
+                      Relatório de Estoque
+                    </Button>
+                    <Button onClick={() => handleGerarRelatorio('Movimentações')} variant="outline">
+                      <Download className="h-4 w-4 mr-2" />
+                      Relatório de Movimentações
+                    </Button>
+                    <Button onClick={() => handleGerarRelatorio('Itens Baixo Estoque')} variant="outline">
+                      <Download className="h-4 w-4 mr-2" />
+                      Itens com Baixo Estoque
+                    </Button>
+                    <Button onClick={() => handleGerarRelatorio('Resumo Mensal')} variant="outline">
+                      <Download className="h-4 w-4 mr-2" />
+                      Resumo Mensal
+                    </Button>
+                  </div>
                 </div>
                 
                 <Separator />
                 
+                {/* Configuração da Empresa */}
+                <div className="space-y-4">
+                  <h4 className="font-medium">Configuração da Empresa</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="p-4">
+                      <h5 className="font-medium mb-2">Logo da Empresa</h5>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Faça upload do logo da sua empresa (PNG, JPG, SVG)
+                      </p>
+                      <Input 
+                        type="file" 
+                        accept="image/*"
+                        className="mb-2"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            // TODO: Implementar upload do logo
+                            toast({
+                              title: "Upload de logo",
+                              description: "Funcionalidade em desenvolvimento",
+                            });
+                          }
+                        }}
+                      />
+                      <Button size="sm" className="w-full">
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Logo
+                      </Button>
+                    </Card>
+                  </div>
+                </div>
+
+                <Separator />
+                
+                {/* Backup e Importação */}
                 <div className="space-y-4">
                   <h4 className="font-medium">Backup e Importação</h4>
                   <div className="flex flex-col sm:flex-row gap-2">

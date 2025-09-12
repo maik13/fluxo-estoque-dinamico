@@ -73,6 +73,7 @@ export const useEstoque = () => {
           quantidadeAtual: Number(row.quantidade_atual),
           responsavel: row.responsavel,
           observacoes: row.observacoes ?? undefined,
+          local_utilizacao: row.local_utilizacao ?? undefined,
         dataHora: row.data_hora,
         itemSnapshot: row.item_snapshot as Partial<Item>,
       }));
@@ -303,7 +304,8 @@ const registrarSaida = async (
   codigoBarras: string,
   quantidade: number,
   responsavel: string,
-  observacoes?: string
+  observacoes?: string,
+  localUtilizacao?: string
 ) => {
   try {
     const item = buscarItemPorCodigo(codigoBarras);
@@ -340,6 +342,7 @@ const registrarSaida = async (
       quantidade_atual: movimento.quantidadeAtual,
       responsavel: movimento.responsavel,
       observacoes: movimento.observacoes ?? null,
+      local_utilizacao: localUtilizacao ?? null,
       data_hora: movimento.dataHora,
       item_snapshot: JSON.parse(JSON.stringify(movimento.itemSnapshot)),
     }).select('*').maybeSingle();

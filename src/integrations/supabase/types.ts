@@ -102,6 +102,7 @@ export type Database = {
           id: string
           item_id: string
           item_snapshot: Json
+          local_utilizacao: string | null
           observacoes: string | null
           quantidade: number
           quantidade_anterior: number
@@ -115,6 +116,7 @@ export type Database = {
           id?: string
           item_id: string
           item_snapshot: Json
+          local_utilizacao?: string | null
           observacoes?: string | null
           quantidade: number
           quantidade_anterior: number
@@ -128,6 +130,7 @@ export type Database = {
           id?: string
           item_id?: string
           item_snapshot?: Json
+          local_utilizacao?: string | null
           observacoes?: string | null
           quantidade?: number
           quantidade_anterior?: number

@@ -232,10 +232,14 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
   const handleArquivoSelecionado = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (!file.name.toLowerCase().endsWith('.csv')) {
+      const fileName = file.name.toLowerCase();
+      const formatosAceitos = ['.csv', '.xlsx', '.xls'];
+      const formatoValido = formatosAceitos.some(formato => fileName.endsWith(formato));
+      
+      if (!formatoValido) {
         toast({
           title: "Formato inválido",
-          description: "Por favor, selecione um arquivo CSV.",
+          description: "Por favor, selecione um arquivo CSV ou Excel (.xlsx, .xls).",
           variant: "destructive",
         });
         return;
@@ -281,13 +285,13 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
               <Input
                 id="arquivo"
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 onChange={handleArquivoSelecionado}
                 className="cursor-pointer"
               />
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Apenas arquivos CSV são aceitos. Use o modelo fornecido nas configurações.
+              Arquivos CSV, Excel (.xlsx, .xls) são aceitos. Use o modelo fornecido nas configurações.
             </p>
           </div>
 

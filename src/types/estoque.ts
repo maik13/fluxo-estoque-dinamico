@@ -35,6 +35,7 @@ export interface Movimentacao {
   quantidadeAtual: number;
   responsavel: string;
   observacoes?: string;
+  local_utilizacao?: string;
   dataHora: string;
   // Dados do item no momento da movimentação (para histórico)
   itemSnapshot: Partial<Item>;

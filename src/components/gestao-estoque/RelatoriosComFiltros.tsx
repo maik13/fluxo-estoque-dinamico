@@ -23,6 +23,7 @@ interface FiltrosRelatorio {
   dataInicio: string;
   dataFim: string;
   localizacao: string;
+  localUtilizacao: string;
   apenasSemEstoque: boolean;
   apenasComEstoque: boolean;
 }
@@ -36,6 +37,7 @@ const filtrosIniciais: FiltrosRelatorio = {
   dataInicio: '',
   dataFim: '',
   localizacao: '',
+  localUtilizacao: '',
   apenasSemEstoque: false,
   apenasComEstoque: false
 };
@@ -144,6 +146,17 @@ export const RelatoriosComFiltros = () => {
         }
       });
       itemsFiltrados = itemsFiltrados.filter(item => itensComObservacao.has(item.id));
+    }
+
+    // Filtro por local de utilização (busca nas movimentações do item)
+    if (filtros.localUtilizacao) {
+      const itensComLocal = new Set<string>();
+      movimentacoes.forEach(mov => {
+        if (mov.local_utilizacao && mov.local_utilizacao.toLowerCase().includes(filtros.localUtilizacao.toLowerCase())) {
+          itensComLocal.add(mov.itemId);
+        }
+      });
+      itemsFiltrados = itemsFiltrados.filter(item => itensComLocal.has(item.id));
     }
 
     return itemsFiltrados;
@@ -267,12 +280,12 @@ export const RelatoriosComFiltros = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Todas as categorias" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Todas as categorias</SelectItem>
-                      {categorias.map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
+                     <SelectContent>
+                       <SelectItem value=" ">Todas as categorias</SelectItem>
+                       {categorias.map(cat => (
+                         <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                       ))}
+                     </SelectContent>
                   </Select>
                 </div>
 
@@ -286,12 +299,12 @@ export const RelatoriosComFiltros = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Todas as subcategorias" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Todas as subcategorias</SelectItem>
-                      {subcategorias.map(subcat => (
-                        <SelectItem key={subcat} value={subcat}>{subcat}</SelectItem>
-                      ))}
-                    </SelectContent>
+                     <SelectContent>
+                       <SelectItem value=" ">Todas as subcategorias</SelectItem>
+                       {subcategorias.map(subcat => (
+                         <SelectItem key={subcat} value={subcat}>{subcat}</SelectItem>
+                       ))}
+                     </SelectContent>
                   </Select>
                 </div>
 
@@ -305,12 +318,12 @@ export const RelatoriosComFiltros = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Todos os responsáveis" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Todos os responsáveis</SelectItem>
-                      {responsaveis.map(resp => (
-                        <SelectItem key={resp} value={resp}>{resp}</SelectItem>
-                      ))}
-                    </SelectContent>
+                     <SelectContent>
+                       <SelectItem value=" ">Todos os responsáveis</SelectItem>
+                       {responsaveis.map(resp => (
+                         <SelectItem key={resp} value={resp}>{resp}</SelectItem>
+                       ))}
+                     </SelectContent>
                   </Select>
                 </div>
 
@@ -324,12 +337,12 @@ export const RelatoriosComFiltros = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Todas as localizações" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Todas as localizações</SelectItem>
-                      {localizacoes.map(loc => (
-                        <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                      ))}
-                    </SelectContent>
+                     <SelectContent>
+                       <SelectItem value=" ">Todas as localizações</SelectItem>
+                       {localizacoes.map(loc => (
+                         <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                       ))}
+                     </SelectContent>
                   </Select>
                 </div>
 
@@ -355,17 +368,28 @@ export const RelatoriosComFiltros = () => {
                   />
                 </div>
 
-                {/* Data Fim */}
-                <div>
-                  <Label htmlFor="dataFim">Data Fim</Label>
-                  <Input
-                    id="dataFim"
-                    type="date"
-                    value={filtros.dataFim}
-                    onChange={(e) => atualizarFiltro('dataFim', e.target.value)}
-                  />
-                </div>
-              </div>
+                 {/* Data Fim */}
+                 <div>
+                   <Label htmlFor="dataFim">Data Fim</Label>
+                   <Input
+                     id="dataFim"
+                     type="date"
+                     value={filtros.dataFim}
+                     onChange={(e) => atualizarFiltro('dataFim', e.target.value)}
+                   />
+                 </div>
+
+                 {/* Local de Utilização */}
+                 <div>
+                   <Label htmlFor="localUtilizacao">Local de Utilização</Label>
+                   <Input
+                     id="localUtilizacao"
+                     placeholder="Onde será utilizado..."
+                     value={filtros.localUtilizacao}
+                     onChange={(e) => atualizarFiltro('localUtilizacao', e.target.value)}
+                   />
+                 </div>
+               </div>
 
               {/* Checkboxes */}
               <div className="flex gap-6 mt-4">
@@ -396,14 +420,34 @@ export const RelatoriosComFiltros = () => {
                 <span>
                   Resultados ({itensFiltrados.length} item{itensFiltrados.length !== 1 ? 'ns' : ''})
                 </span>
-                <Button
-                  onClick={exportarRelatorio}
-                  disabled={itensFiltrados.length === 0}
-                  size="sm"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Exportar CSV
-                </Button>
+                 <div className="flex gap-2">
+                   <Button
+                     onClick={exportarRelatorio}
+                     disabled={itensFiltrados.length === 0}
+                     size="sm"
+                     variant="outline"
+                   >
+                     <Download className="h-4 w-4 mr-2" />
+                     Exportar CSV
+                   </Button>
+                   <Button
+                     onClick={() => {
+                       import('@/utils/excelExport').then(({ exportarExcel }) => {
+                         exportarExcel({
+                           titulo: 'Relatório Filtrado',
+                           nomeEstoque: 'Estoque Filtrado',
+                           itens: itensFiltrados,
+                           incluirEstatisticas: true
+                         });
+                       });
+                     }}
+                     disabled={itensFiltrados.length === 0}
+                     size="sm"
+                   >
+                     <Download className="h-4 w-4 mr-2" />
+                     Exportar Excel
+                   </Button>
+                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
