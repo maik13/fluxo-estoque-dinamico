@@ -237,6 +237,7 @@ export type Database = {
           data_solicitacao: string
           id: string
           local_utilizacao: string | null
+          numero: number | null
           observacoes: string | null
           solicitante_id: string
           solicitante_nome: string
@@ -253,6 +254,7 @@ export type Database = {
           data_solicitacao?: string
           id?: string
           local_utilizacao?: string | null
+          numero?: number | null
           observacoes?: string | null
           solicitante_id: string
           solicitante_nome: string
@@ -269,6 +271,7 @@ export type Database = {
           data_solicitacao?: string
           id?: string
           local_utilizacao?: string | null
+          numero?: number | null
           observacoes?: string | null
           solicitante_id?: string
           solicitante_nome?: string
@@ -282,6 +285,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_create_profile: {
+        Args: {
+          email: string
+          nome: string
+          target_user_id: string
+          tipo: string
+        }
+        Returns: undefined
+      }
       can_create_items: {
         Args: Record<PropertyKey, never>
         Returns: boolean
