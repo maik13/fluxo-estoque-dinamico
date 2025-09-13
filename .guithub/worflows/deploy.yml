@@ -1,0 +1,54 @@
+name: Implantar Lovable via FTP na Hostinger
+
+on:
+  push:
+    branches:
+      - main   # ajuste se seu branch principal for outro (ex.: "master")
+
+concurrency:
+  group: deploy-ftp
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Clonar o repositório
+        uses: actions/checkout@v3
+
+      - name: Configurar Node.js 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Construir o projeto
+        # ajuste o comando se o build do seu projeto for diferente
+        run: npm run build
+
+      - name: Mostrar arquivos gerados
+        run: ls -al dist/
+
+      - name: Implantar via FTP para Hostinger
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_HOST }}          # ex.: ftp.seudominio.com
+          port: 21                                 # 21 (FTP) | 990 (FTPS explícito)
+          protocol: ftp                            # mude para 'ftps' se usar FTPS
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASS }}
+          local-dir: dist/                         # pasta de saída do seu build
+          server-dir: /public_html/                # ajuste conforme a raiz do seu site
+          dangerous-clean-slate: true              # limpa arquivos no destino que não existirem no local-dir
+          dry-run: false
+          log-level: verbose
+          exclude: |                               # opcional: padrões para ignorar
+            **/.git*
+            **/node_modules/**
+            **/.DS_Store
