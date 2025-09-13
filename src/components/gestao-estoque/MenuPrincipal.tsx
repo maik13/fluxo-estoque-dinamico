@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import { Configuracoes } from './Configuracoes';
 import { SeletorEstoque } from './SeletorEstoque';
 import { DialogoImportacao } from './DialogoImportacao';
 import { SolicitarMaterial } from './SolicitarMaterial';
-import { SolicitarMaterialModerno } from './SolicitarMaterialModerno';
+
 import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -29,6 +29,12 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, obterEstoque, isEstoquePrincipal, importarItens } = useEstoque();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterEstoqueAtivoInfo } = useConfiguracoes();
   const { canCreateItems, canManageStock } = usePermissions();
+  
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const url = localStorage.getItem('empresa_logo_url');
+    if (url) setLogoUrl(url);
+  }, []);
   
   // Estados para controlar os diálogos
   const [dialogoCadastro, setDialogoCadastro] = useState(false);
@@ -204,9 +210,13 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     <div className="p-6 space-y-6">
       {/* Logo da empresa */}
       <div className="flex justify-start mb-4">
-        <div className="bg-primary/10 p-4 rounded-lg border border-primary/20">
-          <h2 className="text-lg font-bold text-primary">LOGO EMPRESA</h2>
-        </div>
+        {logoUrl ? (
+          <img src={logoUrl} alt="Logo da empresa" className="h-16 w-auto object-contain" />
+        ) : (
+          <div className="bg-primary/10 p-4 rounded-lg border border-primary/20">
+            <h2 className="text-lg font-bold text-primary">LOGO EMPRESA</h2>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-between items-center mb-8">
@@ -233,8 +243,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* Solicitação de Material com Design Moderno */}
-        <SolicitarMaterialModerno />
+        {/* Solicitar Material */}
+        <SolicitarMaterial />
         {/* BOTÃO CADASTRO */}
         <Dialog open={dialogoCadastro} onOpenChange={setDialogoCadastro}>
           <DialogTrigger asChild>

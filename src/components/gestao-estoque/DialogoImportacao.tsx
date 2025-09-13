@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, X } from 'lucide-react';
 import { Item } from '@/types/estoque';
 import { toast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
 
 interface DialogoImportacaoProps {
   aberto: boolean;
