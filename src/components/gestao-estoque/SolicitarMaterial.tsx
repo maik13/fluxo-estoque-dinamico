@@ -187,7 +187,7 @@ export const SolicitarMaterial = () => {
           <div class="header">
             <div class="logo">LOGO EMPRESA</div>
             <div>
-              <div><strong>Solicitação Nº:</strong> ${solicitacao.id.slice(-8)}</div>
+              <div><strong>Solicitação Nº:</strong> ${typeof (solicitacao as any).numero !== 'undefined' ? (solicitacao as any).numero : solicitacao.id.slice(-8)}</div>
               <div><strong>Data:</strong> ${format(new Date(solicitacao.data_solicitacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</div>
             </div>
           </div>

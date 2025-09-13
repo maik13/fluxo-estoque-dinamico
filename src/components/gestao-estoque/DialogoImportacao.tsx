@@ -109,121 +109,95 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
   const processarArquivo = async (arquivo: File) => {
     setValidando(true);
     setProgresso(0);
-    
-    try {
-      const texto = await arquivo.text();
-      const linhas = texto.split('\n').map(linha => linha.trim()).filter(linha => linha);
-      
-      if (linhas.length < 2) {
-        throw new Error('Arquivo deve ter pelo menos uma linha de cabeçalho e uma de dados');
-      }
 
-      // Parse CSV mais robusto
-      const parseCSVLine = (linha: string): string[] => {
-        const resultado: string[] = [];
-        let atual = '';
-        let dentroAspas = false;
-        
-        for (let i = 0; i < linha.length; i++) {
-          const char = linha[i];
-          
-          if (char === '"') {
-            if (dentroAspas && linha[i + 1] === '"') {
-              // Aspas duplas escapadas
-              atual += '"';
-              i++; // Pular próxima aspa
-            } else {
-              // Iniciar ou finalizar campo com aspas
-              dentroAspas = !dentroAspas;
-            }
-          } else if (char === ',' && !dentroAspas) {
-            // Separador de campo
-            resultado.push(atual.trim());
-            atual = '';
-          } else {
-            atual += char;
-          }
-        }
-        
-        // Adicionar último campo
-        resultado.push(atual.trim());
-        return resultado;
-      };
-
-      const cabecalho = parseCSVLine(linhas[0]).map(campo => campo.trim());
-      const dadosLinhas = linhas.slice(1);
-
-      // Verificar se todos os campos obrigatórios estão no cabeçalho
-      const camposFaltando = camposObrigatorios.filter(campo => !cabecalho.includes(campo));
-      if (camposFaltando.length > 0) {
-        throw new Error(`Campos obrigatórios faltando no cabeçalho: ${camposFaltando.join(', ')}`);
-      }
-
+    const validarRegistros = async (cabecalho: string[], linhas: any[][]) => {
       const validos: Omit<Item, 'id' | 'dataCriacao'>[] = [];
       const erros: { linha: number; erro: string; dados: any }[] = [];
       const codigosUsados = new Set<string>();
 
-      for (let i = 0; i < dadosLinhas.length; i++) {
-        setProgresso(((i + 1) / dadosLinhas.length) * 100);
-        
-        const linha = dadosLinhas[i];
-        if (!linha) continue; // Pular linhas vazias
-        
-        const valores = parseCSVLine(linha);
-        
-        // Permitir linhas com menos colunas (preencher com vazio)
-        while (valores.length < cabecalho.length) {
-          valores.push('');
-        }
-        
+      for (let i = 0; i < linhas.length; i++) {
+        setProgresso(((i + 1) / linhas.length) * 100);
+        const valores = linhas[i] || [];
+
+        // Preencher com vazio quando faltar coluna
+        while (valores.length < cabecalho.length) valores.push('');
         if (valores.length > cabecalho.length) {
-          erros.push({
-            linha: i + 2,
-            erro: `Muitas colunas. Esperado: ${cabecalho.length}, Encontrado: ${valores.length}`,
-            dados: valores.slice(0, 5) // Mostrar apenas primeiras 5 colunas
-          });
+          erros.push({ linha: i + 2, erro: `Muitas colunas. Esperado: ${cabecalho.length}, Encontrado: ${valores.length}`, dados: valores.slice(0, 5) });
           continue;
         }
 
         const dados: any = {};
-        cabecalho.forEach((campo, index) => {
-          dados[campo] = valores[index] || '';
-        });
+        cabecalho.forEach((campo, index) => { dados[campo] = (valores[index] ?? '').toString(); });
 
         const validacao = validarLinha(dados, i + 2);
-        
         if (validacao.erro) {
-          erros.push({
-            linha: i + 2,
-            erro: validacao.erro,
-            dados
-          });
+          erros.push({ linha: i + 2, erro: validacao.erro, dados });
         } else if (validacao.item) {
-          // Verificar código duplicado no arquivo
           if (codigosUsados.has(validacao.item.codigoBarras)) {
-            erros.push({
-              linha: i + 2,
-              erro: `Código de barras duplicado no arquivo: ${validacao.item.codigoBarras}`,
-              dados
-            });
+            erros.push({ linha: i + 2, erro: `Código de barras duplicado no arquivo: ${validacao.item.codigoBarras}`, dados });
           } else {
             codigosUsados.add(validacao.item.codigoBarras);
             validos.push(validacao.item);
           }
         }
 
-        // Pequena pausa para não travar a UI
-        if (i % 100 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 1));
-        }
+        if (i % 100 === 0) await new Promise(r => setTimeout(r, 1));
       }
 
       setResultado({ validos, erros });
+    };
+
+    try {
+      const nome = arquivo.name.toLowerCase();
+      if (nome.endsWith('.xlsx') || nome.endsWith('.xls')) {
+        // Excel
+        const buffer = await arquivo.arrayBuffer();
+        const wb = XLSX.read(buffer, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
+        if (rows.length < 2) throw new Error('Arquivo deve ter pelo menos uma linha de cabeçalho e uma de dados');
+        const cabecalho = rows[0].map((c: any) => (c ?? '').toString().trim());
+        const faltando = camposObrigatorios.filter(c => !cabecalho.includes(c));
+        if (faltando.length > 0) throw new Error(`Campos obrigatórios faltando no cabeçalho: ${faltando.join(', ')}`);
+        const dadosLinhas = rows.slice(1);
+        await validarRegistros(cabecalho, dadosLinhas);
+      } else {
+        // CSV
+        const texto = await arquivo.text();
+        const linhasBrutas = texto.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        if (linhasBrutas.length < 2) throw new Error('Arquivo deve ter pelo menos uma linha de cabeçalho e uma de dados');
+
+        const parseCSVLine = (linha: string): string[] => {
+          const resultado: string[] = [];
+          let atual = '';
+          let dentroAspas = false;
+          for (let i = 0; i < linha.length; i++) {
+            const char = linha[i];
+            if (char === '"') {
+              if (dentroAspas && linha[i + 1] === '"') { atual += '"'; i++; }
+              else { dentroAspas = !dentroAspas; }
+            } else if (char === ',' && !dentroAspas) {
+              resultado.push(atual.trim());
+              atual = '';
+            } else {
+              atual += char;
+            }
+          }
+          resultado.push(atual.trim());
+          return resultado;
+        };
+
+        const cabecalho = parseCSVLine(linhasBrutas[0]).map(c => c.trim());
+        const faltando = camposObrigatorios.filter(c => !cabecalho.includes(c));
+        if (faltando.length > 0) throw new Error(`Campos obrigatórios faltando no cabeçalho: ${faltando.join(', ')}`);
+        const dadosLinhas = linhasBrutas.slice(1).map(parseCSVLine);
+        await validarRegistros(cabecalho, dadosLinhas);
+      }
     } catch (error) {
       toast({
-        title: "Erro ao processar arquivo",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
+        title: 'Erro ao processar arquivo',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
       });
     } finally {
       setValidando(false);

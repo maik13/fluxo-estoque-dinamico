@@ -2,6 +2,7 @@ import { Item } from './estoque';
 
 export interface Solicitacao {
   id: string;
+  numero?: number;
   solicitante_id: string;
   solicitante_nome: string;
   status: 'pendente' | 'aprovada' | 'rejeitada';

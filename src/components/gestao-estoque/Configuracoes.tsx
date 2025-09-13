@@ -87,7 +87,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     }
 
     try {
-      // Primeiro verificar se o usuário já existe
+      // Verificar duplicidade de email em profiles
       const { data: existingUser } = await supabase
         .from('profiles')
         .select('email')
@@ -103,72 +103,36 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
         return;
       }
 
-      // Criar usuário no Supabase Auth (sem confirmação por email)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: novoUsuario.email,
-        password: novoUsuario.senha,
-        options: {
-          emailRedirectTo: undefined // Evitar confirmação por email
-        }
+      // Criar usuário via Edge Function com Service Role
+      const { data, error } = await supabase.functions.invoke('admin-create-user', {
+        body: {
+          email: novoUsuario.email,
+          password: novoUsuario.senha,
+          nome: novoUsuario.nome,
+          tipo: novoUsuario.tipo,
+        },
       });
 
-      if (authError) {
-        // Verificar se é erro de rate limiting (59 segundos)
-        if (authError.message.includes('For security purposes')) {
-          toast({
-            title: "Aguarde um momento",
-            description: "Por motivos de segurança, aguarde 59 segundos antes de tentar novamente.",
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        toast({
-          title: "Erro ao criar usuário",
-          description: authError.message,
-          variant: "destructive",
-        });
-        return;
-      }
+      if (error) throw error;
 
-      // Se o usuário foi criado (mesmo sem confirmação), criar o perfil
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            user_id: authData.user.id,
-            nome: novoUsuario.nome,
-            email: novoUsuario.email,
-            tipo_usuario: novoUsuario.tipo,
-            ativo: true,
-          });
-
-        if (profileError) {
-          toast({
-            title: "Erro ao criar perfil",
-            description: profileError.message,
-            variant: "destructive",
-          });
-          return;
-        }
-
+      if (data?.success) {
         toast({
           title: "Usuário cadastrado!",
           description: `Usuário ${novoUsuario.nome} foi cadastrado com sucesso.`,
         });
-
-        setNovoUsuario({
-          nome: '',
-          email: '',
-          senha: '',
-          tipo: 'estoquista',
+        setNovoUsuario({ nome: '', email: '', senha: '', tipo: 'estoquista' });
+      } else {
+        toast({
+          title: "Falha no cadastro",
+          description: data?.message || 'Não foi possível cadastrar o usuário.',
+          variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro:', error);
       toast({
-        title: "Erro inesperado",
-        description: "Ocorreu um erro ao cadastrar o usuário. Verifique se todos os campos estão preenchidos corretamente.",
+        title: "Erro ao cadastrar",
+        description: error?.message || 'Ocorreu um erro ao cadastrar o usuário.',
         variant: "destructive",
       });
     }
@@ -704,18 +668,27 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                         type="file" 
                         accept="image/*"
                         className="mb-2"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
-                          if (file) {
-                            // TODO: Implementar upload do logo
-                            toast({
-                              title: "Upload de logo",
-                              description: "Funcionalidade em desenvolvimento",
-                            });
+                          if (!file) return;
+                          try {
+                            const filePath = 'logo.png';
+                            const { error: upErr } = await supabase.storage
+                              .from('branding')
+                              .upload(filePath, file, { upsert: true, contentType: file.type });
+                            if (upErr) throw upErr;
+
+                            const { data: pub } = supabase.storage.from('branding').getPublicUrl(filePath);
+                            if (pub?.publicUrl) {
+                              localStorage.setItem('empresa_logo_url', pub.publicUrl);
+                              toast({ title: 'Logo atualizado!', description: 'O logo foi enviado com sucesso.' });
+                            }
+                          } catch (err: any) {
+                            toast({ title: 'Falha no upload', description: err?.message || 'Não foi possível enviar o logo.', variant: 'destructive' });
                           }
                         }}
                       />
-                      <Button size="sm" className="w-full">
+                      <Button size="sm" className="w-full" onClick={() => (document.getElementById('logo-upload-input') as HTMLInputElement)?.click()}>
                         <Upload className="h-4 w-4 mr-2" />
                         Upload Logo
                       </Button>
