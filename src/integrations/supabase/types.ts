@@ -37,6 +37,7 @@ export type Database = {
           responsavel: string | null
           sub_destino: string | null
           subcategoria: string | null
+          tipo_item: string | null
           tipo_servico: string | null
           unidade: string
           updated_at: string
@@ -63,6 +64,7 @@ export type Database = {
           responsavel?: string | null
           sub_destino?: string | null
           subcategoria?: string | null
+          tipo_item?: string | null
           tipo_servico?: string | null
           unidade: string
           updated_at?: string
@@ -89,6 +91,7 @@ export type Database = {
           responsavel?: string | null
           sub_destino?: string | null
           subcategoria?: string | null
+          tipo_item?: string | null
           tipo_servico?: string | null
           unidade?: string
           updated_at?: string
@@ -301,6 +304,10 @@ export type Database = {
       can_manage_inventory: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      gerar_proximo_codigo: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
