@@ -9,6 +9,7 @@ export interface Item {
   localizacao: string;
   responsavel: string;
   nome: string;
+  tipoItem: 'Insumo' | 'Ferramenta'; // Tipo do item
   metragem?: number; // Para cabos
   peso?: number;
   comprimentoLixa?: number;

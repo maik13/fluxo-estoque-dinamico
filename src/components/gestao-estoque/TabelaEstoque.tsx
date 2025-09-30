@@ -368,6 +368,7 @@ export const TabelaEstoque = () => {
                 <TableRow>
                   <TableHead>Código</TableHead>
                   <TableHead>Nome</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Categoria</TableHead>
                   <TableHead>Marca</TableHead>
                   <TableHead>Localização</TableHead>
@@ -382,7 +383,7 @@ export const TabelaEstoque = () => {
               <TableBody>
                 {itensFiltrados.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8">
+                  <TableCell colSpan={12} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-muted-foreground">
@@ -409,6 +410,11 @@ export const TabelaEstoque = () => {
                             </p>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={item.tipoItem === 'Ferramenta' ? 'default' : 'secondary'}>
+                          {item.tipoItem}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div>

@@ -47,6 +47,7 @@ export const useEstoque = () => {
           localizacao: row.localizacao ?? '',
           responsavel: row.responsavel ?? '',
           nome: row.nome,
+          tipoItem: (row.tipo_item ?? 'Insumo') as 'Insumo' | 'Ferramenta',
           metragem: row.metragem ?? undefined,
           peso: row.peso ?? undefined,
           comprimentoLixa: row.comprimento_lixa ?? undefined,
@@ -153,7 +154,7 @@ export const useEstoque = () => {
 const isEstoquePrincipal = () => estoqueAtivo === 'estoque-principal';
 
 // Função para cadastrar novo item (só funciona no estoque principal)
-const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao'>) => {
+const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>) => {
   try {
     if (!isEstoquePrincipal()) {
       toast({
@@ -164,23 +165,20 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao'>) => {
       return false;
     }
 
-    // Verificar duplicidade pelo estado local
-    if (buscarItemPorCodigo(dadosItem.codigoBarras)) {
-      toast({
-        title: 'Código já existe',
-        description: 'Já existe um item com este código de barras.',
-        variant: 'destructive',
-      });
-      return false;
-    }
+    // Gerar código sequencial automático usando função do banco
+    const { data: codigoData, error: codigoError } = await supabase.rpc('gerar_proximo_codigo');
+    if (codigoError) throw codigoError;
+    
+    const codigoGerado = codigoData as string;
 
     const insertItem = {
-      codigo_barras: dadosItem.codigoBarras,
+      codigo_barras: codigoGerado,
       origem: dadosItem.origem,
       caixa_organizador: dadosItem.caixaOrganizador,
       localizacao: dadosItem.localizacao,
       responsavel: dadosItem.responsavel,
       nome: dadosItem.nome,
+      tipo_item: dadosItem.tipoItem,
       metragem: dadosItem.metragem ?? null,
       peso: dadosItem.peso ?? null,
       comprimento_lixa: dadosItem.comprimentoLixa ?? null,
@@ -205,6 +203,7 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao'>) => {
     const novoItem: Item = {
       ...dadosItem,
       id: novoItemId,
+      codigoBarras: codigoGerado,
       dataCriacao: insertItem.data_criacao,
     };
     setItens(prev => [...prev, novoItem]);
@@ -378,6 +377,7 @@ const editarItem = async (itemEditado: Item) => {
       localizacao: itemEditado.localizacao,
       responsavel: itemEditado.responsavel,
       nome: itemEditado.nome,
+      tipo_item: itemEditado.tipoItem,
       metragem: itemEditado.metragem ?? null,
       peso: itemEditado.peso ?? null,
       comprimento_lixa: itemEditado.comprimentoLixa ?? null,
@@ -408,7 +408,7 @@ const editarItem = async (itemEditado: Item) => {
 };
 
 // Importar itens (só no principal)
-const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao'>[]) => {
+const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>[]) => {
   try {
     if (!isEstoquePrincipal()) {
       toast({ title: 'Operação não permitida', description: 'Importação só pode ser feita no Estoque Principal.', variant: 'destructive' });
@@ -417,22 +417,25 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao'>[]) => {
 
     let sucessos = 0;
     let erros = 0;
-    const codigosExistentes: string[] = [];
 
     for (const itemData of lista) {
-      if (buscarItemPorCodigo(itemData.codigoBarras)) {
-        codigosExistentes.push(itemData.codigoBarras);
+      // Gerar código sequencial automático
+      const { data: codigoData, error: codigoError } = await supabase.rpc('gerar_proximo_codigo');
+      if (codigoError) {
         erros++;
         continue;
       }
+      
+      const codigoGerado = codigoData as string;
 
       const insertItem = {
-        codigo_barras: itemData.codigoBarras,
+        codigo_barras: codigoGerado,
         origem: itemData.origem,
         caixa_organizador: itemData.caixaOrganizador,
         localizacao: itemData.localizacao,
         responsavel: itemData.responsavel,
         nome: itemData.nome,
+        tipo_item: itemData.tipoItem,
         metragem: itemData.metragem ?? null,
         peso: itemData.peso ?? null,
         comprimento_lixa: itemData.comprimentoLixa ?? null,
@@ -456,7 +459,7 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao'>[]) => {
         continue;
       }
 
-      const novoItem: Item = { ...itemData, id: itemRow!.id, dataCriacao: insertItem.data_criacao };
+      const novoItem: Item = { ...itemData, id: itemRow!.id, codigoBarras: codigoGerado, dataCriacao: insertItem.data_criacao };
       setItens(prev => [...prev, novoItem]);
 
       const { error: movErr } = await supabase.from('movements').insert({
@@ -477,13 +480,12 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao'>[]) => {
     }
 
     if (sucessos > 0) {
-      toast({ title: 'Importação concluída!', description: `${sucessos} itens importados com sucesso.${erros > 0 ? ` ${erros} itens com códigos já existentes foram ignorados.` : ''}` });
-    }
-    if (codigosExistentes.length > 0) {
-      toast({ title: 'Códigos duplicados', description: `Os seguintes códigos já existem: ${codigosExistentes.slice(0, 3).join(', ')}${codigosExistentes.length > 3 ? '...' : ''}`, variant: 'destructive' });
+      await carregarDados();
     }
 
-    return sucessos > 0;
+    const msg = `Importação concluída: ${sucessos} item(ns) importado(s)${erros > 0 ? `, ${erros} erro(s)` : ''}.`;
+    toast({ title: 'Importação realizada!', description: msg });
+    return true;
   } catch (error) {
     console.error('Erro ao importar itens:', error);
     toast({ title: 'Erro na importação', description: 'Ocorreu um erro ao importar os itens.', variant: 'destructive' });

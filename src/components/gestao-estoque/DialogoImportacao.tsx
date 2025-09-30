@@ -13,11 +13,11 @@ import * as XLSX from 'xlsx';
 interface DialogoImportacaoProps {
   aberto: boolean;
   onClose: () => void;
-  onImportar: (itens: Omit<Item, 'id' | 'dataCriacao'>[]) => void;
+  onImportar: (itens: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>[]) => void;
 }
 
 interface ResultadoValidacao {
-  validos: Omit<Item, 'id' | 'dataCriacao'>[];
+  validos: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>[];
   erros: { linha: number; erro: string; dados: any }[];
 }
 
@@ -27,9 +27,9 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
   const [resultado, setResultado] = useState<ResultadoValidacao | null>(null);
   const [progresso, setProgresso] = useState(0);
 
-  const camposObrigatorios = ['codigoBarras', 'nome', 'responsavel', 'quantidade', 'unidade'];
+  const camposObrigatorios = ['nome', 'responsavel', 'quantidade', 'unidade'];
 
-  const validarLinha = (dados: any, linha: number): { item?: Omit<Item, 'id' | 'dataCriacao'>; erro?: string } => {
+  const validarLinha = (dados: any, linha: number): { item?: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>; erro?: string } => {
     // Verificar campos obrigatórios
     for (const campo of camposObrigatorios) {
       const valor = dados[campo];
@@ -80,13 +80,13 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
       }
     }
 
-    const item: Omit<Item, 'id' | 'dataCriacao'> = {
-      codigoBarras: dados.codigoBarras.toString().trim(),
+    const item: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'> = {
       origem: dados.origem?.toString().trim() || '',
       caixaOrganizador: dados.caixaOrganizador?.toString().trim() || '',
       localizacao: dados.localizacao?.toString().trim() || '',
       responsavel: dados.responsavel.toString().trim(),
       nome: dados.nome.toString().trim(),
+      tipoItem: (dados.tipoItem?.toString().trim() || 'Insumo') as 'Insumo' | 'Ferramenta',
       metragem: dados.metragem ? parseFloat(dados.metragem) : undefined,
       peso: dados.peso ? parseFloat(dados.peso) : undefined,
       comprimentoLixa: dados.comprimentoLixa ? parseFloat(dados.comprimentoLixa) : undefined,
@@ -111,9 +111,8 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
     setProgresso(0);
 
     const validarRegistros = async (cabecalho: string[], linhas: any[][]) => {
-      const validos: Omit<Item, 'id' | 'dataCriacao'>[] = [];
+      const validos: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>[] = [];
       const erros: { linha: number; erro: string; dados: any }[] = [];
-      const codigosUsados = new Set<string>();
 
       for (let i = 0; i < linhas.length; i++) {
         setProgresso(((i + 1) / linhas.length) * 100);
@@ -133,12 +132,7 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
         if (validacao.erro) {
           erros.push({ linha: i + 2, erro: validacao.erro, dados });
         } else if (validacao.item) {
-          if (codigosUsados.has(validacao.item.codigoBarras)) {
-            erros.push({ linha: i + 2, erro: `Código de barras duplicado no arquivo: ${validacao.item.codigoBarras}`, dados });
-          } else {
-            codigosUsados.add(validacao.item.codigoBarras);
-            validos.push(validacao.item);
-          }
+          validos.push(validacao.item);
         }
 
         if (i % 100 === 0) await new Promise(r => setTimeout(r, 1));

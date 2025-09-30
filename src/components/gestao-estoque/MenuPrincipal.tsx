@@ -99,12 +99,12 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   // Função para resetar formulários
   const resetarFormularios = () => {
     setFormCadastro({
-      codigoBarras: '',
       origem: '',
       caixaOrganizador: '',
       localizacao: '',
       responsavel: '',
       nome: '',
+      tipoItem: 'Insumo',
       especificacao: '',
       marca: '',
       quantidade: 0,
@@ -131,7 +131,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const handleCadastro = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (cadastrarItem(formCadastro as Omit<Item, 'id' | 'dataCriacao'>)) {
+    if (cadastrarItem(formCadastro as Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>)) {
       setDialogoCadastro(false);
       resetarFormularios();
       onMovimentacaoRealizada();
@@ -286,17 +286,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
             <form onSubmit={handleCadastro} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="codigoBarras">Código de Barras *</Label>
-                  <Input
-                    id="codigoBarras"
-                    value={formCadastro.codigoBarras}
-                    onChange={(e) => setFormCadastro(prev => ({...prev, codigoBarras: e.target.value}))}
-                    placeholder="Digite ou escaneie o código"
-                    required
-                  />
-                </div>
-                
-                <div>
                   <Label htmlFor="nome">Nome do Item *</Label>
                   <Input
                     id="nome"
@@ -305,6 +294,22 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                     placeholder="Ex: Cabo flexível 2,5mm"
                     required
                   />
+                </div>
+                
+                <div>
+                  <Label htmlFor="tipoItem">Tipo *</Label>
+                  <Select 
+                    value={formCadastro.tipoItem} 
+                    onValueChange={(value) => setFormCadastro(prev => ({...prev, tipoItem: value as 'Insumo' | 'Ferramenta'}))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Insumo">Insumo</SelectItem>
+                      <SelectItem value="Ferramenta">Ferramenta</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div>
