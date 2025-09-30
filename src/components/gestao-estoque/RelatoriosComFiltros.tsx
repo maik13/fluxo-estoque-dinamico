@@ -275,13 +275,13 @@ export const RelatoriosComFiltros = () => {
                   <Label htmlFor="categoria">Categoria</Label>
                   <Select 
                     value={filtros.categoria} 
-                    onValueChange={(value) => atualizarFiltro('categoria', value)}
+                    onValueChange={(value) => atualizarFiltro('categoria', value === 'todas' ? '' : value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Todas as categorias" />
                     </SelectTrigger>
                      <SelectContent>
-                       <SelectItem value=" ">Todas as categorias</SelectItem>
+                       <SelectItem value="todas">Todas as categorias</SelectItem>
                        {categorias.map(cat => (
                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                        ))}
@@ -294,13 +294,13 @@ export const RelatoriosComFiltros = () => {
                   <Label htmlFor="subcategoria">Subcategoria</Label>
                   <Select 
                     value={filtros.subcategoria} 
-                    onValueChange={(value) => atualizarFiltro('subcategoria', value)}
+                    onValueChange={(value) => atualizarFiltro('subcategoria', value === 'todas' ? '' : value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Todas as subcategorias" />
                     </SelectTrigger>
                      <SelectContent>
-                       <SelectItem value=" ">Todas as subcategorias</SelectItem>
+                       <SelectItem value="todas">Todas as subcategorias</SelectItem>
                        {subcategorias.map(subcat => (
                          <SelectItem key={subcat} value={subcat}>{subcat}</SelectItem>
                        ))}
@@ -313,13 +313,13 @@ export const RelatoriosComFiltros = () => {
                   <Label htmlFor="responsavel">Responsável</Label>
                   <Select 
                     value={filtros.responsavel} 
-                    onValueChange={(value) => atualizarFiltro('responsavel', value)}
+                    onValueChange={(value) => atualizarFiltro('responsavel', value === 'todos' ? '' : value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Todos os responsáveis" />
                     </SelectTrigger>
                      <SelectContent>
-                       <SelectItem value=" ">Todos os responsáveis</SelectItem>
+                       <SelectItem value="todos">Todos os responsáveis</SelectItem>
                        {responsaveis.map(resp => (
                          <SelectItem key={resp} value={resp}>{resp}</SelectItem>
                        ))}
@@ -332,13 +332,13 @@ export const RelatoriosComFiltros = () => {
                   <Label htmlFor="localizacao">Localização</Label>
                   <Select 
                     value={filtros.localizacao} 
-                    onValueChange={(value) => atualizarFiltro('localizacao', value)}
+                    onValueChange={(value) => atualizarFiltro('localizacao', value === 'todas' ? '' : value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Todas as localizações" />
                     </SelectTrigger>
                      <SelectContent>
-                       <SelectItem value=" ">Todas as localizações</SelectItem>
+                       <SelectItem value="todas">Todas as localizações</SelectItem>
                        {localizacoes.map(loc => (
                          <SelectItem key={loc} value={loc}>{loc}</SelectItem>
                        ))}

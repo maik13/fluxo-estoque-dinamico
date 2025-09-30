@@ -108,6 +108,12 @@ export const ConsultarSolicitacoes = () => {
             <strong>Status:</strong> ${solicitacao.status.toUpperCase()}
           </div>
           
+          ${solicitacao.local_utilizacao ? `<div class="info"><strong>Local de Utilização:</strong> ${solicitacao.local_utilizacao}</div>` : ''}
+          
+          ${solicitacao.responsavel_estoque ? `<div class="info"><strong>Responsável pelo Estoque:</strong> ${solicitacao.responsavel_estoque}</div>` : ''}
+          
+          ${solicitacao.tipo_operacao ? `<div class="info"><strong>Tipo de Operação:</strong> ${solicitacao.tipo_operacao}</div>` : ''}
+          
           ${solicitacao.observacoes ? `<div class="info"><strong>Observações:</strong> ${solicitacao.observacoes}</div>` : ''}
           
           <table class="table">
@@ -256,6 +262,24 @@ export const ConsultarSolicitacoes = () => {
                   <div>
                     <Label>Data da Aprovação</Label>
                     <p>{format(new Date(solicitacaoSelecionada.data_aprovacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</p>
+                  </div>
+                )}
+                {solicitacaoSelecionada.local_utilizacao && (
+                  <div>
+                    <Label>Local de Utilização</Label>
+                    <p>{solicitacaoSelecionada.local_utilizacao}</p>
+                  </div>
+                )}
+                {solicitacaoSelecionada.responsavel_estoque && (
+                  <div>
+                    <Label>Responsável pelo Estoque</Label>
+                    <p>{solicitacaoSelecionada.responsavel_estoque}</p>
+                  </div>
+                )}
+                {solicitacaoSelecionada.tipo_operacao && (
+                  <div>
+                    <Label>Tipo de Operação</Label>
+                    <p className="capitalize">{solicitacaoSelecionada.tipo_operacao.replace(/_/g, ' ')}</p>
                   </div>
                 )}
               </div>

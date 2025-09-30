@@ -2,10 +2,19 @@ import { useState, useEffect } from 'react';
 import { EstoqueConfig, TipoServicoConfig, SubcategoriaConfig } from '@/types/estoque';
 import { toast } from '@/hooks/use-toast';
 
+export interface TipoOperacaoConfig {
+  id: string;
+  nome: string;
+  descricao?: string;
+  ativo: boolean;
+  dataCriacao: string;
+}
+
 export const useConfiguracoes = () => {
   const [estoques, setEstoques] = useState<EstoqueConfig[]>([]);
   const [tiposServico, setTiposServico] = useState<TipoServicoConfig[]>([]);
   const [subcategorias, setSubcategorias] = useState<SubcategoriaConfig[]>([]);
+  const [tiposOperacao, setTiposOperacao] = useState<TipoOperacaoConfig[]>([]);
   const [estoqueAtivo, setEstoqueAtivo] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
@@ -15,6 +24,7 @@ export const useConfiguracoes = () => {
       const estoquesSalvos = localStorage.getItem('estoque-config');
       const tiposServicoSalvos = localStorage.getItem('tipos-servico-config');
       const subcategoriasSalvas = localStorage.getItem('subcategorias-config');
+      const tiposOperacaoSalvos = localStorage.getItem('tipos-operacao-config');
       const estoqueAtivoSalvo = localStorage.getItem('estoque-ativo');
 
       if (estoquesSalvos) {
@@ -44,6 +54,19 @@ export const useConfiguracoes = () => {
 
       if (subcategoriasSalvas) {
         setSubcategorias(JSON.parse(subcategoriasSalvas));
+      }
+
+      if (tiposOperacaoSalvos) {
+        setTiposOperacao(JSON.parse(tiposOperacaoSalvos));
+      } else {
+        // Criar tipos de operação padrão
+        const tiposDefault: TipoOperacaoConfig[] = [
+          { id: 'op-1', nome: 'Compra', descricao: 'Entrada de materiais por compra', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'op-2', nome: 'Saída para Produção', descricao: 'Saída de materiais para uso na produção', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'op-3', nome: 'Quebra', descricao: 'Perda de material por quebra ou dano', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'op-4', nome: 'Devolução', descricao: 'Retorno de materiais ao estoque', ativo: true, dataCriacao: new Date().toISOString() },
+        ];
+        setTiposOperacao(tiposDefault);
       }
 
       if (estoqueAtivoSalvo) {
@@ -85,6 +108,12 @@ export const useConfiguracoes = () => {
       localStorage.setItem('estoque-ativo', estoqueAtivo);
     }
   }, [estoqueAtivo, loading]);
+
+  useEffect(() => {
+    if (!loading) {
+      localStorage.setItem('tipos-operacao-config', JSON.stringify(tiposOperacao));
+    }
+  }, [tiposOperacao, loading]);
 
   // Funções para gerar ID único
   const gerarId = () => {
@@ -207,16 +236,47 @@ export const useConfiguracoes = () => {
     });
   };
 
+  // Funções para gerenciar tipos de operação
+  const adicionarTipoOperacao = (nome: string, descricao?: string) => {
+    const novoTipo: TipoOperacaoConfig = {
+      id: gerarId(),
+      nome,
+      descricao,
+      ativo: true,
+      dataCriacao: new Date().toISOString(),
+    };
+
+    setTiposOperacao(prev => [...prev, novoTipo]);
+    
+    toast({
+      title: "Tipo de operação criado!",
+      description: `Tipo "${nome}" foi criado com sucesso.`,
+    });
+
+    return novoTipo;
+  };
+
+  const removerTipoOperacao = (id: string) => {
+    setTiposOperacao(prev => prev.filter(t => t.id !== id));
+    
+    toast({
+      title: "Tipo de operação removido!",
+      description: "Tipo de operação foi removido com sucesso.",
+    });
+  };
+
   // Funções para obter dados filtrados
   const obterEstoquesAtivos = () => estoques.filter(e => e.ativo);
   const obterTiposServicoAtivos = () => tiposServico.filter(t => t.ativo);
   const obterSubcategoriasAtivas = () => subcategorias.filter(s => s.ativo);
+  const obterTiposOperacaoAtivos = () => tiposOperacao.filter(t => t.ativo);
   const obterEstoqueAtivoInfo = () => estoques.find(e => e.id === estoqueAtivo);
 
   return {
     estoques,
     tiposServico,
     subcategorias,
+    tiposOperacao,
     estoqueAtivo,
     loading,
     adicionarEstoque,
@@ -226,9 +286,12 @@ export const useConfiguracoes = () => {
     removerTipoServico,
     adicionarSubcategoria,
     removerSubcategoria,
+    adicionarTipoOperacao,
+    removerTipoOperacao,
     obterEstoquesAtivos,
     obterTiposServicoAtivos,
     obterSubcategoriasAtivas,
+    obterTiposOperacaoAtivos,
     obterEstoqueAtivoInfo,
   };
 };

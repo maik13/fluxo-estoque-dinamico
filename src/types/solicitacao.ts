@@ -8,6 +8,8 @@ export interface Solicitacao {
   status: 'pendente' | 'aprovada' | 'rejeitada';
   observacoes?: string;
   local_utilizacao?: string;
+  responsavel_estoque?: string;
+  tipo_operacao?: string;
   data_solicitacao: string;
   data_aprovacao?: string;
   aprovado_por_id?: string;
@@ -41,5 +43,7 @@ export interface NovoItemSolicitacao {
 export interface NovaSolicitacao {
   observacoes?: string;
   local_utilizacao?: string;
+  responsavel_estoque?: string;
+  tipo_operacao?: string;
   itens: NovoItemSolicitacao[];
 }

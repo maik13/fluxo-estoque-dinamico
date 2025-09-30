@@ -38,12 +38,6 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
       }
     }
 
-    // Validar código de barras (não pode ser só números ou muito curto)
-    const codigoBarras = dados.codigoBarras.toString().trim();
-    if (codigoBarras.length < 3) {
-      return { erro: 'Código de barras deve ter pelo menos 3 caracteres' };
-    }
-
     // Validar quantidade
     const quantidadeStr = dados.quantidade.toString().trim().replace(',', '.');
     const quantidade = parseFloat(quantidadeStr);
@@ -261,6 +255,8 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Arquivos CSV, Excel (.xlsx, .xls) são aceitos. Use o modelo fornecido nas configurações.
+              <br />
+              <strong>Nota:</strong> O código será gerado automaticamente. Não é necessário incluir na planilha.
             </p>
           </div>
 

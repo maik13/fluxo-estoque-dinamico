@@ -30,15 +30,19 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     estoques,
     tiposServico,
     subcategorias,
+    tiposOperacao,
     obterEstoquesAtivos,
     obterTiposServicoAtivos,
     obterSubcategoriasAtivas,
+    obterTiposOperacaoAtivos,
     adicionarEstoque,
     removerEstoque,
     adicionarTipoServico,
     removerTipoServico,
     adicionarSubcategoria,
     removerSubcategoria,
+    adicionarTipoOperacao,
+    removerTipoOperacao,
   } = useConfiguracoes();
 
   const [configuracao, setConfiguracao] = useState({
@@ -68,6 +72,11 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   const [novaSubcategoria, setNovaSubcategoria] = useState({
     nome: '',
     categoria: '',
+  });
+
+  const [novoTipoOperacao, setNovoTipoOperacao] = useState({
+    nome: '',
+    descricao: '',
   });
 
   const handleTemaChange = (tema: 'light' | 'dark') => {
@@ -183,6 +192,21 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     onConfigChange?.();
   };
 
+  const handleCadastroTipoOperacao = () => {
+    if (!novoTipoOperacao.nome) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Digite o nome do tipo de operação.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    adicionarTipoOperacao(novoTipoOperacao.nome, novoTipoOperacao.descricao);
+    setNovoTipoOperacao({ nome: '', descricao: '' });
+    onConfigChange?.();
+  };
+
   const handleExportarDados = () => {
     toast({
       title: "Exportação iniciada",
@@ -253,11 +277,12 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
         </DialogHeader>
         
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="usuarios">Usuários</TabsTrigger>
             <TabsTrigger value="estoques">Estoques</TabsTrigger>
-            <TabsTrigger value="tipos-servico">Tipos de Serviço</TabsTrigger>
+            <TabsTrigger value="tipos-servico">Tipos Serviço</TabsTrigger>
             <TabsTrigger value="subcategorias">Subcategorias</TabsTrigger>
+            <TabsTrigger value="tipos-operacao">Operações</TabsTrigger>
             <TabsTrigger value="importacao">Importação</TabsTrigger>
             <TabsTrigger value="tema">Tema</TabsTrigger>
             <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
@@ -528,6 +553,70 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                           variant="ghost"
                           size="sm"
                           onClick={() => removerSubcategoria(subcategoria.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Aba Tipos de Operação */}
+          <TabsContent value="tipos-operacao" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Gerenciar Tipos de Operação
+                </CardTitle>
+                <CardDescription>
+                  Cadastre os tipos de operação para solicitações (compra, saída, quebra, etc)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="nomeTipoOperacao">Nome do Tipo</Label>
+                    <Input
+                      id="nomeTipoOperacao"
+                      value={novoTipoOperacao.nome}
+                      onChange={(e) => setNovoTipoOperacao(prev => ({ ...prev, nome: e.target.value }))}
+                      placeholder="Ex: Compra, Saída para Produção"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="descricaoTipoOperacao">Descrição</Label>
+                    <Input
+                      id="descricaoTipoOperacao"
+                      value={novoTipoOperacao.descricao}
+                      onChange={(e) => setNovoTipoOperacao(prev => ({ ...prev, descricao: e.target.value }))}
+                      placeholder="Descrição do tipo de operação"
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleCadastroTipoOperacao} className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Cadastrar Tipo de Operação
+                </Button>
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                  <h4 className="font-medium">Tipos de Operação Cadastrados</h4>
+                  <div className="space-y-2">
+                    {tiposOperacao.map((tipo) => (
+                      <div key={tipo.id} className="flex items-center justify-between p-2 border rounded">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">{tipo.nome}</Badge>
+                          {tipo.descricao && <span className="text-sm text-muted-foreground">{tipo.descricao}</span>}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removerTipoOperacao(tipo.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

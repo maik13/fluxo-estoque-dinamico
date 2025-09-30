@@ -242,9 +242,11 @@ export type Database = {
           local_utilizacao: string | null
           numero: number | null
           observacoes: string | null
+          responsavel_estoque: string | null
           solicitante_id: string
           solicitante_nome: string
           status: string
+          tipo_operacao: string | null
           updated_at: string
         }
         Insert: {
@@ -259,9 +261,11 @@ export type Database = {
           local_utilizacao?: string | null
           numero?: number | null
           observacoes?: string | null
+          responsavel_estoque?: string | null
           solicitante_id: string
           solicitante_nome: string
           status?: string
+          tipo_operacao?: string | null
           updated_at?: string
         }
         Update: {
@@ -276,9 +280,11 @@ export type Database = {
           local_utilizacao?: string | null
           numero?: number | null
           observacoes?: string | null
+          responsavel_estoque?: string | null
           solicitante_id?: string
           solicitante_nome?: string
           status?: string
+          tipo_operacao?: string | null
           updated_at?: string
         }
         Relationships: []

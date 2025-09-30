@@ -11,12 +11,14 @@ import { Trash2, Package, Plus, FileText, Printer, Eye, Check, X } from 'lucide-
 import { useEstoque } from '@/hooks/useEstoque';
 import { useSolicitacoes } from '@/hooks/useSolicitacoes';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { Item } from '@/types/estoque';
 import { NovoItemSolicitacao, SolicitacaoCompleta } from '@/types/solicitacao';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -24,6 +26,8 @@ export const SolicitarMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
   const [observacoes, setObservacoes] = useState('');
   const [localUtilizacao, setLocalUtilizacao] = useState('');
+  const [responsavelEstoque, setResponsavelEstoque] = useState('');
+  const [tipoOperacao, setTipoOperacao] = useState('saida_producao');
   const [itensSolicitados, setItensSolicitados] = useState<NovoItemSolicitacao[]>([]);
   const [popoverAberto, setPopoverAberto] = useState(false);
   const [busca, setBusca] = useState('');
@@ -35,8 +39,10 @@ export const SolicitarMaterial = () => {
   const { obterEstoque } = useEstoque();
   const { criarSolicitacao, solicitacoes, loading, aprovarSolicitacao, rejeitarSolicitacao, atualizarAceites } = useSolicitacoes();
   const { canManageStock, userProfile } = usePermissions();
+  const { obterTiposOperacaoAtivos } = useConfiguracoes();
   
   const itensDisponiveis = obterEstoque();
+  const tiposOperacaoDisponiveis = obterTiposOperacaoAtivos();
 
   const adicionarItem = (item: Item, quantidade: number) => {
     const itemExistente = itensSolicitados.find(i => i.item_id === item.id);
@@ -100,6 +106,8 @@ export const SolicitarMaterial = () => {
     const sucesso = await criarSolicitacao({
       observacoes,
       local_utilizacao: localUtilizacao,
+      responsavel_estoque: responsavelEstoque,
+      tipo_operacao: tipoOperacao,
       itens: itensSolicitados
     });
 
@@ -112,6 +120,8 @@ export const SolicitarMaterial = () => {
   const resetarFormulario = () => {
     setObservacoes('');
     setLocalUtilizacao('');
+    setResponsavelEstoque('');
+    setTipoOperacao('saida_producao');
     setItensSolicitados([]);
     setBusca('');
   };
@@ -204,6 +214,10 @@ export const SolicitarMaterial = () => {
           
           ${solicitacao.local_utilizacao ? `<div class="info"><strong>Local de Utilização:</strong> ${solicitacao.local_utilizacao}</div>` : ''}
           
+          ${solicitacao.responsavel_estoque ? `<div class="info"><strong>Responsável pelo Estoque:</strong> ${solicitacao.responsavel_estoque}</div>` : ''}
+          
+          ${solicitacao.tipo_operacao ? `<div class="info"><strong>Tipo de Operação:</strong> ${solicitacao.tipo_operacao.replace(/_/g, ' ')}</div>` : ''}
+          
           ${solicitacao.observacoes ? `<div class="info"><strong>Observações:</strong> ${solicitacao.observacoes}</div>` : ''}
           
           <table class="table">
@@ -294,6 +308,34 @@ export const SolicitarMaterial = () => {
                 value={localUtilizacao}
                 onChange={(e) => setLocalUtilizacao(e.target.value)}
               />
+            </div>
+
+            {/* Campo Responsável pelo Estoque */}
+            <div className="space-y-2">
+              <Label htmlFor="responsavelEstoque">Responsável pelo Estoque</Label>
+              <Input
+                id="responsavelEstoque"
+                placeholder="Nome do responsável pela separação"
+                value={responsavelEstoque}
+                onChange={(e) => setResponsavelEstoque(e.target.value)}
+              />
+            </div>
+
+            {/* Campo Tipo de Operação */}
+            <div className="space-y-2">
+              <Label htmlFor="tipoOperacao">Tipo de Operação *</Label>
+              <Select value={tipoOperacao} onValueChange={setTipoOperacao}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tiposOperacaoDisponiveis.map(tipo => (
+                    <SelectItem key={tipo.id} value={tipo.nome.toLowerCase().replace(/\s+/g, '_')}>
+                      {tipo.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Buscar e adicionar itens */}

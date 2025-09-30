@@ -70,7 +70,9 @@ export const useSolicitacoes = () => {
           solicitante_id: user.id,
           solicitante_nome: userProfile.nome,
           observacoes: novaSolicitacao.observacoes,
-          local_utilizacao: novaSolicitacao.local_utilizacao
+          local_utilizacao: novaSolicitacao.local_utilizacao,
+          responsavel_estoque: novaSolicitacao.responsavel_estoque,
+          tipo_operacao: novaSolicitacao.tipo_operacao || 'saida_producao'
         }])
         .select()
         .single();
