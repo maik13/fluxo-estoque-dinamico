@@ -8,155 +8,21 @@ import * as XLSX from 'xlsx';
 
 export const GuiaImportacaoExcel = () => {
   
-  // Função para gerar arquivo Excel modelo
-  const gerarArquivoModelo = () => {
-    const headers = [
-      'codigoBarras',
-      'nome',
-      'origem',
-      'caixaOrganizador',
-      'localizacao',
-      'responsavel',
-      'marca',
-      'categoria',
-      'subcategoria',
-      'subDestino',
-      'tipoServico',
-      'quantidade',
-      'quantidadeMinima',
-      'unidade',
-      'condicao',
-      'especificacao',
-      'metragem',
-      'peso',
-      'comprimentoLixa',
-      'polaridadeDisjuntor'
-    ];
-
-    const exemploData = [
-      [
-        '7891234567890',
-        'Cabo Flexível 2,5mm',
-        'Fornecedor ABC',
-        'Caixa 01',
-        'Estante A - Prateleira 2',
-        'João Silva',
-        'Furukawa',
-        'Cabos',
-        'Cabos Flexíveis',
-        'Estoque Principal',
-        'Instalação Elétrica',
-        100,
-        10,
-        'metro',
-        'Novo',
-        'Cabo flexível 2,5mm² isolação 750V',
-        100,
-        '',
-        '',
-        ''
-      ],
-      [
-        '7891234567891',
-        'Disjuntor Bipolar 32A',
-        'Nota Fiscal 12345',
-        'Gaveta 03',
-        'Armário Disjuntores',
-        'Maria Santos',
-        'Schneider',
-        'Proteção',
-        'Disjuntores',
-        'Estoque Obra',
-        'Quadro Elétrico',
-        5,
-        2,
-        'peça',
-        'Novo',
-        'Disjuntor bipolar 32A curva C',
-        '',
-        0.2,
-        '',
-        'Bipolar'
-      ],
-      [
-        '7891234567892',
-        'Lixa d\'água #220',
-        'Compra Direta',
-        'Prateleira B',
-        'Área Acabamento',
-        'Pedro Costa',
-        'Norton',
-        'Ferramentas',
-        'Abrasivos',
-        'Estoque Geral',
-        'Acabamento',
-        50,
-        5,
-        'folha',
-        'Novo',
-        'Lixa d\'água granulação 220',
-        '',
-        '',
-        23,
-        ''
-      ]
-    ];
-
-    // Criar workbook e worksheet
-    const workbook = XLSX.utils.book_new();
-    const worksheetData = [headers, ...exemploData];
-    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-
-    // Definir larguras das colunas
-    const colWidths = [
-      { wch: 15 }, // codigoBarras
-      { wch: 25 }, // nome
-      { wch: 20 }, // origem
-      { wch: 15 }, // caixaOrganizador
-      { wch: 25 }, // localizacao
-      { wch: 15 }, // responsavel
-      { wch: 15 }, // marca
-      { wch: 15 }, // categoria
-      { wch: 18 }, // subcategoria
-      { wch: 18 }, // subDestino
-      { wch: 18 }, // tipoServico
-      { wch: 12 }, // quantidade
-      { wch: 15 }, // quantidadeMinima
-      { wch: 10 }, // unidade
-      { wch: 10 }, // condicao
-      { wch: 35 }, // especificacao
-      { wch: 12 }, // metragem
-      { wch: 8 },  // peso
-      { wch: 15 }, // comprimentoLixa
-      { wch: 18 }  // polaridadeDisjuntor
-    ];
-    worksheet['!cols'] = colWidths;
-
-    // Estilizar cabeçalho
-    const headerRange = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
-    for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-      if (!worksheet[cellAddress]) continue;
-      worksheet[cellAddress].s = {
-        font: { bold: true, color: { rgb: "FFFFFF" } },
-        fill: { fgColor: { rgb: "366092" } },
-        alignment: { horizontal: "center" }
-      };
-    }
-
-    // Adicionar worksheet ao workbook
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Modelo Importação");
-
-    // Salvar arquivo
-    XLSX.writeFile(workbook, 'modelo-importacao-estoque.xlsx');
+  // Função para baixar arquivo modelo do servidor
+  const baixarArquivoModelo = () => {
+    const link = document.createElement('a');
+    link.href = '/modelo-importacao-estoque.xlsx';
+    link.download = 'modelo-importacao-estoque.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const camposObrigatorios = [
-    { campo: 'codigoBarras', descricao: 'Código único do item (deve ser único no sistema)' },
     { campo: 'nome', descricao: 'Nome do produto' },
     { campo: 'responsavel', descricao: 'Nome do responsável pelo cadastro' },
-    { campo: 'quantidade', descricao: 'Quantidade inicial (número)' },
-    { campo: 'unidade', descricao: 'Unidade de medida (metro, peça, kg, etc.)' }
+    { campo: 'unidade', descricao: 'Unidade de medida (metro, peça, kg, etc.)' },
+    { campo: 'tipoItem', descricao: 'Tipo do item: "Insumo" ou "Ferramenta"' }
   ];
 
   const camposOpcionais = [
@@ -168,6 +34,7 @@ export const GuiaImportacaoExcel = () => {
     { campo: 'subcategoria', descricao: 'Subcategoria do item' },
     { campo: 'subDestino', descricao: 'Sub destino/estoque de destino' },
     { campo: 'tipoServico', descricao: 'Tipo de serviço onde será usado' },
+    { campo: 'quantidade', descricao: 'Quantidade inicial (número) - padrão: 0' },
     { campo: 'quantidadeMinima', descricao: 'Quantidade mínima para alerta (número)' },
     { campo: 'condicao', descricao: 'Novo, Usado, Defeito ou Descarte' },
     { campo: 'especificacao', descricao: 'Especificações técnicas detalhadas' },
@@ -193,7 +60,7 @@ export const GuiaImportacaoExcel = () => {
           
           {/* Botão para baixar modelo */}
           <div className="flex justify-center">
-            <Button onClick={gerarArquivoModelo} className="flex items-center gap-2">
+            <Button onClick={baixarArquivoModelo} className="flex items-center gap-2">
               <Download className="h-4 w-4" />
               Baixar Arquivo Modelo Excel (.xlsx)
             </Button>
@@ -273,12 +140,13 @@ export const GuiaImportacaoExcel = () => {
             </CardHeader>
             <CardContent className="text-blue-700 space-y-2">
               <ul className="space-y-2">
-                <li>• <strong>Códigos únicos:</strong> Cada codigoBarras deve ser único no sistema</li>
+                <li>• <strong>Códigos automáticos:</strong> Os códigos serão gerados automaticamente (COD-000001, COD-000002...)</li>
+                <li>• <strong>tipoItem:</strong> Deve ser exatamente "Insumo" ou "Ferramenta"</li>
                 <li>• <strong>Números:</strong> Campos como quantidade, quantidadeMinima, metragem e peso devem conter apenas números</li>
                 <li>• <strong>Condição:</strong> Valores aceitos: "Novo", "Usado", "Defeito", "Descarte"</li>
                 <li>• <strong>Primeira linha:</strong> Deve conter os nomes dos campos (cabeçalho)</li>
                 <li>• <strong>Codificação:</strong> Salve o arquivo com codificação UTF-8 para caracteres especiais</li>
-                <li>• <strong>Aspas:</strong> Textos com vírgulas devem estar entre aspas duplas</li>
+                <li>• <strong>Quantidade opcional:</strong> Se não informada, será considerada 0</li>
               </ul>
             </CardContent>
           </Card>
@@ -287,11 +155,11 @@ export const GuiaImportacaoExcel = () => {
           <div>
             <h3 className="text-lg font-semibold mb-3">💡 Exemplo de Linha Completa</h3>
             <div className="bg-gray-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
-              <p className="text-gray-600 mb-2">// Cabeçalho (primeira linha)</p>
-              <p className="mb-4">codigoBarras,nome,origem,caixaOrganizador,localizacao,responsavel,marca,categoria,subcategoria,subDestino,tipoServico,quantidade,quantidadeMinima,unidade,condicao,especificacao,metragem,peso,comprimentoLixa,polaridadeDisjuntor</p>
+              <p className="text-gray-600 mb-2">// Use o arquivo modelo baixado acima como referência</p>
+              <p className="mb-4">Campos: nome, responsavel, unidade, tipoItem (obrigatórios) + campos opcionais</p>
               
-              <p className="text-gray-600 mb-2">// Exemplo de dados (segunda linha em diante)</p>
-              <p>"7891234567890","Cabo Flexível 2,5mm","Fornecedor ABC","Caixa 01","Estante A - Prateleira 2","João Silva","Furukawa","Cabos","Cabos Flexíveis","Estoque Principal","Instalação Elétrica","100","10","metro","Novo","Cabo flexível 2,5mm² isolação 750V","100","","",""</p>
+              <p className="text-gray-600 mb-2">// Exemplo:</p>
+              <p>"CHAVE COMB. (19)","FRANCIS","1","Ferramenta","PA5","MTX","Ferramenta","Manual",...</p>
             </div>
           </div>
 

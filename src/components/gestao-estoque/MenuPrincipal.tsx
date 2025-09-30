@@ -421,17 +421,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   </Select>
                 </div>
                 
-                <div>
-                  <Label htmlFor="quantidade">Quantidade *</Label>
-                  <Input
-                    id="quantidade"
-                    type="number"
-                    min="0"
-                    value={formCadastro.quantidade}
-                    onChange={(e) => setFormCadastro(prev => ({...prev, quantidade: Number(e.target.value)}))}
-                    required
-                  />
-                </div>
                 
                 <div>
                   <Label htmlFor="unidade">Unidade *</Label>

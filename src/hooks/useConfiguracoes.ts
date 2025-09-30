@@ -10,11 +10,30 @@ export interface TipoOperacaoConfig {
   dataCriacao: string;
 }
 
+export interface SolicitanteConfig {
+  id: string;
+  nome: string;
+  email?: string;
+  ativo: boolean;
+  dataCriacao: string;
+}
+
+export interface LocalUtilizacaoConfig {
+  id: string;
+  nome: string;
+  codigo?: string;
+  descricao?: string;
+  ativo: boolean;
+  dataCriacao: string;
+}
+
 export const useConfiguracoes = () => {
   const [estoques, setEstoques] = useState<EstoqueConfig[]>([]);
   const [tiposServico, setTiposServico] = useState<TipoServicoConfig[]>([]);
   const [subcategorias, setSubcategorias] = useState<SubcategoriaConfig[]>([]);
   const [tiposOperacao, setTiposOperacao] = useState<TipoOperacaoConfig[]>([]);
+  const [solicitantes, setSolicitantes] = useState<SolicitanteConfig[]>([]);
+  const [locaisUtilizacao, setLocaisUtilizacao] = useState<LocalUtilizacaoConfig[]>([]);
   const [estoqueAtivo, setEstoqueAtivo] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
@@ -25,6 +44,8 @@ export const useConfiguracoes = () => {
       const tiposServicoSalvos = localStorage.getItem('tipos-servico-config');
       const subcategoriasSalvas = localStorage.getItem('subcategorias-config');
       const tiposOperacaoSalvos = localStorage.getItem('tipos-operacao-config');
+      const solicitantesSalvos = localStorage.getItem('solicitantes-config');
+      const locaisUtilizacaoSalvos = localStorage.getItem('locais-utilizacao-config');
       const estoqueAtivoSalvo = localStorage.getItem('estoque-ativo');
 
       if (estoquesSalvos) {
@@ -67,6 +88,39 @@ export const useConfiguracoes = () => {
           { id: 'op-4', nome: 'Devolução', descricao: 'Retorno de materiais ao estoque', ativo: true, dataCriacao: new Date().toISOString() },
         ];
         setTiposOperacao(tiposDefault);
+      }
+
+      if (solicitantesSalvos) {
+        setSolicitantes(JSON.parse(solicitantesSalvos));
+      }
+
+      if (locaisUtilizacaoSalvos) {
+        setLocaisUtilizacao(JSON.parse(locaisUtilizacaoSalvos));
+      } else {
+        // Criar locais padrão conforme especificado
+        const locaisDefault: LocalUtilizacaoConfig[] = [
+          { id: 'loc-1', nome: 'Natal Cascavel 2025', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-2', nome: 'BFL - Beija Flor', codigo: 'BFL', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-3', nome: 'GRA - Gralha Azul', codigo: 'GRA', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-4', nome: 'NPR - Novo Presépio', codigo: 'NPR', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-5', nome: 'TOG - Túnel Ogival', codigo: 'TOG', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-6', nome: 'SGF - Sagrada Família', codigo: 'SGF', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-7', nome: 'JMB - José Maria e Burrinho', codigo: 'JMB', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-8', nome: 'Restauros Cascavel 2025', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-9', nome: 'Natal Foz do Iguaçu 2025', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-10', nome: 'Restauros Foz do Iguaçu 2025', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-11', nome: 'AVP - Árvore Pinheiro', codigo: 'AVP', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-12', nome: 'AJE - Anjo Ecológico', codigo: 'AJE', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-13', nome: 'FNE - Floco de Neve', codigo: 'FNE', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-14', nome: 'DFL - Domo Flor de Lotus', codigo: 'DFL', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-15', nome: 'CAP - Capivara', codigo: 'CAP', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-16', nome: 'BGU - Banco Guirlanda', codigo: 'BGU', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-17', nome: 'QUA - Quati', codigo: 'QUA', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-18', nome: 'CXL - Caixa de Presente com Laço', codigo: 'CXL', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-19', nome: 'COZ - COZINHA', codigo: 'COZ', ativo: true, dataCriacao: new Date().toISOString() },
+          { id: 'loc-20', nome: 'USI - USINA MARIALVA', codigo: 'USI', ativo: true, dataCriacao: new Date().toISOString() },
+        ];
+        setLocaisUtilizacao(locaisDefault);
       }
 
       if (estoqueAtivoSalvo) {
@@ -114,6 +168,18 @@ export const useConfiguracoes = () => {
       localStorage.setItem('tipos-operacao-config', JSON.stringify(tiposOperacao));
     }
   }, [tiposOperacao, loading]);
+
+  useEffect(() => {
+    if (!loading) {
+      localStorage.setItem('solicitantes-config', JSON.stringify(solicitantes));
+    }
+  }, [solicitantes, loading]);
+
+  useEffect(() => {
+    if (!loading) {
+      localStorage.setItem('locais-utilizacao-config', JSON.stringify(locaisUtilizacao));
+    }
+  }, [locaisUtilizacao, loading]);
 
   // Funções para gerar ID único
   const gerarId = () => {
@@ -265,11 +331,72 @@ export const useConfiguracoes = () => {
     });
   };
 
+  // Funções para gerenciar solicitantes
+  const adicionarSolicitante = (nome: string, email?: string) => {
+    const novoSolicitante: SolicitanteConfig = {
+      id: gerarId(),
+      nome,
+      email,
+      ativo: true,
+      dataCriacao: new Date().toISOString(),
+    };
+
+    setSolicitantes(prev => [...prev, novoSolicitante]);
+    
+    toast({
+      title: "Solicitante cadastrado!",
+      description: `Solicitante "${nome}" foi cadastrado com sucesso.`,
+    });
+
+    return novoSolicitante;
+  };
+
+  const removerSolicitante = (id: string) => {
+    setSolicitantes(prev => prev.filter(s => s.id !== id));
+    
+    toast({
+      title: "Solicitante removido!",
+      description: "Solicitante foi removido com sucesso.",
+    });
+  };
+
+  // Funções para gerenciar locais de utilização
+  const adicionarLocalUtilizacao = (nome: string, codigo?: string, descricao?: string) => {
+    const novoLocal: LocalUtilizacaoConfig = {
+      id: gerarId(),
+      nome,
+      codigo,
+      descricao,
+      ativo: true,
+      dataCriacao: new Date().toISOString(),
+    };
+
+    setLocaisUtilizacao(prev => [...prev, novoLocal]);
+    
+    toast({
+      title: "Local cadastrado!",
+      description: `Local "${nome}" foi cadastrado com sucesso.`,
+    });
+
+    return novoLocal;
+  };
+
+  const removerLocalUtilizacao = (id: string) => {
+    setLocaisUtilizacao(prev => prev.filter(l => l.id !== id));
+    
+    toast({
+      title: "Local removido!",
+      description: "Local foi removido com sucesso.",
+    });
+  };
+
   // Funções para obter dados filtrados
   const obterEstoquesAtivos = () => estoques.filter(e => e.ativo);
   const obterTiposServicoAtivos = () => tiposServico.filter(t => t.ativo);
   const obterSubcategoriasAtivas = () => subcategorias.filter(s => s.ativo);
   const obterTiposOperacaoAtivos = () => tiposOperacao.filter(t => t.ativo);
+  const obterSolicitantesAtivos = () => solicitantes.filter(s => s.ativo);
+  const obterLocaisUtilizacaoAtivos = () => locaisUtilizacao.filter(l => l.ativo);
   const obterEstoqueAtivoInfo = () => estoques.find(e => e.id === estoqueAtivo);
 
   return {
@@ -277,6 +404,8 @@ export const useConfiguracoes = () => {
     tiposServico,
     subcategorias,
     tiposOperacao,
+    solicitantes,
+    locaisUtilizacao,
     estoqueAtivo,
     loading,
     adicionarEstoque,
@@ -288,10 +417,16 @@ export const useConfiguracoes = () => {
     removerSubcategoria,
     adicionarTipoOperacao,
     removerTipoOperacao,
+    adicionarSolicitante,
+    removerSolicitante,
+    adicionarLocalUtilizacao,
+    removerLocalUtilizacao,
     obterEstoquesAtivos,
     obterTiposServicoAtivos,
     obterSubcategoriasAtivas,
     obterTiposOperacaoAtivos,
+    obterSolicitantesAtivos,
+    obterLocaisUtilizacaoAtivos,
     obterEstoqueAtivoInfo,
   };
 };

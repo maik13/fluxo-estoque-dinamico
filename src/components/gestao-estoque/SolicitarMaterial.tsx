@@ -39,10 +39,12 @@ export const SolicitarMaterial = () => {
   const { obterEstoque } = useEstoque();
   const { criarSolicitacao, solicitacoes, loading, aprovarSolicitacao, rejeitarSolicitacao, atualizarAceites } = useSolicitacoes();
   const { canManageStock, userProfile } = usePermissions();
-  const { obterTiposOperacaoAtivos } = useConfiguracoes();
+  const { obterTiposOperacaoAtivos, obterSolicitantesAtivos, obterLocaisUtilizacaoAtivos } = useConfiguracoes();
   
   const itensDisponiveis = obterEstoque();
   const tiposOperacaoDisponiveis = obterTiposOperacaoAtivos();
+  const solicitantesDisponiveis = obterSolicitantesAtivos();
+  const locaisDisponiveis = obterLocaisUtilizacaoAtivos();
 
   const adicionarItem = (item: Item, quantidade: number) => {
     const itemExistente = itensSolicitados.find(i => i.item_id === item.id);
@@ -299,15 +301,34 @@ export const SolicitarMaterial = () => {
           </DialogHeader>
 
           <div className="space-y-6">
+            {/* Campo Solicitante */}
+            <div className="space-y-2">
+              <Label htmlFor="solicitante">Solicitante *</Label>
+              <Select value={userProfile?.nome || ''} disabled>
+                <SelectTrigger>
+                  <SelectValue placeholder="Solicitante" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={userProfile?.nome || ''}>{userProfile?.nome || 'Usuário'}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Campo Local de Utilização */}
             <div className="space-y-2">
               <Label htmlFor="localUtilizacao">Local onde será utilizado *</Label>
-              <Input
-                id="localUtilizacao"
-                placeholder="Ex: Obra A, Setor B, Cliente X..."
-                value={localUtilizacao}
-                onChange={(e) => setLocalUtilizacao(e.target.value)}
-              />
+              <Select value={localUtilizacao} onValueChange={setLocalUtilizacao}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o local" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locaisDisponiveis.map(local => (
+                    <SelectItem key={local.id} value={local.nome}>
+                      {local.codigo ? `${local.codigo} - ${local.nome}` : local.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Campo Responsável pelo Estoque */}

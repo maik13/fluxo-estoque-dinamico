@@ -27,7 +27,7 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
   const [resultado, setResultado] = useState<ResultadoValidacao | null>(null);
   const [progresso, setProgresso] = useState(0);
 
-  const camposObrigatorios = ['nome', 'responsavel', 'quantidade', 'unidade'];
+  const camposObrigatorios = ['nome', 'responsavel', 'unidade', 'tipoItem'];
 
   const validarLinha = (dados: any, linha: number): { item?: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>; erro?: string } => {
     // Verificar campos obrigatórios
@@ -38,11 +38,20 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
       }
     }
 
-    // Validar quantidade
-    const quantidadeStr = dados.quantidade.toString().trim().replace(',', '.');
-    const quantidade = parseFloat(quantidadeStr);
-    if (isNaN(quantidade) || quantidade < 0) {
-      return { erro: `Quantidade inválida: "${dados.quantidade}". Deve ser um número maior ou igual a zero` };
+    // Validar tipo de item
+    const tipoItem = dados.tipoItem?.toString().trim() || 'Insumo';
+    if (!['Insumo', 'Ferramenta'].includes(tipoItem)) {
+      return { erro: `Tipo de item inválido: "${dados.tipoItem}". Deve ser "Insumo" ou "Ferramenta"` };
+    }
+
+    // Validar quantidade (opcional agora)
+    let quantidade = 0;
+    if (dados.quantidade && dados.quantidade.toString().trim() !== '') {
+      const quantidadeStr = dados.quantidade.toString().trim().replace(',', '.');
+      quantidade = parseFloat(quantidadeStr);
+      if (isNaN(quantidade) || quantidade < 0) {
+        return { erro: `Quantidade inválida: "${dados.quantidade}". Deve ser um número maior ou igual a zero` };
+      }
     }
 
     // Validar quantidade mínima se fornecida
@@ -80,7 +89,7 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
       localizacao: dados.localizacao?.toString().trim() || '',
       responsavel: dados.responsavel.toString().trim(),
       nome: dados.nome.toString().trim(),
-      tipoItem: (dados.tipoItem?.toString().trim() || 'Insumo') as 'Insumo' | 'Ferramenta',
+      tipoItem: tipoItem as 'Insumo' | 'Ferramenta',
       metragem: dados.metragem ? parseFloat(dados.metragem) : undefined,
       peso: dados.peso ? parseFloat(dados.peso) : undefined,
       comprimentoLixa: dados.comprimentoLixa ? parseFloat(dados.comprimentoLixa) : undefined,
@@ -253,11 +262,15 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
                 className="cursor-pointer"
               />
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Arquivos CSV, Excel (.xlsx, .xls) são aceitos. Use o modelo fornecido nas configurações.
-              <br />
-              <strong>Nota:</strong> O código será gerado automaticamente. Não é necessário incluir na planilha.
-            </p>
+            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-sm text-blue-800 font-semibold mb-2">⚠️ Notas Importantes:</p>
+              <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
+                <li><strong>Códigos gerados automaticamente:</strong> COD-000001, COD-000002... (não incluir coluna codigoBarras)</li>
+                <li><strong>Campos obrigatórios:</strong> nome, responsavel, unidade, tipoItem</li>
+                <li><strong>tipoItem válidos:</strong> "Insumo" ou "Ferramenta"</li>
+                <li><strong>Quantidade:</strong> Opcional (padrão: 0 se não informada)</li>
+              </ul>
+            </div>
           </div>
 
           {/* Processar arquivo */}

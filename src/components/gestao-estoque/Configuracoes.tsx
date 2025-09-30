@@ -31,10 +31,14 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     tiposServico,
     subcategorias,
     tiposOperacao,
+    solicitantes,
+    locaisUtilizacao,
     obterEstoquesAtivos,
     obterTiposServicoAtivos,
     obterSubcategoriasAtivas,
     obterTiposOperacaoAtivos,
+    obterSolicitantesAtivos,
+    obterLocaisUtilizacaoAtivos,
     adicionarEstoque,
     removerEstoque,
     adicionarTipoServico,
@@ -43,6 +47,10 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     removerSubcategoria,
     adicionarTipoOperacao,
     removerTipoOperacao,
+    adicionarSolicitante,
+    removerSolicitante,
+    adicionarLocalUtilizacao,
+    removerLocalUtilizacao,
   } = useConfiguracoes();
 
   const [configuracao, setConfiguracao] = useState({
@@ -76,6 +84,17 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
 
   const [novoTipoOperacao, setNovoTipoOperacao] = useState({
     nome: '',
+    descricao: '',
+  });
+
+  const [novoSolicitante, setNovoSolicitante] = useState({
+    nome: '',
+    email: '',
+  });
+
+  const [novoLocal, setNovoLocal] = useState({
+    nome: '',
+    codigo: '',
     descricao: '',
   });
 
@@ -207,6 +226,36 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     onConfigChange?.();
   };
 
+  const handleCadastroSolicitante = () => {
+    if (!novoSolicitante.nome) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Digite o nome do solicitante.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    adicionarSolicitante(novoSolicitante.nome, novoSolicitante.email);
+    setNovoSolicitante({ nome: '', email: '' });
+    onConfigChange?.();
+  };
+
+  const handleCadastroLocal = () => {
+    if (!novoLocal.nome) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Digite o nome do local.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    adicionarLocalUtilizacao(novoLocal.nome, novoLocal.codigo, novoLocal.descricao);
+    setNovoLocal({ nome: '', codigo: '', descricao: '' });
+    onConfigChange?.();
+  };
+
   const handleExportarDados = () => {
     toast({
       title: "Exportação iniciada",
@@ -277,15 +326,17 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
         </DialogHeader>
         
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-            <TabsTrigger value="estoques">Estoques</TabsTrigger>
-            <TabsTrigger value="tipos-servico">Tipos Serviço</TabsTrigger>
-            <TabsTrigger value="subcategorias">Subcategorias</TabsTrigger>
-            <TabsTrigger value="tipos-operacao">Operações</TabsTrigger>
-            <TabsTrigger value="importacao">Importação</TabsTrigger>
-            <TabsTrigger value="tema">Tema</TabsTrigger>
-            <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-10 gap-1">
+            <TabsTrigger value="usuarios" className="text-xs">Usuários</TabsTrigger>
+            <TabsTrigger value="solicitantes" className="text-xs">Solicitantes</TabsTrigger>
+            <TabsTrigger value="locais" className="text-xs">Locais</TabsTrigger>
+            <TabsTrigger value="estoques" className="text-xs">Estoques</TabsTrigger>
+            <TabsTrigger value="tipos-servico" className="text-xs">Tipos Serviço</TabsTrigger>
+            <TabsTrigger value="subcategorias" className="text-xs">Subcategorias</TabsTrigger>
+            <TabsTrigger value="tipos-operacao" className="text-xs">Operações</TabsTrigger>
+            <TabsTrigger value="importacao" className="text-xs">Importação</TabsTrigger>
+            <TabsTrigger value="tema" className="text-xs">Tema</TabsTrigger>
+            <TabsTrigger value="relatorios" className="text-xs">Relatórios</TabsTrigger>
           </TabsList>
 
           {/* Aba Usuários */}
@@ -368,6 +419,146 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <UsuariosList />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Aba Solicitantes */}
+          <TabsContent value="solicitantes" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Gerenciar Solicitantes
+                </CardTitle>
+                <CardDescription>
+                  Cadastre solicitantes de material
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="nomeSolicitante">Nome do Solicitante</Label>
+                    <Input
+                      id="nomeSolicitante"
+                      value={novoSolicitante.nome}
+                      onChange={(e) => setNovoSolicitante(prev => ({ ...prev, nome: e.target.value }))}
+                      placeholder="Nome completo"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="emailSolicitante">Email (Opcional)</Label>
+                    <Input
+                      id="emailSolicitante"
+                      type="email"
+                      value={novoSolicitante.email}
+                      onChange={(e) => setNovoSolicitante(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="email@exemplo.com"
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleCadastroSolicitante} className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Cadastrar Solicitante
+                </Button>
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                  <h4 className="font-medium">Solicitantes Cadastrados</h4>
+                  <div className="space-y-2">
+                    {solicitantes.map((solicitante) => (
+                      <div key={solicitante.id} className="flex items-center justify-between p-2 border rounded">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">{solicitante.nome}</Badge>
+                          {solicitante.email && <span className="text-sm text-muted-foreground">{solicitante.email}</span>}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removerSolicitante(solicitante.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Aba Locais de Utilização */}
+          <TabsContent value="locais" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Tag className="h-5 w-5" />
+                  Gerenciar Locais de Utilização
+                </CardTitle>
+                <CardDescription>
+                  Cadastre locais onde os materiais serão utilizados (padrão: CÓDIGO - Nome)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="codigoLocal">Código (Ex: BFL, GRA)</Label>
+                    <Input
+                      id="codigoLocal"
+                      value={novoLocal.codigo}
+                      onChange={(e) => setNovoLocal(prev => ({ ...prev, codigo: e.target.value.toUpperCase() }))}
+                      placeholder="Código"
+                      maxLength={3}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="nomeLocal">Nome do Local</Label>
+                    <Input
+                      id="nomeLocal"
+                      value={novoLocal.nome}
+                      onChange={(e) => setNovoLocal(prev => ({ ...prev, nome: e.target.value }))}
+                      placeholder="Nome completo"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="descricaoLocal">Descrição (Opcional)</Label>
+                    <Input
+                      id="descricaoLocal"
+                      value={novoLocal.descricao}
+                      onChange={(e) => setNovoLocal(prev => ({ ...prev, descricao: e.target.value }))}
+                      placeholder="Descrição"
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleCadastroLocal} className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Cadastrar Local
+                </Button>
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                  <h4 className="font-medium">Locais Cadastrados</h4>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {locaisUtilizacao.map((local) => (
+                      <div key={local.id} className="flex items-center justify-between p-2 border rounded">
+                        <div className="flex items-center gap-2">
+                          {local.codigo && <Badge variant="outline">{local.codigo}</Badge>}
+                          <span className="font-medium">{local.nome}</span>
+                          {local.descricao && <span className="text-sm text-muted-foreground">- {local.descricao}</span>}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removerLocalUtilizacao(local.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
