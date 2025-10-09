@@ -162,13 +162,21 @@ export const DevolverMaterial = () => {
     toast.success(`Retirada #${solicitacao.numero || solicitacao.id.slice(-8)} selecionada`);
   };
 
-  // Filtrar apenas retiradas aprovadas do usuário atual
-  const retiradasDisponiveis = solicitacoes.filter(s => 
-    s.solicitante_id === userProfile?.user_id &&
-    s.status === 'aprovada' &&
-    s.tipo_operacao !== 'devolucao' &&
-    !solicitacoes.some(dev => dev.solicitacao_origem_id === s.id && dev.status === 'aprovada')
-  );
+  // Filtrar apenas retiradas aprovadas que não são devoluções
+  const retiradasDisponiveis = solicitacoes.filter(s => {
+    // Deve ser aprovada e não ser uma devolução
+    const isRetirada = s.status === 'aprovada' && 
+                       s.tipo_operacao !== 'devolucao' &&
+                       s.tipo_operacao !== null;
+    
+    // Não deve ter uma devolução aprovada vinculada
+    const temDevolucao = solicitacoes.some(dev => 
+      dev.solicitacao_origem_id === s.id && 
+      dev.status === 'aprovada'
+    );
+    
+    return isRetirada && !temDevolucao;
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
