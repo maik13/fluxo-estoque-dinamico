@@ -164,10 +164,8 @@ export const DevolverMaterial = () => {
 
   // Filtrar apenas retiradas aprovadas que não são devoluções
   const retiradasDisponiveis = solicitacoes.filter(s => {
-    // Deve ser aprovada e não ser uma devolução
-    const isRetirada = s.status === 'aprovada' && 
-                       s.tipo_operacao !== 'devolucao' &&
-                       s.tipo_operacao !== null;
+    // Deve ser aprovada e não ser uma devolução (null conta como retirada)
+    const isRetirada = s.status === 'aprovada' && s.tipo_operacao !== 'devolucao';
     
     // Não deve ter uma devolução aprovada vinculada
     const temDevolucao = solicitacoes.some(dev => 
