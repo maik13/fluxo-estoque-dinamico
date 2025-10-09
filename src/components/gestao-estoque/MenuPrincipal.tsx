@@ -15,6 +15,7 @@ import { Configuracoes } from './Configuracoes';
 import { SeletorEstoque } from './SeletorEstoque';
 import { DialogoImportacao } from './DialogoImportacao';
 import { SolicitarMaterial } from './SolicitarMaterial';
+import { DevolverMaterial } from './DevolverMaterial';
 
 import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
@@ -242,9 +243,12 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         {/* Solicitar Material */}
         <SolicitarMaterial />
+        
+        {/* Devolução de Material */}
+        <DevolverMaterial />
         {/* BOTÃO CADASTRO */}
         <Dialog open={dialogoCadastro} onOpenChange={setDialogoCadastro}>
           <DialogTrigger asChild>
@@ -727,34 +731,33 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
         </Dialog>
 
         {/* BOTÃO IMPORTAÇÃO */}
-        <Dialog open={dialogoImportacao} onOpenChange={setDialogoImportacao}>
-          <DialogTrigger asChild>
-            <Card className={cn(
-              "cursor-pointer hover:scale-105 transition-all duration-300",
-              podeUsarCadastro 
-                ? "border-purple-200 hover:border-purple-400" 
-                : "border-muted/20 hover:border-muted/40 opacity-60"
+        <Card 
+          onClick={() => podeUsarCadastro && setDialogoImportacao(true)}
+          className={cn(
+            "cursor-pointer hover:scale-105 transition-all duration-300",
+            podeUsarCadastro 
+              ? "border-purple-200 hover:border-purple-400" 
+              : "border-muted/20 hover:border-muted/40 opacity-60"
+          )}
+        >
+          <CardHeader className="text-center">
+            <div className={cn(
+              "mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4",
+              podeUsarCadastro ? "bg-purple-50" : "bg-muted/10"
             )}>
-              <CardHeader className="text-center">
-                <div className={cn(
-                  "mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4",
-                  podeUsarCadastro ? "bg-purple-50" : "bg-muted/10"
-                )}>
-                  <Upload className={cn("h-8 w-8", podeUsarCadastro ? "text-purple-600" : "text-muted-foreground")} />
-                </div>
-                <CardTitle className={cn(podeUsarCadastro ? "text-purple-600" : "text-muted-foreground")}>
-                  Importar Lista
-                </CardTitle>
-                <CardDescription>
-                  {podeUsarCadastro 
-                    ? "Carregar lista de itens em lote"
-                    : "Disponível apenas no Estoque Principal"
-                  }
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          </DialogTrigger>
-        </Dialog>
+              <Upload className={cn("h-8 w-8", podeUsarCadastro ? "text-purple-600" : "text-muted-foreground")} />
+            </div>
+            <CardTitle className={cn(podeUsarCadastro ? "text-purple-600" : "text-muted-foreground")}>
+              Importar Lista
+            </CardTitle>
+            <CardDescription>
+              {podeUsarCadastro 
+                ? "Carregar lista de itens em lote"
+                : "Disponível apenas no Estoque Principal"
+              }
+            </CardDescription>
+          </CardHeader>
+        </Card>
 
         {/* Diálogo de Importação */}
         <DialogoImportacao
