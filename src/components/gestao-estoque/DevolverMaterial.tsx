@@ -1,64 +1,97 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Trash2, PackageCheck, Plus, FileText, Printer, Eye } from 'lucide-react';
-import { useEstoque } from '@/hooks/useEstoque';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { PackageCheck, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useSolicitacoes } from '@/hooks/useSolicitacoes';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useEstoque } from '@/hooks/useEstoque';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
-import { Item } from '@/types/estoque';
 import { NovoItemSolicitacao, SolicitacaoCompleta } from '@/types/solicitacao';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Separator } from '@/components/ui/separator';
+import { Item } from '@/types/estoque';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { toast } from 'sonner';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 export const DevolverMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
-  const [observacoes, setObservacoes] = useState('');
+  const [retiradaSelecionada, setRetiradaSelecionada] = useState<SolicitacaoCompleta | null>(null);
+  const [itensDevolucao, setItensDevolucao] = useState<NovoItemSolicitacao[]>([]);
   const [localUtilizacao, setLocalUtilizacao] = useState('');
   const [responsavelEstoque, setResponsavelEstoque] = useState('');
-  const [tipoOperacao, setTipoOperacao] = useState('devolucao');
-  const [itensSolicitados, setItensSolicitados] = useState<NovoItemSolicitacao[]>([]);
+  const [observacoes, setObservacoes] = useState('');
   const [popoverAberto, setPopoverAberto] = useState(false);
   const [busca, setBusca] = useState('');
-  const [visualizarSolicitacoes, setVisualizarSolicitacoes] = useState(false);
-  const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState<SolicitacaoCompleta | null>(null);
-  const [detalhesAberto, setDetalhesAberto] = useState(false);
-  const [retiradaOriginalId, setRetiradaOriginalId] = useState<string>('');
-  const [mostrarSelecaoRetirada, setMostrarSelecaoRetirada] = useState(true);
 
-  const { obterEstoque } = useEstoque();
-  const { criarSolicitacao, solicitacoes, loading, validarItensDevolucao } = useSolicitacoes();
+  const { solicitacoes, criarSolicitacao } = useSolicitacoes();
   const { userProfile } = usePermissions();
-  const { obterTiposOperacaoAtivos, obterLocaisUtilizacaoAtivos } = useConfiguracoes();
-  
-  const itensDisponiveis = obterEstoque();
-  const tiposOperacaoDisponiveis = obterTiposOperacaoAtivos();
+  const { obterEstoque } = useEstoque();
+  const { obterLocaisUtilizacaoAtivos } = useConfiguracoes();
+
+  const itensEstoque = obterEstoque();
   const locaisDisponiveis = obterLocaisUtilizacaoAtivos();
 
+  // Filtrar retiradas aprovadas que podem ser devolvidas
+  const retiradasDisponiveis = solicitacoes.filter(s => {
+    // Deve estar aprovada
+    if (s.status !== 'aprovada') return false;
+    
+    // Não deve ser uma devolução
+    if (s.tipo_operacao === 'devolucao' || s.tipo_operacao === 'devolucao_estoque') return false;
+    
+    // Não deve ter devolução já criada
+    const jaPossuiDevolucao = solicitacoes.some(dev => 
+      dev.solicitacao_origem_id === s.id && 
+      (dev.tipo_operacao === 'devolucao' || dev.tipo_operacao === 'devolucao_estoque')
+    );
+    
+    return !jaPossuiDevolucao;
+  });
+
+  const resetarFormulario = () => {
+    setRetiradaSelecionada(null);
+    setItensDevolucao([]);
+    setLocalUtilizacao('');
+    setResponsavelEstoque('');
+    setObservacoes('');
+    setBusca('');
+  };
+
+  const selecionarRetirada = (retirada: SolicitacaoCompleta) => {
+    setRetiradaSelecionada(retirada);
+    setLocalUtilizacao(retirada.local_utilizacao || '');
+    
+    // Pré-carregar itens da retirada como sugestão
+    const itensSugeridos: NovoItemSolicitacao[] = retirada.itens.map(item => ({
+      item_id: item.item_id,
+      quantidade_solicitada: item.quantidade_aprovada,
+      item_snapshot: item.item_snapshot
+    }));
+    setItensDevolucao(itensSugeridos);
+    
+    toast.success(`Retirada selecionada. Itens carregados para devolução.`);
+  };
+
   const adicionarItem = (item: Item, quantidade: number) => {
-    const itemExistente = itensSolicitados.find(i => i.item_id === item.id);
+    const itemExistente = itensDevolucao.find(i => i.item_id === item.id);
     
     if (itemExistente) {
-      setItensSolicitados(prev => 
-        prev.map(i => 
-          i.item_id === item.id 
+      setItensDevolucao(prev =>
+        prev.map(i =>
+          i.item_id === item.id
             ? { ...i, quantidade_solicitada: i.quantidade_solicitada + quantidade }
             : i
         )
       );
     } else {
-      setItensSolicitados(prev => [
+      setItensDevolucao(prev => [
         ...prev,
         {
           item_id: item.id,
@@ -70,8 +103,7 @@ export const DevolverMaterial = () => {
             categoria: item.categoria,
             subcategoria: item.subcategoria,
             unidade: item.unidade,
-            marca: item.marca,
-            especificacao: item.especificacao
+            marca: item.marca
           }
         }
       ]);
@@ -82,7 +114,7 @@ export const DevolverMaterial = () => {
   };
 
   const removerItem = (itemId: string) => {
-    setItensSolicitados(prev => prev.filter(item => item.item_id !== itemId));
+    setItensDevolucao(prev => prev.filter(i => i.item_id !== itemId));
   };
 
   const atualizarQuantidade = (itemId: string, novaQuantidade: number) => {
@@ -90,225 +122,59 @@ export const DevolverMaterial = () => {
       removerItem(itemId);
       return;
     }
-
-    setItensSolicitados(prev =>
-      prev.map(item =>
-        item.item_id === itemId
-          ? { ...item, quantidade_solicitada: novaQuantidade }
-          : item
+    
+    setItensDevolucao(prev =>
+      prev.map(i =>
+        i.item_id === itemId
+          ? { ...i, quantidade_solicitada: novaQuantidade }
+          : i
       )
     );
   };
 
   const handleSubmit = async () => {
-    if (itensSolicitados.length === 0) {
-      toast.error('Adicione pelo menos um item para devolução');
-      return;
-    }
-
-    if (!retiradaOriginalId) {
+    if (!retiradaSelecionada) {
       toast.error('Selecione a retirada original');
       return;
     }
 
-    // Validar itens contra a retirada original
-    const retiradaOriginal = solicitacoes.find(s => s.id === retiradaOriginalId);
-    if (retiradaOriginal) {
-      const validacao = validarItensDevolucao(retiradaOriginal.itens, itensSolicitados);
-      
-      if (!validacao.valido) {
-        toast.error('Divergência encontrada!', {
-          description: validacao.divergencias.join(', ')
-        });
-        
-        const confirmar = window.confirm(
-          `ATENÇÃO: Os seguintes itens não foram retirados na solicitação original:\n\n${validacao.divergencias.join('\n')}\n\nDeseja continuar mesmo assim?`
-        );
-        
-        if (!confirmar) return;
-      }
+    if (itensDevolucao.length === 0) {
+      toast.error('Adicione pelo menos um item para devolução');
+      return;
+    }
+
+    if (!localUtilizacao) {
+      toast.error('Informe o local de origem da devolução');
+      return;
     }
 
     const sucesso = await criarSolicitacao({
       observacoes,
       local_utilizacao: localUtilizacao,
       responsavel_estoque: responsavelEstoque,
-      tipo_operacao: tipoOperacao,
-      solicitacao_origem_id: retiradaOriginalId,
-      itens: itensSolicitados
+      tipo_operacao: 'devolucao',
+      solicitacao_origem_id: retiradaSelecionada.id,
+      itens: itensDevolucao
     });
 
     if (sucesso) {
+      toast.success('Devolução registrada com sucesso!');
       resetarFormulario();
       setDialogoAberto(false);
     }
   };
 
-  const resetarFormulario = () => {
-    setObservacoes('');
-    setLocalUtilizacao('');
-    setResponsavelEstoque('');
-    setTipoOperacao('devolucao');
-    setItensSolicitados([]);
-    setBusca('');
-    setRetiradaOriginalId('');
-    setMostrarSelecaoRetirada(true);
-  };
-
-  const selecionarRetirada = (solicitacao: SolicitacaoCompleta) => {
-    setRetiradaOriginalId(solicitacao.id);
-    setLocalUtilizacao(solicitacao.local_utilizacao || '');
-    setMostrarSelecaoRetirada(false);
-    toast.success(`Retirada #${solicitacao.numero || solicitacao.id.slice(-8)} selecionada`);
-  };
-
-  // Filtrar apenas retiradas aprovadas que não são devoluções
-  const retiradasDisponiveis = solicitacoes.filter((s) => {
-    // Elegível para devolução se for uma RETIRADA (não devolução) e considerada 'aprovada'
-    const isRetiradaOperacao = s.tipo_operacao !== 'devolucao' && s.tipo_operacao !== 'devolucao_estoque';
-
-    // Considerar 'aprovada' por múltiplos indicadores, pois alguns fluxos não atualizam o campo status
-    const isAprovada = (
-      s.status === 'aprovada' ||
-      !!s.data_aprovacao ||
-      !!s.aprovado_por_id ||
-      !!s.aceite_separador ||
-      !!s.aceite_solicitante ||
-      (Array.isArray((s as any).itens) && (s as any).itens.some((i: any) => (i?.quantidade_aprovada ?? 0) > 0))
+  const itensFiltrarados = itensEstoque.filter(item => {
+    if (!busca) return true;
+    const termo = busca.toLowerCase();
+    return (
+      item.nome.toLowerCase().includes(termo) ||
+      item.codigoBarras.toLowerCase().includes(termo) ||
+      (item.marca && item.marca.toLowerCase().includes(termo))
     );
-
-    // Evitar múltiplas devoluções para a mesma retirada: se já existir QUALQUER devolução vinculada, ocultar
-    const temAlgumaDevolucao = solicitacoes.some(
-      (dev) => dev.solicitacao_origem_id === s.id && dev.tipo_operacao === 'devolucao'
-    );
-
-    return isRetiradaOperacao && isAprovada && !temAlgumaDevolucao;
   });
 
-  // Debug: log contagens para ajudar a diagnosticar lista vazia
-  useEffect(() => {
-    try {
-      console.log('[DevolverMaterial] solicitacoes:', solicitacoes.map(s => ({ id: s.id, status: s.status, tipo: s.tipo_operacao, origem: s.solicitacao_origem_id })));
-      console.log('[DevolverMaterial] retiradasDisponiveis:', retiradasDisponiveis.map(s => s.id));
-    } catch {}
-  }, [solicitacoes, retiradasDisponiveis]);
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pendente':
-        return <Badge variant="outline">Pendente</Badge>;
-      case 'aprovada':
-        return <Badge className="bg-green-100 text-green-800">Aprovada</Badge>;
-      case 'rejeitada':
-        return <Badge variant="destructive">Rejeitada</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  const abrirDetalhes = (solicitacao: SolicitacaoCompleta) => {
-    setSolicitacaoSelecionada(solicitacao);
-    setDetalhesAberto(true);
-  };
-
-  const imprimirSolicitacao = (solicitacao: SolicitacaoCompleta) => {
-    const conteudo = `
-      <html>
-        <head>
-          <title>Devolução de Material - ${solicitacao.id}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-            .logo { font-size: 24px; font-weight: bold; color: #333; }
-            .titulo { text-align: center; font-size: 20px; margin: 20px 0; }
-            .info { margin: 10px 0; }
-            .table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            .table th { background-color: #f2f2f2; }
-            .assinaturas { display: flex; justify-content: space-between; margin-top: 50px; }
-            .assinatura { width: 45%; text-align: center; border-top: 1px solid #333; padding-top: 10px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="logo">LOGO EMPRESA</div>
-            <div>
-              <div><strong>Devolução Nº:</strong> ${typeof (solicitacao as any).numero !== 'undefined' ? (solicitacao as any).numero : solicitacao.id.slice(-8)}</div>
-              <div><strong>Data:</strong> ${format(new Date(solicitacao.data_solicitacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</div>
-            </div>
-          </div>
-          
-          <div class="titulo">DEVOLUÇÃO DE MATERIAL</div>
-          
-          <div class="info">
-            <strong>Solicitante:</strong> ${solicitacao.solicitante_nome}
-          </div>
-          
-          <div class="info">
-            <strong>Status:</strong> ${solicitacao.status.toUpperCase()}
-          </div>
-          
-          ${solicitacao.local_utilizacao ? `<div class="info"><strong>Local de Origem:</strong> ${solicitacao.local_utilizacao}</div>` : ''}
-          
-          ${solicitacao.responsavel_estoque ? `<div class="info"><strong>Responsável pela Recepção:</strong> ${solicitacao.responsavel_estoque}</div>` : ''}
-          
-          ${solicitacao.tipo_operacao ? `<div class="info"><strong>Tipo de Operação:</strong> ${solicitacao.tipo_operacao.replace(/_/g, ' ')}</div>` : ''}
-          
-          ${solicitacao.observacoes ? `<div class="info"><strong>Observações:</strong> ${solicitacao.observacoes}</div>` : ''}
-          
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Código</th>
-                <th>Categoria</th>
-                <th>Qtd. Devolvida</th>
-                <th>Qtd. Aprovada</th>
-                <th>Unidade</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${solicitacao.itens.map(item => `
-                <tr>
-                  <td>${item.item_snapshot.nome}</td>
-                  <td>${item.item_snapshot.codigoBarras}</td>
-                  <td>${item.item_snapshot.categoria}</td>
-                  <td>${item.quantidade_solicitada}</td>
-                  <td>${item.quantidade_aprovada}</td>
-                  <td>${item.item_snapshot.unidade}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          
-          <div class="assinaturas">
-            <div class="assinatura">
-              <div>Responsável pela Recepção</div>
-              <div style="margin-top: 20px;">
-                <input type="checkbox" ${solicitacao.aceite_separador ? 'checked' : ''}> Aceito
-              </div>
-            </div>
-            <div class="assinatura">
-              <div>Solicitante</div>
-              <div style="margin-top: 20px;">
-                <input type="checkbox" ${solicitacao.aceite_solicitante ? 'checked' : ''}> Aceito
-              </div>
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
-
-    const novaJanela = window.open('', '_blank');
-    if (novaJanela) {
-      novaJanela.document.write(conteudo);
-      novaJanela.document.close();
-      novaJanela.print();
-    }
-  };
-
   return (
-    <>
     <Dialog open={dialogoAberto} onOpenChange={(open) => {
       setDialogoAberto(open);
       if (!open) resetarFormulario();
@@ -332,438 +198,256 @@ export const DevolverMaterial = () => {
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Devolução de Material</DialogTitle>
-          <DialogDescription>Selecione a retirada aprovada para devolução</DialogDescription>
+          <DialogDescription>
+            Selecione a retirada original e os itens que está devolvendo
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Seleção da Retirada Original */}
-          {mostrarSelecaoRetirada && (
-            <div className="space-y-2 p-4 border rounded-lg bg-muted/50">
-              <Label className="text-base font-semibold">1. Selecione a retirada que está devolvendo *</Label>
-              <p className="text-sm text-muted-foreground mb-3">
-                Escolha qual solicitação de retirada você está devolvendo
-              </p>
+          {/* Etapa 1: Seleção da Retirada */}
+          <div className="space-y-3">
+            <Label className="text-base font-semibold">1. Selecione a retirada original</Label>
+            
+            {retiradasDisponiveis.length === 0 ? (
+              <Card className="p-6 text-center">
+                <p className="text-muted-foreground">
+                  Nenhuma retirada aprovada disponível para devolução
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  As retiradas devem estar aprovadas e ainda não terem sido devolvidas
+                </p>
+              </Card>
+            ) : retiradaSelecionada ? (
+              <Card className="p-4 border-primary bg-primary/5">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="font-medium">
+                      Retirada #{retiradaSelecionada.numero || retiradaSelecionada.id.slice(-8)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {format(new Date(retiradaSelecionada.data_solicitacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </div>
+                    <div className="text-sm mt-1">
+                      {retiradaSelecionada.itens.length} {retiradaSelecionada.itens.length === 1 ? 'item' : 'itens'} retirados
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRetiradaSelecionada(null)}
+                  >
+                    Alterar
+                  </Button>
+                </div>
+              </Card>
+            ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {retiradasDisponiveis.length === 0 ? (
-                  <Card className="p-4">
-                    <p className="text-sm text-muted-foreground text-center">
-                      Nenhuma retirada aprovada disponível para devolução
+                {retiradasDisponiveis.map(retirada => (
+                  <Card
+                    key={retirada.id}
+                    className="cursor-pointer hover:border-primary transition-colors"
+                    onClick={() => selecionarRetirada(retirada)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="font-medium">
+                            Retirada #{retirada.numero || retirada.id.slice(-8)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {format(new Date(retirada.data_solicitacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          </div>
+                          <div className="text-sm mt-1">
+                            {retirada.itens.length} {retirada.itens.length === 1 ? 'item' : 'itens'}
+                          </div>
+                        </div>
+                        <Button type="button" variant="outline" size="sm">
+                          Selecionar
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {retiradaSelecionada && (
+            <>
+              {/* Etapa 2: Informações da Devolução */}
+              <div className="space-y-4">
+                <Label className="text-base font-semibold">2. Informações da devolução</Label>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="solicitante">Solicitante</Label>
+                  <Input
+                    id="solicitante"
+                    value={userProfile?.nome || 'Carregando...'}
+                    disabled
+                    readOnly
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="localUtilizacao">Local de origem *</Label>
+                  <Select value={localUtilizacao} onValueChange={setLocalUtilizacao}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o local" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locaisDisponiveis.map(local => (
+                        <SelectItem key={local.id} value={local.nome}>
+                          {local.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="responsavelEstoque">Responsável pelo recebimento</Label>
+                  <Input
+                    id="responsavelEstoque"
+                    value={responsavelEstoque}
+                    onChange={(e) => setResponsavelEstoque(e.target.value)}
+                    placeholder="Nome do responsável"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="observacoes">Observações</Label>
+                  <Textarea
+                    id="observacoes"
+                    value={observacoes}
+                    onChange={(e) => setObservacoes(e.target.value)}
+                    placeholder="Informações adicionais sobre a devolução"
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              {/* Etapa 3: Itens da Devolução */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <Label className="text-base font-semibold">3. Itens para devolução</Label>
+                  
+                  <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Adicionar item
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0" align="end">
+                      <Command>
+                        <CommandInput
+                          placeholder="Buscar item..."
+                          value={busca}
+                          onValueChange={setBusca}
+                        />
+                        <CommandList>
+                          <CommandEmpty>Nenhum item encontrado</CommandEmpty>
+                          <CommandGroup>
+                            {itensFiltrarados.slice(0, 10).map(item => (
+                              <CommandItem
+                                key={item.id}
+                                onSelect={() => {
+                                  const qtd = prompt(`Quantidade de ${item.nome} (${item.unidade}):`, '1');
+                                  if (qtd && !isNaN(Number(qtd))) {
+                                    adicionarItem(item, Number(qtd));
+                                  }
+                                }}
+                              >
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{item.nome}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {item.codigoBarras} - {item.categoria}
+                                  </span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {itensDevolucao.length === 0 ? (
+                  <Card className="p-6 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum item adicionado. Os itens da retirada foram pré-carregados.
                     </p>
                   </Card>
                 ) : (
-                  retiradasDisponiveis.map(retirada => (
-                    <Card 
-                      key={retirada.id}
-                      className={`cursor-pointer hover:border-primary transition-colors ${
-                        retiradaOriginalId === retirada.id ? 'border-primary bg-primary/5' : ''
-                      }`}
-                      onClick={() => selecionarRetirada(retirada)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="font-medium">
-                              Retirada #{retirada.numero || retirada.id.slice(-8)}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {format(new Date(retirada.data_solicitacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                            </div>
-                            <div className="text-sm mt-1">
-                              {retirada.itens.length} {retirada.itens.length === 1 ? 'item' : 'itens'}
-                            </div>
-                          </div>
-                          <Button
-                            type="button"
-                            variant={retiradaOriginalId === retirada.id ? 'default' : 'outline'}
-                            size="sm"
-                          >
-                            {retiradaOriginalId === retirada.id ? 'Selecionada' : 'Selecionar'}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
+                  <div className="border rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Item</TableHead>
+                          <TableHead>Código</TableHead>
+                          <TableHead>Categoria</TableHead>
+                          <TableHead className="w-32">Quantidade</TableHead>
+                          <TableHead className="w-20">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {itensDevolucao.map(item => (
+                          <TableRow key={item.item_id}>
+                            <TableCell className="font-medium">
+                              {item.item_snapshot.nome}
+                            </TableCell>
+                            <TableCell>{item.item_snapshot.codigoBarras}</TableCell>
+                            <TableCell>{item.item_snapshot.categoria}</TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={item.quantidade_solicitada}
+                                onChange={(e) => atualizarQuantidade(item.item_id, Number(e.target.value))}
+                                className="w-24"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removerItem(item.item_id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </div>
-              {retiradaOriginalId && (
+
+              {/* Botão de Envio */}
+              <div className="flex justify-end gap-2 pt-4">
                 <Button
                   type="button"
-                  className="w-full mt-2"
-                  onClick={() => setMostrarSelecaoRetirada(false)}
+                  variant="outline"
+                  onClick={() => setDialogoAberto(false)}
                 >
-                  Continuar com a Devolução
+                  Cancelar
                 </Button>
-              )}
-            </div>
-          )}
-
-          {!mostrarSelecaoRetirada && retiradaOriginalId && (
-            <div className="p-3 bg-primary/10 rounded-lg flex items-center justify-between">
-              <div className="text-sm">
-                <strong>Devolvendo:</strong> Retirada #{solicitacoes.find(s => s.id === retiradaOriginalId)?.numero || retiradaOriginalId.slice(-8)}
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setMostrarSelecaoRetirada(true);
-                  setRetiradaOriginalId('');
-                }}
-              >
-                Alterar
-              </Button>
-            </div>
-          )}
-
-          {!mostrarSelecaoRetirada && (
-            <>
-          {/* Campo Solicitante */}
-          <div className="space-y-2">
-            <Label htmlFor="solicitante">Solicitante *</Label>
-            <Input id="solicitante" value={userProfile?.nome || 'Carregando...'} readOnly disabled />
-          </div>
-
-          {/* Campo Local de Utilização */}
-          <div className="space-y-2">
-            <Label htmlFor="localUtilizacao">Local de onde está devolvendo *</Label>
-            <Select value={localUtilizacao} onValueChange={setLocalUtilizacao}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o local" />
-              </SelectTrigger>
-              <SelectContent>
-                {locaisDisponiveis.map(local => (
-                  <SelectItem key={local.id} value={local.nome}>
-                    {local.codigo ? `${local.codigo} - ${local.nome}` : local.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Campo Responsável pelo Estoque */}
-          <div className="space-y-2">
-            <Label htmlFor="responsavelEstoque">Responsável pelo Estoque</Label>
-            <Input
-              id="responsavelEstoque"
-              placeholder="Nome do responsável pela recepção"
-              value={responsavelEstoque}
-              onChange={(e) => setResponsavelEstoque(e.target.value)}
-            />
-          </div>
-
-          {/* Campo Tipo de Operação */}
-          <div className="space-y-2">
-            <Label htmlFor="tipoOperacao">Tipo de Operação *</Label>
-            <Select value={tipoOperacao} onValueChange={setTipoOperacao}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                {tiposOperacaoDisponiveis.map(tipo => (
-                  <SelectItem key={tipo.id} value={tipo.nome.toLowerCase().replace(/\s+/g, '_')}>
-                    {tipo.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Buscar e adicionar itens */}
-          <div className="space-y-2">
-            <Label>Adicionar Item</Label>
-            <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Buscar item para adicionar...
+                <Button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={!retiradaSelecionada || itensDevolucao.length === 0 || !localUtilizacao}
+                >
+                  Registrar Devolução
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[400px] p-0">
-                <Command>
-                  <CommandInput 
-                    placeholder="Buscar por nome ou código..." 
-                    value={busca}
-                    onValueChange={setBusca}
-                  />
-                  <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
-                  <CommandList>
-                    <CommandGroup>
-                      {itensDisponiveis
-                        .filter(item => 
-                          item.nome.toLowerCase().includes(busca.toLowerCase()) ||
-                          item.codigoBarras.includes(busca)
-                        )
-                        .slice(0, 10)
-                        .map((item) => (
-                          <CommandItem
-                            key={item.id}
-                            onSelect={() => {
-                              const quantidade = window.prompt('Quantidade a devolver:', '1');
-                              const qtd = parseInt(quantidade || '1');
-                              if (qtd > 0) {
-                                adicionarItem(item, qtd);
-                              }
-                            }}
-                          >
-                            <div className="flex flex-col w-full">
-                              <div className="font-medium">{item.nome}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {item.codigoBarras} - {item.categoria}
-                              </div>
-                            </div>
-                          </CommandItem>
-                        ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* Lista de itens solicitados */}
-          {itensSolicitados.length > 0 && (
-            <div className="space-y-2">
-              <Label>Itens para Devolução</Label>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {itensSolicitados.map((itemSolicitado) => {
-                  const item = itemSolicitado.item_snapshot;
-                  return (
-                    <Card key={itemSolicitado.item_id}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="font-medium">{item.nome}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {item.codigoBarras} - {item.categoria}
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              type="number"
-                              min="1"
-                              className="w-20"
-                              value={itemSolicitado.quantidade_solicitada}
-                              onChange={(e) => atualizarQuantidade(itemSolicitado.item_id, parseInt(e.target.value))}
-                            />
-                            <span className="text-sm text-muted-foreground">{item.unidade}</span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removerItem(itemSolicitado.item_id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
               </div>
-            </div>
-          )}
-
-          {/* Campo Observações */}
-          <div className="space-y-2">
-            <Label htmlFor="observacoes">Observações</Label>
-            <Textarea
-              id="observacoes"
-              placeholder="Observações adicionais sobre a devolução..."
-              value={observacoes}
-              onChange={(e) => setObservacoes(e.target.value)}
-              rows={3}
-            />
-          </div>
-
-          {/* Botões */}
-          <div className="flex justify-between">
-            <Button 
-              variant="outline" 
-              onClick={() => setVisualizarSolicitacoes(true)}
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Consultar Devoluções
-            </Button>
-            
-            <div className="flex space-x-2">
-              <Button variant="outline" onClick={() => setDialogoAberto(false)}>
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleSubmit}
-                disabled={itensSolicitados.length === 0 || !localUtilizacao || !retiradaOriginalId}
-                className="bg-teal-600 hover:bg-teal-700"
-              >
-                Registrar Devolução
-              </Button>
-            </div>
-          </div>
-          </>
+            </>
           )}
         </div>
       </DialogContent>
     </Dialog>
-
-    {/* Dialog para visualizar devoluções */}
-    <Dialog open={visualizarSolicitacoes} onOpenChange={setVisualizarSolicitacoes}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Minhas Devoluções</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {loading ? (
-            <p>Carregando devoluções...</p>
-          ) : solicitacoes.filter(s => s.tipo_operacao === 'devolucao').length === 0 ? (
-            <p className="text-muted-foreground">Nenhuma devolução encontrada.</p>
-          ) : (
-            <div className="grid gap-4">
-              {solicitacoes
-                .filter(s => s.tipo_operacao === 'devolucao')
-                .map((solicitacao) => (
-                <Card key={solicitacao.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium">#{solicitacao.id.slice(-8)}</span>
-                          {getStatusBadge(solicitacao.status)}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {solicitacao.solicitante_nome} • {format(new Date(solicitacao.data_solicitacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                        </p>
-                        {solicitacao.local_utilizacao && (
-                          <p className="text-sm">
-                            <strong>Local:</strong> {solicitacao.local_utilizacao}
-                          </p>
-                        )}
-                        <p className="text-sm text-muted-foreground">
-                          {solicitacao.itens.length} item(ns)
-                        </p>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => imprimirSolicitacao(solicitacao)}
-                        >
-                          <Printer className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => abrirDetalhes(solicitacao)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-
-    {/* Dialog para detalhes da devolução */}
-    <Dialog open={detalhesAberto} onOpenChange={setDetalhesAberto}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Detalhes da Devolução</DialogTitle>
-        </DialogHeader>
-
-        {solicitacaoSelecionada && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="font-medium">ID da Devolução</Label>
-                <p className="text-sm text-muted-foreground">#{solicitacaoSelecionada.id.slice(0, 8)}</p>
-              </div>
-              <div>
-                <Label className="font-medium">Status</Label>
-                <div className="mt-1">{getStatusBadge(solicitacaoSelecionada.status)}</div>
-              </div>
-              <div>
-                <Label className="font-medium">Solicitante</Label>
-                <p className="text-sm text-muted-foreground">{solicitacaoSelecionada.solicitante_nome}</p>
-              </div>
-              <div>
-                <Label className="font-medium">Data da Devolução</Label>
-                <p className="text-sm text-muted-foreground">
-                  {format(new Date(solicitacaoSelecionada.data_solicitacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                </p>
-              </div>
-            </div>
-
-            <Separator />
-
-            {solicitacaoSelecionada.local_utilizacao && (
-              <div>
-                <Label className="font-medium">Local de Origem</Label>
-                <p className="text-sm text-muted-foreground">{solicitacaoSelecionada.local_utilizacao}</p>
-              </div>
-            )}
-
-            {solicitacaoSelecionada.responsavel_estoque && (
-              <div>
-                <Label className="font-medium">Responsável pela Recepção</Label>
-                <p className="text-sm text-muted-foreground">{solicitacaoSelecionada.responsavel_estoque}</p>
-              </div>
-            )}
-
-            {solicitacaoSelecionada.observacoes && (
-              <div>
-                <Label className="font-medium">Observações</Label>
-                <p className="text-sm text-muted-foreground">{solicitacaoSelecionada.observacoes}</p>
-              </div>
-            )}
-
-            <div>
-              <Label className="font-medium">Itens Devolvidos</Label>
-              <Table className="mt-2">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Item</TableHead>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Qtd. Devolvida</TableHead>
-                    <TableHead>Qtd. Aprovada</TableHead>
-                    <TableHead>Unidade</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {solicitacaoSelecionada.itens.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.item_snapshot.nome}</TableCell>
-                      <TableCell>{item.item_snapshot.codigoBarras}</TableCell>
-                      <TableCell>{item.quantidade_solicitada}</TableCell>
-                      <TableCell>{item.quantidade_aprovada}</TableCell>
-                      <TableCell>{item.item_snapshot.unidade}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            <div className="flex justify-end space-x-2">
-              <Button
-                variant="outline"
-                onClick={() => imprimirSolicitacao(solicitacaoSelecionada)}
-              >
-                <Printer className="h-4 w-4 mr-2" />
-                Imprimir
-              </Button>
-              <Button onClick={() => setDetalhesAberto(false)}>
-                Fechar
-              </Button>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-    </>
   );
 };
