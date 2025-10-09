@@ -284,7 +284,7 @@ export const SolicitarMaterial = () => {
             <CardHeader className="flex flex-row items-center space-y-0 pb-2">
               <div className="flex items-center space-x-2">
                 <Package className="h-5 w-5 text-primary" />
-                <CardTitle className="text-lg">Solicitar Material</CardTitle>
+                <CardTitle className="text-lg">Retirada de Material</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
@@ -297,7 +297,7 @@ export const SolicitarMaterial = () => {
 
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Solicitar Material</DialogTitle>
+            <DialogTitle>Retirada de Material</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-6">
