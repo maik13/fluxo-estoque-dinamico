@@ -304,14 +304,7 @@ export const SolicitarMaterial = () => {
             {/* Campo Solicitante */}
             <div className="space-y-2">
               <Label htmlFor="solicitante">Solicitante *</Label>
-              <Select value={userProfile?.nome || ''} disabled>
-                <SelectTrigger>
-                  <SelectValue placeholder="Solicitante" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={userProfile?.nome || ''}>{userProfile?.nome || 'Usuário'}</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input id="solicitante" value={userProfile?.nome || 'Carregando...'} readOnly disabled />
             </div>
 
             {/* Campo Local de Utilização */}

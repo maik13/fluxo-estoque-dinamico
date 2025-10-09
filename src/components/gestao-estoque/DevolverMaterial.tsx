@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -175,6 +175,14 @@ export const DevolverMaterial = () => {
     
     return isRetirada && !temDevolucao;
   });
+
+  // Debug: log contagens para ajudar a diagnosticar lista vazia
+  useEffect(() => {
+    try {
+      console.log('[DevolverMaterial] solicitacoes:', solicitacoes.map(s => ({ id: s.id, status: s.status, tipo: s.tipo_operacao, origem: s.solicitacao_origem_id })));
+      console.log('[DevolverMaterial] retiradasDisponiveis:', retiradasDisponiveis.map(s => s.id));
+    } catch {}
+  }, [solicitacoes, retiradasDisponiveis]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -403,14 +411,7 @@ export const DevolverMaterial = () => {
           {/* Campo Solicitante */}
           <div className="space-y-2">
             <Label htmlFor="solicitante">Solicitante *</Label>
-            <Select value={userProfile?.nome || ''} disabled>
-              <SelectTrigger>
-                <SelectValue placeholder="Solicitante" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={userProfile?.nome || ''}>{userProfile?.nome || 'Usuário'}</SelectItem>
-              </SelectContent>
-            </Select>
+            <Input id="solicitante" value={userProfile?.nome || 'Carregando...'} readOnly disabled />
           </div>
 
           {/* Campo Local de Utilização */}
