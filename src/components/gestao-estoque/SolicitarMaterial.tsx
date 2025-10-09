@@ -34,10 +34,9 @@ export const SolicitarMaterial = () => {
   const [visualizarSolicitacoes, setVisualizarSolicitacoes] = useState(false);
   const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState<SolicitacaoCompleta | null>(null);
   const [detalhesAberto, setDetalhesAberto] = useState(false);
-  const [quantidadesAprovadas, setQuantidadesAprovadas] = useState<Record<string, number>>({});
 
   const { obterEstoque } = useEstoque();
-  const { criarSolicitacao, solicitacoes, loading, aprovarSolicitacao, rejeitarSolicitacao, atualizarAceites } = useSolicitacoes();
+  const { criarSolicitacao, solicitacoes, loading, atualizarAceites } = useSolicitacoes();
   const { canManageStock, userProfile } = usePermissions();
   const { obterTiposOperacaoAtivos, obterSolicitantesAtivos, obterLocaisUtilizacaoAtivos } = useConfiguracoes();
   
@@ -143,38 +142,7 @@ export const SolicitarMaterial = () => {
 
   const abrirDetalhes = (solicitacao: SolicitacaoCompleta) => {
     setSolicitacaoSelecionada(solicitacao);
-    
-    // Inicializar quantidades aprovadas
-    const qtdInicial: Record<string, number> = {};
-    solicitacao.itens.forEach(item => {
-      qtdInicial[item.id] = item.quantidade_aprovada || item.quantidade_solicitada;
-    });
-    setQuantidadesAprovadas(qtdInicial);
-    
     setDetalhesAberto(true);
-  };
-
-  const handleAprovar = async () => {
-    if (!solicitacaoSelecionada) return;
-
-    const itensAprovados = solicitacaoSelecionada.itens.map(item => ({
-      id: item.id,
-      quantidade: quantidadesAprovadas[item.id] || 0
-    }));
-
-    const sucesso = await aprovarSolicitacao(solicitacaoSelecionada.id, itensAprovados);
-    if (sucesso) {
-      setDetalhesAberto(false);
-    }
-  };
-
-  const handleRejeitar = async () => {
-    if (!solicitacaoSelecionada) return;
-
-    const sucesso = await rejeitarSolicitacao(solicitacaoSelecionada.id);
-    if (sucesso) {
-      setDetalhesAberto(false);
-    }
   };
 
   const imprimirSolicitacao = (solicitacao: SolicitacaoCompleta) => {

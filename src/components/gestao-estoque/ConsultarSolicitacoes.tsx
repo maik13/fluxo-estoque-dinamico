@@ -5,9 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { FileText, Check, X, Printer, Eye } from 'lucide-react';
+import { FileText, Printer, Eye } from 'lucide-react';
 import { useSolicitacoes } from '@/hooks/useSolicitacoes';
 import { usePermissions } from '@/hooks/usePermissions';
 import { SolicitacaoCompleta } from '@/types/solicitacao';
@@ -17,9 +16,8 @@ import { ptBR } from 'date-fns/locale';
 export const ConsultarSolicitacoes = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
   const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState<SolicitacaoCompleta | null>(null);
-  const [quantidadesAprovadas, setQuantidadesAprovadas] = useState<Record<string, number>>({});
   
-  const { solicitacoes, loading, aprovarSolicitacao, rejeitarSolicitacao, atualizarAceites } = useSolicitacoes();
+  const { solicitacoes, loading, atualizarAceites } = useSolicitacoes();
   const { canManageStock, userProfile } = usePermissions();
 
   const getStatusBadge = (status: string) => {
@@ -37,38 +35,7 @@ export const ConsultarSolicitacoes = () => {
 
   const abrirDetalhes = (solicitacao: SolicitacaoCompleta) => {
     setSolicitacaoSelecionada(solicitacao);
-    
-    // Inicializar quantidades aprovadas
-    const qtdInicial: Record<string, number> = {};
-    solicitacao.itens.forEach(item => {
-      qtdInicial[item.id] = item.quantidade_aprovada || item.quantidade_solicitada;
-    });
-    setQuantidadesAprovadas(qtdInicial);
-    
     setDialogoAberto(true);
-  };
-
-  const handleAprovar = async () => {
-    if (!solicitacaoSelecionada) return;
-
-    const itensAprovados = solicitacaoSelecionada.itens.map(item => ({
-      id: item.id,
-      quantidade: quantidadesAprovadas[item.id] || 0
-    }));
-
-    const sucesso = await aprovarSolicitacao(solicitacaoSelecionada.id, itensAprovados);
-    if (sucesso) {
-      setDialogoAberto(false);
-    }
-  };
-
-  const handleRejeitar = async () => {
-    if (!solicitacaoSelecionada) return;
-
-    const sucesso = await rejeitarSolicitacao(solicitacaoSelecionada.id);
-    if (sucesso) {
-      setDialogoAberto(false);
-    }
   };
 
   const imprimirSolicitacao = (solicitacao: SolicitacaoCompleta) => {
@@ -301,12 +268,7 @@ export const ConsultarSolicitacoes = () => {
                       <TableHead>Código</TableHead>
                       <TableHead>Categoria</TableHead>
                       <TableHead>Qtd. Solicitada</TableHead>
-                      {canManageStock() && solicitacaoSelecionada.status === 'pendente' && (
-                        <TableHead>Qtd. Aprovada</TableHead>
-                      )}
-                      {solicitacaoSelecionada.status === 'aprovada' && (
-                        <TableHead>Qtd. Aprovada</TableHead>
-                      )}
+                      <TableHead>Qtd. Aprovada</TableHead>
                       <TableHead>Unidade</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -317,24 +279,7 @@ export const ConsultarSolicitacoes = () => {
                         <TableCell>{item.item_snapshot.codigoBarras}</TableCell>
                         <TableCell>{item.item_snapshot.categoria}</TableCell>
                         <TableCell>{item.quantidade_solicitada}</TableCell>
-                        {canManageStock() && solicitacaoSelecionada.status === 'pendente' && (
-                          <TableCell>
-                            <Input
-                              type="number"
-                              min="0"
-                              max={item.quantidade_solicitada}
-                              value={quantidadesAprovadas[item.id] || 0}
-                              onChange={(e) => setQuantidadesAprovadas(prev => ({
-                                ...prev,
-                                [item.id]: parseInt(e.target.value) || 0
-                              }))}
-                              className="w-20"
-                            />
-                          </TableCell>
-                        )}
-                        {solicitacaoSelecionada.status === 'aprovada' && (
-                          <TableCell>{item.quantidade_aprovada}</TableCell>
-                        )}
+                        <TableCell>{item.quantidade_aprovada}</TableCell>
                         <TableCell>{item.item_snapshot.unidade}</TableCell>
                       </TableRow>
                     ))}
@@ -384,21 +329,6 @@ export const ConsultarSolicitacoes = () => {
                 </Button>
 
                 <div className="flex gap-2">
-                  {canManageStock() && solicitacaoSelecionada.status === 'pendente' && (
-                    <>
-                      <Button
-                        variant="destructive"
-                        onClick={handleRejeitar}
-                      >
-                        <X className="h-4 w-4 mr-2" />
-                        Rejeitar
-                      </Button>
-                      <Button onClick={handleAprovar}>
-                        <Check className="h-4 w-4 mr-2" />
-                        Aprovar
-                      </Button>
-                    </>
-                  )}
                   <Button
                     variant="outline"
                     onClick={() => setDialogoAberto(false)}
