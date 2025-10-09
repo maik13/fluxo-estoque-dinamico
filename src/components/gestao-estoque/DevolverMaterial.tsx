@@ -20,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 export const DevolverMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
@@ -33,9 +34,11 @@ export const DevolverMaterial = () => {
   const [visualizarSolicitacoes, setVisualizarSolicitacoes] = useState(false);
   const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState<SolicitacaoCompleta | null>(null);
   const [detalhesAberto, setDetalhesAberto] = useState(false);
+  const [retiradaOriginalId, setRetiradaOriginalId] = useState<string>('');
+  const [mostrarSelecaoRetirada, setMostrarSelecaoRetirada] = useState(true);
 
   const { obterEstoque } = useEstoque();
-  const { criarSolicitacao, solicitacoes, loading } = useSolicitacoes();
+  const { criarSolicitacao, solicitacoes, loading, validarItensDevolucao } = useSolicitacoes();
   const { userProfile } = usePermissions();
   const { obterTiposOperacaoAtivos, obterLocaisUtilizacaoAtivos } = useConfiguracoes();
   
@@ -99,7 +102,31 @@ export const DevolverMaterial = () => {
 
   const handleSubmit = async () => {
     if (itensSolicitados.length === 0) {
+      toast.error('Adicione pelo menos um item para devolução');
       return;
+    }
+
+    if (!retiradaOriginalId) {
+      toast.error('Selecione a retirada original');
+      return;
+    }
+
+    // Validar itens contra a retirada original
+    const retiradaOriginal = solicitacoes.find(s => s.id === retiradaOriginalId);
+    if (retiradaOriginal) {
+      const validacao = validarItensDevolucao(retiradaOriginal.itens, itensSolicitados);
+      
+      if (!validacao.valido) {
+        toast.error('Divergência encontrada!', {
+          description: validacao.divergencias.join(', ')
+        });
+        
+        const confirmar = window.confirm(
+          `ATENÇÃO: Os seguintes itens não foram retirados na solicitação original:\n\n${validacao.divergencias.join('\n')}\n\nDeseja continuar mesmo assim?`
+        );
+        
+        if (!confirmar) return;
+      }
     }
 
     const sucesso = await criarSolicitacao({
@@ -107,6 +134,7 @@ export const DevolverMaterial = () => {
       local_utilizacao: localUtilizacao,
       responsavel_estoque: responsavelEstoque,
       tipo_operacao: tipoOperacao,
+      solicitacao_origem_id: retiradaOriginalId,
       itens: itensSolicitados
     });
 
@@ -123,7 +151,24 @@ export const DevolverMaterial = () => {
     setTipoOperacao('devolucao');
     setItensSolicitados([]);
     setBusca('');
+    setRetiradaOriginalId('');
+    setMostrarSelecaoRetirada(true);
   };
+
+  const selecionarRetirada = (solicitacao: SolicitacaoCompleta) => {
+    setRetiradaOriginalId(solicitacao.id);
+    setLocalUtilizacao(solicitacao.local_utilizacao || '');
+    setMostrarSelecaoRetirada(false);
+    toast.success(`Retirada #${solicitacao.numero || solicitacao.id.slice(-8)} selecionada`);
+  };
+
+  // Filtrar apenas retiradas aprovadas do usuário atual
+  const retiradasDisponiveis = solicitacoes.filter(s => 
+    s.solicitante_id === userProfile?.user_id &&
+    s.status === 'aprovada' &&
+    s.tipo_operacao !== 'devolucao' &&
+    !solicitacoes.some(dev => dev.solicitacao_origem_id === s.id && dev.status === 'aprovada')
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -267,6 +312,88 @@ export const DevolverMaterial = () => {
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Seleção da Retirada Original */}
+          {mostrarSelecaoRetirada && (
+            <div className="space-y-2 p-4 border rounded-lg bg-muted/50">
+              <Label className="text-base font-semibold">1. Selecione a retirada que está devolvendo *</Label>
+              <p className="text-sm text-muted-foreground mb-3">
+                Escolha qual solicitação de retirada você está devolvendo
+              </p>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {retiradasDisponiveis.length === 0 ? (
+                  <Card className="p-4">
+                    <p className="text-sm text-muted-foreground text-center">
+                      Nenhuma retirada aprovada disponível para devolução
+                    </p>
+                  </Card>
+                ) : (
+                  retiradasDisponiveis.map(retirada => (
+                    <Card 
+                      key={retirada.id}
+                      className={`cursor-pointer hover:border-primary transition-colors ${
+                        retiradaOriginalId === retirada.id ? 'border-primary bg-primary/5' : ''
+                      }`}
+                      onClick={() => selecionarRetirada(retirada)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-medium">
+                              Retirada #{retirada.numero || retirada.id.slice(-8)}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {format(new Date(retirada.data_solicitacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                            </div>
+                            <div className="text-sm mt-1">
+                              {retirada.itens.length} {retirada.itens.length === 1 ? 'item' : 'itens'}
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant={retiradaOriginalId === retirada.id ? 'default' : 'outline'}
+                            size="sm"
+                          >
+                            {retiradaOriginalId === retirada.id ? 'Selecionada' : 'Selecionar'}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+              {retiradaOriginalId && (
+                <Button
+                  type="button"
+                  className="w-full mt-2"
+                  onClick={() => setMostrarSelecaoRetirada(false)}
+                >
+                  Continuar com a Devolução
+                </Button>
+              )}
+            </div>
+          )}
+
+          {!mostrarSelecaoRetirada && retiradaOriginalId && (
+            <div className="p-3 bg-primary/10 rounded-lg flex items-center justify-between">
+              <div className="text-sm">
+                <strong>Devolvendo:</strong> Retirada #{solicitacoes.find(s => s.id === retiradaOriginalId)?.numero || retiradaOriginalId.slice(-8)}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setMostrarSelecaoRetirada(true);
+                  setRetiradaOriginalId('');
+                }}
+              >
+                Alterar
+              </Button>
+            </div>
+          )}
+
+          {!mostrarSelecaoRetirada && (
+            <>
           {/* Campo Solicitante */}
           <div className="space-y-2">
             <Label htmlFor="solicitante">Solicitante *</Label>
@@ -448,13 +575,15 @@ export const DevolverMaterial = () => {
               </Button>
               <Button 
                 onClick={handleSubmit}
-                disabled={itensSolicitados.length === 0 || !localUtilizacao}
+                disabled={itensSolicitados.length === 0 || !localUtilizacao || !retiradaOriginalId}
                 className="bg-teal-600 hover:bg-teal-700"
               >
                 Registrar Devolução
               </Button>
             </div>
           </div>
+          </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

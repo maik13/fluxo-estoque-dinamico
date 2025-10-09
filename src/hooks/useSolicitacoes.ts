@@ -72,7 +72,8 @@ export const useSolicitacoes = () => {
           observacoes: novaSolicitacao.observacoes,
           local_utilizacao: novaSolicitacao.local_utilizacao,
           responsavel_estoque: novaSolicitacao.responsavel_estoque,
-          tipo_operacao: novaSolicitacao.tipo_operacao || 'saida_producao'
+          tipo_operacao: novaSolicitacao.tipo_operacao || 'saida_producao',
+          solicitacao_origem_id: novaSolicitacao.solicitacao_origem_id
         }])
         .select()
         .single();
@@ -194,6 +195,23 @@ export const useSolicitacoes = () => {
     }
   };
 
+  const validarItensDevolucao = (itensRetirada: SolicitacaoItem[], itensDevolucao: { item_id: string; quantidade_solicitada: number; item_snapshot: Partial<Item> }[]): { valido: boolean; divergencias: string[] } => {
+    const divergencias: string[] = [];
+    
+    itensDevolucao.forEach(itemDevolucao => {
+      const itemRetirado = itensRetirada.find(ir => ir.item_id === itemDevolucao.item_id);
+      
+      if (!itemRetirado) {
+        divergencias.push(`Item "${itemDevolucao.item_snapshot.nome}" não foi retirado na solicitação original`);
+      }
+    });
+    
+    return {
+      valido: divergencias.length === 0,
+      divergencias
+    };
+  };
+
   return {
     solicitacoes,
     loading,
@@ -201,6 +219,7 @@ export const useSolicitacoes = () => {
     aprovarSolicitacao,
     rejeitarSolicitacao,
     atualizarAceites,
-    carregarSolicitacoes
+    carregarSolicitacoes,
+    validarItensDevolucao
   };
 };

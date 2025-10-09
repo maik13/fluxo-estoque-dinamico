@@ -243,6 +243,7 @@ export type Database = {
           numero: number | null
           observacoes: string | null
           responsavel_estoque: string | null
+          solicitacao_origem_id: string | null
           solicitante_id: string
           solicitante_nome: string
           status: string
@@ -262,6 +263,7 @@ export type Database = {
           numero?: number | null
           observacoes?: string | null
           responsavel_estoque?: string | null
+          solicitacao_origem_id?: string | null
           solicitante_id: string
           solicitante_nome: string
           status?: string
@@ -281,13 +283,22 @@ export type Database = {
           numero?: number | null
           observacoes?: string | null
           responsavel_estoque?: string | null
+          solicitacao_origem_id?: string | null
           solicitante_id?: string
           solicitante_nome?: string
           status?: string
           tipo_operacao?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_solicitacao_origem_id_fkey"
+            columns: ["solicitacao_origem_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

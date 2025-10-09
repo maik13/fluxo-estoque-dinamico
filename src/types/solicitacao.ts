@@ -10,6 +10,7 @@ export interface Solicitacao {
   local_utilizacao?: string;
   responsavel_estoque?: string;
   tipo_operacao?: string;
+  solicitacao_origem_id?: string;
   data_solicitacao: string;
   data_aprovacao?: string;
   aprovado_por_id?: string;
@@ -45,5 +46,6 @@ export interface NovaSolicitacao {
   local_utilizacao?: string;
   responsavel_estoque?: string;
   tipo_operacao?: string;
+  solicitacao_origem_id?: string;
   itens: NovoItemSolicitacao[];
 }
