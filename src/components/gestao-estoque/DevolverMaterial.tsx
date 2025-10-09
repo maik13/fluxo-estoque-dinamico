@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -163,17 +163,26 @@ export const DevolverMaterial = () => {
   };
 
   // Filtrar apenas retiradas aprovadas que não são devoluções
-  const retiradasDisponiveis = solicitacoes.filter(s => {
-    // Deve ser aprovada e não ser uma devolução (null conta como retirada)
-    const isRetirada = s.status === 'aprovada' && s.tipo_operacao !== 'devolucao';
-    
-    // Não deve ter uma devolução aprovada vinculada
-    const temDevolucao = solicitacoes.some(dev => 
-      dev.solicitacao_origem_id === s.id && 
-      dev.status === 'aprovada'
+  const retiradasDisponiveis = solicitacoes.filter((s) => {
+    // Elegível para devolução se for uma RETIRADA (não devolução) e considerada 'aprovada'
+    const isRetiradaOperacao = s.tipo_operacao !== 'devolucao' && s.tipo_operacao !== 'devolucao_estoque';
+
+    // Considerar 'aprovada' por múltiplos indicadores, pois alguns fluxos não atualizam o campo status
+    const isAprovada = (
+      s.status === 'aprovada' ||
+      !!s.data_aprovacao ||
+      !!s.aprovado_por_id ||
+      !!s.aceite_separador ||
+      !!s.aceite_solicitante ||
+      (Array.isArray((s as any).itens) && (s as any).itens.some((i: any) => (i?.quantidade_aprovada ?? 0) > 0))
     );
-    
-    return isRetirada && !temDevolucao;
+
+    // Evitar múltiplas devoluções para a mesma retirada: se já existir QUALQUER devolução vinculada, ocultar
+    const temAlgumaDevolucao = solicitacoes.some(
+      (dev) => dev.solicitacao_origem_id === s.id && dev.tipo_operacao === 'devolucao'
+    );
+
+    return isRetiradaOperacao && isAprovada && !temAlgumaDevolucao;
   });
 
   // Debug: log contagens para ajudar a diagnosticar lista vazia
@@ -323,6 +332,7 @@ export const DevolverMaterial = () => {
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Devolução de Material</DialogTitle>
+          <DialogDescription>Selecione a retirada aprovada para devolução</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
