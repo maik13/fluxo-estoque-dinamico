@@ -9,6 +9,7 @@ export interface UserProfile {
   email: string;
   tipo_usuario: string;
   ativo: boolean;
+  codigo_assinatura: string | null;
 }
 
 export const usePermissions = () => {

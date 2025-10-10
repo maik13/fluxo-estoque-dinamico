@@ -34,6 +34,9 @@ export const SolicitarMaterial = () => {
   const [visualizarSolicitacoes, setVisualizarSolicitacoes] = useState(false);
   const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState<SolicitacaoCompleta | null>(null);
   const [detalhesAberto, setDetalhesAberto] = useState(false);
+  const [codigoAssinatura, setCodigoAssinatura] = useState('');
+  const [erroAssinatura, setErroAssinatura] = useState('');
+  const [mostrarCodigoUsuario, setMostrarCodigoUsuario] = useState(false);
 
   const { obterEstoque } = useEstoque();
   const { criarSolicitacao, solicitacoes, loading, atualizarAceites } = useSolicitacoes();
@@ -104,6 +107,17 @@ export const SolicitarMaterial = () => {
       return;
     }
 
+    // Validar assinatura eletrônica
+    if (!codigoAssinatura.trim()) {
+      setErroAssinatura('Por favor, insira seu código de assinatura');
+      return;
+    }
+
+    if (codigoAssinatura !== userProfile?.codigo_assinatura) {
+      setErroAssinatura('Código de assinatura inválido');
+      return;
+    }
+
     const sucesso = await criarSolicitacao({
       observacoes,
       local_utilizacao: localUtilizacao,
@@ -125,6 +139,9 @@ export const SolicitarMaterial = () => {
     setTipoOperacao('saida_producao');
     setItensSolicitados([]);
     setBusca('');
+    setCodigoAssinatura('');
+    setErroAssinatura('');
+    setMostrarCodigoUsuario(false);
   };
 
   const getStatusBadge = (status: string) => {
@@ -429,6 +446,56 @@ export const SolicitarMaterial = () => {
               />
             </div>
 
+            <Separator />
+
+            {/* Assinatura Eletrônica */}
+            <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="codigoAssinatura" className="text-base font-semibold">
+                  Assinatura Eletrônica *
+                </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setMostrarCodigoUsuario(!mostrarCodigoUsuario)}
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  {mostrarCodigoUsuario ? 'Ocultar' : 'Ver'} meu código
+                </Button>
+              </div>
+              
+              {mostrarCodigoUsuario && userProfile?.codigo_assinatura && (
+                <div className="p-3 bg-background rounded border">
+                  <p className="text-sm text-muted-foreground mb-2">Seu código de assinatura:</p>
+                  <code className="text-lg font-mono font-bold text-primary">
+                    {userProfile.codigo_assinatura}
+                  </code>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Input
+                  id="codigoAssinatura"
+                  type="text"
+                  placeholder="Digite seu código de 8 dígitos"
+                  value={codigoAssinatura}
+                  onChange={(e) => {
+                    setCodigoAssinatura(e.target.value);
+                    setErroAssinatura('');
+                  }}
+                  maxLength={8}
+                  className={erroAssinatura ? 'border-destructive' : ''}
+                />
+                {erroAssinatura && (
+                  <p className="text-sm text-destructive">{erroAssinatura}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Para confirmar a retirada, insira seu código de assinatura de 8 dígitos
+                </p>
+              </div>
+            </div>
+
             {/* Botões */}
             <div className="flex justify-between">
               <Button 
@@ -448,7 +515,7 @@ export const SolicitarMaterial = () => {
                 </Button>
                 <Button 
                   onClick={handleSubmit}
-                  disabled={itensSolicitados.length === 0 || !localUtilizacao.trim()}
+                  disabled={itensSolicitados.length === 0 || !localUtilizacao.trim() || !codigoAssinatura.trim()}
                 >
                   Enviar Solicitação
                 </Button>

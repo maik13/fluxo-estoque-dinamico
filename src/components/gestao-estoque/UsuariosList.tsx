@@ -13,6 +13,7 @@ interface Profile {
   email: string;
   tipo_usuario: string;
   ativo: boolean;
+  codigo_assinatura: string | null;
   created_at: string;
 }
 
@@ -154,6 +155,7 @@ export const UsuariosList = () => {
               <TableHead>Nome</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Tipo</TableHead>
+              <TableHead>Código Assinatura</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Cadastrado em</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -162,7 +164,7 @@ export const UsuariosList = () => {
           <TableBody>
             {usuariosFiltrados.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   {searchTerm ? 'Nenhum usuário encontrado com os critérios de pesquisa.' : 'Nenhum usuário cadastrado.'}
                 </TableCell>
               </TableRow>
@@ -175,6 +177,11 @@ export const UsuariosList = () => {
                     <Badge variant={getTipoUsuarioBadge(usuario.tipo_usuario) as any}>
                       {usuario.tipo_usuario}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <code className="px-2 py-1 bg-muted rounded text-sm font-mono">
+                      {usuario.codigo_assinatura || 'N/A'}
+                    </code>
                   </TableCell>
                   <TableCell>
                     <Badge variant={usuario.ativo ? 'default' : 'secondary'}>

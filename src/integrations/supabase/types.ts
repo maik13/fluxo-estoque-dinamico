@@ -154,6 +154,7 @@ export type Database = {
       profiles: {
         Row: {
           ativo: boolean
+          codigo_assinatura: string | null
           created_at: string
           email: string
           id: string
@@ -164,6 +165,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          codigo_assinatura?: string | null
           created_at?: string
           email: string
           id?: string
@@ -174,6 +176,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          codigo_assinatura?: string | null
           created_at?: string
           email?: string
           id?: string
@@ -321,6 +324,10 @@ export type Database = {
       can_manage_inventory: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      gerar_codigo_assinatura: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       gerar_proximo_codigo: {
         Args: Record<PropertyKey, never>
