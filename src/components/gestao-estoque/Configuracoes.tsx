@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -98,6 +98,10 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     codigo: '',
     descricao: '',
   });
+
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string>('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const handleTemaChange = (tema: 'light' | 'dark') => {
     setConfiguracao(prev => ({ ...prev, tema }));
@@ -271,6 +275,80 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     });
   };
 
+  const handleUploadLogo = async () => {
+    if (!logoFile) {
+      toast({
+        title: "Selecione um arquivo",
+        description: "Escolha uma imagem para o logo do sistema.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const fileExt = logoFile.name.split('.').pop();
+      const fileName = `logo.${fileExt}`;
+
+      // Remover logo anterior se existir
+      const { data: existingFiles } = await supabase.storage
+        .from('branding')
+        .list();
+
+      if (existingFiles && existingFiles.length > 0) {
+        for (const file of existingFiles) {
+          await supabase.storage.from('branding').remove([file.name]);
+        }
+      }
+
+      // Upload do novo logo
+      const { error: uploadError } = await supabase.storage
+        .from('branding')
+        .upload(fileName, logoFile, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Obter URL pública
+      const { data } = supabase.storage.from('branding').getPublicUrl(fileName);
+      setLogoUrl(data.publicUrl);
+
+      toast({
+        title: "Logo atualizado!",
+        description: "O logo do sistema foi atualizado com sucesso.",
+      });
+
+      setLogoFile(null);
+    } catch (error: any) {
+      console.error('Erro ao fazer upload:', error);
+      toast({
+        title: "Erro no upload",
+        description: error.message || "Não foi possível fazer upload do logo.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const carregarLogo = async () => {
+    try {
+      const { data: files } = await supabase.storage.from('branding').list();
+
+      if (files && files.length > 0) {
+        const logoFile = files[0];
+        const { data } = supabase.storage.from('branding').getPublicUrl(logoFile.name);
+        setLogoUrl(data.publicUrl);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar logo:', error);
+    }
+  };
+
+  // Carregar logo ao montar o componente
+  useEffect(() => {
+    carregarLogo();
+  }, []);
+
   const handleGerarRelatorio = async (tipo: string) => {
     try {
       const itensEstoque = obterEstoque();
@@ -327,7 +405,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
         </DialogHeader>
         
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="grid w-full grid-cols-10 gap-1">
+          <TabsList className="grid w-full grid-cols-11 gap-1">
             <TabsTrigger value="usuarios" className="text-xs">Usuários</TabsTrigger>
             <TabsTrigger value="solicitantes" className="text-xs">Solicitantes</TabsTrigger>
             <TabsTrigger value="locais" className="text-xs">Locais</TabsTrigger>
@@ -336,6 +414,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
             <TabsTrigger value="subcategorias" className="text-xs">Subcategorias</TabsTrigger>
             <TabsTrigger value="tipos-operacao" className="text-xs">Operações</TabsTrigger>
             <TabsTrigger value="importacao" className="text-xs">Importação</TabsTrigger>
+            <TabsTrigger value="logo" className="text-xs">Logo</TabsTrigger>
             <TabsTrigger value="tema" className="text-xs">Tema</TabsTrigger>
             <TabsTrigger value="relatorios" className="text-xs">Relatórios</TabsTrigger>
           </TabsList>
@@ -868,6 +947,71 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                 <Separator />
                 
                 <GuiaImportacaoExcel />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Aba Logo */}
+          <TabsContent value="logo" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="h-5 w-5" />
+                  Logo do Sistema
+                </CardTitle>
+                <CardDescription>
+                  Faça upload do logo da sua empresa
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Preview do logo atual */}
+                {logoUrl && (
+                  <div className="space-y-2">
+                    <Label>Logo Atual</Label>
+                    <div className="border rounded-lg p-4 flex items-center justify-center bg-muted">
+                      <img 
+                        src={logoUrl} 
+                        alt="Logo do sistema" 
+                        className="max-h-32 object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Upload de novo logo */}
+                <div className="space-y-2">
+                  <Label htmlFor="logoUpload">Selecionar novo logo</Label>
+                  <Input
+                    id="logoUpload"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setLogoFile(file);
+                      }
+                    }}
+                  />
+                  {logoFile && (
+                    <p className="text-sm text-muted-foreground">
+                      Arquivo selecionado: {logoFile.name}
+                    </p>
+                  )}
+                </div>
+
+                <Button 
+                  onClick={handleUploadLogo} 
+                  disabled={!logoFile || uploadingLogo}
+                  className="w-full"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {uploadingLogo ? 'Enviando...' : 'Fazer Upload'}
+                </Button>
+
+                <div className="text-sm text-muted-foreground">
+                  <p>Formatos aceitos: JPG, PNG, SVG</p>
+                  <p>Tamanho máximo recomendado: 2MB</p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
