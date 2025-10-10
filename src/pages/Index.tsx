@@ -3,7 +3,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MenuPrincipal } from '@/components/gestao-estoque/MenuPrincipal';
 import { TabelaEstoque } from '@/components/gestao-estoque/TabelaEstoque';
 import { TabelaMovimentacoes } from '@/components/gestao-estoque/TabelaMovimentacoes';
-import { VisualizarMovimentacoes } from '@/components/gestao-estoque/VisualizarMovimentacoes';
 import { Package, Menu, History, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -103,7 +102,6 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="movimentacoes" className="space-y-6">
-            <VisualizarMovimentacoes />
             <TabelaMovimentacoes key={refreshTrigger} />
           </TabsContent>
         </Tabs>
