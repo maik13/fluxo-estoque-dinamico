@@ -18,6 +18,22 @@ export const useSolicitacoes = () => {
     }
   }, [user]);
 
+  // Realtime: atualiza automaticamente quando houver mudanças nas solicitações
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('solicitacoes-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitacoes' }, () => {
+        carregarSolicitacoes();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const carregarSolicitacoes = async () => {
     try {
       setLoading(true);

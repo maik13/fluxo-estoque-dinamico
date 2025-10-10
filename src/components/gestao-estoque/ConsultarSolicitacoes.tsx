@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -205,6 +205,7 @@ export const ConsultarSolicitacoes = () => {
             <DialogTitle>
               Detalhes da Solicitação #{solicitacaoSelecionada?.id.slice(-8)}
             </DialogTitle>
+            <DialogDescription className="sr-only">Detalhes da solicitação</DialogDescription>
           </DialogHeader>
 
           {solicitacaoSelecionada && (
