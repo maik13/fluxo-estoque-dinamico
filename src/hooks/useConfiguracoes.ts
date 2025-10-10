@@ -14,6 +14,7 @@ export interface SolicitanteConfig {
   id: string;
   nome: string;
   email?: string;
+  codigoBarras?: string;
   ativo: boolean;
   dataCriacao: string;
 }
@@ -332,11 +333,12 @@ export const useConfiguracoes = () => {
   };
 
   // Funções para gerenciar solicitantes
-  const adicionarSolicitante = (nome: string, email?: string) => {
+  const adicionarSolicitante = (nome: string, email?: string, codigoBarras?: string) => {
     const novoSolicitante: SolicitanteConfig = {
       id: gerarId(),
       nome,
       email,
+      codigoBarras,
       ativo: true,
       dataCriacao: new Date().toISOString(),
     };

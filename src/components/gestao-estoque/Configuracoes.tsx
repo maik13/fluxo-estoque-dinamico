@@ -90,6 +90,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   const [novoSolicitante, setNovoSolicitante] = useState({
     nome: '',
     email: '',
+    codigoBarras: '',
   });
 
   const [novoLocal, setNovoLocal] = useState({
@@ -236,8 +237,8 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
       return;
     }
 
-    adicionarSolicitante(novoSolicitante.nome, novoSolicitante.email);
-    setNovoSolicitante({ nome: '', email: '' });
+    adicionarSolicitante(novoSolicitante.nome, novoSolicitante.email, novoSolicitante.codigoBarras);
+    setNovoSolicitante({ nome: '', email: '', codigoBarras: '' });
     onConfigChange?.();
   };
 
@@ -436,7 +437,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="nomeSolicitante">Nome do Solicitante</Label>
                     <Input
@@ -456,6 +457,16 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                       placeholder="email@exemplo.com"
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="codigoBarrasSolicitante">Código de Barras</Label>
+                    <Input
+                      id="codigoBarrasSolicitante"
+                      value={novoSolicitante.codigoBarras}
+                      onChange={(e) => setNovoSolicitante(prev => ({ ...prev, codigoBarras: e.target.value }))}
+                      placeholder="Código de 8 dígitos"
+                      maxLength={8}
+                    />
+                  </div>
                 </div>
                 <Button onClick={handleCadastroSolicitante} className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
@@ -468,10 +479,15 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                   <h4 className="font-medium">Solicitantes Cadastrados</h4>
                   <div className="space-y-2">
                     {solicitantes.map((solicitante) => (
-                      <div key={solicitante.id} className="flex items-center justify-between p-2 border rounded">
-                        <div className="flex items-center gap-2">
+                      <div key={solicitante.id} className="flex items-center justify-between p-3 border rounded">
+                        <div className="flex items-center gap-3">
                           <Badge variant="secondary">{solicitante.nome}</Badge>
                           {solicitante.email && <span className="text-sm text-muted-foreground">{solicitante.email}</span>}
+                          {solicitante.codigoBarras && (
+                            <Badge variant="outline" className="font-mono">
+                              🔢 {solicitante.codigoBarras}
+                            </Badge>
+                          )}
                         </div>
                         <Button
                           variant="ghost"
