@@ -127,6 +127,15 @@ export const useSolicitacoes = () => {
     }
 
     try {
+      // Obter dados da solicitação
+      const { data: solicitacao, error: solicitacaoFetchError } = await supabase
+        .from('solicitacoes')
+        .select('*, solicitacao_itens(*)')
+        .eq('id', solicitacaoId)
+        .single();
+
+      if (solicitacaoFetchError) throw solicitacaoFetchError;
+
       // Atualizar status da solicitação
       const { error: solicitacaoError } = await supabase
         .from('solicitacoes')
@@ -140,17 +149,83 @@ export const useSolicitacoes = () => {
 
       if (solicitacaoError) throw solicitacaoError;
 
-      // Atualizar quantidades aprovadas dos itens
-      for (const item of itensAprovados) {
+      // Atualizar quantidades aprovadas dos itens e processar movimentações
+      for (const itemAprovado of itensAprovados) {
+        // Atualizar quantidade aprovada
         const { error: itemError } = await supabase
           .from('solicitacao_itens')
-          .update({ quantidade_aprovada: item.quantidade })
-          .eq('id', item.id);
+          .update({ quantidade_aprovada: itemAprovado.quantidade })
+          .eq('id', itemAprovado.id);
 
         if (itemError) throw itemError;
+
+        // Obter dados completos do item da solicitação
+        const { data: solicitacaoItem } = await supabase
+          .from('solicitacao_itens')
+          .select('*')
+          .eq('id', itemAprovado.id)
+          .single();
+
+        if (!solicitacaoItem) continue;
+
+        // Obter item do estoque
+        const { data: itemEstoque, error: itemEstoqueError } = await supabase
+          .from('items')
+          .select('*')
+          .eq('id', solicitacaoItem.item_id)
+          .single();
+
+        if (itemEstoqueError) throw itemEstoqueError;
+
+        const quantidadeAnterior = itemEstoque.quantidade;
+        let novaQuantidade = quantidadeAnterior;
+        let tipoMovimentacao: 'ENTRADA' | 'SAIDA' = 'SAIDA';
+
+        // Determinar tipo de operação
+        const isRetirada = !solicitacao.tipo_operacao || 
+                          solicitacao.tipo_operacao === 'saida_producao' || 
+                          solicitacao.tipo_operacao === 'saida_obra';
+        
+        const isDevolucao = solicitacao.tipo_operacao === 'devolucao' || 
+                           solicitacao.tipo_operacao === 'devolucao_estoque';
+
+        if (isRetirada) {
+          // Retirada: subtrai do estoque
+          novaQuantidade = quantidadeAnterior - itemAprovado.quantidade;
+          tipoMovimentacao = 'SAIDA';
+        } else if (isDevolucao) {
+          // Devolução: adiciona ao estoque
+          novaQuantidade = quantidadeAnterior + itemAprovado.quantidade;
+          tipoMovimentacao = 'ENTRADA';
+        }
+
+        // Atualizar quantidade no estoque
+        const { error: updateEstoqueError } = await supabase
+          .from('items')
+          .update({ quantidade: novaQuantidade })
+          .eq('id', solicitacaoItem.item_id);
+
+        if (updateEstoqueError) throw updateEstoqueError;
+
+        // Criar movimentação
+        const { error: movimentacaoError } = await supabase
+          .from('movements')
+          .insert({
+            item_id: solicitacaoItem.item_id,
+            tipo: tipoMovimentacao,
+            quantidade: itemAprovado.quantidade,
+            quantidade_anterior: quantidadeAnterior,
+            quantidade_atual: novaQuantidade,
+            responsavel: userProfile.nome,
+            observacoes: `${isDevolucao ? 'Devolução' : 'Retirada'} aprovada - Solicitação #${solicitacao.numero || solicitacaoId.slice(-8)}${solicitacao.observacoes ? ' - ' + solicitacao.observacoes : ''}`,
+            local_utilizacao: solicitacao.local_utilizacao,
+            item_snapshot: solicitacaoItem.item_snapshot
+          });
+
+        if (movimentacaoError) throw movimentacaoError;
       }
 
-      toast.success('Solicitação aprovada com sucesso!');
+      toast.success('Solicitação aprovada e estoque atualizado!');
       await carregarSolicitacoes();
       return true;
     } catch (error) {

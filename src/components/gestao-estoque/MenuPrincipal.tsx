@@ -16,6 +16,7 @@ import { SeletorEstoque } from './SeletorEstoque';
 import { DialogoImportacao } from './DialogoImportacao';
 import { SolicitarMaterial } from './SolicitarMaterial';
 import { DevolverMaterial } from './DevolverMaterial';
+import { VisualizarMovimentacoes } from './VisualizarMovimentacoes';
 import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -765,6 +766,11 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
           onClose={() => setDialogoImportacao(false)}
           onImportar={handleImportarItens}
         />
+      </div>
+
+      {/* Seção de Visualização de Movimentações */}
+      <div className="mt-8">
+        <VisualizarMovimentacoes />
       </div>
     </div>
   );
