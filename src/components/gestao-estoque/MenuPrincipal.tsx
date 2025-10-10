@@ -16,7 +16,7 @@ import { SeletorEstoque } from './SeletorEstoque';
 import { DialogoImportacao } from './DialogoImportacao';
 import { SolicitarMaterial } from './SolicitarMaterial';
 import { DevolverMaterial } from './DevolverMaterial';
-import { VisualizarMovimentacoes } from './VisualizarMovimentacoes';
+
 import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -30,12 +30,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, obterEstoque, isEstoquePrincipal, importarItens } = useEstoque();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterEstoqueAtivoInfo } = useConfiguracoes();
   const { canCreateItems, canManageStock } = usePermissions();
-  
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  useEffect(() => {
-    const url = localStorage.getItem('empresa_logo_url');
-    if (url) setLogoUrl(url);
-  }, []);
   
   // Estados para controlar os diálogos
   const [dialogoCadastro, setDialogoCadastro] = useState(false);
@@ -209,17 +203,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
 
   return (
     <div className="p-6 space-y-6">
-      {/* Logo da empresa */}
-      <div className="flex justify-start mb-4">
-        {logoUrl ? (
-          <img src={logoUrl} alt="Logo da empresa" className="h-16 w-auto object-contain" />
-        ) : (
-          <div className="bg-primary/10 p-4 rounded-lg border border-primary/20">
-            <h2 className="text-lg font-bold text-primary">LOGO EMPRESA</h2>
-          </div>
-        )}
-      </div>
-
       <div className="flex justify-between items-center mb-8">
         <div className="text-center flex-1">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
@@ -768,10 +751,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
         />
       </div>
 
-      {/* Seção de Visualização de Movimentações */}
-      <div className="mt-8">
-        <VisualizarMovimentacoes />
-      </div>
     </div>
   );
 };
