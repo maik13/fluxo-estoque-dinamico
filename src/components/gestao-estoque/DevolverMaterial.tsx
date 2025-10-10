@@ -29,6 +29,9 @@ export const DevolverMaterial = () => {
   const [observacoes, setObservacoes] = useState('');
   const [popoverAberto, setPopoverAberto] = useState(false);
   const [busca, setBusca] = useState('');
+  const [codigoAssinatura, setCodigoAssinatura] = useState('');
+  const [erroAssinatura, setErroAssinatura] = useState('');
+  const [mostrarCodigoUsuario, setMostrarCodigoUsuario] = useState(false);
 
   const { solicitacoes, criarSolicitacao } = useSolicitacoes();
   const { userProfile } = usePermissions();
@@ -62,6 +65,9 @@ export const DevolverMaterial = () => {
     setResponsavelEstoque('');
     setObservacoes('');
     setBusca('');
+    setCodigoAssinatura('');
+    setErroAssinatura('');
+    setMostrarCodigoUsuario(false);
   };
 
   const selecionarRetirada = (retirada: SolicitacaoCompleta) => {
@@ -147,6 +153,21 @@ export const DevolverMaterial = () => {
       toast.error('Informe o local de origem da devolução');
       return;
     }
+
+    // Validar assinatura eletrônica
+    if (!codigoAssinatura) {
+      setErroAssinatura('Código de assinatura é obrigatório');
+      toast.error('Informe o código de assinatura');
+      return;
+    }
+
+    if (codigoAssinatura !== userProfile?.codigo_assinatura) {
+      setErroAssinatura('Código de assinatura inválido');
+      toast.error('Código de assinatura inválido');
+      return;
+    }
+
+    setErroAssinatura('');
 
     const sucesso = await criarSolicitacao({
       observacoes,
@@ -325,6 +346,43 @@ export const DevolverMaterial = () => {
                     rows={3}
                   />
                 </div>
+
+                {/* Assinatura Eletrônica */}
+                <div className="space-y-2">
+                  <Label htmlFor="codigoAssinatura">Assinatura Eletrônica *</Label>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Input
+                        id="codigoAssinatura"
+                        type="text"
+                        value={codigoAssinatura}
+                        onChange={(e) => {
+                          setCodigoAssinatura(e.target.value);
+                          setErroAssinatura('');
+                        }}
+                        placeholder="Digite seu código de 8 dígitos"
+                        maxLength={8}
+                        className={erroAssinatura ? 'border-destructive' : ''}
+                      />
+                      {erroAssinatura && (
+                        <p className="text-sm text-destructive mt-1">{erroAssinatura}</p>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setMostrarCodigoUsuario(!mostrarCodigoUsuario)}
+                      className="shrink-0"
+                    >
+                      {mostrarCodigoUsuario ? 'Ocultar' : 'Ver meu código'}
+                    </Button>
+                  </div>
+                  {mostrarCodigoUsuario && userProfile?.codigo_assinatura && (
+                    <div className="p-3 bg-muted rounded-md">
+                      <p className="text-sm font-medium">Seu código: {userProfile.codigo_assinatura}</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Etapa 3: Itens da Devolução */}
@@ -439,7 +497,7 @@ export const DevolverMaterial = () => {
                 <Button
                   type="button"
                   onClick={handleSubmit}
-                  disabled={!retiradaSelecionada || itensDevolucao.length === 0 || !localUtilizacao}
+                  disabled={!retiradaSelecionada || itensDevolucao.length === 0 || !localUtilizacao || !codigoAssinatura}
                 >
                   Registrar Devolução
                 </Button>
