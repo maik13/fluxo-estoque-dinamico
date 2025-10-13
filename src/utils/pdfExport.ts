@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { EstoqueItem } from '@/types/estoque';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Usuario {
   id: string;
@@ -33,7 +34,37 @@ export const gerarRelatorioPDF = async ({
   const pageHeight = doc.internal.pageSize.height;
   let yPosition = 20;
 
-  // Removido logo - sem logo da empresa
+  // Carregar e adicionar logo
+  try {
+    const { data, error } = await supabase.storage
+      .from('branding')
+      .list('', { limit: 1 });
+
+    if (!error && data && data.length > 0) {
+      const { data: publicUrlData } = supabase.storage
+        .from('branding')
+        .getPublicUrl(data[0].name);
+      
+      if (publicUrlData.publicUrl) {
+        // Buscar a imagem e converter para base64
+        const response = await fetch(publicUrlData.publicUrl);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        
+        await new Promise((resolve) => {
+          reader.onloadend = () => {
+            const base64data = reader.result as string;
+            // Adicionar logo no canto superior esquerdo
+            doc.addImage(base64data, 'PNG', 15, 10, 30, 15);
+            resolve(null);
+          };
+          reader.readAsDataURL(blob);
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao carregar logo para PDF:', error);
+  }
 
   // Cabeçalho
   doc.setFontSize(20);
