@@ -96,7 +96,7 @@ export const gerarRelatorioPDF = async ({
   
   doc.setFontSize(12);
   doc.setTextColor(0, 0, 0);
-  doc.text('📊 RESUMO DO ESTOQUE', 25, yPosition + 8);
+  doc.text('RESUMO DO ESTOQUE', 25, yPosition + 8);
   
   doc.setFontSize(10);
   const resumoTexto = [
@@ -122,7 +122,7 @@ export const gerarRelatorioPDF = async ({
     // Título da seção de usuários
     doc.setFontSize(16);
     doc.setTextColor(41, 128, 185);
-    doc.text('👥 USUÁRIOS CADASTRADOS', pageWidth / 2, yPosition, { align: 'center' });
+    doc.text('USUARIOS CADASTRADOS', pageWidth / 2, yPosition, { align: 'center' });
     yPosition += 15;
 
     // Estatísticas de usuários
@@ -195,7 +195,7 @@ export const gerarRelatorioPDF = async ({
     // Título da seção de estoque
     doc.setFontSize(16);
     doc.setTextColor(41, 128, 185);
-    doc.text('📦 ITENS DO ESTOQUE', pageWidth / 2, yPosition, { align: 'center' });
+    doc.text('ITENS DO ESTOQUE', pageWidth / 2, yPosition, { align: 'center' });
     yPosition += 20;
   }
 
