@@ -47,5 +47,7 @@ export interface NovaSolicitacao {
   responsavel_estoque?: string;
   tipo_operacao?: string;
   solicitacao_origem_id?: string;
+  solicitante_id?: string;
+  solicitante_nome?: string;
   itens: NovoItemSolicitacao[];
 }

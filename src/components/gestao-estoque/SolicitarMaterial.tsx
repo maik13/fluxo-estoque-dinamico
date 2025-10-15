@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,8 @@ import { useEstoque } from '@/hooks/useEstoque';
 import { useSolicitacoes } from '@/hooks/useSolicitacoes';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { Item } from '@/types/estoque';
 import { NovoItemSolicitacao, SolicitacaoCompleta } from '@/types/solicitacao';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -37,6 +39,8 @@ export const SolicitarMaterial = () => {
   const [codigoAssinatura, setCodigoAssinatura] = useState('');
   const [erroAssinatura, setErroAssinatura] = useState('');
   const [mostrarCodigoUsuario, setMostrarCodigoUsuario] = useState(false);
+  const [solicitanteSelecionado, setSolicitanteSelecionado] = useState<{id: string, nome: string} | null>(null);
+  const [usuariosDisponiveis, setUsuariosDisponiveis] = useState<{id: string, nome: string, user_id: string}[]>([]);
 
   const { obterEstoque } = useEstoque();
   const { criarSolicitacao, solicitacoes, loading, atualizarAceites } = useSolicitacoes();
@@ -47,6 +51,26 @@ export const SolicitarMaterial = () => {
   const tiposOperacaoDisponiveis = obterTiposOperacaoAtivos();
   const solicitantesDisponiveis = obterSolicitantesAtivos();
   const locaisDisponiveis = obterLocaisUtilizacaoAtivos();
+
+  // Carregar usuários disponíveis
+  useEffect(() => {
+    const carregarUsuarios = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, nome, user_id')
+        .eq('ativo', true)
+        .order('nome');
+      
+      if (data) {
+        setUsuariosDisponiveis(data);
+        // Define o usuário atual como padrão
+        if (userProfile) {
+          setSolicitanteSelecionado({ id: userProfile.id, nome: userProfile.nome });
+        }
+      }
+    };
+    carregarUsuarios();
+  }, [userProfile]);
 
   const adicionarItem = (item: Item, quantidade: number) => {
     const itemExistente = itensSolicitados.find(i => i.item_id === item.id);
@@ -107,6 +131,11 @@ export const SolicitarMaterial = () => {
       return;
     }
 
+    if (!solicitanteSelecionado) {
+      toast.error('Por favor, selecione o solicitante');
+      return;
+    }
+
     // Validar assinatura eletrônica
     if (!codigoAssinatura.trim()) {
       setErroAssinatura('Por favor, insira seu código de assinatura');
@@ -123,6 +152,8 @@ export const SolicitarMaterial = () => {
       local_utilizacao: localUtilizacao,
       responsavel_estoque: responsavelEstoque,
       tipo_operacao: tipoOperacao,
+      solicitante_id: solicitanteSelecionado.id,
+      solicitante_nome: solicitanteSelecionado.nome,
       itens: itensSolicitados
     });
 
@@ -142,6 +173,10 @@ export const SolicitarMaterial = () => {
     setCodigoAssinatura('');
     setErroAssinatura('');
     setMostrarCodigoUsuario(false);
+    // Redefine para o usuário atual
+    if (userProfile) {
+      setSolicitanteSelecionado({ id: userProfile.id, nome: userProfile.nome });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -287,7 +322,26 @@ export const SolicitarMaterial = () => {
             {/* Campo Solicitante */}
             <div className="space-y-2">
               <Label htmlFor="solicitante">Solicitante *</Label>
-              <Input id="solicitante" value={userProfile?.nome || 'Carregando...'} readOnly disabled />
+              <Select 
+                value={solicitanteSelecionado?.id || ''} 
+                onValueChange={(value) => {
+                  const usuario = usuariosDisponiveis.find(u => u.id === value);
+                  if (usuario) {
+                    setSolicitanteSelecionado({ id: usuario.id, nome: usuario.nome });
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o solicitante" />
+                </SelectTrigger>
+                <SelectContent>
+                  {usuariosDisponiveis.map(usuario => (
+                    <SelectItem key={usuario.id} value={usuario.id}>
+                      {usuario.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Campo Local de Utilização */}

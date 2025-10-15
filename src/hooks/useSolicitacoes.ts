@@ -79,12 +79,29 @@ export const useSolicitacoes = () => {
     }
 
     try {
+      // Buscar o user_id do solicitante selecionado
+      let solicitanteUserId = user.id;
+      let solicitanteNome = userProfile.nome;
+      
+      if (novaSolicitacao.solicitante_id && novaSolicitacao.solicitante_nome) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('id', novaSolicitacao.solicitante_id)
+          .single();
+        
+        if (profileData) {
+          solicitanteUserId = profileData.user_id;
+          solicitanteNome = novaSolicitacao.solicitante_nome;
+        }
+      }
+
       // Criar solicitação
       const { data: solicitacaoData, error: solicitacaoError } = await supabase
         .from('solicitacoes')
         .insert([{
-          solicitante_id: user.id,
-          solicitante_nome: userProfile.nome,
+          solicitante_id: solicitanteUserId,
+          solicitante_nome: solicitanteNome,
           observacoes: novaSolicitacao.observacoes,
           local_utilizacao: novaSolicitacao.local_utilizacao,
           responsavel_estoque: novaSolicitacao.responsavel_estoque,
