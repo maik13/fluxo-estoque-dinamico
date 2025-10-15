@@ -201,13 +201,13 @@ export const DevolverMaterial = () => {
       if (!open) resetarFormulario();
     }}>
       <DialogTrigger asChild>
-        <Card className="cursor-pointer hover:scale-105 transition-all duration-300 border-teal-200 hover:border-teal-400 bg-gradient-to-br from-teal-50 to-cyan-50">
+        <Card className="cursor-pointer hover:scale-105 transition-all duration-300 border-teal-500/30 hover:border-teal-400 bg-gradient-to-br from-teal-950/20 to-cyan-950/20">
           <CardHeader className="text-center">
             <div className="mx-auto w-16 h-16 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
               <PackageCheck className="h-8 w-8 text-white" />
             </div>
-            <CardTitle className="text-teal-700 text-lg">Devolução de Material</CardTitle>
-            <p className="text-sm text-teal-600 mt-2">
+            <CardTitle className="text-teal-400 text-lg">Devolução de Material</CardTitle>
+            <p className="text-sm text-teal-500/80 mt-2">
               Registre devoluções de materiais ao estoque
             </p>
           </CardHeader>
