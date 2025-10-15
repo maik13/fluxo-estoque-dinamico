@@ -271,11 +271,9 @@ export const SolicitarMaterial = () => {
                 <Package className="h-8 w-8 text-white" />
               </div>
               <CardTitle className="text-green-700 text-lg">Retirada de Material</CardTitle>
-              <CardContent className="p-0 pt-2">
-                <p className="text-sm text-green-600">
-                  Solicite materiais do estoque para aprovação
-                </p>
-              </CardContent>
+              <p className="text-sm text-green-600 mt-2">
+                Solicite materiais do estoque para aprovação
+              </p>
             </CardHeader>
           </Card>
         </DialogTrigger>

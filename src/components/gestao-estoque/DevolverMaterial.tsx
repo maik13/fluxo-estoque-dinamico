@@ -207,11 +207,9 @@ export const DevolverMaterial = () => {
               <PackageCheck className="h-8 w-8 text-white" />
             </div>
             <CardTitle className="text-teal-700 text-lg">Devolução de Material</CardTitle>
-            <CardContent className="p-0 pt-2">
-              <p className="text-sm text-teal-600">
-                Registre devoluções de materiais ao estoque
-              </p>
-            </CardContent>
+            <p className="text-sm text-teal-600 mt-2">
+              Registre devoluções de materiais ao estoque
+            </p>
           </CardHeader>
         </Card>
       </DialogTrigger>
