@@ -13,6 +13,7 @@ import { useSolicitacoes } from '@/hooks/useSolicitacoes';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useEstoque } from '@/hooks/useEstoque';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { supabase } from '@/integrations/supabase/client';
 import { NovoItemSolicitacao, SolicitacaoCompleta } from '@/types/solicitacao';
 import { Item } from '@/types/estoque';
 import { format } from 'date-fns';
@@ -32,6 +33,8 @@ export const DevolverMaterial = () => {
   const [codigoAssinatura, setCodigoAssinatura] = useState('');
   const [erroAssinatura, setErroAssinatura] = useState('');
   const [mostrarCodigoUsuario, setMostrarCodigoUsuario] = useState(false);
+  const [solicitanteSelecionado, setSolicitanteSelecionado] = useState<{id: string, nome: string} | null>(null);
+  const [usuariosDisponiveis, setUsuariosDisponiveis] = useState<{id: string, nome: string, user_id: string}[]>([]);
 
   const { solicitacoes, criarSolicitacao } = useSolicitacoes();
   const { userProfile } = usePermissions();
@@ -40,6 +43,26 @@ export const DevolverMaterial = () => {
 
   const itensEstoque = obterEstoque();
   const locaisDisponiveis = obterLocaisUtilizacaoAtivos();
+
+  // Carregar usuários disponíveis
+  useEffect(() => {
+    const carregarUsuarios = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, nome, user_id')
+        .eq('ativo', true)
+        .order('nome');
+      
+      if (data) {
+        setUsuariosDisponiveis(data);
+        // Define o usuário atual como padrão
+        if (userProfile) {
+          setSolicitanteSelecionado({ id: userProfile.id, nome: userProfile.nome });
+        }
+      }
+    };
+    carregarUsuarios();
+  }, [userProfile]);
 
   // Filtrar retiradas aprovadas que podem ser devolvidas
   const retiradasDisponiveis = solicitacoes.filter(s => {
@@ -68,6 +91,10 @@ export const DevolverMaterial = () => {
     setCodigoAssinatura('');
     setErroAssinatura('');
     setMostrarCodigoUsuario(false);
+    // Redefine para o usuário atual
+    if (userProfile) {
+      setSolicitanteSelecionado({ id: userProfile.id, nome: userProfile.nome });
+    }
   };
 
   const selecionarRetirada = (retirada: SolicitacaoCompleta) => {
@@ -154,6 +181,11 @@ export const DevolverMaterial = () => {
       return;
     }
 
+    if (!solicitanteSelecionado) {
+      toast.error('Por favor, selecione o solicitante');
+      return;
+    }
+
     // Validar assinatura eletrônica
     if (!codigoAssinatura) {
       setErroAssinatura('Código de assinatura é obrigatório');
@@ -175,6 +207,8 @@ export const DevolverMaterial = () => {
       responsavel_estoque: responsavelEstoque,
       tipo_operacao: 'devolucao',
       solicitacao_origem_id: retiradaSelecionada.id,
+      solicitante_id: solicitanteSelecionado.id,
+      solicitante_nome: solicitanteSelecionado.nome,
       itens: itensDevolucao
     });
 
@@ -299,13 +333,27 @@ export const DevolverMaterial = () => {
                 <Label className="text-base font-semibold">2. Informações da devolução</Label>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="solicitante">Solicitante</Label>
-                  <Input
-                    id="solicitante"
-                    value={userProfile?.nome || 'Carregando...'}
-                    disabled
-                    readOnly
-                  />
+                  <Label htmlFor="solicitante">Solicitante *</Label>
+                  <Select 
+                    value={solicitanteSelecionado?.id || ''} 
+                    onValueChange={(value) => {
+                      const usuario = usuariosDisponiveis.find(u => u.id === value);
+                      if (usuario) {
+                        setSolicitanteSelecionado({ id: usuario.id, nome: usuario.nome });
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o solicitante" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {usuariosDisponiveis.map(usuario => (
+                        <SelectItem key={usuario.id} value={usuario.id}>
+                          {usuario.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
