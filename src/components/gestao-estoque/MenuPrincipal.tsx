@@ -195,8 +195,9 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   };
 
   // Função para importar itens
-  const handleImportarItens = (itens: Omit<Item, 'id' | 'dataCriacao'>[]) => {
-    if (importarItens(itens)) {
+  const handleImportarItens = async (itens: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>[]) => {
+    const sucesso = await importarItens(itens);
+    if (sucesso) {
       onMovimentacaoRealizada();
     }
   };
