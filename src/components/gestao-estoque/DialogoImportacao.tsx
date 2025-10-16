@@ -27,7 +27,7 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
   const [resultado, setResultado] = useState<ResultadoValidacao | null>(null);
   const [progresso, setProgresso] = useState(0);
 
-  const camposObrigatorios = ['nome', 'responsavel', 'unidade', 'tipoItem'];
+  const camposObrigatorios = ['nome', 'responsavel', 'unidade'];
 
   const validarLinha = (dados: any, linha: number): { item?: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>; erro?: string } => {
     // Verificar campos obrigatórios
@@ -38,11 +38,12 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
       }
     }
 
-    // Validar tipo de item
-    const tipoItem = dados.tipoItem?.toString().trim() || 'Insumo';
-    if (!['Insumo', 'Ferramenta'].includes(tipoItem)) {
+    // Determinar tipo de item (aceita ausência e infere por categoria)
+    const rawTipo = dados.tipoItem?.toString().trim();
+    if (rawTipo && !['Insumo', 'Ferramenta'].includes(rawTipo)) {
       return { erro: `Tipo de item inválido: "${dados.tipoItem}". Deve ser "Insumo" ou "Ferramenta"` };
     }
+    const tipoInferido = rawTipo || (dados.categoria?.toString().trim() === 'Ferramenta' ? 'Ferramenta' : 'Insumo');
 
     // Validar quantidade (opcional agora)
     let quantidade = 0;
@@ -89,10 +90,10 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
       localizacao: dados.localizacao?.toString().trim() || '',
       responsavel: dados.responsavel.toString().trim(),
       nome: dados.nome.toString().trim(),
-      tipoItem: tipoItem as 'Insumo' | 'Ferramenta',
-      metragem: dados.metragem ? parseFloat(dados.metragem) : undefined,
-      peso: dados.peso ? parseFloat(dados.peso) : undefined,
-      comprimentoLixa: dados.comprimentoLixa ? parseFloat(dados.comprimentoLixa) : undefined,
+      tipoItem: tipoInferido as 'Insumo' | 'Ferramenta',
+      metragem: dados.metragem && dados.metragem.toString().trim() !== '' ? parseFloat(dados.metragem.toString().trim().replace(',', '.')) : undefined,
+      peso: dados.peso && dados.peso.toString().trim() !== '' ? parseFloat(dados.peso.toString().trim().replace(',', '.')) : undefined,
+      comprimentoLixa: dados.comprimentoLixa && dados.comprimentoLixa.toString().trim() !== '' ? parseFloat(dados.comprimentoLixa.toString().trim().replace(',', '.')) : undefined,
       polaridadeDisjuntor: dados.polaridadeDisjuntor?.toString().trim() || '',
       especificacao: dados.especificacao?.toString().trim() || '',
       marca: dados.marca?.toString().trim() || '',
@@ -265,9 +266,9 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
             <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
               <p className="text-sm text-blue-800 font-semibold mb-2">⚠️ Notas Importantes:</p>
               <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
-                <li><strong>Códigos gerados automaticamente:</strong> COD-000001, COD-000002... (não incluir coluna codigoBarras)</li>
-                <li><strong>Campos obrigatórios:</strong> nome, responsavel, unidade, tipoItem</li>
-                <li><strong>tipoItem válidos:</strong> "Insumo" ou "Ferramenta"</li>
+                <li><strong>Códigos gerados automaticamente:</strong> COD-000001, COD-000002... (pode ignorar a coluna codigoBarras do modelo)</li>
+                <li><strong>Campos obrigatórios:</strong> nome, responsavel, unidade</li>
+                <li><strong>tipoItem (opcional):</strong> se ausente, será inferido pela coluna categoria (Ferramenta/Insumo)</li>
                 <li><strong>Quantidade:</strong> Opcional (padrão: 0 se não informada)</li>
               </ul>
             </div>

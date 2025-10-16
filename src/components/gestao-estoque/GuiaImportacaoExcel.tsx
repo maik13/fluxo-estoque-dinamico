@@ -21,8 +21,7 @@ export const GuiaImportacaoExcel = () => {
   const camposObrigatorios = [
     { campo: 'nome', descricao: 'Nome do produto' },
     { campo: 'responsavel', descricao: 'Nome do responsável pelo cadastro' },
-    { campo: 'unidade', descricao: 'Unidade de medida (metro, peça, kg, etc.)' },
-    { campo: 'tipoItem', descricao: 'Tipo do item: "Insumo" ou "Ferramenta"' }
+    { campo: 'unidade', descricao: 'Unidade de medida (metro, peça, kg, etc.)' }
   ];
 
   const camposOpcionais = [
@@ -141,7 +140,7 @@ export const GuiaImportacaoExcel = () => {
             <CardContent className="text-blue-700 space-y-2">
               <ul className="space-y-2">
                 <li>• <strong>Códigos automáticos:</strong> Os códigos serão gerados automaticamente (COD-000001, COD-000002...)</li>
-                <li>• <strong>tipoItem:</strong> Deve ser exatamente "Insumo" ou "Ferramenta"</li>
+                <li>• <strong>tipoItem (opcional):</strong> Se ausente, será inferido pela coluna categoria (Ferramenta/Insumo)</li>
                 <li>• <strong>Números:</strong> Campos como quantidade, quantidadeMinima, metragem e peso devem conter apenas números</li>
                 <li>• <strong>Condição:</strong> Valores aceitos: "Novo", "Usado", "Defeito", "Descarte"</li>
                 <li>• <strong>Primeira linha:</strong> Deve conter os nomes dos campos (cabeçalho)</li>
@@ -156,7 +155,7 @@ export const GuiaImportacaoExcel = () => {
             <h3 className="text-lg font-semibold mb-3">💡 Exemplo de Linha Completa</h3>
             <div className="bg-gray-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
               <p className="text-gray-600 mb-2">// Use o arquivo modelo baixado acima como referência</p>
-              <p className="mb-4">Campos: nome, responsavel, unidade, tipoItem (obrigatórios) + campos opcionais</p>
+              <p className="mb-4">Campos: nome, responsavel, unidade (+ opcionais como tipoItem, categoria, etc.)</p>
               
               <p className="text-gray-600 mb-2">// Exemplo:</p>
               <p>"CHAVE COMB. (19)","FRANCIS","1","Ferramenta","PA5","MTX","Ferramenta","Manual",...</p>
