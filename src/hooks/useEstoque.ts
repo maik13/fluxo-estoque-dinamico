@@ -554,6 +554,7 @@ const importarItensServidor = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'c
     editarItem,
     importarItens,
     importarItensServidor,
+    registrarEntrada,
     registrarSaida,
     isEstoquePrincipal,
   };
