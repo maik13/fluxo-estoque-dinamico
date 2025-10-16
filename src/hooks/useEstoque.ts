@@ -505,6 +505,44 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBar
   }
 };
 
+// Importação alternativa via Função Edge (servidor)
+const importarItensServidor = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>[]) => {
+  try {
+    if (!isEstoquePrincipal()) {
+      toast({
+        title: 'Operação não permitida',
+        description: 'Importação só pode ser feita no Estoque Principal.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    const { data, error } = await supabase.functions.invoke('import-items', {
+      body: { itens: lista },
+    });
+    if (error) throw error;
+
+    const res = data as { success: boolean; imported?: number; errors?: { index: number; nome?: string; message: string }[]; message?: string };
+    if (!res?.success) {
+      toast({ title: 'Falha na importação', description: res?.message || 'Erro desconhecido no servidor.', variant: 'destructive' });
+      return false;
+    }
+
+    await carregarDados();
+
+    const errosTotal = res.errors?.length ?? 0;
+    toast({
+      title: 'Importação realizada!',
+      description: `Importados: ${res.imported ?? 0}${errosTotal > 0 ? `, erros: ${errosTotal}` : ''}.`,
+    });
+    return (res.imported ?? 0) > 0;
+  } catch (e: any) {
+    console.error('Erro na importação via servidor:', e);
+    toast({ title: 'Erro na importação', description: e?.message || 'Falha ao chamar função de importação.', variant: 'destructive' });
+    return false;
+  }
+};
+
   return {
     itens,
     movimentacoes,
@@ -515,7 +553,7 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBar
     cadastrarItem,
     editarItem,
     importarItens,
-    registrarEntrada,
+    importarItensServidor,
     registrarSaida,
     isEstoquePrincipal,
   };

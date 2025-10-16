@@ -27,7 +27,7 @@ interface MenuPrincipalProps {
 }
 
 export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) => {
-  const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, obterEstoque, isEstoquePrincipal, importarItens } = useEstoque();
+  const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, obterEstoque, isEstoquePrincipal, importarItens, importarItensServidor } = useEstoque();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterEstoqueAtivoInfo } = useConfiguracoes();
   const { canCreateItems, canManageStock } = usePermissions();
   
@@ -196,8 +196,15 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
 
   // Função para importar itens
   const handleImportarItens = async (itens: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>[]) => {
-    const sucesso = await importarItens(itens);
-    if (sucesso) {
+    // Tenta via servidor (Edge Function) para contornar RLS/limites
+    const sucessoServidor = await importarItensServidor(itens);
+    if (sucessoServidor) {
+      onMovimentacaoRealizada();
+      return;
+    }
+    // Fallback: tenta a importação cliente a cliente
+    const sucessoCliente = await importarItens(itens);
+    if (sucessoCliente) {
       onMovimentacaoRealizada();
     }
   };
