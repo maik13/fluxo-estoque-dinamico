@@ -417,12 +417,14 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBar
 
     let sucessos = 0;
     let erros = 0;
+    const errosDetalhes: string[] = [];
 
     for (const itemData of lista) {
       // Gerar código sequencial automático
       const { data: codigoData, error: codigoError } = await supabase.rpc('gerar_proximo_codigo');
       if (codigoError) {
         erros++;
+        errosDetalhes.push(`Código: ${codigoError.message}`);
         continue;
       }
       
@@ -456,6 +458,7 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBar
       const { data: itemRow, error: itemErr } = await supabase.from('items').insert(insertItem).select('*').maybeSingle();
       if (itemErr) {
         erros++;
+        errosDetalhes.push(`Item "${itemData.nome}": ${itemErr.message}`);
         continue;
       }
 
@@ -475,17 +478,26 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBar
       });
       if (movErr) {
         // não bloquear importação por falha no log, apenas registrar erro
+        errosDetalhes.push(`Log "${itemData.nome}": ${movErr.message}`);
       }
       sucessos++;
     }
 
     if (sucessos > 0) {
       await carregarDados();
+      const msg = `Importação concluída: ${sucessos} item(ns) importado(s)${erros > 0 ? `, ${erros} erro(s)` : ''}.`;
+      toast({ title: 'Importação realizada!', description: msg });
+      return true;
     }
 
-    const msg = `Importação concluída: ${sucessos} item(ns) importado(s)${erros > 0 ? `, ${erros} erro(s)` : ''}.`;
-    toast({ title: 'Importação realizada!', description: msg });
-    return true;
+    // Nenhum item importado com sucesso
+    const detalhe = errosDetalhes[0] ? ` Detalhe: ${errosDetalhes[0]}` : '';
+    toast({
+      title: 'Falha na importação',
+      description: `Nenhum item foi importado. Verifique suas permissões (Administrador, Gestor ou Engenharia) e a conexão com o servidor.${detalhe}`,
+      variant: 'destructive',
+    });
+    return false;
   } catch (error) {
     console.error('Erro ao importar itens:', error);
     toast({ title: 'Erro na importação', description: 'Ocorreu um erro ao importar os itens.', variant: 'destructive' });
