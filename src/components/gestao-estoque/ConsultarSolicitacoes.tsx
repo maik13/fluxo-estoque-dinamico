@@ -6,7 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { FileText, Printer, Eye } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FileText, Printer, Eye, Clock, RotateCcw, AlertTriangle } from 'lucide-react';
 import { useSolicitacoes } from '@/hooks/useSolicitacoes';
 import { usePermissions } from '@/hooks/usePermissions';
 import { SolicitacaoCompleta } from '@/types/solicitacao';
@@ -16,9 +17,28 @@ import { ptBR } from 'date-fns/locale';
 export const ConsultarSolicitacoes = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
   const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState<SolicitacaoCompleta | null>(null);
+  const [filtroAtivo, setFiltroAtivo] = useState<'todas' | 'abertas' | 'devolucoes' | 'inconformidade'>('todas');
   
   const { solicitacoes, loading, atualizarAceites } = useSolicitacoes();
   const { canManageStock, userProfile } = usePermissions();
+
+  // Filtrar solicitações baseado no filtro ativo
+  const solicitacoesFiltradas = solicitacoes.filter((sol) => {
+    if (filtroAtivo === 'abertas') {
+      return sol.status === 'pendente';
+    }
+    if (filtroAtivo === 'devolucoes') {
+      return sol.tipo_operacao === 'devolucao' || sol.solicitacao_origem_id !== null;
+    }
+    if (filtroAtivo === 'inconformidade') {
+      // Inconformidade: quando quantidade aprovada é diferente da solicitada
+      return sol.itens.some(item => 
+        item.quantidade_aprovada > 0 && 
+        item.quantidade_aprovada !== item.quantidade_solicitada
+      );
+    }
+    return true; // todas
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -148,14 +168,34 @@ export const ConsultarSolicitacoes = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {solicitacoes.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
-                Nenhuma solicitação encontrada.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {solicitacoes.map((solicitacao) => (
+          <Tabs value={filtroAtivo} onValueChange={(value) => setFiltroAtivo(value as any)} className="w-full">
+            <TabsList className="grid w-full grid-cols-4 mb-4">
+              <TabsTrigger value="todas" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Todas
+              </TabsTrigger>
+              <TabsTrigger value="abertas" className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Em Aberto
+              </TabsTrigger>
+              <TabsTrigger value="devolucoes" className="flex items-center gap-2">
+                <RotateCcw className="h-4 w-4" />
+                Devoluções
+              </TabsTrigger>
+              <TabsTrigger value="inconformidade" className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Inconformidades
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value={filtroAtivo} className="space-y-4">
+              {solicitacoesFiltradas.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  Nenhuma solicitação encontrada.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {solicitacoesFiltradas.map((solicitacao) => (
                   <Card key={solicitacao.id} className="hover:shadow-sm transition-shadow">
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
@@ -191,10 +231,11 @@ export const ConsultarSolicitacoes = () => {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
