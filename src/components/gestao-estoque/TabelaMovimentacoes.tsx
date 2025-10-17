@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar, User, Package } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar, User, Package, RotateCcw } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { Movimentacao, TipoMovimentacao } from '@/types/estoque';
 
@@ -14,6 +15,7 @@ export const TabelaMovimentacoes = () => {
   const [filtroTipo, setFiltroTipo] = useState<TipoMovimentacao | 'todas'>('todas');
   const [filtroResponsavel, setFiltroResponsavel] = useState('todos');
   const [filtroDestino, setFiltroDestino] = useState('todos');
+  const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes'>('todas');
 
   // Ordenar movimentações por data (mais recente primeiro)
   const movimentacoesOrdenadas = useMemo(() => {
@@ -33,6 +35,12 @@ export const TabelaMovimentacoes = () => {
     const dest = new Set(movimentacoes.map(mov => mov.itemSnapshot?.localizacao).filter(Boolean));
     return Array.from(dest);
   }, [movimentacoes]);
+
+  // Verificar se uma movimentação é devolução
+  const isDevolucao = (mov: Movimentacao) => {
+    return mov.tipo === 'ENTRADA' && 
+           mov.observacoes?.toLowerCase().includes('devolução');
+  };
 
   // Filtrar movimentações
   const movimentacoesFiltradas = useMemo(() => {
@@ -54,9 +62,17 @@ export const TabelaMovimentacoes = () => {
       // Filtro por destino
       const matchDestino = filtroDestino === 'todos' || mov.itemSnapshot?.localizacao === filtroDestino;
 
-      return matchTexto && matchTipo && matchResponsavel && matchDestino;
+      // Filtro por tipo de visualização
+      let matchVisualizacao = true;
+      if (tipoVisualizacao === 'saidas') {
+        matchVisualizacao = mov.tipo === 'SAIDA';
+      } else if (tipoVisualizacao === 'devolucoes') {
+        matchVisualizacao = isDevolucao(mov);
+      }
+
+      return matchTexto && matchTipo && matchResponsavel && matchDestino && matchVisualizacao;
     });
-  }, [movimentacoesOrdenadas, filtroTexto, filtroTipo, filtroResponsavel, filtroDestino]);
+  }, [movimentacoesOrdenadas, filtroTexto, filtroTipo, filtroResponsavel, filtroDestino, tipoVisualizacao]);
 
   // Estatísticas das movimentações
   const estatisticas = useMemo(() => {
@@ -73,11 +89,14 @@ export const TabelaMovimentacoes = () => {
     
     const saidas = movimentacoes.filter(mov => mov.tipo === 'SAIDA').length;
     
+    const devolucoes = movimentacoes.filter(mov => isDevolucao(mov)).length;
+    
     return {
       total: movimentacoes.length,
       hoje: movHoje,
       entradas,
-      saidas
+      saidas,
+      devolucoes
     };
   }, [movimentacoes]);
 
@@ -151,59 +170,89 @@ export const TabelaMovimentacoes = () => {
 
   return (
     <div className="space-y-6">
-      {/* Estatísticas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold">{estatisticas.total}</p>
-              </div>
-              <Package className="h-8 w-8 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Hoje</p>
-                <p className="text-2xl font-bold text-primary">{estatisticas.hoje}</p>
-              </div>
-              <Calendar className="h-8 w-8 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Entradas</p>
-                <p className="text-2xl font-bold text-success">{estatisticas.entradas}</p>
-              </div>
-              <ArrowUpCircle className="h-8 w-8 text-success" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Saídas</p>
-                <p className="text-2xl font-bold text-warning">{estatisticas.saidas}</p>
-              </div>
-              <ArrowDownCircle className="h-8 w-8 text-warning" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Tabs para tipo de visualização */}
+      <Tabs value={tipoVisualizacao} onValueChange={(value) => setTipoVisualizacao(value as any)} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsTrigger value="todas" className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            Todas
+          </TabsTrigger>
+          <TabsTrigger value="saidas" className="flex items-center gap-2">
+            <ArrowDownCircle className="h-4 w-4" />
+            Saídas
+          </TabsTrigger>
+          <TabsTrigger value="devolucoes" className="flex items-center gap-2">
+            <RotateCcw className="h-4 w-4" />
+            Devoluções
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Filtros */}
-      <Card>
+        <TabsContent value={tipoVisualizacao} className="space-y-6">
+          {/* Estatísticas */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total</p>
+                    <p className="text-2xl font-bold">{estatisticas.total}</p>
+                  </div>
+                  <Package className="h-8 w-8 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Hoje</p>
+                    <p className="text-2xl font-bold text-primary">{estatisticas.hoje}</p>
+                  </div>
+                  <Calendar className="h-8 w-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Entradas</p>
+                    <p className="text-2xl font-bold text-success">{estatisticas.entradas}</p>
+                  </div>
+                  <ArrowUpCircle className="h-8 w-8 text-success" />
+                </div>
+              </CardContent>
+            </Card>
+        
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Saídas</p>
+                    <p className="text-2xl font-bold text-warning">{estatisticas.saidas}</p>
+                  </div>
+                  <ArrowDownCircle className="h-8 w-8 text-warning" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Devoluções</p>
+                    <p className="text-2xl font-bold text-info">{estatisticas.devolucoes}</p>
+                  </div>
+                  <RotateCcw className="h-8 w-8 text-info" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filtros */}
+          <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
@@ -271,11 +320,11 @@ export const TabelaMovimentacoes = () => {
               Mostrando {movimentacoesFiltradas.length} de {movimentacoes.length} movimentações
             </p>
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+          </Card>
 
-      {/* Tabela de Movimentações */}
-      <Card>
+          {/* Tabela de Movimentações */}
+          <Card>
         <CardHeader>
           <CardTitle>📋 Histórico de Movimentações</CardTitle>
           <CardDescription>
@@ -317,15 +366,16 @@ export const TabelaMovimentacoes = () => {
                 ) : (
                   movimentacoesFiltradas.map((mov) => {
                     const tipoInfo = getTipoInfo(mov.tipo);
+                    const eDevolucao = isDevolucao(mov);
                     
                     return (
                       <TableRow key={mov.id} className="hover:bg-muted/50">
                         <TableCell>
-                          <div className={`flex items-center gap-2 ${tipoInfo.color}`}>
-                            <div className={`p-1.5 rounded-full ${tipoInfo.bgColor}`}>
-                              {tipoInfo.icon}
+                          <div className={`flex items-center gap-2 ${eDevolucao ? 'text-info' : tipoInfo.color}`}>
+                            <div className={`p-1.5 rounded-full ${eDevolucao ? 'bg-info/10' : tipoInfo.bgColor}`}>
+                              {eDevolucao ? <RotateCcw className="h-4 w-4" /> : tipoInfo.icon}
                             </div>
-                            <span className="font-medium">{tipoInfo.label}</span>
+                            <span className="font-medium">{eDevolucao ? 'Devolução' : tipoInfo.label}</span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -392,7 +442,9 @@ export const TabelaMovimentacoes = () => {
             </Table>
           </div>
         </CardContent>
-      </Card>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

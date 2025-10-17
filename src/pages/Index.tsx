@@ -3,8 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MenuPrincipal } from '@/components/gestao-estoque/MenuPrincipal';
 import { TabelaEstoque } from '@/components/gestao-estoque/TabelaEstoque';
 import { TabelaMovimentacoes } from '@/components/gestao-estoque/TabelaMovimentacoes';
-import { ConsultarSolicitacoes } from '@/components/gestao-estoque/ConsultarSolicitacoes';
-import { Package, Menu, History, LogOut, FileText } from 'lucide-react';
+import { Package, Menu, History, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -79,7 +78,7 @@ const Index = () => {
       
       <div className="container mx-auto p-4">
         <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="menu" className="flex items-center gap-2">
               <Menu className="h-4 w-4" />
               Menu Principal
@@ -91,10 +90,6 @@ const Index = () => {
             <TabsTrigger value="movimentacoes" className="flex items-center gap-2">
               <History className="h-4 w-4" />
               Movimentações
-            </TabsTrigger>
-            <TabsTrigger value="solicitacoes" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Solicitações
             </TabsTrigger>
           </TabsList>
 
@@ -108,10 +103,6 @@ const Index = () => {
 
           <TabsContent value="movimentacoes" className="space-y-6">
             <TabelaMovimentacoes key={refreshTrigger} />
-          </TabsContent>
-
-          <TabsContent value="solicitacoes" className="space-y-6">
-            <ConsultarSolicitacoes />
           </TabsContent>
         </Tabs>
       </div>
