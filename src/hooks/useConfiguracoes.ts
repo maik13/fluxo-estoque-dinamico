@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { EstoqueConfig, TipoServicoConfig, SubcategoriaConfig } from '@/types/estoque';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface TipoOperacaoConfig {
   id: string;
@@ -16,7 +17,8 @@ export interface SolicitanteConfig {
   email?: string;
   codigoBarras?: string;
   ativo: boolean;
-  dataCriacao: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface LocalUtilizacaoConfig {
@@ -38,14 +40,45 @@ export const useConfiguracoes = () => {
   const [estoqueAtivo, setEstoqueAtivo] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
-  // Carregar dados do localStorage
+  // Carregar solicitantes do Supabase
+  const carregarSolicitantes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('solicitantes')
+        .select('*')
+        .eq('ativo', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      if (data) {
+        setSolicitantes(data.map(s => ({
+          id: s.id,
+          nome: s.nome,
+          email: s.email || undefined,
+          codigoBarras: s.codigo_barras || undefined,
+          ativo: s.ativo,
+          created_at: s.created_at,
+          updated_at: s.updated_at,
+        })));
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar solicitantes:', error);
+      toast({
+        title: "Erro ao carregar solicitantes",
+        description: error.message || "Não foi possível carregar os solicitantes.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Carregar dados do localStorage e Supabase
   useEffect(() => {
     try {
       const estoquesSalvos = localStorage.getItem('estoque-config');
       const tiposServicoSalvos = localStorage.getItem('tipos-servico-config');
       const subcategoriasSalvas = localStorage.getItem('subcategorias-config');
       const tiposOperacaoSalvos = localStorage.getItem('tipos-operacao-config');
-      const solicitantesSalvos = localStorage.getItem('solicitantes-config');
       const locaisUtilizacaoSalvos = localStorage.getItem('locais-utilizacao-config');
       const estoqueAtivoSalvo = localStorage.getItem('estoque-ativo');
 
@@ -91,9 +124,8 @@ export const useConfiguracoes = () => {
         setTiposOperacao(tiposDefault);
       }
 
-      if (solicitantesSalvos) {
-        setSolicitantes(JSON.parse(solicitantesSalvos));
-      }
+      // Carregar solicitantes do Supabase
+      carregarSolicitantes();
 
       if (locaisUtilizacaoSalvos) {
         setLocaisUtilizacao(JSON.parse(locaisUtilizacaoSalvos));
@@ -170,11 +202,7 @@ export const useConfiguracoes = () => {
     }
   }, [tiposOperacao, loading]);
 
-  useEffect(() => {
-    if (!loading) {
-      localStorage.setItem('solicitantes-config', JSON.stringify(solicitantes));
-    }
-  }, [solicitantes, loading]);
+  // Solicitantes agora são gerenciados no Supabase, não precisa salvar no localStorage
 
   useEffect(() => {
     if (!loading) {
@@ -332,34 +360,75 @@ export const useConfiguracoes = () => {
     });
   };
 
-  // Funções para gerenciar solicitantes
-  const adicionarSolicitante = (nome: string, email?: string, codigoBarras?: string) => {
-    const novoSolicitante: SolicitanteConfig = {
-      id: gerarId(),
-      nome,
-      email,
-      codigoBarras,
-      ativo: true,
-      dataCriacao: new Date().toISOString(),
-    };
+  // Funções para gerenciar solicitantes no Supabase
+  const adicionarSolicitante = async (nome: string, email?: string, codigoBarras?: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('solicitantes')
+        .insert({
+          nome,
+          email: email || null,
+          codigo_barras: codigoBarras || null,
+          ativo: true,
+        })
+        .select()
+        .single();
 
-    setSolicitantes(prev => [...prev, novoSolicitante]);
-    
-    toast({
-      title: "Solicitante cadastrado!",
-      description: `Solicitante "${nome}" foi cadastrado com sucesso.`,
-    });
+      if (error) throw error;
 
-    return novoSolicitante;
+      if (data) {
+        const novoSolicitante: SolicitanteConfig = {
+          id: data.id,
+          nome: data.nome,
+          email: data.email || undefined,
+          codigoBarras: data.codigo_barras || undefined,
+          ativo: data.ativo,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+        };
+
+        setSolicitantes(prev => [...prev, novoSolicitante]);
+        
+        toast({
+          title: "Solicitante cadastrado!",
+          description: `Solicitante "${nome}" foi cadastrado com sucesso.`,
+        });
+
+        return novoSolicitante;
+      }
+    } catch (error: any) {
+      console.error('Erro ao cadastrar solicitante:', error);
+      toast({
+        title: "Erro ao cadastrar",
+        description: error.message || "Não foi possível cadastrar o solicitante.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const removerSolicitante = (id: string) => {
-    setSolicitantes(prev => prev.filter(s => s.id !== id));
-    
-    toast({
-      title: "Solicitante removido!",
-      description: "Solicitante foi removido com sucesso.",
-    });
+  const removerSolicitante = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('solicitantes')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setSolicitantes(prev => prev.filter(s => s.id !== id));
+      
+      toast({
+        title: "Solicitante removido!",
+        description: "Solicitante foi removido com sucesso.",
+      });
+    } catch (error: any) {
+      console.error('Erro ao remover solicitante:', error);
+      toast({
+        title: "Erro ao remover",
+        description: error.message || "Não foi possível remover o solicitante.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Funções para gerenciar locais de utilização

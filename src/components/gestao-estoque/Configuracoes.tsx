@@ -231,7 +231,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     onConfigChange?.();
   };
 
-  const handleCadastroSolicitante = () => {
+  const handleCadastroSolicitante = async () => {
     if (!novoSolicitante.nome) {
       toast({
         title: "Nome obrigatório",
@@ -241,7 +241,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
       return;
     }
 
-    adicionarSolicitante(novoSolicitante.nome, novoSolicitante.email, novoSolicitante.codigoBarras);
+    await adicionarSolicitante(novoSolicitante.nome, novoSolicitante.email, novoSolicitante.codigoBarras);
     setNovoSolicitante({ nome: '', email: '', codigoBarras: '' });
     onConfigChange?.();
   };
