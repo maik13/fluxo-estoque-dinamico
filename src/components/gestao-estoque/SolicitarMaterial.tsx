@@ -55,13 +55,20 @@ export const SolicitarMaterial = () => {
   // Carregar usuários disponíveis
   useEffect(() => {
     const carregarUsuarios = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('id, nome, user_id')
         .eq('ativo', true)
         .order('nome');
       
+      if (error) {
+        console.error('Erro ao carregar usuários:', error);
+        toast.error('Erro ao carregar lista de solicitantes');
+        return;
+      }
+      
       if (data) {
+        console.log('Usuários carregados:', data);
         setUsuariosDisponiveis(data);
         // Define o usuário atual como padrão
         if (userProfile) {
