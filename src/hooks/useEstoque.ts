@@ -40,7 +40,8 @@ export const useEstoque = () => {
 
       // Mapear DB -> Tipos locais
       const itensMapped: Item[] = (itensData ?? []).map((row: any) => ({
-          codigoBarras: Number(row.codigo_barras), // Chave primária
+          id: row.id,
+          codigoBarras: row.codigo_barras,
           origem: row.origem ?? '',
           caixaOrganizador: row.caixa_organizador ?? '',
           localizacao: row.localizacao ?? '',
