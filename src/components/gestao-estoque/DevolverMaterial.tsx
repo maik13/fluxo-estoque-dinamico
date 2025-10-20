@@ -23,7 +23,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 
 export const DevolverMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
-  const [retiradaSelecionada, setRetiradaSelecionada] = useState<SolicitacaoCompleta | null>(null);
   const [itensDevolucao, setItensDevolucao] = useState<NovoItemSolicitacao[]>([]);
   const [localUtilizacao, setLocalUtilizacao] = useState('');
   const [responsavelEstoque, setResponsavelEstoque] = useState('');
@@ -36,7 +35,7 @@ export const DevolverMaterial = () => {
   const [solicitanteSelecionado, setSolicitanteSelecionado] = useState<{id: string, nome: string, codigo_barras?: string} | null>(null);
   const [usuariosDisponiveis, setUsuariosDisponiveis] = useState<{id: string, nome: string, user_id: string, codigo_barras?: string}[]>([]);
 
-  const { solicitacoes, criarSolicitacao } = useSolicitacoes();
+  const { criarSolicitacao } = useSolicitacoes();
   const { userProfile } = usePermissions();
   const { obterEstoque } = useEstoque();
   const { obterLocaisUtilizacaoAtivos } = useConfiguracoes();
@@ -96,22 +95,7 @@ export const DevolverMaterial = () => {
     carregarSolicitantes();
   }, [userProfile]);
 
-  // Filtrar retiradas que podem ser devolvidas (todas as que não são devoluções)
-  const retiradasDisponiveis = solicitacoes.filter(s => {
-    // Não deve ser uma devolução
-    if (s.tipo_operacao === 'devolucao' || s.tipo_operacao === 'devolucao_estoque') return false;
-    
-    // Não deve ter devolução já criada
-    const jaPossuiDevolucao = solicitacoes.some(dev => 
-      dev.solicitacao_origem_id === s.id && 
-      (dev.tipo_operacao === 'devolucao' || dev.tipo_operacao === 'devolucao_estoque')
-    );
-    
-    return !jaPossuiDevolucao;
-  });
-
   const resetarFormulario = () => {
-    setRetiradaSelecionada(null);
     setItensDevolucao([]);
     setLocalUtilizacao('');
     setResponsavelEstoque('');
@@ -131,21 +115,6 @@ export const DevolverMaterial = () => {
         });
       }
     }
-  };
-
-  const selecionarRetirada = (retirada: SolicitacaoCompleta) => {
-    setRetiradaSelecionada(retirada);
-    setLocalUtilizacao(retirada.local_utilizacao || '');
-    
-    // Pré-carregar itens da retirada como sugestão
-    const itensSugeridos: NovoItemSolicitacao[] = retirada.itens.map(item => ({
-      item_id: item.item_id,
-      quantidade_solicitada: item.quantidade_aprovada,
-      item_snapshot: item.item_snapshot
-    }));
-    setItensDevolucao(itensSugeridos);
-    
-    toast.success(`Retirada selecionada. Itens carregados para devolução.`);
   };
 
   const adicionarItem = (item: Item, quantidade: number) => {
@@ -202,11 +171,6 @@ export const DevolverMaterial = () => {
   };
 
   const handleSubmit = async () => {
-    if (!retiradaSelecionada) {
-      toast.error('Selecione a retirada original');
-      return;
-    }
-
     if (itensDevolucao.length === 0) {
       toast.error('Adicione pelo menos um item para devolução');
       return;
@@ -248,7 +212,6 @@ export const DevolverMaterial = () => {
       local_utilizacao: localUtilizacao,
       responsavel_estoque: responsavelEstoque,
       tipo_operacao: 'devolucao',
-      solicitacao_origem_id: retiradaSelecionada.id,
       solicitante_id: solicitanteSelecionado.id,
       solicitante_nome: solicitanteSelecionado.nome,
       itens: itensDevolucao
@@ -294,85 +257,14 @@ export const DevolverMaterial = () => {
         <DialogHeader>
           <DialogTitle>Devolução de Material</DialogTitle>
           <DialogDescription>
-            Selecione a retirada original e os itens que está devolvendo
+            Informe os dados da devolução e os itens que está devolvendo
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Etapa 1: Seleção da Retirada */}
-          <div className="space-y-3">
-            <Label className="text-base font-semibold">1. Selecione a retirada original</Label>
-            
-            {retiradasDisponiveis.length === 0 ? (
-              <Card className="p-6 text-center">
-                <p className="text-muted-foreground">
-                  Nenhuma retirada aprovada disponível para devolução
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  As retiradas devem estar aprovadas e ainda não terem sido devolvidas
-                </p>
-              </Card>
-            ) : retiradaSelecionada ? (
-              <Card className="p-4 border-primary bg-primary/5">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-medium">
-                      Retirada #{retiradaSelecionada.numero || retiradaSelecionada.id.slice(-8)}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {format(new Date(retiradaSelecionada.data_solicitacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                    </div>
-                    <div className="text-sm mt-1">
-                      {retiradaSelecionada.itens.length} {retiradaSelecionada.itens.length === 1 ? 'item' : 'itens'} retirados
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setRetiradaSelecionada(null)}
-                  >
-                    Alterar
-                  </Button>
-                </div>
-              </Card>
-            ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {retiradasDisponiveis.map(retirada => (
-                  <Card
-                    key={retirada.id}
-                    className="cursor-pointer hover:border-primary transition-colors"
-                    onClick={() => selecionarRetirada(retirada)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="font-medium">
-                            Retirada #{retirada.numero || retirada.id.slice(-8)}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {format(new Date(retirada.data_solicitacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                          </div>
-                          <div className="text-sm mt-1">
-                            {retirada.itens.length} {retirada.itens.length === 1 ? 'item' : 'itens'}
-                          </div>
-                        </div>
-                        <Button type="button" variant="outline" size="sm">
-                          Selecionar
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {retiradaSelecionada && (
-            <>
-              {/* Etapa 2: Informações da Devolução */}
-              <div className="space-y-4">
-                <Label className="text-base font-semibold">2. Informações da devolução</Label>
+          {/* Informações da Devolução */}
+          <div className="space-y-4">
+            <Label className="text-base font-semibold">1. Informações da devolução</Label>
                 
                 <div className="space-y-2">
                   <Label htmlFor="solicitante">Solicitante *</Label>
@@ -482,10 +374,10 @@ export const DevolverMaterial = () => {
                 </div>
               </div>
 
-              {/* Etapa 3: Itens da Devolução */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <Label className="text-base font-semibold">3. Itens para devolução</Label>
+          {/* Itens da Devolução */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <Label className="text-base font-semibold">2. Itens para devolução</Label>
                   
                   <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
                     <PopoverTrigger asChild>
@@ -529,78 +421,76 @@ export const DevolverMaterial = () => {
                   </Popover>
                 </div>
 
-                {itensDevolucao.length === 0 ? (
-                  <Card className="p-6 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      Nenhum item adicionado. Os itens da retirada foram pré-carregados.
-                    </p>
-                  </Card>
-                ) : (
-                  <div className="border rounded-lg">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Item</TableHead>
-                          <TableHead>Código</TableHead>
-                          <TableHead>Categoria</TableHead>
-                          <TableHead className="w-32">Quantidade</TableHead>
-                          <TableHead className="w-20">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {itensDevolucao.map(item => (
-                          <TableRow key={item.item_id}>
-                            <TableCell className="font-medium">
-                              {item.item_snapshot.nome}
-                            </TableCell>
-                            <TableCell>{item.item_snapshot.codigoBarras}</TableCell>
-                            <TableCell>{item.item_snapshot.categoria}</TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                min="1"
-                                value={item.quantidade_solicitada}
-                                onChange={(e) => atualizarQuantidade(item.item_id, Number(e.target.value))}
-                                className="w-24"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removerItem(item.item_id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
+            {itensDevolucao.length === 0 ? (
+              <Card className="p-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Nenhum item adicionado. Clique em "Adicionar item" para começar.
+                </p>
+              </Card>
+            ) : (
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead className="w-32">Quantidade</TableHead>
+                      <TableHead className="w-20">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {itensDevolucao.map(item => (
+                      <TableRow key={item.item_id}>
+                        <TableCell className="font-medium">
+                          {item.item_snapshot.nome}
+                        </TableCell>
+                        <TableCell>{item.item_snapshot.codigoBarras}</TableCell>
+                        <TableCell>{item.item_snapshot.categoria}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.quantidade_solicitada}
+                            onChange={(e) => atualizarQuantidade(item.item_id, Number(e.target.value))}
+                            className="w-24"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removerItem(item.item_id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
+            )}
+          </div>
 
-              {/* Botão de Envio */}
-              <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDialogoAberto(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={!retiradaSelecionada || itensDevolucao.length === 0 || !localUtilizacao || !codigoAssinatura}
-                >
-                  Registrar Devolução
-                </Button>
-              </div>
-            </>
-          )}
+          {/* Botão de Envio */}
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDialogoAberto(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              disabled={itensDevolucao.length === 0 || !localUtilizacao || !codigoAssinatura}
+            >
+              Registrar Devolução
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
