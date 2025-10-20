@@ -177,10 +177,8 @@ export const useSolicitacoes = () => {
             responsavel: userProfile.nome,
             observacoes: `${isDevolucao ? 'Devolução' : 'Retirada'} - Solicitação #${solicitacaoData.numero || solicitacaoData.id.slice(-8)}${novaSolicitacao.observacoes ? ' - ' + novaSolicitacao.observacoes : ''}`,
             local_utilizacao: novaSolicitacao.local_utilizacao,
-            item_snapshot: {
-              ...item.item_snapshot,
-              solicitacao_id: solicitacaoData.id
-            }
+            item_snapshot: item.item_snapshot,
+            solicitacao_id: solicitacaoData.id
           });
 
         if (movimentacaoError) throw movimentacaoError;

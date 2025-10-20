@@ -111,6 +111,7 @@ export type Database = {
           quantidade_anterior: number
           quantidade_atual: number
           responsavel: string
+          solicitacao_id: string | null
           tipo: string
         }
         Insert: {
@@ -125,6 +126,7 @@ export type Database = {
           quantidade_anterior: number
           quantidade_atual: number
           responsavel: string
+          solicitacao_id?: string | null
           tipo: string
         }
         Update: {
@@ -139,6 +141,7 @@ export type Database = {
           quantidade_anterior?: number
           quantidade_atual?: number
           responsavel?: string
+          solicitacao_id?: string | null
           tipo?: string
         }
         Relationships: [
@@ -147,6 +150,13 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movements_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes"
             referencedColumns: ["id"]
           },
         ]
