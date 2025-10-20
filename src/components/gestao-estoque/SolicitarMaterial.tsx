@@ -194,18 +194,6 @@ export const SolicitarMaterial = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pendente':
-        return <Badge variant="outline">Pendente</Badge>;
-      case 'aprovada':
-        return <Badge className="bg-green-100 text-green-800">Aprovada</Badge>;
-      case 'rejeitada':
-        return <Badge variant="destructive">Rejeitada</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
 
   const abrirDetalhes = (solicitacao: SolicitacaoCompleta) => {
     setSolicitacaoSelecionada(solicitacao);
@@ -243,10 +231,6 @@ export const SolicitarMaterial = () => {
           
           <div class="info">
             <strong>Solicitante:</strong> ${solicitacao.solicitante_nome}
-          </div>
-          
-          <div class="info">
-            <strong>Status:</strong> ${solicitacao.status.toUpperCase()}
           </div>
           
           ${solicitacao.local_utilizacao ? `<div class="info"><strong>Local de Utilização:</strong> ${solicitacao.local_utilizacao}</div>` : ''}
@@ -623,7 +607,6 @@ export const SolicitarMaterial = () => {
                         <div className="space-y-1">
                           <div className="flex items-center space-x-2">
                             <span className="font-medium">#{solicitacao.id.slice(-8)}</span>
-                            {getStatusBadge(solicitacao.status)}
                           </div>
                           <p className="text-sm text-muted-foreground">
                             {solicitacao.solicitante_nome} • {format(new Date(solicitacao.data_solicitacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
@@ -677,10 +660,6 @@ export const SolicitarMaterial = () => {
                 <div>
                   <Label className="font-medium">ID da Solicitação</Label>
                   <p className="text-sm text-muted-foreground">#{solicitacaoSelecionada.id.slice(0, 8)}</p>
-                </div>
-                <div>
-                  <Label className="font-medium">Status</Label>
-                  <div className="mt-1">{getStatusBadge(solicitacaoSelecionada.status)}</div>
                 </div>
                 <div>
                   <Label className="font-medium">Solicitante</Label>

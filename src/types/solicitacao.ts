@@ -5,16 +5,12 @@ export interface Solicitacao {
   numero?: number;
   solicitante_id: string;
   solicitante_nome: string;
-  status: 'pendente' | 'aprovada' | 'rejeitada';
   observacoes?: string;
   local_utilizacao?: string;
   responsavel_estoque?: string;
   tipo_operacao?: string;
   solicitacao_origem_id?: string;
   data_solicitacao: string;
-  data_aprovacao?: string;
-  aprovado_por_id?: string;
-  aprovado_por_nome?: string;
   aceite_separador: boolean;
   aceite_solicitante: boolean;
   created_at: string;

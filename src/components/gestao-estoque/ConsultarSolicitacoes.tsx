@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Printer, Eye, Clock, RotateCcw, AlertTriangle } from 'lucide-react';
+import { FileText, Printer, Eye, RotateCcw, AlertTriangle } from 'lucide-react';
 import { useSolicitacoes } from '@/hooks/useSolicitacoes';
 import { usePermissions } from '@/hooks/usePermissions';
 import { SolicitacaoCompleta } from '@/types/solicitacao';
@@ -17,16 +17,13 @@ import { ptBR } from 'date-fns/locale';
 export const ConsultarSolicitacoes = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
   const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState<SolicitacaoCompleta | null>(null);
-  const [filtroAtivo, setFiltroAtivo] = useState<'todas' | 'abertas' | 'devolucoes' | 'inconformidade'>('todas');
+  const [filtroAtivo, setFiltroAtivo] = useState<'todas' | 'devolucoes' | 'inconformidade'>('todas');
   
   const { solicitacoes, loading, atualizarAceites } = useSolicitacoes();
   const { canManageStock, userProfile } = usePermissions();
 
   // Filtrar solicitações baseado no filtro ativo
   const solicitacoesFiltradas = solicitacoes.filter((sol) => {
-    if (filtroAtivo === 'abertas') {
-      return sol.status === 'pendente';
-    }
     if (filtroAtivo === 'devolucoes') {
       return sol.tipo_operacao === 'devolucao' || sol.solicitacao_origem_id !== null;
     }
@@ -40,18 +37,6 @@ export const ConsultarSolicitacoes = () => {
     return true; // todas
   });
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pendente':
-        return <Badge variant="outline">Pendente</Badge>;
-      case 'aprovada':
-        return <Badge className="bg-green-100 text-green-800">Aprovada</Badge>;
-      case 'rejeitada':
-        return <Badge variant="destructive">Rejeitada</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
 
   const abrirDetalhes = (solicitacao: SolicitacaoCompleta) => {
     setSolicitacaoSelecionada(solicitacao);
@@ -89,10 +74,6 @@ export const ConsultarSolicitacoes = () => {
           
           <div class="info">
             <strong>Solicitante:</strong> ${solicitacao.solicitante_nome}
-          </div>
-          
-          <div class="info">
-            <strong>Status:</strong> ${solicitacao.status.toUpperCase()}
           </div>
           
           ${solicitacao.local_utilizacao ? `<div class="info"><strong>Local de Utilização:</strong> ${solicitacao.local_utilizacao}</div>` : ''}
@@ -169,14 +150,10 @@ export const ConsultarSolicitacoes = () => {
         </CardHeader>
         <CardContent>
           <Tabs value={filtroAtivo} onValueChange={(value) => setFiltroAtivo(value as any)} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="todas" className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 Todas
-              </TabsTrigger>
-              <TabsTrigger value="abertas" className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Em Aberto
               </TabsTrigger>
               <TabsTrigger value="devolucoes" className="flex items-center gap-2">
                 <RotateCcw className="h-4 w-4" />
@@ -204,7 +181,6 @@ export const ConsultarSolicitacoes = () => {
                             <span className="font-medium">
                               Solicitação #{solicitacao.id.slice(-8)}
                             </span>
-                            {getStatusBadge(solicitacao.status)}
                           </div>
                           <div className="text-sm text-muted-foreground">
                             <div>Solicitante: {solicitacao.solicitante_nome}</div>
@@ -258,21 +234,9 @@ export const ConsultarSolicitacoes = () => {
                   <p className="font-medium">{solicitacaoSelecionada.solicitante_nome}</p>
                 </div>
                 <div>
-                  <Label>Status</Label>
-                  <div className="mt-1">
-                    {getStatusBadge(solicitacaoSelecionada.status)}
-                  </div>
-                </div>
-                <div>
                   <Label>Data da Solicitação</Label>
                   <p>{format(new Date(solicitacaoSelecionada.data_solicitacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</p>
                 </div>
-                {solicitacaoSelecionada.data_aprovacao && (
-                  <div>
-                    <Label>Data da Aprovação</Label>
-                    <p>{format(new Date(solicitacaoSelecionada.data_aprovacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</p>
-                  </div>
-                )}
                 {solicitacaoSelecionada.local_utilizacao && (
                   <div>
                     <Label>Local de Utilização</Label>
@@ -330,35 +294,33 @@ export const ConsultarSolicitacoes = () => {
               </div>
 
               {/* Aceites */}
-              {solicitacaoSelecionada.status === 'aprovada' && (
-                <div className="space-y-4">
-                  <Label>Aceites</Label>
-                  <div className="flex gap-6">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="aceite-separador"
-                        checked={solicitacaoSelecionada.aceite_separador}
-                        onCheckedChange={(checked) => 
-                          atualizarAceites(solicitacaoSelecionada.id, !!checked, undefined)
-                        }
-                        disabled={!canManageStock()}
-                      />
-                      <Label htmlFor="aceite-separador">Aceite do Responsável pela Separação</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="aceite-solicitante"
-                        checked={solicitacaoSelecionada.aceite_solicitante}
-                        onCheckedChange={(checked) => 
-                          atualizarAceites(solicitacaoSelecionada.id, undefined, !!checked)
-                        }
-                        disabled={solicitacaoSelecionada.solicitante_id !== userProfile?.user_id}
-                      />
-                      <Label htmlFor="aceite-solicitante">Aceite do Solicitante</Label>
-                    </div>
+              <div className="space-y-4">
+                <Label>Aceites</Label>
+                <div className="flex gap-6">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="aceite-separador"
+                      checked={solicitacaoSelecionada.aceite_separador}
+                      onCheckedChange={(checked) => 
+                        atualizarAceites(solicitacaoSelecionada.id, !!checked, undefined)
+                      }
+                      disabled={!canManageStock()}
+                    />
+                    <Label htmlFor="aceite-separador">Aceite do Responsável pela Separação</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="aceite-solicitante"
+                      checked={solicitacaoSelecionada.aceite_solicitante}
+                      onCheckedChange={(checked) => 
+                        atualizarAceites(solicitacaoSelecionada.id, undefined, !!checked)
+                      }
+                      disabled={solicitacaoSelecionada.solicitante_id !== userProfile?.user_id}
+                    />
+                    <Label htmlFor="aceite-solicitante">Aceite do Solicitante</Label>
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Botões de ação */}
               <div className="flex justify-between">

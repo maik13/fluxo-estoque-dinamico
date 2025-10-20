@@ -236,10 +236,7 @@ export type Database = {
         Row: {
           aceite_separador: boolean | null
           aceite_solicitante: boolean | null
-          aprovado_por_id: string | null
-          aprovado_por_nome: string | null
           created_at: string
-          data_aprovacao: string | null
           data_solicitacao: string
           id: string
           local_utilizacao: string | null
@@ -249,17 +246,13 @@ export type Database = {
           solicitacao_origem_id: string | null
           solicitante_id: string
           solicitante_nome: string
-          status: string
           tipo_operacao: string | null
           updated_at: string
         }
         Insert: {
           aceite_separador?: boolean | null
           aceite_solicitante?: boolean | null
-          aprovado_por_id?: string | null
-          aprovado_por_nome?: string | null
           created_at?: string
-          data_aprovacao?: string | null
           data_solicitacao?: string
           id?: string
           local_utilizacao?: string | null
@@ -269,17 +262,13 @@ export type Database = {
           solicitacao_origem_id?: string | null
           solicitante_id: string
           solicitante_nome: string
-          status?: string
           tipo_operacao?: string | null
           updated_at?: string
         }
         Update: {
           aceite_separador?: boolean | null
           aceite_solicitante?: boolean | null
-          aprovado_por_id?: string | null
-          aprovado_por_nome?: string | null
           created_at?: string
-          data_aprovacao?: string | null
           data_solicitacao?: string
           id?: string
           local_utilizacao?: string | null
@@ -289,7 +278,6 @@ export type Database = {
           solicitacao_origem_id?: string | null
           solicitante_id?: string
           solicitante_nome?: string
-          status?: string
           tipo_operacao?: string | null
           updated_at?: string
         }

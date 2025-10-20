@@ -56,7 +56,6 @@ export const useSolicitacoes = () => {
       // Combinar dados
       const solicitacoesCompletas: SolicitacaoCompleta[] = (solicitacoesData || []).map(solicitacao => ({
         ...solicitacao,
-        status: solicitacao.status as 'pendente' | 'aprovada' | 'rejeitada',
         itens: (itensData || []).filter(item => item.solicitacao_id === solicitacao.id).map(item => ({
           ...item,
           item_snapshot: item.item_snapshot as Partial<Item>
@@ -84,15 +83,15 @@ export const useSolicitacoes = () => {
       let solicitanteNome = userProfile.nome;
       
       if (novaSolicitacao.solicitante_id && novaSolicitacao.solicitante_nome) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('user_id')
+        const { data: solicitanteData } = await supabase
+          .from('solicitantes')
+          .select('id, nome')
           .eq('id', novaSolicitacao.solicitante_id)
           .single();
         
-        if (profileData) {
-          solicitanteUserId = profileData.user_id;
-          solicitanteNome = novaSolicitacao.solicitante_nome;
+        if (solicitanteData) {
+          solicitanteUserId = user.id; // Mantém o user_id do usuário logado
+          solicitanteNome = solicitanteData.nome;
         }
       }
 
@@ -118,6 +117,7 @@ export const useSolicitacoes = () => {
         solicitacao_id: solicitacaoData.id,
         item_id: item.item_id,
         quantidade_solicitada: item.quantidade_solicitada,
+        quantidade_aprovada: item.quantidade_solicitada, // Define quantidade aprovada igual à solicitada
         item_snapshot: item.item_snapshot
       }));
 
@@ -127,7 +127,66 @@ export const useSolicitacoes = () => {
 
       if (itensError) throw itensError;
 
-      toast.success('Solicitação criada com sucesso!');
+      // Criar movimentações automaticamente
+      const isRetirada = !novaSolicitacao.tipo_operacao || 
+                         novaSolicitacao.tipo_operacao === 'saida_producao' || 
+                         novaSolicitacao.tipo_operacao === 'saida_obra';
+      
+      const isDevolucao = novaSolicitacao.tipo_operacao === 'devolucao' || 
+                         novaSolicitacao.tipo_operacao === 'devolucao_estoque';
+
+      for (const item of novaSolicitacao.itens) {
+        // Obter item do estoque
+        const { data: itemEstoque, error: itemEstoqueError } = await supabase
+          .from('items')
+          .select('*')
+          .eq('id', item.item_id)
+          .single();
+
+        if (itemEstoqueError) throw itemEstoqueError;
+
+        const quantidadeAnterior = itemEstoque.quantidade;
+        let novaQuantidade = quantidadeAnterior;
+        let tipoMovimentacao: 'ENTRADA' | 'SAIDA' = 'SAIDA';
+
+        if (isRetirada) {
+          novaQuantidade = quantidadeAnterior - item.quantidade_solicitada;
+          tipoMovimentacao = 'SAIDA';
+        } else if (isDevolucao) {
+          novaQuantidade = quantidadeAnterior + item.quantidade_solicitada;
+          tipoMovimentacao = 'ENTRADA';
+        }
+
+        // Atualizar quantidade no estoque
+        const { error: updateEstoqueError } = await supabase
+          .from('items')
+          .update({ quantidade: novaQuantidade })
+          .eq('id', item.item_id);
+
+        if (updateEstoqueError) throw updateEstoqueError;
+
+        // Criar movimentação
+        const { error: movimentacaoError } = await supabase
+          .from('movements')
+          .insert({
+            item_id: item.item_id,
+            tipo: tipoMovimentacao,
+            quantidade: item.quantidade_solicitada,
+            quantidade_anterior: quantidadeAnterior,
+            quantidade_atual: novaQuantidade,
+            responsavel: userProfile.nome,
+            observacoes: `${isDevolucao ? 'Devolução' : 'Retirada'} - Solicitação #${solicitacaoData.numero || solicitacaoData.id.slice(-8)}${novaSolicitacao.observacoes ? ' - ' + novaSolicitacao.observacoes : ''}`,
+            local_utilizacao: novaSolicitacao.local_utilizacao,
+            item_snapshot: {
+              ...item.item_snapshot,
+              solicitacao_id: solicitacaoData.id
+            }
+          });
+
+        if (movimentacaoError) throw movimentacaoError;
+      }
+
+      toast.success('Solicitação criada e estoque atualizado!');
       await carregarSolicitacoes();
       return true;
     } catch (error) {
@@ -137,149 +196,6 @@ export const useSolicitacoes = () => {
     }
   };
 
-  const aprovarSolicitacao = async (solicitacaoId: string, itensAprovados: { id: string; quantidade: number }[]): Promise<boolean> => {
-    if (!user || !userProfile || !canManageStock()) {
-      toast.error('Sem permissão para aprovar solicitações');
-      return false;
-    }
-
-    try {
-      // Obter dados da solicitação
-      const { data: solicitacao, error: solicitacaoFetchError } = await supabase
-        .from('solicitacoes')
-        .select('*, solicitacao_itens(*)')
-        .eq('id', solicitacaoId)
-        .single();
-
-      if (solicitacaoFetchError) throw solicitacaoFetchError;
-
-      // Atualizar status da solicitação
-      const { error: solicitacaoError } = await supabase
-        .from('solicitacoes')
-        .update({
-          status: 'aprovada',
-          data_aprovacao: new Date().toISOString(),
-          aprovado_por_id: user.id,
-          aprovado_por_nome: userProfile.nome
-        })
-        .eq('id', solicitacaoId);
-
-      if (solicitacaoError) throw solicitacaoError;
-
-      // Atualizar quantidades aprovadas dos itens e processar movimentações
-      for (const itemAprovado of itensAprovados) {
-        // Atualizar quantidade aprovada
-        const { error: itemError } = await supabase
-          .from('solicitacao_itens')
-          .update({ quantidade_aprovada: itemAprovado.quantidade })
-          .eq('id', itemAprovado.id);
-
-        if (itemError) throw itemError;
-
-        // Obter dados completos do item da solicitação
-        const { data: solicitacaoItem } = await supabase
-          .from('solicitacao_itens')
-          .select('*')
-          .eq('id', itemAprovado.id)
-          .single();
-
-        if (!solicitacaoItem) continue;
-
-        // Obter item do estoque
-        const { data: itemEstoque, error: itemEstoqueError } = await supabase
-          .from('items')
-          .select('*')
-          .eq('id', solicitacaoItem.item_id)
-          .single();
-
-        if (itemEstoqueError) throw itemEstoqueError;
-
-        const quantidadeAnterior = itemEstoque.quantidade;
-        let novaQuantidade = quantidadeAnterior;
-        let tipoMovimentacao: 'ENTRADA' | 'SAIDA' = 'SAIDA';
-
-        // Determinar tipo de operação
-        const isRetirada = !solicitacao.tipo_operacao || 
-                          solicitacao.tipo_operacao === 'saida_producao' || 
-                          solicitacao.tipo_operacao === 'saida_obra';
-        
-        const isDevolucao = solicitacao.tipo_operacao === 'devolucao' || 
-                           solicitacao.tipo_operacao === 'devolucao_estoque';
-
-        if (isRetirada) {
-          // Retirada: subtrai do estoque
-          novaQuantidade = quantidadeAnterior - itemAprovado.quantidade;
-          tipoMovimentacao = 'SAIDA';
-        } else if (isDevolucao) {
-          // Devolução: adiciona ao estoque
-          novaQuantidade = quantidadeAnterior + itemAprovado.quantidade;
-          tipoMovimentacao = 'ENTRADA';
-        }
-
-        // Atualizar quantidade no estoque
-        const { error: updateEstoqueError } = await supabase
-          .from('items')
-          .update({ quantidade: novaQuantidade })
-          .eq('id', solicitacaoItem.item_id);
-
-        if (updateEstoqueError) throw updateEstoqueError;
-
-        // Criar movimentação
-        const { error: movimentacaoError } = await supabase
-          .from('movements')
-          .insert({
-            item_id: solicitacaoItem.item_id,
-            tipo: tipoMovimentacao,
-            quantidade: itemAprovado.quantidade,
-            quantidade_anterior: quantidadeAnterior,
-            quantidade_atual: novaQuantidade,
-            responsavel: userProfile.nome,
-            observacoes: `${isDevolucao ? 'Devolução' : 'Retirada'} aprovada - Solicitação #${solicitacao.numero || solicitacaoId.slice(-8)}${solicitacao.observacoes ? ' - ' + solicitacao.observacoes : ''}`,
-            local_utilizacao: solicitacao.local_utilizacao,
-            item_snapshot: solicitacaoItem.item_snapshot
-          });
-
-        if (movimentacaoError) throw movimentacaoError;
-      }
-
-      toast.success('Solicitação aprovada e estoque atualizado!');
-      await carregarSolicitacoes();
-      return true;
-    } catch (error) {
-      console.error('Erro ao aprovar solicitação:', error);
-      toast.error('Erro ao aprovar solicitação');
-      return false;
-    }
-  };
-
-  const rejeitarSolicitacao = async (solicitacaoId: string): Promise<boolean> => {
-    if (!user || !userProfile || !canManageStock()) {
-      toast.error('Sem permissão para rejeitar solicitações');
-      return false;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('solicitacoes')
-        .update({
-          status: 'rejeitada',
-          data_aprovacao: new Date().toISOString(),
-          aprovado_por_id: user.id,
-          aprovado_por_nome: userProfile.nome
-        })
-        .eq('id', solicitacaoId);
-
-      if (rejeitarSolicitacao) throw error;
-
-      toast.success('Solicitação rejeitada');
-      await carregarSolicitacoes();
-      return true;
-    } catch (error) {
-      console.error('Erro ao rejeitar solicitação:', error);
-      toast.error('Erro ao rejeitar solicitação');
-      return false;
-    }
-  };
 
   const atualizarAceites = async (solicitacaoId: string, aceiteSeparador?: boolean, aceiteSolicitante?: boolean): Promise<boolean> => {
     try {
@@ -324,8 +240,6 @@ export const useSolicitacoes = () => {
     solicitacoes,
     loading,
     criarSolicitacao,
-    aprovarSolicitacao,
-    rejeitarSolicitacao,
     atualizarAceites,
     carregarSolicitacoes,
     validarItensDevolucao

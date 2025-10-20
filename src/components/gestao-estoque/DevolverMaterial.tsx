@@ -64,11 +64,8 @@ export const DevolverMaterial = () => {
     carregarUsuarios();
   }, [userProfile]);
 
-  // Filtrar retiradas aprovadas que podem ser devolvidas
+  // Filtrar retiradas que podem ser devolvidas (todas as que não são devoluções)
   const retiradasDisponiveis = solicitacoes.filter(s => {
-    // Deve estar aprovada
-    if (s.status !== 'aprovada') return false;
-    
     // Não deve ser uma devolução
     if (s.tipo_operacao === 'devolucao' || s.tipo_operacao === 'devolucao_estoque') return false;
     
