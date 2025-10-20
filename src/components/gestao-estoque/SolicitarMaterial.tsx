@@ -39,8 +39,8 @@ export const SolicitarMaterial = () => {
   const [codigoAssinatura, setCodigoAssinatura] = useState('');
   const [erroAssinatura, setErroAssinatura] = useState('');
   const [mostrarCodigoUsuario, setMostrarCodigoUsuario] = useState(false);
-  const [solicitanteSelecionado, setSolicitanteSelecionado] = useState<{id: string, nome: string} | null>(null);
-  const [usuariosDisponiveis, setUsuariosDisponiveis] = useState<{id: string, nome: string, user_id: string}[]>([]);
+  const [solicitanteSelecionado, setSolicitanteSelecionado] = useState<{id: string, nome: string, codigo_barras?: string} | null>(null);
+  const [solicitantesCarregados, setSolicitantesCarregados] = useState<{id: string, nome: string, codigo_barras?: string, email?: string}[]>([]);
 
   const { obterEstoque } = useEstoque();
   const { criarSolicitacao, solicitacoes, loading, atualizarAceites } = useSolicitacoes();
@@ -52,32 +52,36 @@ export const SolicitarMaterial = () => {
   const solicitantesDisponiveis = obterSolicitantesAtivos();
   const locaisDisponiveis = obterLocaisUtilizacaoAtivos();
 
-  // Carregar usuários disponíveis
+  // Carregar solicitantes disponíveis
   useEffect(() => {
-    const carregarUsuarios = async () => {
+    const carregarSolicitantes = async () => {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, nome, user_id')
+        .from('solicitantes')
+        .select('id, nome, email, codigo_barras')
         .eq('ativo', true)
         .order('nome');
       
       if (error) {
-        console.error('Erro ao carregar usuários:', error);
+        console.error('Erro ao carregar solicitantes:', error);
         toast.error('Erro ao carregar lista de solicitantes');
         return;
       }
       
       if (data) {
-        console.log('Usuários carregados:', data);
-        setUsuariosDisponiveis(data);
-        // Define o usuário atual como padrão
-        if (userProfile) {
-          setSolicitanteSelecionado({ id: userProfile.id, nome: userProfile.nome });
+        console.log('Solicitantes carregados:', data);
+        setSolicitantesCarregados(data);
+        // Define o primeiro solicitante como padrão se houver
+        if (data.length > 0 && !solicitanteSelecionado) {
+          setSolicitanteSelecionado({ 
+            id: data[0].id, 
+            nome: data[0].nome,
+            codigo_barras: data[0].codigo_barras || undefined
+          });
         }
       }
     };
-    carregarUsuarios();
-  }, [userProfile]);
+    carregarSolicitantes();
+  }, []);
 
   const adicionarItem = (item: Item, quantidade: number) => {
     const itemExistente = itensSolicitados.find(i => i.item_id === item.id);
@@ -145,12 +149,12 @@ export const SolicitarMaterial = () => {
 
     // Validar assinatura eletrônica
     if (!codigoAssinatura.trim()) {
-      setErroAssinatura('Por favor, insira seu código de assinatura');
+      setErroAssinatura('Por favor, insira o código de assinatura do solicitante');
       return;
     }
 
-    if (codigoAssinatura !== userProfile?.codigo_assinatura) {
-      setErroAssinatura('Código de assinatura inválido');
+    if (codigoAssinatura !== solicitanteSelecionado.codigo_barras) {
+      setErroAssinatura('Código de assinatura inválido para este solicitante');
       return;
     }
 
@@ -180,9 +184,13 @@ export const SolicitarMaterial = () => {
     setCodigoAssinatura('');
     setErroAssinatura('');
     setMostrarCodigoUsuario(false);
-    // Redefine para o usuário atual
-    if (userProfile) {
-      setSolicitanteSelecionado({ id: userProfile.id, nome: userProfile.nome });
+    // Redefine para o primeiro solicitante se houver
+    if (solicitantesCarregados.length > 0) {
+      setSolicitanteSelecionado({ 
+        id: solicitantesCarregados[0].id, 
+        nome: solicitantesCarregados[0].nome,
+        codigo_barras: solicitantesCarregados[0].codigo_barras || undefined
+      });
     }
   };
 
@@ -332,9 +340,16 @@ export const SolicitarMaterial = () => {
               <Select 
                 value={solicitanteSelecionado?.id || ''} 
                 onValueChange={(value) => {
-                  const usuario = usuariosDisponiveis.find(u => u.id === value);
-                  if (usuario) {
-                    setSolicitanteSelecionado({ id: usuario.id, nome: usuario.nome });
+                  const solicitante = solicitantesCarregados.find(s => s.id === value);
+                  if (solicitante) {
+                    setSolicitanteSelecionado({ 
+                      id: solicitante.id, 
+                      nome: solicitante.nome,
+                      codigo_barras: solicitante.codigo_barras || undefined
+                    });
+                    // Limpar código quando mudar solicitante
+                    setCodigoAssinatura('');
+                    setErroAssinatura('');
                   }
                 }}
               >
@@ -342,9 +357,9 @@ export const SolicitarMaterial = () => {
                   <SelectValue placeholder="Selecione o solicitante" />
                 </SelectTrigger>
                 <SelectContent>
-                  {usuariosDisponiveis.map(usuario => (
-                    <SelectItem key={usuario.id} value={usuario.id}>
-                      {usuario.nome}
+                  {solicitantesCarregados.map(solicitante => (
+                    <SelectItem key={solicitante.id} value={solicitante.id}>
+                      {solicitante.nome} {solicitante.email && `(${solicitante.email})`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -511,24 +526,27 @@ export const SolicitarMaterial = () => {
             <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
               <div className="flex items-center justify-between">
                 <Label htmlFor="codigoAssinatura" className="text-base font-semibold">
-                  Assinatura Eletrônica *
+                  Assinatura Eletrônica do Solicitante *
                 </Label>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   onClick={() => setMostrarCodigoUsuario(!mostrarCodigoUsuario)}
+                  disabled={!solicitanteSelecionado?.codigo_barras}
                 >
                   <Eye className="h-4 w-4 mr-2" />
-                  {mostrarCodigoUsuario ? 'Ocultar' : 'Ver'} meu código
+                  {mostrarCodigoUsuario ? 'Ocultar' : 'Ver'} código
                 </Button>
               </div>
               
-              {mostrarCodigoUsuario && userProfile?.codigo_assinatura && (
+              {mostrarCodigoUsuario && solicitanteSelecionado?.codigo_barras && (
                 <div className="p-3 bg-background rounded border">
-                  <p className="text-sm text-muted-foreground mb-2">Seu código de assinatura:</p>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Código de assinatura de {solicitanteSelecionado.nome}:
+                  </p>
                   <code className="text-lg font-mono font-bold text-primary">
-                    {userProfile.codigo_assinatura}
+                    {solicitanteSelecionado.codigo_barras}
                   </code>
                 </div>
               )}
@@ -537,7 +555,7 @@ export const SolicitarMaterial = () => {
                 <Input
                   id="codigoAssinatura"
                   type="text"
-                  placeholder="Digite seu código de 8 dígitos"
+                  placeholder="Digite o código de 8 dígitos do solicitante"
                   value={codigoAssinatura}
                   onChange={(e) => {
                     setCodigoAssinatura(e.target.value);
@@ -550,7 +568,7 @@ export const SolicitarMaterial = () => {
                   <p className="text-sm text-destructive">{erroAssinatura}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Para confirmar a retirada, insira seu código de assinatura de 8 dígitos
+                  Para confirmar a retirada, insira o código de assinatura do solicitante (8 dígitos)
                 </p>
               </div>
             </div>
