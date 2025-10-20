@@ -17,8 +17,7 @@ export interface SolicitanteConfig {
   email?: string;
   codigoBarras?: string;
   ativo: boolean;
-  created_at?: string;
-  updated_at?: string;
+  dataCriacao: string;
 }
 
 export interface LocalUtilizacaoConfig {
@@ -58,8 +57,7 @@ export const useConfiguracoes = () => {
           email: s.email || undefined,
           codigoBarras: s.codigo_barras || undefined,
           ativo: s.ativo,
-          created_at: s.created_at,
-          updated_at: s.updated_at,
+          dataCriacao: s.created_at,
         })));
       }
     } catch (error: any) {
@@ -383,8 +381,7 @@ export const useConfiguracoes = () => {
           email: data.email || undefined,
           codigoBarras: data.codigo_barras || undefined,
           ativo: data.ativo,
-          created_at: data.created_at,
-          updated_at: data.updated_at,
+          dataCriacao: data.created_at,
         };
 
         setSolicitantes(prev => [...prev, novoSolicitante]);
