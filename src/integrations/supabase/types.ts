@@ -306,7 +306,6 @@ export type Database = {
           ativo: boolean
           codigo_barras: string | null
           created_at: string
-          email: string | null
           id: string
           nome: string
           updated_at: string
@@ -315,7 +314,6 @@ export type Database = {
           ativo?: boolean
           codigo_barras?: string | null
           created_at?: string
-          email?: string | null
           id?: string
           nome: string
           updated_at?: string
@@ -324,7 +322,6 @@ export type Database = {
           ativo?: boolean
           codigo_barras?: string | null
           created_at?: string
-          email?: string | null
           id?: string
           nome?: string
           updated_at?: string

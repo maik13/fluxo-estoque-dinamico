@@ -14,7 +14,6 @@ export interface TipoOperacaoConfig {
 export interface SolicitanteConfig {
   id: string;
   nome: string;
-  email?: string;
   codigoBarras?: string;
   ativo: boolean;
   dataCriacao: string;
@@ -54,7 +53,6 @@ export const useConfiguracoes = () => {
         setSolicitantes(data.map(s => ({
           id: s.id,
           nome: s.nome,
-          email: s.email || undefined,
           codigoBarras: s.codigo_barras || undefined,
           ativo: s.ativo,
           dataCriacao: s.created_at,
@@ -359,13 +357,12 @@ export const useConfiguracoes = () => {
   };
 
   // Funções para gerenciar solicitantes no Supabase
-  const adicionarSolicitante = async (nome: string, email?: string, codigoBarras?: string) => {
+  const adicionarSolicitante = async (nome: string, codigoBarras?: string) => {
     try {
       const { data, error } = await supabase
         .from('solicitantes')
         .insert({
           nome,
-          email: email || null,
           codigo_barras: codigoBarras || null,
           ativo: true,
         })
@@ -378,7 +375,6 @@ export const useConfiguracoes = () => {
         const novoSolicitante: SolicitanteConfig = {
           id: data.id,
           nome: data.nome,
-          email: data.email || undefined,
           codigoBarras: data.codigo_barras || undefined,
           ativo: data.ativo,
           dataCriacao: data.created_at,

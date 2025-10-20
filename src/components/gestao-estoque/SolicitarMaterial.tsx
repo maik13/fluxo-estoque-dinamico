@@ -57,7 +57,7 @@ export const SolicitarMaterial = () => {
     const carregarSolicitantes = async () => {
       const { data, error } = await supabase
         .from('solicitantes')
-        .select('id, nome, email, codigo_barras')
+        .select('id, nome, codigo_barras')
         .eq('ativo', true)
         .order('nome');
       

@@ -89,7 +89,6 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
 
   const [novoSolicitante, setNovoSolicitante] = useState({
     nome: '',
-    email: '',
     codigoBarras: '',
   });
 
@@ -241,8 +240,8 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
       return;
     }
 
-    await adicionarSolicitante(novoSolicitante.nome, novoSolicitante.email, novoSolicitante.codigoBarras);
-    setNovoSolicitante({ nome: '', email: '', codigoBarras: '' });
+    await adicionarSolicitante(novoSolicitante.nome, novoSolicitante.codigoBarras);
+    setNovoSolicitante({ nome: '', codigoBarras: '' });
     onConfigChange?.();
   };
 
@@ -516,7 +515,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="nomeSolicitante">Nome do Solicitante</Label>
                     <Input
@@ -524,16 +523,6 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                       value={novoSolicitante.nome}
                       onChange={(e) => setNovoSolicitante(prev => ({ ...prev, nome: e.target.value }))}
                       placeholder="Nome completo"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="emailSolicitante">Email (Opcional)</Label>
-                    <Input
-                      id="emailSolicitante"
-                      type="email"
-                      value={novoSolicitante.email}
-                      onChange={(e) => setNovoSolicitante(prev => ({ ...prev, email: e.target.value }))}
-                      placeholder="email@exemplo.com"
                     />
                   </div>
                   <div>
@@ -572,7 +561,6 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                         <div key={solicitante.id} className="flex items-center justify-between p-3 border rounded">
                           <div className="flex items-center gap-3">
                             <Badge variant="secondary">{solicitante.nome}</Badge>
-                            {solicitante.email && <span className="text-sm text-muted-foreground">{solicitante.email}</span>}
                             {solicitante.codigoBarras && (
                               <Badge variant="outline" className="font-mono">
                                 🔢 {solicitante.codigoBarras}
