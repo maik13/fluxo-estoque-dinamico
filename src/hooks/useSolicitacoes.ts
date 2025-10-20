@@ -166,22 +166,29 @@ export const useSolicitacoes = () => {
         if (updateEstoqueError) throw updateEstoqueError;
 
         // Criar movimentação
+        const movimentacaoData = {
+          item_id: item.item_id,
+          tipo: tipoMovimentacao,
+          quantidade: item.quantidade_solicitada,
+          quantidade_anterior: quantidadeAnterior,
+          quantidade_atual: novaQuantidade,
+          responsavel: userProfile.nome,
+          observacoes: `${isDevolucao ? 'Devolução' : 'Retirada'} - Solicitação #${solicitacaoData.numero || solicitacaoData.id.slice(-8)}${novaSolicitacao.observacoes ? ' - ' + novaSolicitacao.observacoes : ''}`,
+          local_utilizacao: novaSolicitacao.local_utilizacao,
+          item_snapshot: item.item_snapshot,
+          solicitacao_id: solicitacaoData.id
+        };
+
+        console.log('Criando movimentação com dados:', movimentacaoData);
+
         const { error: movimentacaoError } = await supabase
           .from('movements')
-          .insert({
-            item_id: item.item_id,
-            tipo: tipoMovimentacao,
-            quantidade: item.quantidade_solicitada,
-            quantidade_anterior: quantidadeAnterior,
-            quantidade_atual: novaQuantidade,
-            responsavel: userProfile.nome,
-            observacoes: `${isDevolucao ? 'Devolução' : 'Retirada'} - Solicitação #${solicitacaoData.numero || solicitacaoData.id.slice(-8)}${novaSolicitacao.observacoes ? ' - ' + novaSolicitacao.observacoes : ''}`,
-            local_utilizacao: novaSolicitacao.local_utilizacao,
-            item_snapshot: item.item_snapshot,
-            solicitacao_id: solicitacaoData.id
-          });
+          .insert(movimentacaoData);
 
-        if (movimentacaoError) throw movimentacaoError;
+        if (movimentacaoError) {
+          console.error('Erro ao criar movimentação:', movimentacaoError);
+          throw movimentacaoError;
+        }
       }
 
       toast.success('Solicitação criada e estoque atualizado!');
