@@ -43,51 +43,36 @@ export const DevolverMaterial = () => {
   const itensEstoque = obterEstoque();
   const locaisDisponiveis = obterLocaisUtilizacaoAtivos();
 
-  // Carregar solicitantes disponíveis da tabela de solicitações com seus códigos de barras
+  // Carregar todos os solicitantes disponíveis da tabela solicitantes
   useEffect(() => {
     const carregarSolicitantes = async () => {
-      // Buscar solicitantes únicos da tabela de solicitações
-      const { data: solicitacoesData } = await supabase
-        .from('solicitacoes')
-        .select('solicitante_id, solicitante_nome')
-        .order('solicitante_nome');
+      // Buscar todos os solicitantes ativos
+      const { data: solicitantesData } = await supabase
+        .from('solicitantes')
+        .select('id, nome, codigo_barras')
+        .eq('ativo', true)
+        .order('nome');
       
-      if (solicitacoesData) {
-        // Criar lista única de IDs de solicitantes
-        const idsUnicos = [...new Set(solicitacoesData.map(s => s.solicitante_id))];
+      if (solicitantesData) {
+        // Mapear para o formato esperado
+        const solicitantesFormatados = solicitantesData.map(s => ({
+          id: s.id,
+          nome: s.nome,
+          user_id: s.id,
+          codigo_barras: s.codigo_barras
+        }));
         
-        // Buscar códigos de barras da tabela solicitantes
-        const { data: solicitantesData } = await supabase
-          .from('solicitantes')
-          .select('id, nome, codigo_barras')
-          .in('id', idsUnicos);
+        setUsuariosDisponiveis(solicitantesFormatados);
         
-        if (solicitantesData) {
-          // Criar lista de solicitantes com código de barras
-          const solicitantesComCodigo = idsUnicos.map(id => {
-            const solicitacao = solicitacoesData.find(s => s.solicitante_id === id);
-            const solicitante = solicitantesData.find(s => s.id === id);
-            
-            return {
-              id,
-              nome: solicitacao?.solicitante_nome || '',
-              user_id: id,
-              codigo_barras: solicitante?.codigo_barras
-            };
-          }).filter(s => s.nome); // Remove entradas sem nome
-          
-          setUsuariosDisponiveis(solicitantesComCodigo);
-          
-          // Define o usuário atual como padrão se ele estiver na lista
-          if (userProfile) {
-            const usuarioNaLista = solicitantesComCodigo.find(s => s.id === userProfile.id);
-            if (usuarioNaLista) {
-              setSolicitanteSelecionado({ 
-                id: userProfile.id, 
-                nome: userProfile.nome,
-                codigo_barras: usuarioNaLista.codigo_barras
-              });
-            }
+        // Define o usuário atual como padrão se ele estiver na lista
+        if (userProfile) {
+          const usuarioNaLista = solicitantesFormatados.find(s => s.id === userProfile.id);
+          if (usuarioNaLista) {
+            setSolicitanteSelecionado({ 
+              id: userProfile.id, 
+              nome: userProfile.nome,
+              codigo_barras: usuarioNaLista.codigo_barras
+            });
           }
         }
       }
