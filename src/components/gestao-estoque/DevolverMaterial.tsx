@@ -44,24 +44,39 @@ export const DevolverMaterial = () => {
   const itensEstoque = obterEstoque();
   const locaisDisponiveis = obterLocaisUtilizacaoAtivos();
 
-  // Carregar usuários disponíveis
+  // Carregar solicitantes disponíveis da tabela de solicitações
   useEffect(() => {
-    const carregarUsuarios = async () => {
+    const carregarSolicitantes = async () => {
       const { data } = await supabase
-        .from('profiles')
-        .select('id, nome, user_id')
-        .eq('ativo', true)
-        .order('nome');
+        .from('solicitacoes')
+        .select('solicitante_id, solicitante_nome')
+        .order('solicitante_nome');
       
       if (data) {
-        setUsuariosDisponiveis(data);
-        // Define o usuário atual como padrão
+        // Criar lista única de solicitantes (remover duplicatas)
+        const solicitantesUnicos = data.reduce((acc, curr) => {
+          if (!acc.find(s => s.id === curr.solicitante_id)) {
+            acc.push({
+              id: curr.solicitante_id,
+              nome: curr.solicitante_nome,
+              user_id: curr.solicitante_id
+            });
+          }
+          return acc;
+        }, [] as {id: string, nome: string, user_id: string}[]);
+        
+        setUsuariosDisponiveis(solicitantesUnicos);
+        
+        // Define o usuário atual como padrão se ele estiver na lista
         if (userProfile) {
-          setSolicitanteSelecionado({ id: userProfile.id, nome: userProfile.nome });
+          const usuarioNaLista = solicitantesUnicos.find(s => s.id === userProfile.id);
+          if (usuarioNaLista) {
+            setSolicitanteSelecionado({ id: userProfile.id, nome: userProfile.nome });
+          }
         }
       }
     };
-    carregarUsuarios();
+    carregarSolicitantes();
   }, [userProfile]);
 
   // Filtrar retiradas que podem ser devolvidas (todas as que não são devoluções)
