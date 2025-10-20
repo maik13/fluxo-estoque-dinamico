@@ -557,26 +557,38 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                 <div className="space-y-2">
                   <h4 className="font-medium">Solicitantes Cadastrados</h4>
                   <div className="space-y-2">
-                    {solicitantes.map((solicitante) => (
-                      <div key={solicitante.id} className="flex items-center justify-between p-3 border rounded">
-                        <div className="flex items-center gap-3">
-                          <Badge variant="secondary">{solicitante.nome}</Badge>
-                          {solicitante.email && <span className="text-sm text-muted-foreground">{solicitante.email}</span>}
-                          {solicitante.codigoBarras && (
-                            <Badge variant="outline" className="font-mono">
-                              🔢 {solicitante.codigoBarras}
-                            </Badge>
-                          )}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removerSolicitante(solicitante.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                    {solicitantes.length === 0 ? (
+                      <div className="text-center p-8 border rounded bg-muted/30">
+                        <User className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">
+                          Nenhum solicitante cadastrado ainda.
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Cadastre um solicitante usando o formulário acima.
+                        </p>
                       </div>
-                    ))}
+                    ) : (
+                      solicitantes.map((solicitante) => (
+                        <div key={solicitante.id} className="flex items-center justify-between p-3 border rounded">
+                          <div className="flex items-center gap-3">
+                            <Badge variant="secondary">{solicitante.nome}</Badge>
+                            {solicitante.email && <span className="text-sm text-muted-foreground">{solicitante.email}</span>}
+                            {solicitante.codigoBarras && (
+                              <Badge variant="outline" className="font-mono">
+                                🔢 {solicitante.codigoBarras}
+                              </Badge>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removerSolicitante(solicitante.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </CardContent>
