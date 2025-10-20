@@ -72,12 +72,22 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const [popoverSaidaAberto, setPopoverSaidaAberto] = useState(false);
   const [itemSelecionadoSaida, setItemSelecionadoSaida] = useState<EstoqueItem | null>(null);
 
+  // Estados para busca inteligente na entrada
+  const [buscaEntrada, setBuscaEntrada] = useState('');
+  const [popoverEntradaAberto, setPopoverEntradaAberto] = useState(false);
+  const [itemSelecionadoEntrada, setItemSelecionadoEntrada] = useState<EstoqueItem | null>(null);
+
   // Obter todos os itens do estoque para busca inteligente
   const itensEstoque = useMemo(() => {
     return obterEstoque().filter(item => item.estoqueAtual > 0);
   }, [obterEstoque]);
 
-  // Filtrar itens para busca inteligente
+  // Obter todos os itens para entrada (sem filtrar por estoque)
+  const todosItensEstoque = useMemo(() => {
+    return obterEstoque();
+  }, [obterEstoque]);
+
+  // Filtrar itens para busca inteligente na saída
   const itensFiltrarados = useMemo(() => {
     if (!buscaSaida) return itensEstoque;
     
@@ -88,6 +98,18 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       item.marca.toLowerCase().includes(termo)
     );
   }, [buscaSaida, itensEstoque]);
+
+  // Filtrar itens para busca inteligente na entrada
+  const itensFiltradosEntrada = useMemo(() => {
+    if (!buscaEntrada) return todosItensEstoque;
+    
+    const termo = buscaEntrada.toLowerCase();
+    return todosItensEstoque.filter(item => 
+      item.nome.toLowerCase().includes(termo) ||
+      item.codigoBarras.toString().includes(termo) ||
+      item.marca.toLowerCase().includes(termo)
+    );
+  }, [buscaEntrada, todosItensEstoque]);
 
   // Obter informações do estoque ativo
   const estoqueAtivoInfo = obterEstoqueAtivoInfo();
@@ -121,8 +143,10 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       localUtilizacao: ''
     });
     setBuscaSaida('');
+    setBuscaEntrada('');
     setDialogoImportacao(false);
     setItemSelecionadoSaida(null);
+    setItemSelecionadoEntrada(null);
   };
 
   // Função para validar código de barras ao sair do campo
@@ -168,12 +192,25 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     }
   };
 
+  // Função para selecionar item na busca inteligente de entrada
+  const selecionarItemEntrada = (item: EstoqueItem) => {
+    setItemSelecionadoEntrada(item);
+    setBuscaEntrada(item.nome);
+    setFormMovimentacao(prev => ({
+      ...prev,
+      codigoBarras: item.codigoBarras
+    }));
+    setPopoverEntradaAberto(false);
+  };
+
   // Função para lidar com entrada
   const handleEntrada = (e: React.FormEvent) => {
     e.preventDefault();
     
+    const codigoParaUsar = itemSelecionadoEntrada?.codigoBarras || Number(formMovimentacao.codigoBarras);
+    
     if (registrarEntrada(
-      Number(formMovimentacao.codigoBarras),
+      codigoParaUsar,
       formMovimentacao.quantidade,
       formMovimentacao.responsavel,
       formMovimentacao.observacoes
@@ -557,26 +594,55 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
             
             <form onSubmit={handleEntrada} className="space-y-4">
                 <div>
-                  <Label htmlFor="codigoBarrasEntrada">Código de Barras ou Nome do Item *</Label>
-                  <Popover>
+                  <Label htmlFor="buscaEntrada">Código de Barras ou Nome do Item *</Label>
+                  <Popover open={popoverEntradaAberto} onOpenChange={setPopoverEntradaAberto}>
                     <PopoverTrigger asChild>
-                      <div className="flex space-x-2">
-                        <Input
-                          id="codigoBarrasEntrada"
-                          value={formMovimentacao.codigoBarras}
-                          onChange={(e) => {
-                            setFormMovimentacao(prev => ({...prev, codigoBarras: Number(e.target.value) || 0}));
-                            buscarItemAoDigitarCodigo(Number(e.target.value) || 0, 'entrada');
-                          }}
-                          placeholder="Digite código de barras ou nome do item"
-                          type="number"
-                          required
-                        />
-                        <Button type="button" variant="outline" size="icon">
-                          <Scan className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={popoverEntradaAberto}
+                        className="w-full justify-between"
+                      >
+                        {itemSelecionadoEntrada 
+                          ? `${itemSelecionadoEntrada.nome} (${itemSelecionadoEntrada.codigoBarras})`
+                          : "Buscar por nome ou código..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
                     </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput 
+                          placeholder="Digite para buscar..." 
+                          value={buscaEntrada}
+                          onValueChange={setBuscaEntrada}
+                        />
+                        <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
+                        <CommandList>
+                          <CommandGroup>
+                            {itensFiltradosEntrada.slice(0, 10).map((item) => (
+                              <CommandItem
+                                key={item.id}
+                                value={item.nome}
+                                onSelect={() => selecionarItemEntrada(item)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    itemSelecionadoEntrada?.id === item.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{item.nome}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Código: {item.codigoBarras} | Estoque: {item.estoqueAtual} {item.unidade}
+                                  </span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
                   </Popover>
                 </div>
               
