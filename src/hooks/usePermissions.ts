@@ -32,10 +32,13 @@ export const usePermissions = () => {
         .from('profiles')
         .select('*')
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Erro ao carregar perfil:', error);
+        setUserProfile(null);
+      } else if (!data) {
+        console.warn('Perfil não encontrado. Faça logout e login novamente para criar o perfil.');
         setUserProfile(null);
       } else {
         setUserProfile(data);
