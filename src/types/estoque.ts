@@ -2,8 +2,7 @@
 // Este arquivo define a estrutura de dados que será usada em todo o sistema
 
 export interface Item {
-  id: string;
-  codigoBarras: string;
+  codigoBarras: number; // Chave primária
   origem: string;
   caixaOrganizador: string;
   localizacao: string;
@@ -29,7 +28,7 @@ export interface Item {
 
 export interface Movimentacao {
   id: string;
-  itemId: string;
+  itemId: number; // Referencia codigoBarras do item
   tipo: 'ENTRADA' | 'SAIDA' | 'CADASTRO';
   quantidade: number;
   quantidadeAnterior: number;

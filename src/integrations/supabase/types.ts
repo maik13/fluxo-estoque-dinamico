@@ -24,7 +24,6 @@ export type Database = {
           created_at: string
           data_criacao: string
           especificacao: string | null
-          id: string
           localizacao: string | null
           marca: string | null
           metragem: number | null
@@ -51,7 +50,6 @@ export type Database = {
           created_at?: string
           data_criacao?: string
           especificacao?: string | null
-          id?: string
           localizacao?: string | null
           marca?: string | null
           metragem?: number | null
@@ -78,7 +76,6 @@ export type Database = {
           created_at?: string
           data_criacao?: string
           especificacao?: string | null
-          id?: string
           localizacao?: string | null
           marca?: string | null
           metragem?: number | null
@@ -103,7 +100,7 @@ export type Database = {
           created_at: string
           data_hora: string
           id: string
-          item_id: string
+          item_id: number
           item_snapshot: Json
           local_utilizacao: string | null
           observacoes: string | null
@@ -118,7 +115,7 @@ export type Database = {
           created_at?: string
           data_hora?: string
           id?: string
-          item_id: string
+          item_id: number
           item_snapshot: Json
           local_utilizacao?: string | null
           observacoes?: string | null
@@ -133,7 +130,7 @@ export type Database = {
           created_at?: string
           data_hora?: string
           id?: string
-          item_id?: string
+          item_id?: number
           item_snapshot?: Json
           local_utilizacao?: string | null
           observacoes?: string | null
@@ -150,7 +147,7 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items"
-            referencedColumns: ["id"]
+            referencedColumns: ["codigo_barras"]
           },
           {
             foreignKeyName: "movements_solicitacao_id_fkey"
@@ -201,7 +198,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          item_id: string
+          item_id: number
           item_snapshot: Json
           quantidade_aprovada: number | null
           quantidade_solicitada: number
@@ -210,7 +207,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          item_id: string
+          item_id: number
           item_snapshot: Json
           quantidade_aprovada?: number | null
           quantidade_solicitada: number
@@ -219,7 +216,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
-          item_id?: string
+          item_id?: number
           item_snapshot?: Json
           quantidade_aprovada?: number | null
           quantidade_solicitada?: number
@@ -231,7 +228,7 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items"
-            referencedColumns: ["id"]
+            referencedColumns: ["codigo_barras"]
           },
           {
             foreignKeyName: "solicitacao_itens_solicitacao_id_fkey"

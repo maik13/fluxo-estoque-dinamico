@@ -20,7 +20,7 @@ export interface Solicitacao {
 export interface SolicitacaoItem {
   id: string;
   solicitacao_id: string;
-  item_id: string;
+  item_id: number; // Referencia codigo_barras
   quantidade_solicitada: number;
   quantidade_aprovada: number;
   item_snapshot: Partial<Item>;
@@ -32,7 +32,7 @@ export interface SolicitacaoCompleta extends Solicitacao {
 }
 
 export interface NovoItemSolicitacao {
-  item_id: string;
+  item_id: number; // Referencia codigo_barras
   quantidade_solicitada: number;
   item_snapshot: Partial<Item>;
 }
