@@ -27,7 +27,7 @@ interface MenuPrincipalProps {
 }
 
 export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) => {
-  const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, obterEstoque, isEstoquePrincipal, importarItens, importarItensServidor } = useEstoque();
+  const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque, isEstoquePrincipal, importarItens, importarItensServidor } = useEstoque();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterEstoqueAtivoInfo } = useConfiguracoes();
   const { canCreateItems, canManageStock } = usePermissions();
   
@@ -55,6 +55,9 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     subDestino: '',
     tipoServico: ''
   });
+
+  const [codigoBarrasManual, setCodigoBarrasManual] = useState<string>('');
+  const [erroCodigoBarras, setErroCodigoBarras] = useState<string>('');
 
   const [formMovimentacao, setFormMovimentacao] = useState({
     codigoBarras: 0,
@@ -122,13 +125,45 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     setItemSelecionadoSaida(null);
   };
 
+  // Função para validar código de barras ao sair do campo
+  const validarCodigoBarras = () => {
+    if (codigoBarrasManual) {
+      const codigo = Number(codigoBarrasManual);
+      if (verificarCodigoExistente(codigo)) {
+        setErroCodigoBarras('Este código de barras já está sendo usado por outro item');
+      } else {
+        setErroCodigoBarras('');
+        setFormCadastro(prev => ({ ...prev, codigoBarras: codigo }));
+      }
+    } else {
+      setErroCodigoBarras('');
+    }
+  };
+
   // Função para lidar com cadastro
   const handleCadastro = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (cadastrarItem(formCadastro as Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>)) {
+    // Se não há código manual, gerar automaticamente
+    let codigoFinal = formCadastro.codigoBarras;
+    if (!codigoBarrasManual || codigoFinal === 0) {
+      codigoFinal = obterProximoCodigoDisponivel();
+    }
+    
+    if (erroCodigoBarras) {
+      return; // Não permite cadastrar se há erro no código
+    }
+    
+    const dadosComCodigo = {
+      ...formCadastro,
+      codigoBarras: codigoFinal
+    };
+    
+    if (cadastrarItem(dadosComCodigo as Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>)) {
       setDialogoCadastro(false);
       resetarFormularios();
+      setCodigoBarrasManual('');
+      setErroCodigoBarras('');
       onMovimentacaoRealizada();
     }
   };
@@ -281,6 +316,27 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
             
             <form onSubmit={handleCadastro} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="codigoBarrasCadastro">Código de Barras</Label>
+                  <Input
+                    id="codigoBarrasCadastro"
+                    type="number"
+                    value={codigoBarrasManual}
+                    onChange={(e) => setCodigoBarrasManual(e.target.value)}
+                    onBlur={validarCodigoBarras}
+                    placeholder="Digite o código ou deixe em branco para gerar automaticamente"
+                    className={erroCodigoBarras ? "border-destructive" : ""}
+                  />
+                  {erroCodigoBarras && (
+                    <p className="text-xs text-destructive mt-1">{erroCodigoBarras}</p>
+                  )}
+                  {!codigoBarrasManual && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Próximo código disponível: {obterProximoCodigoDisponivel()}
+                    </p>
+                  )}
+                </div>
+
                 <div>
                   <Label htmlFor="nome">Nome do Item *</Label>
                   <Input

@@ -105,6 +105,16 @@ export const useEstoque = () => {
     return itens.find(item => item.codigoBarras === codigoBarras);
   };
 
+  const verificarCodigoExistente = (codigoBarras: number): boolean => {
+    return itens.some(item => item.codigoBarras === codigoBarras);
+  };
+
+  const obterProximoCodigoDisponivel = (): number => {
+    if (itens.length === 0) return 1;
+    const codigos = itens.map(item => item.codigoBarras).sort((a, b) => a - b);
+    return Math.max(...codigos) + 1;
+  };
+
   // Função para calcular estoque atual de um item
   const calcularEstoqueAtual = (itemId: string): number => {
     const movimentacoesItem = movimentacoes.filter(mov => mov.itemId === itemId);
@@ -550,6 +560,8 @@ const importarItensServidor = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'c
     movimentacoes,
     loading,
     buscarItemPorCodigo,
+    verificarCodigoExistente,
+    obterProximoCodigoDisponivel,
     calcularEstoqueAtual,
     obterEstoque,
     cadastrarItem,
