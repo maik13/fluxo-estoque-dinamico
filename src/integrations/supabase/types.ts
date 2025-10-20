@@ -18,7 +18,7 @@ export type Database = {
         Row: {
           caixa_organizador: string | null
           categoria: string | null
-          codigo_barras: string
+          codigo_barras: number
           comprimento_lixa: number | null
           condicao: string | null
           created_at: string
@@ -45,7 +45,7 @@ export type Database = {
         Insert: {
           caixa_organizador?: string | null
           categoria?: string | null
-          codigo_barras: string
+          codigo_barras: number
           comprimento_lixa?: number | null
           condicao?: string | null
           created_at?: string
@@ -72,7 +72,7 @@ export type Database = {
         Update: {
           caixa_organizador?: string | null
           categoria?: string | null
-          codigo_barras?: string
+          codigo_barras?: number
           comprimento_lixa?: number | null
           condicao?: string | null
           created_at?: string
