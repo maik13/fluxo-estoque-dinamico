@@ -78,28 +78,15 @@ export const useSolicitacoes = () => {
     }
 
     try {
-      // Buscar o user_id do solicitante selecionado
-      let solicitanteUserId = user.id;
-      let solicitanteNome = userProfile.nome;
-      
-      if (novaSolicitacao.solicitante_id && novaSolicitacao.solicitante_nome) {
-        const { data: solicitanteData } = await supabase
-          .from('solicitantes')
-          .select('id, nome')
-          .eq('id', novaSolicitacao.solicitante_id)
-          .single();
-        
-        if (solicitanteData) {
-          solicitanteUserId = user.id; // Mantém o user_id do usuário logado
-          solicitanteNome = solicitanteData.nome;
-        }
-      }
+      // Usar o solicitante selecionado na interface
+      let solicitanteId = novaSolicitacao.solicitante_id || user.id;
+      let solicitanteNome = novaSolicitacao.solicitante_nome || userProfile.nome;
 
       // Criar solicitação
       const { data: solicitacaoData, error: solicitacaoError } = await supabase
         .from('solicitacoes')
         .insert([{
-          solicitante_id: solicitanteUserId,
+          solicitante_id: solicitanteId,
           solicitante_nome: solicitanteNome,
           observacoes: novaSolicitacao.observacoes,
           local_utilizacao: novaSolicitacao.local_utilizacao,
