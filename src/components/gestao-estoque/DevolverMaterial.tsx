@@ -33,8 +33,8 @@ export const DevolverMaterial = () => {
   const [codigoAssinatura, setCodigoAssinatura] = useState('');
   const [erroAssinatura, setErroAssinatura] = useState('');
   const [mostrarCodigoUsuario, setMostrarCodigoUsuario] = useState(false);
-  const [solicitanteSelecionado, setSolicitanteSelecionado] = useState<{id: string, nome: string} | null>(null);
-  const [usuariosDisponiveis, setUsuariosDisponiveis] = useState<{id: string, nome: string, user_id: string}[]>([]);
+  const [solicitanteSelecionado, setSolicitanteSelecionado] = useState<{id: string, nome: string, codigo_barras?: string} | null>(null);
+  const [usuariosDisponiveis, setUsuariosDisponiveis] = useState<{id: string, nome: string, user_id: string, codigo_barras?: string}[]>([]);
 
   const { solicitacoes, criarSolicitacao } = useSolicitacoes();
   const { userProfile } = usePermissions();
@@ -44,34 +44,51 @@ export const DevolverMaterial = () => {
   const itensEstoque = obterEstoque();
   const locaisDisponiveis = obterLocaisUtilizacaoAtivos();
 
-  // Carregar solicitantes disponíveis da tabela de solicitações
+  // Carregar solicitantes disponíveis da tabela de solicitações com seus códigos de barras
   useEffect(() => {
     const carregarSolicitantes = async () => {
-      const { data } = await supabase
+      // Buscar solicitantes únicos da tabela de solicitações
+      const { data: solicitacoesData } = await supabase
         .from('solicitacoes')
         .select('solicitante_id, solicitante_nome')
         .order('solicitante_nome');
       
-      if (data) {
-        // Criar lista única de solicitantes (remover duplicatas)
-        const solicitantesUnicos = data.reduce((acc, curr) => {
-          if (!acc.find(s => s.id === curr.solicitante_id)) {
-            acc.push({
-              id: curr.solicitante_id,
-              nome: curr.solicitante_nome,
-              user_id: curr.solicitante_id
-            });
-          }
-          return acc;
-        }, [] as {id: string, nome: string, user_id: string}[]);
+      if (solicitacoesData) {
+        // Criar lista única de IDs de solicitantes
+        const idsUnicos = [...new Set(solicitacoesData.map(s => s.solicitante_id))];
         
-        setUsuariosDisponiveis(solicitantesUnicos);
+        // Buscar códigos de barras da tabela solicitantes
+        const { data: solicitantesData } = await supabase
+          .from('solicitantes')
+          .select('id, nome, codigo_barras')
+          .in('id', idsUnicos);
         
-        // Define o usuário atual como padrão se ele estiver na lista
-        if (userProfile) {
-          const usuarioNaLista = solicitantesUnicos.find(s => s.id === userProfile.id);
-          if (usuarioNaLista) {
-            setSolicitanteSelecionado({ id: userProfile.id, nome: userProfile.nome });
+        if (solicitantesData) {
+          // Criar lista de solicitantes com código de barras
+          const solicitantesComCodigo = idsUnicos.map(id => {
+            const solicitacao = solicitacoesData.find(s => s.solicitante_id === id);
+            const solicitante = solicitantesData.find(s => s.id === id);
+            
+            return {
+              id,
+              nome: solicitacao?.solicitante_nome || '',
+              user_id: id,
+              codigo_barras: solicitante?.codigo_barras
+            };
+          }).filter(s => s.nome); // Remove entradas sem nome
+          
+          setUsuariosDisponiveis(solicitantesComCodigo);
+          
+          // Define o usuário atual como padrão se ele estiver na lista
+          if (userProfile) {
+            const usuarioNaLista = solicitantesComCodigo.find(s => s.id === userProfile.id);
+            if (usuarioNaLista) {
+              setSolicitanteSelecionado({ 
+                id: userProfile.id, 
+                nome: userProfile.nome,
+                codigo_barras: usuarioNaLista.codigo_barras
+              });
+            }
           }
         }
       }
@@ -104,8 +121,15 @@ export const DevolverMaterial = () => {
     setErroAssinatura('');
     setMostrarCodigoUsuario(false);
     // Redefine para o usuário atual
-    if (userProfile) {
-      setSolicitanteSelecionado({ id: userProfile.id, nome: userProfile.nome });
+    if (userProfile && usuariosDisponiveis.length > 0) {
+      const usuarioNaLista = usuariosDisponiveis.find(u => u.id === userProfile.id);
+      if (usuarioNaLista) {
+        setSolicitanteSelecionado({ 
+          id: userProfile.id, 
+          nome: userProfile.nome,
+          codigo_barras: usuarioNaLista.codigo_barras
+        });
+      }
     }
   };
 
@@ -205,7 +229,13 @@ export const DevolverMaterial = () => {
       return;
     }
 
-    if (codigoAssinatura !== userProfile?.codigo_assinatura) {
+    if (!solicitanteSelecionado?.codigo_barras) {
+      setErroAssinatura('Solicitante não possui código de barras cadastrado');
+      toast.error('Solicitante não possui código de barras cadastrado');
+      return;
+    }
+
+    if (codigoAssinatura !== solicitanteSelecionado.codigo_barras) {
       setErroAssinatura('Código de assinatura inválido');
       toast.error('Código de assinatura inválido');
       return;
@@ -351,7 +381,11 @@ export const DevolverMaterial = () => {
                     onValueChange={(value) => {
                       const usuario = usuariosDisponiveis.find(u => u.id === value);
                       if (usuario) {
-                        setSolicitanteSelecionado({ id: usuario.id, nome: usuario.nome });
+                        setSolicitanteSelecionado({ 
+                          id: usuario.id, 
+                          nome: usuario.nome,
+                          codigo_barras: usuario.codigo_barras
+                        });
                       }
                     }}
                   >
@@ -435,9 +469,14 @@ export const DevolverMaterial = () => {
                       {mostrarCodigoUsuario ? 'Ocultar' : 'Ver meu código'}
                     </Button>
                   </div>
-                  {mostrarCodigoUsuario && userProfile?.codigo_assinatura && (
+                  {mostrarCodigoUsuario && solicitanteSelecionado?.codigo_barras && (
                     <div className="p-3 bg-muted rounded-md">
-                      <p className="text-sm font-medium">Seu código: {userProfile.codigo_assinatura}</p>
+                      <p className="text-sm font-medium">Código do solicitante: {solicitanteSelecionado.codigo_barras}</p>
+                    </div>
+                  )}
+                  {mostrarCodigoUsuario && !solicitanteSelecionado?.codigo_barras && (
+                    <div className="p-3 bg-muted rounded-md">
+                      <p className="text-sm text-muted-foreground">Solicitante não possui código de barras cadastrado</p>
                     </div>
                   )}
                 </div>
