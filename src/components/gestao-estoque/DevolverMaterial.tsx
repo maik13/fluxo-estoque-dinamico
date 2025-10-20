@@ -221,7 +221,7 @@ export const DevolverMaterial = () => {
     const termo = busca.toLowerCase();
     return (
       item.nome.toLowerCase().includes(termo) ||
-      item.codigoBarras.toLowerCase().includes(termo) ||
+      item.codigoBarras.toString().includes(termo) ||
       (item.marca && item.marca.toLowerCase().includes(termo))
     );
   });

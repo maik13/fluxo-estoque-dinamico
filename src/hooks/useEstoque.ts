@@ -41,7 +41,7 @@ export const useEstoque = () => {
       // Mapear DB -> Tipos locais
       const itensMapped: Item[] = (itensData ?? []).map((row: any) => ({
           id: row.id,
-          codigoBarras: row.codigo_barras,
+          codigoBarras: Number(row.codigo_barras),
           origem: row.origem ?? '',
           caixaOrganizador: row.caixa_organizador ?? '',
           localizacao: row.localizacao ?? '',
@@ -101,7 +101,7 @@ export const useEstoque = () => {
   };
 
   // Função para buscar item por código de barras
-  const buscarItemPorCodigo = (codigoBarras: string): Item | undefined => {
+  const buscarItemPorCodigo = (codigoBarras: number): Item | undefined => {
     return itens.find(item => item.codigoBarras === codigoBarras);
   };
 
@@ -170,9 +170,10 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao' | 'codig
     if (codigoError) throw codigoError;
     
     const codigoGerado = codigoData as string;
+    const codigoNumerico = parseInt(codigoGerado.replace('COD-', ''));
 
     const insertItem = {
-      codigo_barras: codigoGerado,
+      codigo_barras: codigoNumerico,
       origem: dadosItem.origem,
       caixa_organizador: dadosItem.caixaOrganizador,
       localizacao: dadosItem.localizacao,
@@ -203,7 +204,7 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao' | 'codig
     const novoItem: Item = {
       ...dadosItem,
       id: novoItemId,
-      codigoBarras: codigoGerado,
+      codigoBarras: codigoNumerico,
       dataCriacao: insertItem.data_criacao,
     };
     setItens(prev => [...prev, novoItem]);
@@ -247,7 +248,7 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao' | 'codig
 
 // Registrar entrada
 const registrarEntrada = async (
-  codigoBarras: string,
+  codigoBarras: number,
   quantidade: number,
   responsavel: string,
   observacoes?: string
@@ -300,7 +301,7 @@ const registrarEntrada = async (
 
 // Registrar saída
 const registrarSaida = async (
-  codigoBarras: string,
+  codigoBarras: number,
   quantidade: number,
   responsavel: string,
   observacoes?: string,
@@ -371,7 +372,7 @@ const editarItem = async (itemEditado: Item) => {
     }
 
     const update = {
-      codigo_barras: itemEditado.codigoBarras,
+      codigo_barras: Number(itemEditado.codigoBarras),
       origem: itemEditado.origem,
       caixa_organizador: itemEditado.caixaOrganizador,
       localizacao: itemEditado.localizacao,
@@ -429,9 +430,10 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBar
       }
       
       const codigoGerado = codigoData as string;
+      const codigoNumerico = parseInt(codigoGerado.replace('COD-', ''));
 
       const insertItem = {
-        codigo_barras: codigoGerado,
+        codigo_barras: codigoNumerico,
         origem: itemData.origem,
         caixa_organizador: itemData.caixaOrganizador,
         localizacao: itemData.localizacao,
@@ -462,7 +464,7 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBar
         continue;
       }
 
-      const novoItem: Item = { ...itemData, id: itemRow!.id, codigoBarras: codigoGerado, dataCriacao: insertItem.data_criacao };
+      const novoItem: Item = { ...itemData, id: itemRow!.id, codigoBarras: codigoNumerico, dataCriacao: insertItem.data_criacao };
       setItens(prev => [...prev, novoItem]);
 
       const { error: movErr } = await supabase.from('movements').insert({

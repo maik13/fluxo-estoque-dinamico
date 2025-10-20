@@ -3,7 +3,7 @@
 
 export interface Item {
   id: string;
-  codigoBarras: string;
+  codigoBarras: number;
   origem: string;
   caixaOrganizador: string;
   localizacao: string;

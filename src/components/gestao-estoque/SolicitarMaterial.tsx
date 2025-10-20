@@ -418,7 +418,7 @@ export const SolicitarMaterial = () => {
                         {itensDisponiveis
                           .filter(item => 
                             item.nome.toLowerCase().includes(busca.toLowerCase()) ||
-                            item.codigoBarras.includes(busca)
+                            item.codigoBarras.toString().includes(busca)
                           )
                           .slice(0, 10)
                           .map((item) => (

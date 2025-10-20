@@ -45,7 +45,7 @@ export const TabelaEstoque = () => {
       const textoFiltro = filtroTexto.toLowerCase();
       const matchTexto = !textoFiltro || 
         item.nome.toLowerCase().includes(textoFiltro) ||
-        item.codigoBarras.toLowerCase().includes(textoFiltro) ||
+        item.codigoBarras.toString().includes(textoFiltro) ||
         item.marca.toLowerCase().includes(textoFiltro) ||
         item.especificacao.toLowerCase().includes(textoFiltro) ||
         item.categoria.toLowerCase().includes(textoFiltro) ||

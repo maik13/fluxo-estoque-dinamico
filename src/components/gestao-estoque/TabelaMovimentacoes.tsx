@@ -49,7 +49,7 @@ export const TabelaMovimentacoes = () => {
       const textoFiltro = filtroTexto.toLowerCase();
       const matchTexto = !textoFiltro || 
         mov.itemSnapshot?.nome?.toLowerCase().includes(textoFiltro) ||
-        mov.itemSnapshot?.codigoBarras?.toLowerCase().includes(textoFiltro) ||
+        mov.itemSnapshot?.codigoBarras?.toString().includes(textoFiltro) ||
         mov.responsavel.toLowerCase().includes(textoFiltro) ||
         mov.observacoes?.toLowerCase().includes(textoFiltro);
 

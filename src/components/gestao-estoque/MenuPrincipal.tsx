@@ -39,7 +39,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
 
   // Estados para os formulários
   const [formCadastro, setFormCadastro] = useState<Partial<Item>>({
-    codigoBarras: '',
+    codigoBarras: 0,
     origem: '',
     caixaOrganizador: '',
     localizacao: '',
@@ -57,7 +57,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   });
 
   const [formMovimentacao, setFormMovimentacao] = useState({
-    codigoBarras: '',
+    codigoBarras: 0,
     quantidade: 0,
     responsavel: '',
     observacoes: '',
@@ -81,7 +81,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     const termo = buscaSaida.toLowerCase();
     return itensEstoque.filter(item => 
       item.nome.toLowerCase().includes(termo) ||
-      item.codigoBarras.toLowerCase().includes(termo) ||
+      item.codigoBarras.toString().includes(termo) ||
       item.marca.toLowerCase().includes(termo)
     );
   }, [buscaSaida, itensEstoque]);
@@ -111,7 +111,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       tipoServico: ''
     });
     setFormMovimentacao({
-      codigoBarras: '',
+      codigoBarras: 0,
       quantidade: 0,
       responsavel: '',
       observacoes: '',
@@ -138,7 +138,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     e.preventDefault();
     
     if (registrarEntrada(
-      formMovimentacao.codigoBarras,
+      Number(formMovimentacao.codigoBarras),
       formMovimentacao.quantidade,
       formMovimentacao.responsavel,
       formMovimentacao.observacoes
@@ -157,7 +157,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     const formData = new FormData(formElement);
     const localUtilizacao = formData.get('localUtilizacaoSaida') as string;
     
-    const codigoParaUsar = itemSelecionadoSaida?.codigoBarras || formMovimentacao.codigoBarras;
+    const codigoParaUsar = itemSelecionadoSaida?.codigoBarras || Number(formMovimentacao.codigoBarras);
     
     if (registrarSaida(
       codigoParaUsar,
@@ -184,8 +184,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   };
 
   // Função para buscar item quando código for digitado
-  const buscarItemAoDigitarCodigo = (codigo: string, tipo: 'entrada' | 'saida') => {
-    if (codigo.length >= 3) { // Buscar após 3 caracteres
+  const buscarItemAoDigitarCodigo = (codigo: number, tipo: 'entrada' | 'saida') => {
+    if (codigo > 0) {
       const item = buscarItemPorCodigo(codigo);
       if (item) {
         // Aqui você pode mostrar informações do item encontrado
@@ -509,10 +509,11 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                           id="codigoBarrasEntrada"
                           value={formMovimentacao.codigoBarras}
                           onChange={(e) => {
-                            setFormMovimentacao(prev => ({...prev, codigoBarras: e.target.value}));
-                            buscarItemAoDigitarCodigo(e.target.value, 'entrada');
+                            setFormMovimentacao(prev => ({...prev, codigoBarras: Number(e.target.value) || 0}));
+                            buscarItemAoDigitarCodigo(Number(e.target.value) || 0, 'entrada');
                           }}
                           placeholder="Digite código de barras ou nome do item"
+                          type="number"
                           required
                         />
                         <Button type="button" variant="outline" size="icon">
