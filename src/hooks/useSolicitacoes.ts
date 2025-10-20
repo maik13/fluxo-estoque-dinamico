@@ -224,12 +224,7 @@ export const useSolicitacoes = () => {
 
         if (updateEstoqueError) throw updateEstoqueError;
 
-        // Criar movimentação com solicitacao_id no item_snapshot
-        const itemSnapshotComSolicitacao = {
-          ...(solicitacaoItem.item_snapshot as object || {}),
-          solicitacao_id: solicitacaoId
-        };
-
+        // Criar movimentação
         const { error: movimentacaoError } = await supabase
           .from('movements')
           .insert({
@@ -241,7 +236,7 @@ export const useSolicitacoes = () => {
             responsavel: userProfile.nome,
             observacoes: `${isDevolucao ? 'Devolução' : 'Retirada'} aprovada - Solicitação #${solicitacao.numero || solicitacaoId.slice(-8)}${solicitacao.observacoes ? ' - ' + solicitacao.observacoes : ''}`,
             local_utilizacao: solicitacao.local_utilizacao,
-            item_snapshot: itemSnapshotComSolicitacao
+            item_snapshot: solicitacaoItem.item_snapshot
           });
 
         if (movimentacaoError) throw movimentacaoError;
