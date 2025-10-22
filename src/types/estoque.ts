@@ -25,6 +25,8 @@ export interface Item {
   tipoServico: string;
   dataCriacao: string;
   quantidadeMinima?: number; // Para alertas de estoque baixo
+  ncm?: string; // NCM - Nomenclatura Comum do Mercosul
+  valor?: number; // Valor unitário do item
 }
 
 export interface Movimentacao {

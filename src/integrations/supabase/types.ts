@@ -28,6 +28,7 @@ export type Database = {
           localizacao: string | null
           marca: string | null
           metragem: number | null
+          ncm: string | null
           nome: string
           origem: string | null
           peso: number | null
@@ -41,6 +42,7 @@ export type Database = {
           tipo_servico: string | null
           unidade: string
           updated_at: string
+          valor: number | null
         }
         Insert: {
           caixa_organizador?: string | null
@@ -55,6 +57,7 @@ export type Database = {
           localizacao?: string | null
           marca?: string | null
           metragem?: number | null
+          ncm?: string | null
           nome: string
           origem?: string | null
           peso?: number | null
@@ -68,6 +71,7 @@ export type Database = {
           tipo_servico?: string | null
           unidade: string
           updated_at?: string
+          valor?: number | null
         }
         Update: {
           caixa_organizador?: string | null
@@ -82,6 +86,7 @@ export type Database = {
           localizacao?: string | null
           marca?: string | null
           metragem?: number | null
+          ncm?: string | null
           nome?: string
           origem?: string | null
           peso?: number | null
@@ -95,6 +100,7 @@ export type Database = {
           tipo_servico?: string | null
           unidade?: string
           updated_at?: string
+          valor?: number | null
         }
         Relationships: []
       }
@@ -342,34 +348,13 @@ export type Database = {
         }
         Returns: undefined
       }
-      can_create_items: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      can_manage_inventory: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      gerar_codigo_assinatura: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      gerar_proximo_codigo: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_current_user_role: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_gestor_or_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      can_create_items: { Args: never; Returns: boolean }
+      can_manage_inventory: { Args: never; Returns: boolean }
+      gerar_codigo_assinatura: { Args: never; Returns: string }
+      gerar_proximo_codigo: { Args: never; Returns: string }
+      get_current_user_role: { Args: never; Returns: string }
+      is_admin: { Args: never; Returns: boolean }
+      is_gestor_or_admin: { Args: never; Returns: boolean }
       make_user_admin_by_email: {
         Args: { user_email: string }
         Returns: undefined

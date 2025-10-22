@@ -53,7 +53,9 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     categoria: '',
     subcategoria: '',
     subDestino: '',
-    tipoServico: ''
+    tipoServico: '',
+    ncm: '',
+    valor: 0
   });
 
   const [codigoBarrasManual, setCodigoBarrasManual] = useState<string>('');
@@ -538,6 +540,29 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                       <SelectItem value="Descarte">Descarte</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="ncm">NCM *</Label>
+                  <Input
+                    id="ncm"
+                    value={formCadastro.ncm}
+                    onChange={(e) => setFormCadastro(prev => ({...prev, ncm: e.target.value}))}
+                    placeholder="Ex: 8544.42.00"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="valor">Valor</Label>
+                  <Input
+                    id="valor"
+                    type="number"
+                    step="0.01"
+                    value={formCadastro.valor}
+                    onChange={(e) => setFormCadastro(prev => ({...prev, valor: parseFloat(e.target.value) || 0}))}
+                    placeholder="Ex: 10.50"
+                  />
                 </div>
               </div>
               
