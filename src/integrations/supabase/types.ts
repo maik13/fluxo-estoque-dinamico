@@ -253,6 +253,7 @@ export type Database = {
           aceite_separador: boolean | null
           aceite_solicitante: boolean | null
           created_at: string
+          criado_por_id: string | null
           data_solicitacao: string
           id: string
           local_utilizacao: string | null
@@ -269,6 +270,7 @@ export type Database = {
           aceite_separador?: boolean | null
           aceite_solicitante?: boolean | null
           created_at?: string
+          criado_por_id?: string | null
           data_solicitacao?: string
           id?: string
           local_utilizacao?: string | null
@@ -285,6 +287,7 @@ export type Database = {
           aceite_separador?: boolean | null
           aceite_solicitante?: boolean | null
           created_at?: string
+          criado_por_id?: string | null
           data_solicitacao?: string
           id?: string
           local_utilizacao?: string | null

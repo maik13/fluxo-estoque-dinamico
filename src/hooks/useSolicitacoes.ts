@@ -92,7 +92,8 @@ export const useSolicitacoes = () => {
           local_utilizacao: novaSolicitacao.local_utilizacao,
           responsavel_estoque: novaSolicitacao.responsavel_estoque,
           tipo_operacao: novaSolicitacao.tipo_operacao || 'saida_producao',
-          solicitacao_origem_id: novaSolicitacao.solicitacao_origem_id
+          solicitacao_origem_id: novaSolicitacao.solicitacao_origem_id,
+          criado_por_id: user.id // Registra o ID do usuário logado
         }])
         .select()
         .single();
