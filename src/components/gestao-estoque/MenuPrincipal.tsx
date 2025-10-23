@@ -89,6 +89,19 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     return obterEstoque();
   }, [obterEstoque]);
 
+  // Obter categorias únicas das subcategorias
+  const categoriasUnicas = useMemo(() => {
+    const subcategorias = obterSubcategoriasAtivas();
+    const categorias = new Set(subcategorias.map(sub => sub.categoria));
+    return Array.from(categorias).sort();
+  }, [obterSubcategoriasAtivas]);
+
+  // Filtrar subcategorias baseado na categoria selecionada
+  const subcategoriasFiltradas = useMemo(() => {
+    if (!formCadastro.categoria) return [];
+    return obterSubcategoriasAtivas().filter(sub => sub.categoria === formCadastro.categoria);
+  }, [formCadastro.categoria, obterSubcategoriasAtivas]);
+
   // Filtrar itens para busca inteligente na saída
   const itensFiltrarados = useMemo(() => {
     if (!buscaSaida) return itensEstoque;
@@ -456,24 +469,37 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                 
                 <div>
                   <Label htmlFor="categoria">Categoria</Label>
-                  <Input
-                    id="categoria"
-                    value={formCadastro.categoria}
-                    onChange={(e) => setFormCadastro(prev => ({...prev, categoria: e.target.value}))}
-                    placeholder="Ex: Cabos, Disjuntores, Ferramentas"
-                  />
+                  <Select 
+                    value={formCadastro.categoria} 
+                    onValueChange={(value) => setFormCadastro(prev => ({...prev, categoria: value, subcategoria: ''}))}
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Selecione a categoria" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background z-50">
+                      {categoriasUnicas.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div>
                   <Label htmlFor="subcategoria">Subcategoria</Label>
-                  <Select value={formCadastro.subcategoria} onValueChange={(value) => setFormCadastro(prev => ({...prev, subcategoria: value}))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a subcategoria" />
+                  <Select 
+                    value={formCadastro.subcategoria} 
+                    onValueChange={(value) => setFormCadastro(prev => ({...prev, subcategoria: value}))}
+                    disabled={!formCadastro.categoria}
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder={formCadastro.categoria ? "Selecione a subcategoria" : "Selecione primeiro a categoria"} />
                     </SelectTrigger>
-                    <SelectContent>
-                      {obterSubcategoriasAtivas().map((sub) => (
+                    <SelectContent className="bg-background z-50">
+                      {subcategoriasFiltradas.map((sub) => (
                         <SelectItem key={sub.id} value={sub.nome}>
-                          {sub.nome} ({sub.categoria})
+                          {sub.nome}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -483,10 +509,10 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                 <div>
                   <Label htmlFor="subDestino">Sub Destino (Estoque)</Label>
                   <Select value={formCadastro.subDestino} onValueChange={(value) => setFormCadastro(prev => ({...prev, subDestino: value}))}>
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-background">
                       <SelectValue placeholder="Selecione o sub destino" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background z-50">
                       {obterTiposServicoAtivos().map((estoque) => (
                         <SelectItem key={estoque.id} value={estoque.nome}>
                           {estoque.nome}
@@ -499,10 +525,10 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                 <div>
                   <Label htmlFor="tipoServico">Tipo de Serviço</Label>
                   <Select value={formCadastro.tipoServico} onValueChange={(value) => setFormCadastro(prev => ({...prev, tipoServico: value}))}>
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-background">
                       <SelectValue placeholder="Selecione o tipo de serviço" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background z-50">
                       {obterTiposServicoAtivos().map((tipo) => (
                         <SelectItem key={tipo.id} value={tipo.nome}>
                           {tipo.nome}
@@ -530,10 +556,10 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                     value={formCadastro.condicao} 
                     onValueChange={(value) => setFormCadastro(prev => ({...prev, condicao: value as any}))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-background">
                       <SelectValue placeholder="Selecione a condição" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background z-50">
                       <SelectItem value="Novo">Novo</SelectItem>
                       <SelectItem value="Usado">Usado</SelectItem>
                       <SelectItem value="Defeito">Defeito</SelectItem>
