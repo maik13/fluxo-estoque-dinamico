@@ -573,8 +573,22 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   <Input
                     id="ncm"
                     value={formCadastro.ncm}
-                    onChange={(e) => setFormCadastro(prev => ({...prev, ncm: e.target.value}))}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é número
+                      let formatted = value;
+                      
+                      // Aplica a máscara 0000.00.00
+                      if (value.length > 4) {
+                        formatted = value.slice(0, 4) + '.' + value.slice(4);
+                      }
+                      if (value.length > 6) {
+                        formatted = value.slice(0, 4) + '.' + value.slice(4, 6) + '.' + value.slice(6, 8);
+                      }
+                      
+                      setFormCadastro(prev => ({...prev, ncm: formatted}));
+                    }}
                     placeholder="Ex: 8544.42.00"
+                    maxLength={10}
                     required
                   />
                 </div>
