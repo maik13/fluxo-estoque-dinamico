@@ -68,12 +68,41 @@ export const useConfiguracoes = () => {
     }
   };
 
+  // Carregar subcategorias do Supabase
+  const carregarSubcategorias = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('subcategorias')
+        .select('*')
+        .eq('ativo', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      if (data) {
+        setSubcategorias(data.map(s => ({
+          id: s.id,
+          nome: s.nome,
+          categoria: s.categoria,
+          ativo: s.ativo,
+          dataCriacao: s.created_at,
+        })));
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar subcategorias:', error);
+      toast({
+        title: "Erro ao carregar subcategorias",
+        description: error.message || "Não foi possível carregar as subcategorias.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Carregar dados do localStorage e Supabase
   useEffect(() => {
     try {
       const estoquesSalvos = localStorage.getItem('estoque-config');
       const tiposServicoSalvos = localStorage.getItem('tipos-servico-config');
-      const subcategoriasSalvas = localStorage.getItem('subcategorias-config');
       const tiposOperacaoSalvos = localStorage.getItem('tipos-operacao-config');
       const locaisUtilizacaoSalvos = localStorage.getItem('locais-utilizacao-config');
       const estoqueAtivoSalvo = localStorage.getItem('estoque-ativo');
@@ -103,9 +132,8 @@ export const useConfiguracoes = () => {
         setTiposServico(JSON.parse(tiposServicoSalvos));
       }
 
-      if (subcategoriasSalvas) {
-        setSubcategorias(JSON.parse(subcategoriasSalvas));
-      }
+      // Carregar subcategorias do Supabase
+      carregarSubcategorias();
 
       if (tiposOperacaoSalvos) {
         setTiposOperacao(JSON.parse(tiposOperacaoSalvos));
@@ -180,11 +208,7 @@ export const useConfiguracoes = () => {
     }
   }, [tiposServico, loading]);
 
-  useEffect(() => {
-    if (!loading) {
-      localStorage.setItem('subcategorias-config', JSON.stringify(subcategorias));
-    }
-  }, [subcategorias, loading]);
+  // Subcategorias agora são gerenciadas no Supabase, não precisa salvar no localStorage
 
   useEffect(() => {
     if (!loading && estoqueAtivo) {
@@ -298,33 +322,72 @@ export const useConfiguracoes = () => {
     });
   };
 
-  // Funções para gerenciar subcategorias
-  const adicionarSubcategoria = (nome: string, categoria: string) => {
-    const novaSubcategoria: SubcategoriaConfig = {
-      id: gerarId(),
-      nome,
-      categoria,
-      ativo: true,
-      dataCriacao: new Date().toISOString(),
-    };
+  // Funções para gerenciar subcategorias no Supabase
+  const adicionarSubcategoria = async (nome: string, categoria: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('subcategorias')
+        .insert({
+          nome,
+          categoria,
+          ativo: true,
+        })
+        .select()
+        .single();
 
-    setSubcategorias(prev => [...prev, novaSubcategoria]);
-    
-    toast({
-      title: "Subcategoria criada!",
-      description: `Subcategoria "${nome}" foi criada com sucesso.`,
-    });
+      if (error) throw error;
 
-    return novaSubcategoria;
+      if (data) {
+        const novaSubcategoria: SubcategoriaConfig = {
+          id: data.id,
+          nome: data.nome,
+          categoria: data.categoria,
+          ativo: data.ativo,
+          dataCriacao: data.created_at,
+        };
+
+        setSubcategorias(prev => [...prev, novaSubcategoria]);
+        
+        toast({
+          title: "Subcategoria criada!",
+          description: `Subcategoria "${nome}" foi criada com sucesso.`,
+        });
+
+        return novaSubcategoria;
+      }
+    } catch (error: any) {
+      console.error('Erro ao cadastrar subcategoria:', error);
+      toast({
+        title: "Erro ao cadastrar",
+        description: error.message || "Não foi possível cadastrar a subcategoria.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const removerSubcategoria = (id: string) => {
-    setSubcategorias(prev => prev.filter(s => s.id !== id));
-    
-    toast({
-      title: "Subcategoria removida!",
-      description: "Subcategoria foi removida com sucesso.",
-    });
+  const removerSubcategoria = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('subcategorias')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setSubcategorias(prev => prev.filter(s => s.id !== id));
+      
+      toast({
+        title: "Subcategoria removida!",
+        description: "Subcategoria foi removida com sucesso.",
+      });
+    } catch (error: any) {
+      console.error('Erro ao remover subcategoria:', error);
+      toast({
+        title: "Erro ao remover",
+        description: error.message || "Não foi possível remover a subcategoria.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Funções para gerenciar tipos de operação
