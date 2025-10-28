@@ -301,10 +301,10 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       <div className="flex justify-between items-center mb-8">
         <div className="text-center flex-1">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
-            🏭 Sistema de Gestão de Estoque
+            🏭 Sistema de Gestão de Almoxarifado
           </h1>
           <p className="text-muted-foreground mt-2">
-            Controle completo do seu estoque de materiais
+            Controle completo do seu almoxarifado de materiais
           </p>
           {!podeUsarCadastro && (
             <p className="text-warning text-sm mt-1">
