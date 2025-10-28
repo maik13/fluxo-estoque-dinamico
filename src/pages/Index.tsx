@@ -65,7 +65,7 @@ const Index = () => {
               />
             )}
             <h1 className="text-2xl font-bold text-foreground">
-              Controle completo do seu estoque de materiais
+              Controle completo do seu almoxarifado de materiais
             </h1>
           </div>
           <div className="flex items-center gap-2">
