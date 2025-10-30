@@ -135,6 +135,7 @@ export type Database = {
         Row: {
           created_at: string
           data_hora: string
+          estoque_id: string | null
           id: string
           item_id: string
           item_snapshot: Json
@@ -150,6 +151,7 @@ export type Database = {
         Insert: {
           created_at?: string
           data_hora?: string
+          estoque_id?: string | null
           id?: string
           item_id: string
           item_snapshot: Json
@@ -165,6 +167,7 @@ export type Database = {
         Update: {
           created_at?: string
           data_hora?: string
+          estoque_id?: string | null
           id?: string
           item_id?: string
           item_snapshot?: Json
@@ -178,6 +181,13 @@ export type Database = {
           tipo?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "movements_estoque_id_fkey"
+            columns: ["estoque_id"]
+            isOneToOne: false
+            referencedRelation: "estoques"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "movements_item_id_fkey"
             columns: ["item_id"]
@@ -282,6 +292,7 @@ export type Database = {
           created_at: string
           criado_por_id: string | null
           data_solicitacao: string
+          estoque_id: string | null
           id: string
           local_utilizacao: string | null
           numero: number | null
@@ -299,6 +310,7 @@ export type Database = {
           created_at?: string
           criado_por_id?: string | null
           data_solicitacao?: string
+          estoque_id?: string | null
           id?: string
           local_utilizacao?: string | null
           numero?: number | null
@@ -316,6 +328,7 @@ export type Database = {
           created_at?: string
           criado_por_id?: string | null
           data_solicitacao?: string
+          estoque_id?: string | null
           id?: string
           local_utilizacao?: string | null
           numero?: number | null
@@ -328,6 +341,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "solicitacoes_estoque_id_fkey"
+            columns: ["estoque_id"]
+            isOneToOne: false
+            referencedRelation: "estoques"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "solicitacoes_solicitacao_origem_id_fkey"
             columns: ["solicitacao_origem_id"]

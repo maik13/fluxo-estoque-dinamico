@@ -26,16 +26,26 @@ export const useEstoque = () => {
   const carregarDados = async () => {
     try {
       setLoading(true);
+      const estoqueAtivoInfo = obterEstoqueAtivoInfo();
+      const estoqueId = estoqueAtivoInfo?.id;
+
       const { data: itensData, error: itensError } = await supabase
         .from('items')
         .select('*')
         .order('created_at', { ascending: true });
       if (itensError) throw itensError;
 
-      const { data: movsData, error: movsError } = await supabase
+      // Filtrar movimentações pelo estoque ativo
+      let movsQuery = supabase
         .from('movements')
         .select('*')
         .order('data_hora', { ascending: true });
+      
+      if (estoqueId) {
+        movsQuery = movsQuery.eq('estoque_id', estoqueId);
+      }
+
+      const { data: movsData, error: movsError } = await movsQuery;
       if (movsError) throw movsError;
 
       // Mapear DB -> Tipos locais
@@ -232,6 +242,7 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao' | 'codig
       itemSnapshot: novoItem,
     };
 
+    const estoqueAtivoInfo = obterEstoqueAtivoInfo();
     const { data: movData, error: movError } = await supabase.from('movements').insert({
       item_id: movimentacao.itemId,
       tipo: movimentacao.tipo,
@@ -242,6 +253,7 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao' | 'codig
       observacoes: movimentacao.observacoes ?? null,
       data_hora: movimentacao.dataHora,
       item_snapshot: JSON.parse(JSON.stringify(movimentacao.itemSnapshot)),
+      estoque_id: estoqueAtivoInfo?.id ?? null,
     }).select('*').maybeSingle();
     if (movError) throw movError;
 
@@ -285,6 +297,7 @@ const registrarEntrada = async (
       itemSnapshot: item,
     };
 
+    const estoqueAtivoInfo = obterEstoqueAtivoInfo();
     const { data, error } = await supabase.from('movements').insert({
       item_id: movimento.itemId,
       tipo: movimento.tipo,
@@ -295,6 +308,7 @@ const registrarEntrada = async (
       observacoes: movimento.observacoes ?? null,
       data_hora: movimento.dataHora,
       item_snapshot: JSON.parse(JSON.stringify(movimento.itemSnapshot)),
+      estoque_id: estoqueAtivoInfo?.id ?? null,
     }).select('*').maybeSingle();
     if (error) throw error;
 
@@ -344,6 +358,7 @@ const registrarSaida = async (
       itemSnapshot: item,
     };
 
+    const estoqueAtivoInfo = obterEstoqueAtivoInfo();
     const { data, error } = await supabase.from('movements').insert({
       item_id: movimento.itemId,
       tipo: movimento.tipo,
@@ -355,6 +370,7 @@ const registrarSaida = async (
       local_utilizacao: localUtilizacao ?? null,
       data_hora: movimento.dataHora,
       item_snapshot: JSON.parse(JSON.stringify(movimento.itemSnapshot)),
+      estoque_id: estoqueAtivoInfo?.id ?? null,
     }).select('*').maybeSingle();
     if (error) throw error;
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { usePermissions } from './usePermissions';
+import { useConfiguracoes } from './useConfiguracoes';
 import { NovaSolicitacao, Solicitacao, SolicitacaoCompleta, SolicitacaoItem } from '@/types/solicitacao';
 import { Item } from '@/types/estoque';
 import { toast } from 'sonner';
@@ -11,6 +12,7 @@ export const useSolicitacoes = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { userProfile, canManageStock } = usePermissions();
+  const { obterEstoqueAtivoInfo } = useConfiguracoes();
 
   useEffect(() => {
     if (user) {
@@ -37,12 +39,20 @@ export const useSolicitacoes = () => {
   const carregarSolicitacoes = async () => {
     try {
       setLoading(true);
+      const estoqueAtivoInfo = obterEstoqueAtivoInfo();
+      const estoqueId = estoqueAtivoInfo?.id;
 
-      // Carregar solicitações
-      const { data: solicitacoesData, error: solicitacoesError } = await supabase
+      // Carregar solicitações filtradas por estoque
+      let solicitacoesQuery = supabase
         .from('solicitacoes')
         .select('*')
         .order('data_solicitacao', { ascending: false });
+
+      if (estoqueId) {
+        solicitacoesQuery = solicitacoesQuery.eq('estoque_id', estoqueId);
+      }
+
+      const { data: solicitacoesData, error: solicitacoesError } = await solicitacoesQuery;
 
       if (solicitacoesError) throw solicitacoesError;
 
@@ -83,6 +93,7 @@ export const useSolicitacoes = () => {
       let solicitanteNome = novaSolicitacao.solicitante_nome || userProfile.nome;
 
       // Criar solicitação
+      const estoqueAtivoInfo = obterEstoqueAtivoInfo();
       const { data: solicitacaoData, error: solicitacaoError } = await supabase
         .from('solicitacoes')
         .insert([{
@@ -93,7 +104,8 @@ export const useSolicitacoes = () => {
           responsavel_estoque: novaSolicitacao.responsavel_estoque,
           tipo_operacao: novaSolicitacao.tipo_operacao || 'saida_producao',
           solicitacao_origem_id: novaSolicitacao.solicitacao_origem_id,
-          criado_por_id: user.id // Registra o ID do usuário logado
+          criado_por_id: user.id, // Registra o ID do usuário logado
+          estoque_id: estoqueAtivoInfo?.id ?? null
         }])
         .select()
         .single();
@@ -154,6 +166,7 @@ export const useSolicitacoes = () => {
         if (updateEstoqueError) throw updateEstoqueError;
 
         // Criar movimentação
+        const estoqueAtivoInfo = obterEstoqueAtivoInfo();
         const movimentacaoData = {
           item_id: item.item_id,
           tipo: tipoMovimentacao,
@@ -164,7 +177,8 @@ export const useSolicitacoes = () => {
           observacoes: `${isDevolucao ? 'Devolução' : 'Retirada'} - Solicitação #${solicitacaoData.numero || solicitacaoData.id.slice(-8)}${novaSolicitacao.observacoes ? ' - ' + novaSolicitacao.observacoes : ''}`,
           local_utilizacao: novaSolicitacao.local_utilizacao,
           item_snapshot: item.item_snapshot,
-          solicitacao_id: solicitacaoData.id
+          solicitacao_id: solicitacaoData.id,
+          estoque_id: estoqueAtivoInfo?.id ?? null
         };
 
         console.log('Criando movimentação com dados:', movimentacaoData);
