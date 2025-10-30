@@ -172,6 +172,7 @@ export type Database = {
           responsavel: string
           solicitacao_id: string | null
           tipo: string
+          tipo_operacao_id: string | null
         }
         Insert: {
           created_at?: string
@@ -189,6 +190,7 @@ export type Database = {
           responsavel: string
           solicitacao_id?: string | null
           tipo: string
+          tipo_operacao_id?: string | null
         }
         Update: {
           created_at?: string
@@ -206,6 +208,7 @@ export type Database = {
           responsavel?: string
           solicitacao_id?: string | null
           tipo?: string
+          tipo_operacao_id?: string | null
         }
         Relationships: [
           {
@@ -234,6 +237,13 @@ export type Database = {
             columns: ["solicitacao_id"]
             isOneToOne: false
             referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movements_tipo_operacao_id_fkey"
+            columns: ["tipo_operacao_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_operacao"
             referencedColumns: ["id"]
           },
         ]
@@ -337,6 +347,7 @@ export type Database = {
           solicitante_id: string
           solicitante_nome: string
           tipo_operacao: string | null
+          tipo_operacao_id: string | null
           updated_at: string
         }
         Insert: {
@@ -356,6 +367,7 @@ export type Database = {
           solicitante_id: string
           solicitante_nome: string
           tipo_operacao?: string | null
+          tipo_operacao_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -375,6 +387,7 @@ export type Database = {
           solicitante_id?: string
           solicitante_nome?: string
           tipo_operacao?: string | null
+          tipo_operacao_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -397,6 +410,13 @@ export type Database = {
             columns: ["solicitacao_origem_id"]
             isOneToOne: false
             referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_tipo_operacao_id_fkey"
+            columns: ["tipo_operacao_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_operacao"
             referencedColumns: ["id"]
           },
         ]
@@ -451,6 +471,36 @@ export type Database = {
           created_at?: string
           id?: string
           nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tipos_operacao: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          tipo?: string
           updated_at?: string
         }
         Relationships: []

@@ -7,6 +7,7 @@ export interface TipoOperacaoConfig {
   id: string;
   nome: string;
   descricao?: string;
+  tipo: 'entrada' | 'saida';
   ativo: boolean;
   dataCriacao: string;
 }
@@ -166,13 +167,42 @@ export const useConfiguracoes = () => {
     }
   };
 
+  // Carregar tipos de operação do Supabase
+  const carregarTiposOperacao = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tipos_operacao')
+        .select('*')
+        .eq('ativo', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      if (data) {
+        setTiposOperacao(data.map(t => ({
+          id: t.id,
+          nome: t.nome,
+          descricao: t.descricao || undefined,
+          tipo: t.tipo as 'entrada' | 'saida',
+          ativo: t.ativo,
+          dataCriacao: t.created_at,
+        })));
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar tipos de operação:', error);
+      toast({
+        title: "Erro ao carregar operações",
+        description: error.message || "Não foi possível carregar os tipos de operação.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Carregar dados do localStorage e Supabase
   useEffect(() => {
     const inicializarDados = async () => {
       try {
         const tiposServicoSalvos = localStorage.getItem('tipos-servico-config');
-        const tiposOperacaoSalvos = localStorage.getItem('tipos-operacao-config');
-        const locaisUtilizacaoSalvos = localStorage.getItem('locais-utilizacao-config');
 
         // Carregar estoques do Supabase
         await carregarEstoques();
@@ -184,18 +214,8 @@ export const useConfiguracoes = () => {
         // Carregar subcategorias do Supabase
         carregarSubcategorias();
 
-        if (tiposOperacaoSalvos) {
-          setTiposOperacao(JSON.parse(tiposOperacaoSalvos));
-        } else {
-          // Criar tipos de operação padrão
-          const tiposDefault: TipoOperacaoConfig[] = [
-            { id: 'op-1', nome: 'Compra', descricao: 'Entrada de materiais por compra', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'op-2', nome: 'Saída para Produção', descricao: 'Saída de materiais para uso na produção', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'op-3', nome: 'Quebra', descricao: 'Perda de material por quebra ou dano', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'op-4', nome: 'Devolução', descricao: 'Retorno de materiais ao estoque', ativo: true, dataCriacao: new Date().toISOString() },
-          ];
-          setTiposOperacao(tiposDefault);
-        }
+        // Carregar tipos de operação do Supabase
+        carregarTiposOperacao();
 
         // Carregar solicitantes do Supabase
         carregarSolicitantes();
@@ -233,13 +253,7 @@ export const useConfiguracoes = () => {
     }
   }, [estoqueAtivo, loading]);
 
-  useEffect(() => {
-    if (!loading) {
-      localStorage.setItem('tipos-operacao-config', JSON.stringify(tiposOperacao));
-    }
-  }, [tiposOperacao, loading]);
-
-  // Solicitantes e locais agora são gerenciados no Supabase, não precisa salvar no localStorage
+  // Tipos de operação, solicitantes e locais agora são gerenciados no Supabase, não precisa salvar no localStorage
 
   // Funções para gerar ID único
   const gerarId = () => {
@@ -441,33 +455,74 @@ export const useConfiguracoes = () => {
     }
   };
 
-  // Funções para gerenciar tipos de operação
-  const adicionarTipoOperacao = (nome: string, descricao?: string) => {
-    const novoTipo: TipoOperacaoConfig = {
-      id: gerarId(),
-      nome,
-      descricao,
-      ativo: true,
-      dataCriacao: new Date().toISOString(),
-    };
+  // Funções para gerenciar tipos de operação no Supabase
+  const adicionarTipoOperacao = async (nome: string, tipo: 'entrada' | 'saida', descricao?: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('tipos_operacao')
+        .insert({
+          nome,
+          tipo,
+          descricao: descricao || null,
+          ativo: true,
+        })
+        .select()
+        .single();
 
-    setTiposOperacao(prev => [...prev, novoTipo]);
-    
-    toast({
-      title: "Tipo de operação criado!",
-      description: `Tipo "${nome}" foi criado com sucesso.`,
-    });
+      if (error) throw error;
 
-    return novoTipo;
+      if (data) {
+        const novoTipo: TipoOperacaoConfig = {
+          id: data.id,
+          nome: data.nome,
+          descricao: data.descricao || undefined,
+          tipo: data.tipo as 'entrada' | 'saida',
+          ativo: data.ativo,
+          dataCriacao: data.created_at,
+        };
+
+        setTiposOperacao(prev => [...prev, novoTipo]);
+        
+        toast({
+          title: "Operação criada!",
+          description: `Operação "${nome}" foi criada com sucesso.`,
+        });
+
+        return novoTipo;
+      }
+    } catch (error: any) {
+      console.error('Erro ao cadastrar operação:', error);
+      toast({
+        title: "Erro ao cadastrar",
+        description: error.message || "Não foi possível cadastrar a operação.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const removerTipoOperacao = (id: string) => {
-    setTiposOperacao(prev => prev.filter(t => t.id !== id));
-    
-    toast({
-      title: "Tipo de operação removido!",
-      description: "Tipo de operação foi removido com sucesso.",
-    });
+  const removerTipoOperacao = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('tipos_operacao')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setTiposOperacao(prev => prev.filter(t => t.id !== id));
+      
+      toast({
+        title: "Operação removida!",
+        description: "Operação foi removida com sucesso.",
+      });
+    } catch (error: any) {
+      console.error('Erro ao remover operação:', error);
+      toast({
+        title: "Erro ao remover",
+        description: error.message || "Não foi possível remover a operação.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Funções para gerenciar solicitantes no Supabase

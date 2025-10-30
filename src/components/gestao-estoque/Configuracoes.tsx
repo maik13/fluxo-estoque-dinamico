@@ -84,6 +84,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
 
   const [novoTipoOperacao, setNovoTipoOperacao] = useState({
     nome: '',
+    tipo: 'saida' as 'entrada' | 'saida',
     descricao: '',
   });
 
@@ -217,14 +218,14 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     if (!novoTipoOperacao.nome) {
       toast({
         title: "Nome obrigatório",
-        description: "Digite o nome do tipo de operação.",
+        description: "Digite o nome da operação.",
         variant: "destructive",
       });
       return;
     }
 
-    adicionarTipoOperacao(novoTipoOperacao.nome, novoTipoOperacao.descricao);
-    setNovoTipoOperacao({ nome: '', descricao: '' });
+    adicionarTipoOperacao(novoTipoOperacao.nome, novoTipoOperacao.tipo, novoTipoOperacao.descricao);
+    setNovoTipoOperacao({ nome: '', tipo: 'saida', descricao: '' });
     onConfigChange?.();
   };
 
@@ -831,16 +832,16 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
-                  Gerenciar Tipos de Operação
+                  Gerenciar Operações
                 </CardTitle>
                 <CardDescription>
-                  Cadastre os tipos de operação para solicitações (compra, saída, quebra, etc)
+                  Cadastre as operações para solicitações (compra, saída, quebra, etc)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="nomeTipoOperacao">Nome do Tipo</Label>
+                    <Label htmlFor="nomeTipoOperacao">Nome da Operação</Label>
                     <Input
                       id="nomeTipoOperacao"
                       value={novoTipoOperacao.nome}
@@ -849,29 +850,47 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                     />
                   </div>
                   <div>
+                    <Label htmlFor="tipoOperacao">Tipo</Label>
+                    <Select 
+                      value={novoTipoOperacao.tipo} 
+                      onValueChange={(value: 'entrada' | 'saida') => setNovoTipoOperacao(prev => ({ ...prev, tipo: value }))}
+                    >
+                      <SelectTrigger id="tipoOperacao">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="entrada">Entrada</SelectItem>
+                        <SelectItem value="saida">Saída</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
                     <Label htmlFor="descricaoTipoOperacao">Descrição</Label>
                     <Input
                       id="descricaoTipoOperacao"
                       value={novoTipoOperacao.descricao}
                       onChange={(e) => setNovoTipoOperacao(prev => ({ ...prev, descricao: e.target.value }))}
-                      placeholder="Descrição do tipo de operação"
+                      placeholder="Descrição da operação"
                     />
                   </div>
                 </div>
                 <Button onClick={handleCadastroTipoOperacao} className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
-                  Cadastrar Tipo de Operação
+                  Cadastrar Operação
                 </Button>
                 
                 <Separator />
                 
                 <div className="space-y-2">
-                  <h4 className="font-medium">Tipos de Operação Cadastrados</h4>
+                  <h4 className="font-medium">Operações Cadastradas</h4>
                   <div className="space-y-2">
                     {tiposOperacao.map((tipo) => (
                       <div key={tipo.id} className="flex items-center justify-between p-2 border rounded">
                         <div className="flex items-center gap-2">
                           <Badge variant="secondary">{tipo.nome}</Badge>
+                          <Badge variant={tipo.tipo === 'entrada' ? 'default' : 'outline'}>
+                            {tipo.tipo === 'entrada' ? 'Entrada' : 'Saída'}
+                          </Badge>
                           {tipo.descricao && <span className="text-sm text-muted-foreground">{tipo.descricao}</span>}
                         </div>
                         <Button

@@ -9,6 +9,8 @@ export interface Solicitacao {
   local_utilizacao?: string;
   responsavel_estoque?: string;
   tipo_operacao?: string;
+  tipo_operacao_id?: string;
+  local_utilizacao_id?: string;
   solicitacao_origem_id?: string;
   data_solicitacao: string;
   aceite_separador: boolean;
@@ -42,6 +44,7 @@ export interface NovaSolicitacao {
   local_utilizacao_id?: string;
   responsavel_estoque?: string;
   tipo_operacao?: string;
+  tipo_operacao_id?: string;
   solicitacao_origem_id?: string;
   solicitante_id?: string;
   solicitante_nome?: string;

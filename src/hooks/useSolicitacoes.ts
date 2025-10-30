@@ -103,6 +103,7 @@ export const useSolicitacoes = () => {
           local_utilizacao_id: novaSolicitacao.local_utilizacao_id,
           responsavel_estoque: novaSolicitacao.responsavel_estoque,
           tipo_operacao: novaSolicitacao.tipo_operacao || 'retirada',
+          tipo_operacao_id: novaSolicitacao.tipo_operacao_id || null,
           solicitacao_origem_id: novaSolicitacao.solicitacao_origem_id,
           criado_por_id: user.id, // Registra o ID do usuário logado
           estoque_id: estoqueAtivoInfo?.id ?? null
