@@ -378,23 +378,6 @@ export const SolicitarMaterial = () => {
               />
             </div>
 
-            {/* Campo Tipo de Operação */}
-            <div className="space-y-2">
-              <Label htmlFor="tipoOperacao">Tipo de Operação *</Label>
-              <Select value={tipoOperacao} onValueChange={setTipoOperacao}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tiposOperacaoDisponiveis.map(tipo => (
-                    <SelectItem key={tipo.id} value={tipo.nome.toLowerCase().replace(/\s+/g, '_')}>
-                      {tipo.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Buscar e adicionar itens */}
             <div className="space-y-2">
               <Label>Adicionar Item</Label>
