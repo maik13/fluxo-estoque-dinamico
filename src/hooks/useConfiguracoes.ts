@@ -38,6 +38,47 @@ export const useConfiguracoes = () => {
   const [estoqueAtivo, setEstoqueAtivo] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
+  // Carregar estoques do Supabase
+  const carregarEstoques = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('estoques')
+        .select('*')
+        .eq('ativo', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      if (data) {
+        const estoquesCarregados = data.map(e => ({
+          id: e.id,
+          nome: e.nome,
+          descricao: e.descricao || undefined,
+          ativo: e.ativo,
+          dataCriacao: e.created_at,
+        }));
+        setEstoques(estoquesCarregados);
+        
+        // Se não há estoque ativo salvo ou o estoque ativo não existe mais, definir o primeiro como ativo
+        const estoqueAtivoSalvo = localStorage.getItem('estoque-ativo');
+        if (!estoqueAtivoSalvo || !estoquesCarregados.find(e => e.id === estoqueAtivoSalvo)) {
+          if (estoquesCarregados.length > 0) {
+            setEstoqueAtivo(estoquesCarregados[0].id);
+          }
+        } else {
+          setEstoqueAtivo(estoqueAtivoSalvo);
+        }
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar estoques:', error);
+      toast({
+        title: "Erro ao carregar estoques",
+        description: error.message || "Não foi possível carregar os estoques.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Carregar solicitantes do Supabase
   const carregarSolicitantes = async () => {
     try {
@@ -100,107 +141,82 @@ export const useConfiguracoes = () => {
 
   // Carregar dados do localStorage e Supabase
   useEffect(() => {
-    try {
-      const estoquesSalvos = localStorage.getItem('estoque-config');
-      const tiposServicoSalvos = localStorage.getItem('tipos-servico-config');
-      const tiposOperacaoSalvos = localStorage.getItem('tipos-operacao-config');
-      const locaisUtilizacaoSalvos = localStorage.getItem('locais-utilizacao-config');
-      const estoqueAtivoSalvo = localStorage.getItem('estoque-ativo');
+    const inicializarDados = async () => {
+      try {
+        const tiposServicoSalvos = localStorage.getItem('tipos-servico-config');
+        const tiposOperacaoSalvos = localStorage.getItem('tipos-operacao-config');
+        const locaisUtilizacaoSalvos = localStorage.getItem('locais-utilizacao-config');
 
-      if (estoquesSalvos) {
-        const parsedEstoques = JSON.parse(estoquesSalvos);
-        setEstoques(parsedEstoques);
-        
-        // Se não há estoque ativo salvo, definir o primeiro como ativo
-        if (!estoqueAtivoSalvo && parsedEstoques.length > 0) {
-          setEstoqueAtivo(parsedEstoques[0].id);
+        // Carregar estoques do Supabase
+        await carregarEstoques();
+
+        if (tiposServicoSalvos) {
+          setTiposServico(JSON.parse(tiposServicoSalvos));
         }
-      } else {
-        // Criar estoque padrão
-        const estoqueDefault: EstoqueConfig = {
-          id: 'estoque-principal',
-          nome: 'Estoque Principal',
-          descricao: 'Estoque principal do sistema',
-          ativo: true,
-          dataCriacao: new Date().toISOString(),
-        };
-        setEstoques([estoqueDefault]);
-        setEstoqueAtivo(estoqueDefault.id);
+
+        // Carregar subcategorias do Supabase
+        carregarSubcategorias();
+
+        if (tiposOperacaoSalvos) {
+          setTiposOperacao(JSON.parse(tiposOperacaoSalvos));
+        } else {
+          // Criar tipos de operação padrão
+          const tiposDefault: TipoOperacaoConfig[] = [
+            { id: 'op-1', nome: 'Compra', descricao: 'Entrada de materiais por compra', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'op-2', nome: 'Saída para Produção', descricao: 'Saída de materiais para uso na produção', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'op-3', nome: 'Quebra', descricao: 'Perda de material por quebra ou dano', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'op-4', nome: 'Devolução', descricao: 'Retorno de materiais ao estoque', ativo: true, dataCriacao: new Date().toISOString() },
+          ];
+          setTiposOperacao(tiposDefault);
+        }
+
+        // Carregar solicitantes do Supabase
+        carregarSolicitantes();
+
+        if (locaisUtilizacaoSalvos) {
+          setLocaisUtilizacao(JSON.parse(locaisUtilizacaoSalvos));
+        } else {
+          // Criar locais padrão conforme especificado
+          const locaisDefault: LocalUtilizacaoConfig[] = [
+            { id: 'loc-1', nome: 'Natal Cascavel 2025', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-2', nome: 'BFL - Beija Flor', codigo: 'BFL', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-3', nome: 'GRA - Gralha Azul', codigo: 'GRA', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-4', nome: 'NPR - Novo Presépio', codigo: 'NPR', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-5', nome: 'TOG - Túnel Ogival', codigo: 'TOG', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-6', nome: 'SGF - Sagrada Família', codigo: 'SGF', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-7', nome: 'JMB - José Maria e Burrinho', codigo: 'JMB', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-8', nome: 'Restauros Cascavel 2025', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-9', nome: 'Natal Foz do Iguaçu 2025', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-10', nome: 'Restauros Foz do Iguaçu 2025', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-11', nome: 'AVP - Árvore Pinheiro', codigo: 'AVP', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-12', nome: 'AJE - Anjo Ecológico', codigo: 'AJE', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-13', nome: 'FNE - Floco de Neve', codigo: 'FNE', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-14', nome: 'DFL - Domo Flor de Lotus', codigo: 'DFL', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-15', nome: 'CAP - Capivara', codigo: 'CAP', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-16', nome: 'BGU - Banco Guirlanda', codigo: 'BGU', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-17', nome: 'QUA - Quati', codigo: 'QUA', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-18', nome: 'CXL - Caixa de Presente com Laço', codigo: 'CXL', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-19', nome: 'COZ - COZINHA', codigo: 'COZ', ativo: true, dataCriacao: new Date().toISOString() },
+            { id: 'loc-20', nome: 'USI - USINA MARIALVA', codigo: 'USI', ativo: true, dataCriacao: new Date().toISOString() },
+          ];
+          setLocaisUtilizacao(locaisDefault);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar configurações:', error);
+        toast({
+          title: "Erro ao carregar configurações",
+          description: "Não foi possível carregar as configurações salvas.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
       }
+    };
 
-      if (tiposServicoSalvos) {
-        setTiposServico(JSON.parse(tiposServicoSalvos));
-      }
-
-      // Carregar subcategorias do Supabase
-      carregarSubcategorias();
-
-      if (tiposOperacaoSalvos) {
-        setTiposOperacao(JSON.parse(tiposOperacaoSalvos));
-      } else {
-        // Criar tipos de operação padrão
-        const tiposDefault: TipoOperacaoConfig[] = [
-          { id: 'op-1', nome: 'Compra', descricao: 'Entrada de materiais por compra', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'op-2', nome: 'Saída para Produção', descricao: 'Saída de materiais para uso na produção', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'op-3', nome: 'Quebra', descricao: 'Perda de material por quebra ou dano', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'op-4', nome: 'Devolução', descricao: 'Retorno de materiais ao estoque', ativo: true, dataCriacao: new Date().toISOString() },
-        ];
-        setTiposOperacao(tiposDefault);
-      }
-
-      // Carregar solicitantes do Supabase
-      carregarSolicitantes();
-
-      if (locaisUtilizacaoSalvos) {
-        setLocaisUtilizacao(JSON.parse(locaisUtilizacaoSalvos));
-      } else {
-        // Criar locais padrão conforme especificado
-        const locaisDefault: LocalUtilizacaoConfig[] = [
-          { id: 'loc-1', nome: 'Natal Cascavel 2025', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-2', nome: 'BFL - Beija Flor', codigo: 'BFL', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-3', nome: 'GRA - Gralha Azul', codigo: 'GRA', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-4', nome: 'NPR - Novo Presépio', codigo: 'NPR', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-5', nome: 'TOG - Túnel Ogival', codigo: 'TOG', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-6', nome: 'SGF - Sagrada Família', codigo: 'SGF', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-7', nome: 'JMB - José Maria e Burrinho', codigo: 'JMB', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-8', nome: 'Restauros Cascavel 2025', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-9', nome: 'Natal Foz do Iguaçu 2025', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-10', nome: 'Restauros Foz do Iguaçu 2025', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-11', nome: 'AVP - Árvore Pinheiro', codigo: 'AVP', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-12', nome: 'AJE - Anjo Ecológico', codigo: 'AJE', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-13', nome: 'FNE - Floco de Neve', codigo: 'FNE', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-14', nome: 'DFL - Domo Flor de Lotus', codigo: 'DFL', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-15', nome: 'CAP - Capivara', codigo: 'CAP', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-16', nome: 'BGU - Banco Guirlanda', codigo: 'BGU', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-17', nome: 'QUA - Quati', codigo: 'QUA', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-18', nome: 'CXL - Caixa de Presente com Laço', codigo: 'CXL', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-19', nome: 'COZ - COZINHA', codigo: 'COZ', ativo: true, dataCriacao: new Date().toISOString() },
-          { id: 'loc-20', nome: 'USI - USINA MARIALVA', codigo: 'USI', ativo: true, dataCriacao: new Date().toISOString() },
-        ];
-        setLocaisUtilizacao(locaisDefault);
-      }
-
-      if (estoqueAtivoSalvo) {
-        setEstoqueAtivo(estoqueAtivoSalvo);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar configurações:', error);
-      toast({
-        title: "Erro ao carregar configurações",
-        description: "Não foi possível carregar as configurações salvas.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    inicializarDados();
   }, []);
 
-  // Salvar no localStorage
-  useEffect(() => {
-    if (!loading) {
-      localStorage.setItem('estoque-config', JSON.stringify(estoques));
-    }
-  }, [estoques, loading]);
+  // Estoques agora são gerenciados no Supabase, não precisa salvar no localStorage
 
   useEffect(() => {
     if (!loading) {
@@ -235,51 +251,91 @@ export const useConfiguracoes = () => {
     return Date.now().toString() + Math.random().toString(36).substr(2, 9);
   };
 
-  // Funções para gerenciar estoques
-  const adicionarEstoque = (nome: string, descricao?: string) => {
-    const novoEstoque: EstoqueConfig = {
-      id: gerarId(),
-      nome,
-      descricao,
-      ativo: true,
-      dataCriacao: new Date().toISOString(),
-    };
+  // Funções para gerenciar estoques no Supabase
+  const adicionarEstoque = async (nome: string, descricao?: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('estoques')
+        .insert({
+          nome,
+          descricao: descricao || null,
+          ativo: true,
+        })
+        .select()
+        .single();
 
-    setEstoques(prev => [...prev, novoEstoque]);
-    
-    toast({
-      title: "Estoque criado!",
-      description: `Estoque "${nome}" foi criado com sucesso.`,
-    });
+      if (error) throw error;
 
-    return novoEstoque;
+      if (data) {
+        const novoEstoque: EstoqueConfig = {
+          id: data.id,
+          nome: data.nome,
+          descricao: data.descricao || undefined,
+          ativo: data.ativo,
+          dataCriacao: data.created_at,
+        };
+
+        setEstoques(prev => [...prev, novoEstoque]);
+        
+        toast({
+          title: "Almoxarifado criado!",
+          description: `Almoxarifado "${nome}" foi criado com sucesso.`,
+        });
+
+        return novoEstoque;
+      }
+    } catch (error: any) {
+      console.error('Erro ao cadastrar almoxarifado:', error);
+      toast({
+        title: "Erro ao cadastrar",
+        description: error.message || "Não foi possível cadastrar o almoxarifado.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const removerEstoque = (id: string) => {
+  const removerEstoque = async (id: string) => {
     if (estoques.length === 1) {
       toast({
         title: "Erro",
-        description: "Não é possível remover o último estoque.",
+        description: "Não é possível remover o último almoxarifado.",
         variant: "destructive",
       });
       return false;
     }
 
-    if (estoqueAtivo === id) {
-      const outroEstoque = estoques.find(e => e.id !== id);
-      if (outroEstoque) {
-        setEstoqueAtivo(outroEstoque.id);
+    try {
+      const { error } = await supabase
+        .from('estoques')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      if (estoqueAtivo === id) {
+        const outroEstoque = estoques.find(e => e.id !== id);
+        if (outroEstoque) {
+          setEstoqueAtivo(outroEstoque.id);
+        }
       }
+
+      setEstoques(prev => prev.filter(e => e.id !== id));
+      
+      toast({
+        title: "Almoxarifado removido!",
+        description: "Almoxarifado foi removido com sucesso.",
+      });
+
+      return true;
+    } catch (error: any) {
+      console.error('Erro ao remover almoxarifado:', error);
+      toast({
+        title: "Erro ao remover",
+        description: error.message || "Não foi possível remover o almoxarifado.",
+        variant: "destructive",
+      });
+      return false;
     }
-
-    setEstoques(prev => prev.filter(e => e.id !== id));
-    
-    toast({
-      title: "Estoque removido!",
-      description: "Estoque foi removido com sucesso.",
-    });
-
-    return true;
   };
 
   const alterarEstoqueAtivo = (id: string) => {
@@ -287,8 +343,8 @@ export const useConfiguracoes = () => {
     if (estoque) {
       setEstoqueAtivo(id);
       toast({
-        title: "Estoque alterado!",
-        description: `Estoque ativo: ${estoque.nome}`,
+        title: "Almoxarifado alterado!",
+        description: `Almoxarifado ativo: ${estoque.nome}`,
       });
     }
   };
