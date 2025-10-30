@@ -197,6 +197,7 @@ export const DevolverMaterial = () => {
       local_utilizacao_id: localUtilizacao,
       responsavel_estoque: responsavelEstoque,
       tipo_operacao: 'devolucao',
+      tipo_operacao_id: '8462f967-121e-4a0a-8d43-5e7131fc1981',
       solicitante_id: solicitanteSelecionado.id,
       solicitante_nome: solicitanteSelecionado.nome,
       itens: itensDevolucao

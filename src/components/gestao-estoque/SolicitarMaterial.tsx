@@ -163,6 +163,7 @@ export const SolicitarMaterial = () => {
       local_utilizacao_id: localUtilizacao,
       responsavel_estoque: responsavelEstoque,
       tipo_operacao: tipoOperacao,
+      tipo_operacao_id: '4008ee81-3d16-4c38-a65d-078a6347f462',
       solicitante_id: solicitanteSelecionado.id,
       solicitante_nome: solicitanteSelecionado.nome,
       itens: itensSolicitados
