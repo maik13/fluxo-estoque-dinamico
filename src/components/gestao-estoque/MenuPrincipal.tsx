@@ -28,7 +28,7 @@ interface MenuPrincipalProps {
 
 export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) => {
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque, importarItens, importarItensServidor } = useEstoque();
-  const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterEstoqueAtivoInfo } = useConfiguracoes();
+  const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
   const { canCreateItems, canManageStock } = usePermissions();
   
   // Estados para controlar os diálogos
@@ -66,7 +66,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     quantidade: 0,
     responsavel: '',
     observacoes: '',
-    localUtilizacao: ''
+    localUtilizacao: '',
+    tipoOperacaoId: ''
   });
 
   // Estados para busca inteligente na saída
@@ -155,7 +156,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       quantidade: 0,
       responsavel: '',
       observacoes: '',
-      localUtilizacao: ''
+      localUtilizacao: '',
+      tipoOperacaoId: ''
     });
     setBuscaSaida('');
     setBuscaEntrada('');
@@ -228,7 +230,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       codigoParaUsar,
       formMovimentacao.quantidade,
       formMovimentacao.responsavel,
-      formMovimentacao.observacoes
+      formMovimentacao.observacoes,
+      formMovimentacao.tipoOperacaoId || undefined
     )) {
       setDialogoEntrada(false);
       resetarFormularios();
@@ -251,7 +254,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       formMovimentacao.quantidade,
       formMovimentacao.responsavel,
       formMovimentacao.observacoes,
-      localUtilizacao
+      localUtilizacao,
+      formMovimentacao.tipoOperacaoId || undefined
     )) {
       setDialogoSaida(false);
       resetarFormularios();
@@ -709,6 +713,29 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
               </div>
               
               <div>
+                <Label htmlFor="tipoOperacaoEntrada">Operação *</Label>
+                <Select 
+                  value={formMovimentacao.tipoOperacaoId} 
+                  onValueChange={(value) => setFormMovimentacao(prev => ({...prev, tipoOperacaoId: value}))}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a operação" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tiposOperacao
+                      .filter(op => op.ativo && op.tipo === 'entrada')
+                      .map(op => (
+                        <SelectItem key={op.id} value={op.id}>
+                          {op.nome}
+                        </SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
                 <Label htmlFor="observacoesEntrada">Observações</Label>
                 <Textarea
                   id="observacoesEntrada"
@@ -849,27 +876,50 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                  />
                </div>
               
-              <div>
-                <Label htmlFor="responsavelSaida">Responsável *</Label>
-                <Input
-                  id="responsavelSaida"
-                  value={formMovimentacao.responsavel}
-                  onChange={(e) => setFormMovimentacao(prev => ({...prev, responsavel: e.target.value}))}
-                  placeholder="Nome do responsável pela saída"
-                  required
-                />
-              </div>
-                
-                 <div>
-                   <Label htmlFor="observacoesSaida">Observações Adicionais</Label>
-                   <Textarea
-                     id="observacoesSaida"
-                     value={formMovimentacao.observacoes}
-                     onChange={(e) => setFormMovimentacao(prev => ({...prev, observacoes: e.target.value}))}
-                     placeholder="Observações adicionais sobre a saída (opcional)"
-                     rows={2}
-                   />
-                 </div>
+               <div>
+                 <Label htmlFor="responsavelSaida">Responsável *</Label>
+                 <Input
+                   id="responsavelSaida"
+                   value={formMovimentacao.responsavel}
+                   onChange={(e) => setFormMovimentacao(prev => ({...prev, responsavel: e.target.value}))}
+                   placeholder="Nome do responsável pela saída"
+                   required
+                 />
+               </div>
+
+               <div>
+                 <Label htmlFor="tipoOperacaoSaida">Operação *</Label>
+                 <Select 
+                   value={formMovimentacao.tipoOperacaoId} 
+                   onValueChange={(value) => setFormMovimentacao(prev => ({...prev, tipoOperacaoId: value}))}
+                   required
+                 >
+                   <SelectTrigger>
+                     <SelectValue placeholder="Selecione a operação" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     {tiposOperacao
+                       .filter(op => op.ativo && op.tipo === 'saida')
+                       .map(op => (
+                         <SelectItem key={op.id} value={op.id}>
+                           {op.nome}
+                         </SelectItem>
+                       ))
+                     }
+                   </SelectContent>
+                 </Select>
+               </div>
+                 
+                  <div>
+                    <Label htmlFor="observacoesSaida">Observações Adicionais</Label>
+                    <Textarea
+                      id="observacoesSaida"
+                      value={formMovimentacao.observacoes}
+                      onChange={(e) => setFormMovimentacao(prev => ({...prev, observacoes: e.target.value}))}
+                      placeholder="Observações adicionais sobre a saída (opcional)"
+                      rows={2}
+                    />
+                  </div>
               
               <div className="flex justify-end space-x-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => setDialogoSaida(false)}>

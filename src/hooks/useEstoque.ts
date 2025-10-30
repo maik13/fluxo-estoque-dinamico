@@ -251,7 +251,8 @@ const registrarEntrada = async (
   codigoBarras: number,
   quantidade: number,
   responsavel: string,
-  observacoes?: string
+  observacoes?: string,
+  tipoOperacaoId?: string
 ) => {
   try {
     const item = buscarItemPorCodigo(codigoBarras);
@@ -287,6 +288,7 @@ const registrarEntrada = async (
       data_hora: movimento.dataHora,
       item_snapshot: JSON.parse(JSON.stringify(movimento.itemSnapshot)),
       estoque_id: estoqueAtivoInfo?.id ?? null,
+      tipo_operacao_id: tipoOperacaoId ?? null,
     }).select('*').maybeSingle();
     if (error) throw error;
 
@@ -307,7 +309,8 @@ const registrarSaida = async (
   quantidade: number,
   responsavel: string,
   observacoes?: string,
-  localUtilizacao?: string
+  localUtilizacao?: string,
+  tipoOperacaoId?: string
 ) => {
   try {
     const item = buscarItemPorCodigo(codigoBarras);
@@ -349,6 +352,7 @@ const registrarSaida = async (
       data_hora: movimento.dataHora,
       item_snapshot: JSON.parse(JSON.stringify(movimento.itemSnapshot)),
       estoque_id: estoqueAtivoInfo?.id ?? null,
+      tipo_operacao_id: tipoOperacaoId ?? null,
     }).select('*').maybeSingle();
     if (error) throw error;
 
