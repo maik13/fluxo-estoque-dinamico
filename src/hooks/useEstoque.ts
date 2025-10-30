@@ -141,23 +141,11 @@ export const useEstoque = () => {
     return Math.max(0, estoque); // Não pode ser negativo
   };
 
-  // Obter estoque com quantidades atuais (filtrado por estoque ativo)
+  // Obter estoque com quantidades atuais baseado nas movimentações do estoque ativo
   const obterEstoque = (): EstoqueItem[] => {
-    // Filtrar itens apenas do estoque ativo
-    const itensFiltrados = itens.filter(item => {
-      // Se não há informação de estoque no item, considerar que pertence ao estoque principal
-      const itemEstoque = item.subDestino || 'estoque-principal';
-      const estoqueAtivoInfo = obterEstoqueAtivoInfo();
-      const estoqueAtivoNome = estoqueAtivoInfo?.nome || 'Estoque Principal';
-      
-      // Mapear nomes para IDs consistentes
-      const estoqueAtivo = estoqueAtivoNome.toLowerCase().replace(/\s+/g, '-');
-      const itemEstoqueNormalizado = itemEstoque.toLowerCase().replace(/\s+/g, '-');
-      
-      return itemEstoqueNormalizado === estoqueAtivo;
-    });
-
-    return itensFiltrados.map(item => {
+    // Todos os itens são compartilhados entre estoques
+    // O que muda é o estoque atual calculado pelas movimentações de cada estoque
+    return itens.map(item => {
       const estoqueAtual = calcularEstoqueAtual(item.id);
       const ultimaMovimentacao = movimentacoes
         .filter(mov => mov.itemId === item.id)
