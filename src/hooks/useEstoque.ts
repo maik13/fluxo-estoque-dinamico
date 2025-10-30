@@ -171,19 +171,9 @@ export const useEstoque = () => {
     });
   };
 
-const isEstoquePrincipal = () => estoqueAtivo === 'estoque-principal';
-
-// Função para cadastrar novo item (só funciona no estoque principal)
+// Função para cadastrar novo item
 const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>) => {
   try {
-    if (!isEstoquePrincipal()) {
-      toast({
-        title: 'Operação não permitida',
-        description: 'Novos itens só podem ser cadastrados no Estoque Principal.',
-        variant: 'destructive',
-      });
-      return false;
-    }
 
     // Gerar código sequencial automático usando função do banco
     const { data: codigoData, error: codigoError } = await supabase.rpc('gerar_proximo_codigo');
@@ -389,13 +379,9 @@ const registrarSaida = async (
   }
 };
 
-// Editar item (só no principal)
+// Editar item
 const editarItem = async (itemEditado: Item) => {
   try {
-    if (!isEstoquePrincipal()) {
-      toast({ title: 'Operação não permitida', description: 'Itens só podem ser editados no Estoque Principal.', variant: 'destructive' });
-      return false;
-    }
 
     const update = {
       codigo_barras: Number(itemEditado.codigoBarras),
@@ -434,13 +420,9 @@ const editarItem = async (itemEditado: Item) => {
   }
 };
 
-// Importar itens (só no principal)
+// Importar itens
 const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>[]) => {
   try {
-    if (!isEstoquePrincipal()) {
-      toast({ title: 'Operação não permitida', description: 'Importação só pode ser feita no Estoque Principal.', variant: 'destructive' });
-      return false;
-    }
 
     let sucessos = 0;
     let erros = 0;
@@ -536,15 +518,6 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBar
 // Importação alternativa via Função Edge (servidor)
 const importarItensServidor = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>[]) => {
   try {
-    if (!isEstoquePrincipal()) {
-      toast({
-        title: 'Operação não permitida',
-        description: 'Importação só pode ser feita no Estoque Principal.',
-        variant: 'destructive',
-      });
-      return false;
-    }
-
     const { data, error } = await supabase.functions.invoke('import-items', {
       body: { itens: lista },
     });
@@ -586,6 +559,5 @@ const importarItensServidor = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'c
     importarItensServidor,
     registrarEntrada,
     registrarSaida,
-    isEstoquePrincipal,
   };
 };

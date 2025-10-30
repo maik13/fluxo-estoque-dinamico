@@ -27,7 +27,7 @@ interface MenuPrincipalProps {
 }
 
 export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) => {
-  const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque, isEstoquePrincipal, importarItens, importarItensServidor } = useEstoque();
+  const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque, importarItens, importarItensServidor } = useEstoque();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterEstoqueAtivoInfo } = useConfiguracoes();
   const { canCreateItems, canManageStock } = usePermissions();
   
@@ -128,7 +128,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
 
   // Obter informações do estoque ativo
   const estoqueAtivoInfo = obterEstoqueAtivoInfo();
-  const podeUsarCadastro = isEstoquePrincipal() && canCreateItems;
+  const podeUsarCadastro = canCreateItems;
   const podeMovimentar = canManageStock;
 
   // Função para resetar formulários

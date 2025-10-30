@@ -17,7 +17,7 @@ import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
 
 export const TabelaEstoque = () => {
-  const { obterEstoque, loading, editarItem, isEstoquePrincipal, registrarEntrada, registrarSaida } = useEstoque();
+  const { obterEstoque, loading, editarItem, registrarEntrada, registrarSaida } = useEstoque();
   const { obterEstoqueAtivoInfo } = useConfiguracoes();
   const { canEditItems } = usePermissions();
   const [filtroTexto, setFiltroTexto] = useState('');
@@ -437,7 +437,7 @@ export const TabelaEstoque = () => {
                         <EditarQuantidadeInline
                           item={item}
                           onSalvar={handleEditarQuantidade}
-                          disabled={!isEstoquePrincipal()}
+                          disabled={false}
                         />
                       </TableCell>
                       <TableCell>{item.unidade}</TableCell>
@@ -466,14 +466,8 @@ export const TabelaEstoque = () => {
                           onClick={() => handleEditarItem(item)}
                           variant="ghost"
                           size="sm"
-                          disabled={!isEstoquePrincipal() || !canEditItems}
-                          title={
-                            !canEditItems 
-                              ? "Sem permissão para editar itens" 
-                              : !isEstoquePrincipal() 
-                                ? "Edição disponível apenas no Estoque Principal" 
-                                : "Editar item"
-                          }
+                          disabled={!canEditItems}
+                          title={!canEditItems ? "Sem permissão para editar itens" : "Editar item"}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
