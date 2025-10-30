@@ -131,6 +131,30 @@ export type Database = {
         }
         Relationships: []
       }
+      locais_utilizacao: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       movements: {
         Row: {
           created_at: string
@@ -140,6 +164,7 @@ export type Database = {
           item_id: string
           item_snapshot: Json
           local_utilizacao: string | null
+          local_utilizacao_id: string | null
           observacoes: string | null
           quantidade: number
           quantidade_anterior: number
@@ -156,6 +181,7 @@ export type Database = {
           item_id: string
           item_snapshot: Json
           local_utilizacao?: string | null
+          local_utilizacao_id?: string | null
           observacoes?: string | null
           quantidade: number
           quantidade_anterior: number
@@ -172,6 +198,7 @@ export type Database = {
           item_id?: string
           item_snapshot?: Json
           local_utilizacao?: string | null
+          local_utilizacao_id?: string | null
           observacoes?: string | null
           quantidade?: number
           quantidade_anterior?: number
@@ -193,6 +220,13 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movements_local_utilizacao_id_fkey"
+            columns: ["local_utilizacao_id"]
+            isOneToOne: false
+            referencedRelation: "locais_utilizacao"
             referencedColumns: ["id"]
           },
           {
@@ -295,6 +329,7 @@ export type Database = {
           estoque_id: string | null
           id: string
           local_utilizacao: string | null
+          local_utilizacao_id: string | null
           numero: number | null
           observacoes: string | null
           responsavel_estoque: string | null
@@ -313,6 +348,7 @@ export type Database = {
           estoque_id?: string | null
           id?: string
           local_utilizacao?: string | null
+          local_utilizacao_id?: string | null
           numero?: number | null
           observacoes?: string | null
           responsavel_estoque?: string | null
@@ -331,6 +367,7 @@ export type Database = {
           estoque_id?: string | null
           id?: string
           local_utilizacao?: string | null
+          local_utilizacao_id?: string | null
           numero?: number | null
           observacoes?: string | null
           responsavel_estoque?: string | null
@@ -346,6 +383,13 @@ export type Database = {
             columns: ["estoque_id"]
             isOneToOne: false
             referencedRelation: "estoques"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_local_utilizacao_id_fkey"
+            columns: ["local_utilizacao_id"]
+            isOneToOne: false
+            referencedRelation: "locais_utilizacao"
             referencedColumns: ["id"]
           },
           {

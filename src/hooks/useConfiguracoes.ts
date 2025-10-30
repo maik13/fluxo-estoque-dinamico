@@ -22,8 +22,6 @@ export interface SolicitanteConfig {
 export interface LocalUtilizacaoConfig {
   id: string;
   nome: string;
-  codigo?: string;
-  descricao?: string;
   ativo: boolean;
   dataCriacao: string;
 }
@@ -109,6 +107,35 @@ export const useConfiguracoes = () => {
     }
   };
 
+  // Carregar locais de utilização do Supabase
+  const carregarLocaisUtilizacao = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('locais_utilizacao')
+        .select('*')
+        .eq('ativo', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      if (data) {
+        setLocaisUtilizacao(data.map(l => ({
+          id: l.id,
+          nome: l.nome,
+          ativo: l.ativo,
+          dataCriacao: l.created_at,
+        })));
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar locais de utilização:', error);
+      toast({
+        title: "Erro ao carregar locais",
+        description: error.message || "Não foi possível carregar os locais de utilização.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Carregar subcategorias do Supabase
   const carregarSubcategorias = async () => {
     try {
@@ -173,34 +200,8 @@ export const useConfiguracoes = () => {
         // Carregar solicitantes do Supabase
         carregarSolicitantes();
 
-        if (locaisUtilizacaoSalvos) {
-          setLocaisUtilizacao(JSON.parse(locaisUtilizacaoSalvos));
-        } else {
-          // Criar locais padrão conforme especificado
-          const locaisDefault: LocalUtilizacaoConfig[] = [
-            { id: 'loc-1', nome: 'Natal Cascavel 2025', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-2', nome: 'BFL - Beija Flor', codigo: 'BFL', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-3', nome: 'GRA - Gralha Azul', codigo: 'GRA', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-4', nome: 'NPR - Novo Presépio', codigo: 'NPR', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-5', nome: 'TOG - Túnel Ogival', codigo: 'TOG', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-6', nome: 'SGF - Sagrada Família', codigo: 'SGF', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-7', nome: 'JMB - José Maria e Burrinho', codigo: 'JMB', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-8', nome: 'Restauros Cascavel 2025', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-9', nome: 'Natal Foz do Iguaçu 2025', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-10', nome: 'Restauros Foz do Iguaçu 2025', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-11', nome: 'AVP - Árvore Pinheiro', codigo: 'AVP', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-12', nome: 'AJE - Anjo Ecológico', codigo: 'AJE', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-13', nome: 'FNE - Floco de Neve', codigo: 'FNE', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-14', nome: 'DFL - Domo Flor de Lotus', codigo: 'DFL', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-15', nome: 'CAP - Capivara', codigo: 'CAP', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-16', nome: 'BGU - Banco Guirlanda', codigo: 'BGU', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-17', nome: 'QUA - Quati', codigo: 'QUA', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-18', nome: 'CXL - Caixa de Presente com Laço', codigo: 'CXL', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-19', nome: 'COZ - COZINHA', codigo: 'COZ', ativo: true, dataCriacao: new Date().toISOString() },
-            { id: 'loc-20', nome: 'USI - USINA MARIALVA', codigo: 'USI', ativo: true, dataCriacao: new Date().toISOString() },
-          ];
-          setLocaisUtilizacao(locaisDefault);
-        }
+        // Carregar locais de utilização do Supabase
+        carregarLocaisUtilizacao();
       } catch (error) {
         console.error('Erro ao carregar configurações:', error);
         toast({
@@ -238,13 +239,7 @@ export const useConfiguracoes = () => {
     }
   }, [tiposOperacao, loading]);
 
-  // Solicitantes agora são gerenciados no Supabase, não precisa salvar no localStorage
-
-  useEffect(() => {
-    if (!loading) {
-      localStorage.setItem('locais-utilizacao-config', JSON.stringify(locaisUtilizacao));
-    }
-  }, [locaisUtilizacao, loading]);
+  // Solicitantes e locais agora são gerenciados no Supabase, não precisa salvar no localStorage
 
   // Funções para gerar ID único
   const gerarId = () => {
@@ -543,34 +538,70 @@ export const useConfiguracoes = () => {
     }
   };
 
-  // Funções para gerenciar locais de utilização
-  const adicionarLocalUtilizacao = (nome: string, codigo?: string, descricao?: string) => {
-    const novoLocal: LocalUtilizacaoConfig = {
-      id: gerarId(),
-      nome,
-      codigo,
-      descricao,
-      ativo: true,
-      dataCriacao: new Date().toISOString(),
-    };
+  // Funções para gerenciar locais de utilização no Supabase
+  const adicionarLocalUtilizacao = async (nome: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('locais_utilizacao')
+        .insert({
+          nome,
+          ativo: true,
+        })
+        .select()
+        .single();
 
-    setLocaisUtilizacao(prev => [...prev, novoLocal]);
-    
-    toast({
-      title: "Local cadastrado!",
-      description: `Local "${nome}" foi cadastrado com sucesso.`,
-    });
+      if (error) throw error;
 
-    return novoLocal;
+      if (data) {
+        const novoLocal: LocalUtilizacaoConfig = {
+          id: data.id,
+          nome: data.nome,
+          ativo: data.ativo,
+          dataCriacao: data.created_at,
+        };
+
+        setLocaisUtilizacao(prev => [...prev, novoLocal]);
+        
+        toast({
+          title: "Local cadastrado!",
+          description: `Local "${nome}" foi cadastrado com sucesso.`,
+        });
+
+        return novoLocal;
+      }
+    } catch (error: any) {
+      console.error('Erro ao cadastrar local:', error);
+      toast({
+        title: "Erro ao cadastrar",
+        description: error.message || "Não foi possível cadastrar o local.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const removerLocalUtilizacao = (id: string) => {
-    setLocaisUtilizacao(prev => prev.filter(l => l.id !== id));
-    
-    toast({
-      title: "Local removido!",
-      description: "Local foi removido com sucesso.",
-    });
+  const removerLocalUtilizacao = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('locais_utilizacao')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setLocaisUtilizacao(prev => prev.filter(l => l.id !== id));
+      
+      toast({
+        title: "Local removido!",
+        description: "Local foi removido com sucesso.",
+      });
+    } catch (error: any) {
+      console.error('Erro ao remover local:', error);
+      toast({
+        title: "Erro ao remover",
+        description: error.message || "Não foi possível remover o local.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Funções para obter dados filtrados

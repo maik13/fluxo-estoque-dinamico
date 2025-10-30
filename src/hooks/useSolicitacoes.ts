@@ -100,7 +100,7 @@ export const useSolicitacoes = () => {
           solicitante_id: solicitanteId,
           solicitante_nome: solicitanteNome,
           observacoes: novaSolicitacao.observacoes,
-          local_utilizacao: novaSolicitacao.local_utilizacao,
+          local_utilizacao_id: novaSolicitacao.local_utilizacao_id,
           responsavel_estoque: novaSolicitacao.responsavel_estoque,
           tipo_operacao: novaSolicitacao.tipo_operacao || 'retirada',
           solicitacao_origem_id: novaSolicitacao.solicitacao_origem_id,
@@ -175,7 +175,7 @@ export const useSolicitacoes = () => {
           quantidade_atual: novaQuantidade,
           responsavel: userProfile.nome,
           observacoes: `${isDevolucao ? 'Devolução' : 'Retirada'} - Solicitação #${solicitacaoData.numero || solicitacaoData.id.slice(-8)}${novaSolicitacao.observacoes ? ' - ' + novaSolicitacao.observacoes : ''}`,
-          local_utilizacao: novaSolicitacao.local_utilizacao,
+          local_utilizacao_id: novaSolicitacao.local_utilizacao_id,
           item_snapshot: item.item_snapshot,
           solicitacao_id: solicitacaoData.id,
           estoque_id: estoqueAtivoInfo?.id ?? null

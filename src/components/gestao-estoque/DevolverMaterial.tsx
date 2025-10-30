@@ -194,7 +194,7 @@ export const DevolverMaterial = () => {
 
     const sucesso = await criarSolicitacao({
       observacoes,
-      local_utilizacao: localUtilizacao,
+      local_utilizacao_id: localUtilizacao,
       responsavel_estoque: responsavelEstoque,
       tipo_operacao: 'devolucao',
       solicitante_id: solicitanteSelecionado.id,
@@ -287,7 +287,7 @@ export const DevolverMaterial = () => {
                     </SelectTrigger>
                     <SelectContent>
                       {locaisDisponiveis.map(local => (
-                        <SelectItem key={local.id} value={local.nome}>
+                        <SelectItem key={local.id} value={local.id}>
                           {local.nome}
                         </SelectItem>
                       ))}

@@ -39,7 +39,7 @@ export interface NovoItemSolicitacao {
 
 export interface NovaSolicitacao {
   observacoes?: string;
-  local_utilizacao?: string;
+  local_utilizacao_id?: string;
   responsavel_estoque?: string;
   tipo_operacao?: string;
   solicitacao_origem_id?: string;

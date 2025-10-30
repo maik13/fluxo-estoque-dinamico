@@ -160,7 +160,7 @@ export const SolicitarMaterial = () => {
 
     const sucesso = await criarSolicitacao({
       observacoes,
-      local_utilizacao: localUtilizacao,
+      local_utilizacao_id: localUtilizacao,
       responsavel_estoque: responsavelEstoque,
       tipo_operacao: tipoOperacao,
       solicitante_id: solicitanteSelecionado.id,
@@ -359,8 +359,8 @@ export const SolicitarMaterial = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {locaisDisponiveis.map(local => (
-                    <SelectItem key={local.id} value={local.nome}>
-                      {local.codigo ? `${local.codigo} - ${local.nome}` : local.nome}
+                    <SelectItem key={local.id} value={local.id}>
+                      {local.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -94,8 +94,6 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
 
   const [novoLocal, setNovoLocal] = useState({
     nome: '',
-    codigo: '',
-    descricao: '',
   });
 
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -245,7 +243,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     onConfigChange?.();
   };
 
-  const handleCadastroLocal = () => {
+  const handleCadastroLocal = async () => {
     if (!novoLocal.nome) {
       toast({
         title: "Nome obrigatório",
@@ -255,8 +253,8 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
       return;
     }
 
-    adicionarLocalUtilizacao(novoLocal.nome, novoLocal.codigo, novoLocal.descricao);
-    setNovoLocal({ nome: '', codigo: '', descricao: '' });
+    await adicionarLocalUtilizacao(novoLocal.nome);
+    setNovoLocal({ nome: '' });
     onConfigChange?.();
   };
 
@@ -596,35 +594,14 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="codigoLocal">Código (Ex: BFL, GRA)</Label>
-                    <Input
-                      id="codigoLocal"
-                      value={novoLocal.codigo}
-                      onChange={(e) => setNovoLocal(prev => ({ ...prev, codigo: e.target.value.toUpperCase() }))}
-                      placeholder="Código"
-                      maxLength={3}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="nomeLocal">Nome do Local</Label>
-                    <Input
-                      id="nomeLocal"
-                      value={novoLocal.nome}
-                      onChange={(e) => setNovoLocal(prev => ({ ...prev, nome: e.target.value }))}
-                      placeholder="Nome completo"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="descricaoLocal">Descrição (Opcional)</Label>
-                    <Input
-                      id="descricaoLocal"
-                      value={novoLocal.descricao}
-                      onChange={(e) => setNovoLocal(prev => ({ ...prev, descricao: e.target.value }))}
-                      placeholder="Descrição"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nomeLocal">Nome do Local</Label>
+                  <Input
+                    id="nomeLocal"
+                    value={novoLocal.nome}
+                    onChange={(e) => setNovoLocal(prev => ({ ...prev, nome: e.target.value }))}
+                    placeholder="Nome completo do local"
+                  />
                 </div>
                 <Button onClick={handleCadastroLocal} className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
@@ -639,9 +616,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                     {locaisUtilizacao.map((local) => (
                       <div key={local.id} className="flex items-center justify-between p-2 border rounded">
                         <div className="flex items-center gap-2">
-                          {local.codigo && <Badge variant="outline">{local.codigo}</Badge>}
                           <span className="font-medium">{local.nome}</span>
-                          {local.descricao && <span className="text-sm text-muted-foreground">- {local.descricao}</span>}
                         </div>
                         <Button
                           variant="ghost"
