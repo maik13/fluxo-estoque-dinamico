@@ -29,7 +29,7 @@ export const SolicitarMaterial = () => {
   const [observacoes, setObservacoes] = useState('');
   const [localUtilizacao, setLocalUtilizacao] = useState('');
   const [responsavelEstoque, setResponsavelEstoque] = useState('');
-  const [tipoOperacao, setTipoOperacao] = useState('saida_producao');
+  const [tipoOperacao, setTipoOperacao] = useState('retirada');
   const [itensSolicitados, setItensSolicitados] = useState<NovoItemSolicitacao[]>([]);
   const [popoverAberto, setPopoverAberto] = useState(false);
   const [busca, setBusca] = useState('');
@@ -178,7 +178,7 @@ export const SolicitarMaterial = () => {
     setObservacoes('');
     setLocalUtilizacao('');
     setResponsavelEstoque('');
-    setTipoOperacao('saida_producao');
+    setTipoOperacao('retirada');
     setItensSolicitados([]);
     setBusca('');
     setCodigoAssinatura('');

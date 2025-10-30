@@ -102,7 +102,7 @@ export const useSolicitacoes = () => {
           observacoes: novaSolicitacao.observacoes,
           local_utilizacao: novaSolicitacao.local_utilizacao,
           responsavel_estoque: novaSolicitacao.responsavel_estoque,
-          tipo_operacao: novaSolicitacao.tipo_operacao || 'saida_producao',
+          tipo_operacao: novaSolicitacao.tipo_operacao || 'retirada',
           solicitacao_origem_id: novaSolicitacao.solicitacao_origem_id,
           criado_por_id: user.id, // Registra o ID do usuário logado
           estoque_id: estoqueAtivoInfo?.id ?? null
@@ -129,7 +129,7 @@ export const useSolicitacoes = () => {
 
       // Criar movimentações automaticamente
       const isRetirada = !novaSolicitacao.tipo_operacao || 
-                         novaSolicitacao.tipo_operacao === 'saida_producao' || 
+                         novaSolicitacao.tipo_operacao === 'retirada' || 
                          novaSolicitacao.tipo_operacao === 'saida_obra';
       
       const isDevolucao = novaSolicitacao.tipo_operacao === 'devolucao' || 

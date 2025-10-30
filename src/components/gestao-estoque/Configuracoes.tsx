@@ -870,7 +870,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                       id="nomeTipoOperacao"
                       value={novoTipoOperacao.nome}
                       onChange={(e) => setNovoTipoOperacao(prev => ({ ...prev, nome: e.target.value }))}
-                      placeholder="Ex: Compra, Saída para Produção"
+                      placeholder="Ex: Compra, Retirada"
                     />
                   </div>
                   <div>
