@@ -447,17 +447,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                 </div>
                 
                 <div>
-                  <Label htmlFor="responsavel">Responsável *</Label>
-                  <Input
-                    id="responsavel"
-                    value={formCadastro.responsavel}
-                    onChange={(e) => setFormCadastro(prev => ({...prev, responsavel: e.target.value}))}
-                    placeholder="Nome do responsável"
-                    required
-                  />
-                </div>
-                
-                <div>
                   <Label htmlFor="marca">Marca</Label>
                   <Input
                     id="marca"
@@ -500,22 +489,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                       {subcategoriasFiltradas.map((sub) => (
                         <SelectItem key={sub.id} value={sub.nome}>
                           {sub.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="subDestino">Sub Destino (Estoque)</Label>
-                  <Select value={formCadastro.subDestino} onValueChange={(value) => setFormCadastro(prev => ({...prev, subDestino: value}))}>
-                    <SelectTrigger className="bg-background">
-                      <SelectValue placeholder="Selecione o sub destino" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background z-50">
-                      {obterTiposServicoAtivos().map((estoque) => (
-                        <SelectItem key={estoque.id} value={estoque.nome}>
-                          {estoque.nome}
                         </SelectItem>
                       ))}
                     </SelectContent>
