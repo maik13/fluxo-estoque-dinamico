@@ -229,7 +229,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     if (registrarEntrada(
       codigoParaUsar,
       formMovimentacao.quantidade,
-      formMovimentacao.responsavel,
+      '',
       formMovimentacao.observacoes,
       formMovimentacao.tipoOperacaoId || undefined
     )) {
@@ -697,17 +697,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   step="0.01"
                   value={formMovimentacao.quantidade}
                   onChange={(e) => setFormMovimentacao(prev => ({...prev, quantidade: Number(e.target.value)}))}
-                  required
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="responsavelEntrada">Responsável *</Label>
-                <Input
-                  id="responsavelEntrada"
-                  value={formMovimentacao.responsavel}
-                  onChange={(e) => setFormMovimentacao(prev => ({...prev, responsavel: e.target.value}))}
-                  placeholder="Nome do responsável pela entrada"
                   required
                 />
               </div>
