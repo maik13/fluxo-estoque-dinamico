@@ -13,7 +13,6 @@ export const TabelaMovimentacoes = () => {
   const { movimentacoes, loading } = useEstoque();
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<TipoMovimentacao | 'todas'>('todas');
-  const [filtroResponsavel, setFiltroResponsavel] = useState('todos');
   const [filtroDestino, setFiltroDestino] = useState('todos');
   const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes'>('todas');
 
@@ -22,12 +21,6 @@ export const TabelaMovimentacoes = () => {
     return [...movimentacoes].sort((a, b) => 
       new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime()
     );
-  }, [movimentacoes]);
-
-  // Obter responsáveis únicos para filtro
-  const responsaveis = useMemo(() => {
-    const resp = new Set(movimentacoes.map(mov => mov.responsavel).filter(Boolean));
-    return Array.from(resp);
   }, [movimentacoes]);
 
   // Obter destinos únicos para filtro
@@ -45,19 +38,15 @@ export const TabelaMovimentacoes = () => {
   // Filtrar movimentações
   const movimentacoesFiltradas = useMemo(() => {
     return movimentacoesOrdenadas.filter(mov => {
-      // Filtro por texto (busca em nome do item, responsável, observações)
+      // Filtro por texto (busca em nome do item, observações)
       const textoFiltro = filtroTexto.toLowerCase();
       const matchTexto = !textoFiltro || 
         mov.itemSnapshot?.nome?.toLowerCase().includes(textoFiltro) ||
         mov.itemSnapshot?.codigoBarras?.toString().includes(textoFiltro) ||
-        mov.responsavel.toLowerCase().includes(textoFiltro) ||
         mov.observacoes?.toLowerCase().includes(textoFiltro);
 
       // Filtro por tipo
       const matchTipo = filtroTipo === 'todas' || mov.tipo === filtroTipo;
-      
-      // Filtro por responsável
-      const matchResponsavel = filtroResponsavel === 'todos' || mov.responsavel === filtroResponsavel;
       
       // Filtro por destino
       const matchDestino = filtroDestino === 'todos' || mov.itemSnapshot?.localizacao === filtroDestino;
@@ -70,9 +59,9 @@ export const TabelaMovimentacoes = () => {
         matchVisualizacao = isDevolucao(mov);
       }
 
-      return matchTexto && matchTipo && matchResponsavel && matchDestino && matchVisualizacao;
+      return matchTexto && matchTipo && matchDestino && matchVisualizacao;
     });
-  }, [movimentacoesOrdenadas, filtroTexto, filtroTipo, filtroResponsavel, filtroDestino, tipoVisualizacao]);
+  }, [movimentacoesOrdenadas, filtroTexto, filtroTipo, filtroDestino, tipoVisualizacao]);
 
   // Estatísticas das movimentações
   const estatisticas = useMemo(() => {
@@ -286,20 +275,6 @@ export const TabelaMovimentacoes = () => {
               </SelectContent>
             </Select>
             
-            <Select value={filtroResponsavel} onValueChange={setFiltroResponsavel}>
-              <SelectTrigger>
-                <SelectValue placeholder="Responsável" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os responsáveis</SelectItem>
-                {responsaveis.map(responsavel => (
-                  <SelectItem key={responsavel} value={responsavel}>
-                    {responsavel}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
             <Select value={filtroDestino} onValueChange={setFiltroDestino}>
               <SelectTrigger>
                 <SelectValue placeholder="Destino/Localização" />
@@ -409,12 +384,6 @@ export const TabelaMovimentacoes = () => {
                         </TableCell>
                         <TableCell className="text-right font-bold">
                           {mov.quantidadeAtual.toLocaleString('pt-BR')}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <User className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-sm">{mov.responsavel}</span>
-                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">

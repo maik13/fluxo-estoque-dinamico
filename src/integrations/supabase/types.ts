@@ -180,7 +180,6 @@ export type Database = {
           quantidade: number
           quantidade_anterior: number
           quantidade_atual: number
-          responsavel: string
           solicitacao_id: string | null
           tipo: string
           tipo_operacao_id: string | null
@@ -199,7 +198,6 @@ export type Database = {
           quantidade: number
           quantidade_anterior: number
           quantidade_atual: number
-          responsavel: string
           solicitacao_id?: string | null
           tipo: string
           tipo_operacao_id?: string | null
@@ -218,7 +216,6 @@ export type Database = {
           quantidade?: number
           quantidade_anterior?: number
           quantidade_atual?: number
-          responsavel?: string
           solicitacao_id?: string | null
           tipo?: string
           tipo_operacao_id?: string | null

@@ -28,7 +28,6 @@ export const exportarExcel = ({
     'Localização': item.localizacao || '',
     'Caixa/Organizador': item.caixaOrganizador || '',
     'Origem': item.origem || '',
-    'Responsável': item.responsavel || '',
     'Estoque Atual': item.estoqueAtual,
     'Quantidade Mínima': item.quantidadeMinima || '',
     'Unidade': item.unidade,
@@ -44,7 +43,6 @@ export const exportarExcel = ({
       new Date(item.ultimaMovimentacao.dataHora).toLocaleDateString('pt-BR') + ' ' + 
       new Date(item.ultimaMovimentacao.dataHora).toLocaleTimeString('pt-BR') : '',
     'Tipo Última Mov.': item.ultimaMovimentacao?.tipo || '',
-    'Responsável Última Mov.': item.ultimaMovimentacao?.responsavel || '',
     'Status do Estoque': getStatusEstoque(item)
   }));
 
@@ -62,7 +60,6 @@ export const exportarExcel = ({
     { wch: 20 }, // Localização
     { wch: 20 }, // Caixa/Organizador
     { wch: 15 }, // Origem
-    { wch: 15 }, // Responsável
     { wch: 12 }, // Estoque Atual
     { wch: 12 }, // Quantidade Mínima
     { wch: 10 }, // Unidade
@@ -76,7 +73,6 @@ export const exportarExcel = ({
     { wch: 15 }, // Data de Cadastro
     { wch: 20 }, // Última Movimentação
     { wch: 15 }, // Tipo Última Mov
-    { wch: 20 }, // Responsável Última Mov
     { wch: 15 }  // Status do Estoque
   ];
 

@@ -19,7 +19,6 @@ interface FiltrosRelatorio {
   nomeItem: string;
   categoria: string;
   subcategoria: string;
-  responsavel: string;
   dataInicio: string;
   dataFim: string;
   localizacao: string;
@@ -33,7 +32,6 @@ const filtrosIniciais: FiltrosRelatorio = {
   nomeItem: '',
   categoria: '',
   subcategoria: '',
-  responsavel: '',
   dataInicio: '',
   dataFim: '',
   localizacao: '',
@@ -62,11 +60,10 @@ export const RelatoriosComFiltros = () => {
 
   const responsaveis = useMemo(() => {
     const resps = new Set([
-      ...itensEstoque.map(item => item.responsavel).filter(Boolean),
-      ...movimentacoes.map(mov => mov.responsavel).filter(Boolean)
+      ...itensEstoque.map(item => item.responsavel).filter(Boolean)
     ]);
     return Array.from(resps).sort();
-  }, [itensEstoque, movimentacoes]);
+  }, [itensEstoque]);
 
   const localizacoes = useMemo(() => {
     const locs = new Set(itensEstoque.map(item => item.localizacao).filter(Boolean));
@@ -95,13 +92,6 @@ export const RelatoriosComFiltros = () => {
     if (filtros.subcategoria) {
       itemsFiltrados = itemsFiltrados.filter(item => 
         item.subcategoria === filtros.subcategoria
-      );
-    }
-
-    // Filtro por responsável
-    if (filtros.responsavel) {
-      itemsFiltrados = itemsFiltrados.filter(item => 
-        item.responsavel === filtros.responsavel
       );
     }
 
@@ -183,7 +173,6 @@ export const RelatoriosComFiltros = () => {
       'Estoque Atual': item.estoqueAtual,
       'Unidade': item.unidade,
       'Localização': item.localizacao,
-      'Responsável': item.responsavel,
       'Condição': item.condicao,
       'Data Criação': format(new Date(item.dataCriacao), 'dd/MM/yyyy', { locale: ptBR })
     }));
@@ -305,30 +294,11 @@ export const RelatoriosComFiltros = () => {
                          <SelectItem key={subcat} value={subcat}>{subcat}</SelectItem>
                        ))}
                      </SelectContent>
-                  </Select>
-                </div>
+                   </Select>
+                 </div>
 
-                {/* Responsável */}
-                <div>
-                  <Label htmlFor="responsavel">Responsável</Label>
-                  <Select 
-                    value={filtros.responsavel} 
-                    onValueChange={(value) => atualizarFiltro('responsavel', value === 'todos' ? '' : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todos os responsáveis" />
-                    </SelectTrigger>
-                     <SelectContent>
-                       <SelectItem value="todos">Todos os responsáveis</SelectItem>
-                       {responsaveis.map(resp => (
-                         <SelectItem key={resp} value={resp}>{resp}</SelectItem>
-                       ))}
-                     </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Localização */}
-                <div>
+                 {/* Localização */}
+                 <div>
                   <Label htmlFor="localizacao">Localização</Label>
                   <Select 
                     value={filtros.localizacao} 
@@ -462,14 +432,13 @@ export const RelatoriosComFiltros = () => {
                       <TableHead>Estoque</TableHead>
                       <TableHead>Unidade</TableHead>
                       <TableHead>Localização</TableHead>
-                      <TableHead>Responsável</TableHead>
                       <TableHead>Condição</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {itensFiltrados.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                           Nenhum item encontrado com os filtros aplicados.
                         </TableCell>
                       </TableRow>
@@ -490,9 +459,8 @@ export const RelatoriosComFiltros = () => {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>{item.unidade}</TableCell>
+                           <TableCell>{item.unidade}</TableCell>
                           <TableCell>{item.localizacao || '-'}</TableCell>
-                          <TableCell>{item.responsavel}</TableCell>
                           <TableCell>
                             <Badge variant={
                               item.condicao === 'Novo' ? 'default' :

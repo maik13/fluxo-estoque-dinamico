@@ -450,16 +450,16 @@ export const TabelaEstoque = () => {
                         {getEstoqueBadge(item)}
                       </TableCell>
                       <TableCell>
-                        {item.ultimaMovimentacao ? (
-                          <div className="text-xs">
-                            <p>{formatarData(item.ultimaMovimentacao.dataHora)}</p>
-                            <p className="text-muted-foreground">
-                              {item.ultimaMovimentacao.tipo} - {item.ultimaMovimentacao.responsavel}
-                            </p>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">Sem movimentação</span>
-                        )}
+                          <TableCell>{item.ultimaMovimentacao ? (
+                            <div className="text-xs">
+                              <p>{formatarData(item.ultimaMovimentacao.dataHora)}</p>
+                              <p className="text-muted-foreground">
+                                {item.ultimaMovimentacao.tipo}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">Sem movimentação</span>
+                          )}</TableCell>
                       </TableCell>
                       <TableCell>
                         <Button

@@ -37,7 +37,6 @@ export interface Movimentacao {
   quantidade: number;
   quantidadeAnterior: number;
   quantidadeAtual: number;
-  responsavel: string; // Mantido temporariamente para retrocompatibilidade
   userId?: string; // ID do usuário que realizou a movimentação
   observacoes?: string;
   local_utilizacao?: string;
