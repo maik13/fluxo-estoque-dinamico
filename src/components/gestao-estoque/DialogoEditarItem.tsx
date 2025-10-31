@@ -188,22 +188,6 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
             </div>
             
             <div>
-              <Label htmlFor="tipoServico">Tipo de Serviço</Label>
-              <Select value={formItem.tipoServico} onValueChange={(value) => setFormItem(prev => prev ? {...prev, tipoServico: value} : null)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo de serviço" />
-                </SelectTrigger>
-                <SelectContent>
-                  {obterTiposServicoAtivos().map((tipo) => (
-                    <SelectItem key={tipo.id} value={tipo.nome}>
-                      {tipo.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
               <Label htmlFor="quantidadeMinima">Quantidade Mínima</Label>
               <Input
                 id="quantidadeMinima"

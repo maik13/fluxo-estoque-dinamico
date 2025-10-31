@@ -511,23 +511,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                 </div>
                 
                 <div>
-                  <Label htmlFor="tipoServico">Tipo de Serviço</Label>
-                  <Select value={formCadastro.tipoServico} onValueChange={(value) => setFormCadastro(prev => ({...prev, tipoServico: value}))}>
-                    <SelectTrigger className="bg-background">
-                      <SelectValue placeholder="Selecione o tipo de serviço" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background z-50">
-                      {obterTiposServicoAtivos().map((tipo) => (
-                        <SelectItem key={tipo.id} value={tipo.nome}>
-                          {tipo.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                
-                <div>
                   <Label htmlFor="unidade">Unidade *</Label>
                   <Input
                     id="unidade"

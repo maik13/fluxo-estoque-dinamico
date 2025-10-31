@@ -297,16 +297,6 @@ export const DevolverMaterial = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="responsavelEstoque">Responsável pelo recebimento</Label>
-                  <Input
-                    id="responsavelEstoque"
-                    value={responsavelEstoque}
-                    onChange={(e) => setResponsavelEstoque(e.target.value)}
-                    placeholder="Nome do responsável"
-                  />
-                </div>
-
-                <div className="space-y-2">
                   <Label htmlFor="observacoes">Observações</Label>
                   <Textarea
                     id="observacoes"

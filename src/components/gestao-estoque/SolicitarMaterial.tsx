@@ -368,17 +368,6 @@ export const SolicitarMaterial = () => {
               </Select>
             </div>
 
-            {/* Campo Responsável pelo Estoque */}
-            <div className="space-y-2">
-              <Label htmlFor="responsavelEstoque">Responsável pelo Estoque</Label>
-              <Input
-                id="responsavelEstoque"
-                placeholder="Nome do responsável pela separação"
-                value={responsavelEstoque}
-                onChange={(e) => setResponsavelEstoque(e.target.value)}
-              />
-            </div>
-
             {/* Buscar e adicionar itens */}
             <div className="space-y-2">
               <Label>Adicionar Item</Label>
