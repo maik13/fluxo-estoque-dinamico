@@ -224,7 +224,18 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const handleEntrada = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const codigoParaUsar = itemSelecionadoEntrada?.codigoBarras || Number(formMovimentacao.codigoBarras);
+    // Se o usuário digitou um código manualmente, usar esse código
+    // Caso contrário, usar o código do item selecionado na busca
+    // Se nenhum dos dois, gerar automaticamente
+    let codigoParaUsar = formMovimentacao.codigoBarras;
+    
+    if (!codigoParaUsar || codigoParaUsar === 0) {
+      if (itemSelecionadoEntrada?.codigoBarras) {
+        codigoParaUsar = itemSelecionadoEntrada.codigoBarras;
+      } else {
+        codigoParaUsar = obterProximoCodigoDisponivel();
+      }
+    }
     
     if (registrarEntrada(
       codigoParaUsar,
@@ -636,7 +647,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
             
             <form onSubmit={handleEntrada} className="space-y-4">
                 <div>
-                  <Label htmlFor="buscaEntrada">Código de Barras ou Nome do Item *</Label>
+                  <Label>Buscar Item</Label>
                   <Popover open={popoverEntradaAberto} onOpenChange={setPopoverEntradaAberto}>
                     <PopoverTrigger asChild>
                       <Button
@@ -687,6 +698,24 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                     </PopoverContent>
                   </Popover>
                 </div>
+
+              <div>
+                <Label htmlFor="codigoBarrasEntrada">Código de Barras</Label>
+                <Input
+                  id="codigoBarrasEntrada"
+                  type="number"
+                  value={formMovimentacao.codigoBarras || ''}
+                  onChange={(e) => setFormMovimentacao(prev => ({...prev, codigoBarras: Number(e.target.value)}))}
+                  placeholder="Digite o código ou deixe em branco para usar o item selecionado"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formMovimentacao.codigoBarras && formMovimentacao.codigoBarras > 0
+                    ? "Usando código digitado"
+                    : itemSelecionadoEntrada
+                    ? `Usando código do item selecionado: ${itemSelecionadoEntrada.codigoBarras}`
+                    : "Será gerado automaticamente se deixado em branco"}
+                </p>
+              </div>
               
               <div>
                 <Label htmlFor="quantidadeEntrada">Quantidade *</Label>
