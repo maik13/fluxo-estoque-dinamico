@@ -168,16 +168,19 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
 
   // Função para validar código de barras ao sair do campo
   const validarCodigoBarras = () => {
-    if (codigoBarrasManual) {
-      const codigo = Number(codigoBarrasManual);
-      if (verificarCodigoExistente(codigo)) {
-        setErroCodigoBarras('Este código de barras já está sendo usado por outro item');
-      } else {
-        setErroCodigoBarras('');
-        setFormCadastro(prev => ({ ...prev, codigoBarras: codigo }));
-      }
+    if (!codigoBarrasManual) {
+      setErroCodigoBarras('O código de barras é obrigatório');
+      return false;
+    }
+    
+    const codigo = Number(codigoBarrasManual);
+    if (verificarCodigoExistente(codigo)) {
+      setErroCodigoBarras('Este código de barras já está sendo usado por outro item');
+      return false;
     } else {
       setErroCodigoBarras('');
+      setFormCadastro(prev => ({ ...prev, codigoBarras: codigo }));
+      return true;
     }
   };
 
@@ -185,15 +188,17 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const handleCadastro = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Se não há código manual, gerar automaticamente
-    let codigoFinal = formCadastro.codigoBarras;
-    if (!codigoBarrasManual || codigoFinal === 0) {
-      codigoFinal = obterProximoCodigoDisponivel();
+    // Validar que o código de barras foi preenchido
+    if (!codigoBarrasManual) {
+      setErroCodigoBarras('O código de barras é obrigatório');
+      return;
     }
     
     if (erroCodigoBarras) {
       return; // Não permite cadastrar se há erro no código
     }
+    
+    const codigoFinal = Number(codigoBarrasManual);
     
     const dadosComCodigo = {
       ...formCadastro,
@@ -384,23 +389,19 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
             <form onSubmit={handleCadastro} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="codigoBarrasCadastro">Código de Barras</Label>
+                  <Label htmlFor="codigoBarrasCadastro">Código de Barras *</Label>
                   <Input
                     id="codigoBarrasCadastro"
                     type="number"
                     value={codigoBarrasManual}
                     onChange={(e) => setCodigoBarrasManual(e.target.value)}
                     onBlur={validarCodigoBarras}
-                    placeholder="Digite o código ou deixe em branco para gerar automaticamente"
+                    placeholder="Digite o código de barras"
                     className={erroCodigoBarras ? "border-destructive" : ""}
+                    required
                   />
                   {erroCodigoBarras && (
                     <p className="text-xs text-destructive mt-1">{erroCodigoBarras}</p>
-                  )}
-                  {!codigoBarrasManual && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Próximo código disponível: {obterProximoCodigoDisponivel()}
-                    </p>
                   )}
                 </div>
 
