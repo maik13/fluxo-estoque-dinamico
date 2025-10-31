@@ -22,7 +22,6 @@ interface FiltrosRelatorio {
   dataInicio: string;
   dataFim: string;
   localizacao: string;
-  localUtilizacao: string;
   apenasSemEstoque: boolean;
   apenasComEstoque: boolean;
 }
@@ -35,7 +34,6 @@ const filtrosIniciais: FiltrosRelatorio = {
   dataInicio: '',
   dataFim: '',
   localizacao: '',
-  localUtilizacao: '',
   apenasSemEstoque: false,
   apenasComEstoque: false
 };
@@ -136,17 +134,6 @@ export const RelatoriosComFiltros = () => {
         }
       });
       itemsFiltrados = itemsFiltrados.filter(item => itensComObservacao.has(item.id));
-    }
-
-    // Filtro por local de utilização (busca nas movimentações do item)
-    if (filtros.localUtilizacao) {
-      const itensComLocal = new Set<string>();
-      movimentacoes.forEach(mov => {
-        if (mov.local_utilizacao && mov.local_utilizacao.toLowerCase().includes(filtros.localUtilizacao.toLowerCase())) {
-          itensComLocal.add(mov.itemId);
-        }
-      });
-      itemsFiltrados = itemsFiltrados.filter(item => itensComLocal.has(item.id));
     }
 
     return itemsFiltrados;
@@ -347,22 +334,12 @@ export const RelatoriosComFiltros = () => {
                      value={filtros.dataFim}
                      onChange={(e) => atualizarFiltro('dataFim', e.target.value)}
                    />
+                  </div>
+
                  </div>
 
-                 {/* Local de Utilização */}
-                 <div>
-                   <Label htmlFor="localUtilizacao">Local de Utilização</Label>
-                   <Input
-                     id="localUtilizacao"
-                     placeholder="Onde será utilizado..."
-                     value={filtros.localUtilizacao}
-                     onChange={(e) => atualizarFiltro('localUtilizacao', e.target.value)}
-                   />
-                 </div>
-               </div>
-
-              {/* Checkboxes */}
-              <div className="flex gap-6 mt-4">
+               {/* Checkboxes */}
+               <div className="flex gap-6 mt-4">
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="apenasSemEstoque"

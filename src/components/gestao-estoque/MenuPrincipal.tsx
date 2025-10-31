@@ -67,7 +67,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     quantidade: 0,
     responsavel: '',
     observacoes: '',
-    localUtilizacao: '',
     tipoOperacaoId: ''
   });
 
@@ -158,7 +157,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       quantidade: 0,
       responsavel: '',
       observacoes: '',
-      localUtilizacao: '',
       tipoOperacaoId: ''
     });
     setBuscaSaida('');
@@ -261,10 +259,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const handleSaida = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const formElement = e.target as HTMLFormElement;
-    const formData = new FormData(formElement);
-    const localUtilizacao = formData.get('localUtilizacaoSaida') as string;
-    
     const codigoParaUsar = itemSelecionadoSaida?.codigoBarras || Number(formMovimentacao.codigoBarras);
     
     if (registrarSaida(
@@ -272,7 +266,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       formMovimentacao.quantidade,
       formMovimentacao.responsavel,
       formMovimentacao.observacoes,
-      localUtilizacao,
       formMovimentacao.tipoOperacaoId || undefined
     )) {
       setDialogoSaida(false);
@@ -877,16 +870,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   />
                 </div>
                 
-               <div>
-                 <Label htmlFor="localUtilizacaoSaida">Local de Utilização *</Label>
-                 <Input
-                   id="localUtilizacaoSaida"
-                   name="localUtilizacaoSaida"
-                   placeholder="Onde será utilizado (ex: Obra ABC, Sala 101)"
-                   required
-                 />
-               </div>
-              
                <div>
                  <Label htmlFor="responsavelSaida">Responsável *</Label>
                  <Input

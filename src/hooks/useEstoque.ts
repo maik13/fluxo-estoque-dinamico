@@ -89,7 +89,6 @@ export const useEstoque = () => {
           quantidadeAtual: Number(row.quantidade_atual),
           userId: row.user_id ?? undefined,
           observacoes: row.observacoes ?? undefined,
-          local_utilizacao: row.local_utilizacao ?? undefined,
         dataHora: row.data_hora,
         itemSnapshot: row.item_snapshot as Partial<Item>,
       }));
@@ -317,7 +316,6 @@ const registrarSaida = async (
   quantidade: number,
   responsavel: string,
   observacoes?: string,
-  localUtilizacao?: string,
   tipoOperacaoId?: string
 ) => {
   try {
@@ -356,7 +354,6 @@ const registrarSaida = async (
       quantidade_atual: movimento.quantidadeAtual,
       user_id: movimento.userId ?? null,
       observacoes: movimento.observacoes ?? null,
-      local_utilizacao: localUtilizacao ?? null,
       data_hora: movimento.dataHora,
       item_snapshot: JSON.parse(JSON.stringify(movimento.itemSnapshot)),
       estoque_id: estoqueAtivoInfo?.id ?? null,

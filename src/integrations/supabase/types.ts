@@ -174,7 +174,6 @@ export type Database = {
           id: string
           item_id: string
           item_snapshot: Json
-          local_utilizacao: string | null
           local_utilizacao_id: string | null
           observacoes: string | null
           quantidade: number
@@ -192,7 +191,6 @@ export type Database = {
           id?: string
           item_id: string
           item_snapshot: Json
-          local_utilizacao?: string | null
           local_utilizacao_id?: string | null
           observacoes?: string | null
           quantidade: number
@@ -210,7 +208,6 @@ export type Database = {
           id?: string
           item_id?: string
           item_snapshot?: Json
-          local_utilizacao?: string | null
           local_utilizacao_id?: string | null
           observacoes?: string | null
           quantidade?: number
