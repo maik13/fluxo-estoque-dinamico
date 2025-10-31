@@ -21,6 +21,7 @@ export interface Item {
   condicao: 'Novo' | 'Usado' | 'Defeito' | 'Descarte';
   categoria: string;
   subcategoria: string;
+  subcategoriaId?: string; // ID da subcategoria (referência)
   subDestino: string; // Estoque eterno/múltiplos estoques
   tipoServico: string;
   dataCriacao: string;

@@ -52,6 +52,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     condicao: 'Novo',
     categoria: '',
     subcategoria: '',
+    subcategoriaId: undefined,
     subDestino: '',
     tipoServico: '',
     ncm: '',
@@ -148,6 +149,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       condicao: 'Novo',
       categoria: '',
       subcategoria: '',
+      subcategoriaId: undefined,
       subDestino: '',
       tipoServico: ''
     });
@@ -494,8 +496,15 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                 <div>
                   <Label htmlFor="subcategoria">Subcategoria</Label>
                   <Select 
-                    value={formCadastro.subcategoria} 
-                    onValueChange={(value) => setFormCadastro(prev => ({...prev, subcategoria: value}))}
+                    value={formCadastro.subcategoriaId} 
+                    onValueChange={(value) => {
+                      const subcat = subcategoriasFiltradas.find(s => s.id === value);
+                      setFormCadastro(prev => ({
+                        ...prev, 
+                        subcategoriaId: value,
+                        subcategoria: subcat?.nome || ''
+                      }));
+                    }}
                     disabled={!formCadastro.categoria}
                   >
                     <SelectTrigger className="bg-background">
@@ -503,7 +512,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                     </SelectTrigger>
                     <SelectContent className="bg-background z-50">
                       {subcategoriasFiltradas.map((sub) => (
-                        <SelectItem key={sub.id} value={sub.nome}>
+                        <SelectItem key={sub.id} value={sub.id}>
                           {sub.nome}
                         </SelectItem>
                       ))}

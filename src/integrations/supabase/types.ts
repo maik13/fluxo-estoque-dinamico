@@ -65,6 +65,7 @@ export type Database = {
           responsavel: string | null
           sub_destino: string | null
           subcategoria: string | null
+          subcategoria_id: string | null
           tipo_item: string | null
           tipo_servico: string | null
           unidade: string
@@ -94,6 +95,7 @@ export type Database = {
           responsavel?: string | null
           sub_destino?: string | null
           subcategoria?: string | null
+          subcategoria_id?: string | null
           tipo_item?: string | null
           tipo_servico?: string | null
           unidade: string
@@ -123,13 +125,22 @@ export type Database = {
           responsavel?: string | null
           sub_destino?: string | null
           subcategoria?: string | null
+          subcategoria_id?: string | null
           tipo_item?: string | null
           tipo_servico?: string | null
           unidade?: string
           updated_at?: string
           valor?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "items_subcategoria_id_fkey"
+            columns: ["subcategoria_id"]
+            isOneToOne: false
+            referencedRelation: "subcategorias"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       locais_utilizacao: {
         Row: {
