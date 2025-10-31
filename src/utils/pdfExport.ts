@@ -203,7 +203,7 @@ export const gerarRelatorioPDF = async ({
   const dadosTabela = itens.map(item => [
     item.codigoBarras,
     item.nome.length > 35 ? item.nome.substring(0, 35) + '...' : item.nome,
-    item.categoria || '-',
+    item.marca || '-',
     item.localizacao || '-',
     item.caixaOrganizador || '-',
     item.estoqueAtual.toString(),
@@ -213,7 +213,7 @@ export const gerarRelatorioPDF = async ({
 
   // Criar tabela otimizada para A4
   autoTable(doc, {
-    head: [['Código', 'Nome', 'Categoria', 'Localização', 'Caixa/Org.', 'Estoque', 'Un.', 'Status']],
+    head: [['Código', 'Nome', 'Marca', 'Localização', 'Caixa/Org.', 'Estoque', 'Un.', 'Status']],
     body: dadosTabela,
     startY: yPosition,
     theme: 'striped',
@@ -235,8 +235,8 @@ export const gerarRelatorioPDF = async ({
     },
     columnStyles: {
       0: { cellWidth: 18, halign: 'center' }, // Código
-      1: { cellWidth: 38 }, // Nome
-      2: { cellWidth: 20, halign: 'center' }, // Categoria
+      1: { cellWidth: 42 }, // Nome
+      2: { cellWidth: 22 }, // Marca
       3: { cellWidth: 22 }, // Localização
       4: { cellWidth: 18 }, // Caixa/Org
       5: { cellWidth: 13, halign: 'right' }, // Estoque

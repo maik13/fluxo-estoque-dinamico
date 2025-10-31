@@ -89,7 +89,6 @@ export const ConsultarSolicitacoes = () => {
               <tr>
                 <th>Item</th>
                 <th>Código</th>
-                <th>Categoria</th>
                 <th>Qtd. Solicitada</th>
                 <th>Qtd. Aprovada</th>
                 <th>Unidade</th>
@@ -100,7 +99,6 @@ export const ConsultarSolicitacoes = () => {
                 <tr>
                   <td>${item.item_snapshot.nome}</td>
                   <td>${item.item_snapshot.codigoBarras}</td>
-                  <td>${item.item_snapshot.categoria}</td>
                   <td>${item.quantidade_solicitada}</td>
                   <td>${item.quantidade_aprovada}</td>
                   <td>${item.item_snapshot.unidade}</td>
@@ -272,7 +270,6 @@ export const ConsultarSolicitacoes = () => {
                     <TableRow>
                       <TableHead>Item</TableHead>
                       <TableHead>Código</TableHead>
-                      <TableHead>Categoria</TableHead>
                       <TableHead>Qtd. Solicitada</TableHead>
                       <TableHead>Qtd. Aprovada</TableHead>
                       <TableHead>Unidade</TableHead>
@@ -283,7 +280,6 @@ export const ConsultarSolicitacoes = () => {
                       <TableRow key={item.id}>
                         <TableCell>{item.item_snapshot.nome}</TableCell>
                         <TableCell>{item.item_snapshot.codigoBarras}</TableCell>
-                        <TableCell>{item.item_snapshot.categoria}</TableCell>
                         <TableCell>{item.quantidade_solicitada}</TableCell>
                         <TableCell>{item.quantidade_aprovada}</TableCell>
                         <TableCell>{item.item_snapshot.unidade}</TableCell>

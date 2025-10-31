@@ -448,7 +448,6 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBar
         quantidade: itemData.quantidade,
         quantidade_anterior: 0,
         quantidade_atual: itemData.quantidade,
-        responsavel: itemData.responsavel,
         observacoes: null,
         data_hora: new Date().toISOString(),
         item_snapshot: JSON.parse(JSON.stringify(novoItem)),

@@ -34,8 +34,7 @@ export const TabelaEstoque = () => {
   
   // Obter categorias únicas para filtro
   const categorias = useMemo(() => {
-    const cats = new Set(estoque.map(item => item.categoria).filter(Boolean));
-    return Array.from(cats);
+    return [];
   }, [estoque]);
 
   // Filtrar itens baseado nos filtros ativos
@@ -47,12 +46,10 @@ export const TabelaEstoque = () => {
         item.nome.toLowerCase().includes(textoFiltro) ||
         item.codigoBarras.toString().includes(textoFiltro) ||
         item.marca.toLowerCase().includes(textoFiltro) ||
-        item.especificacao.toLowerCase().includes(textoFiltro) ||
-        item.categoria.toLowerCase().includes(textoFiltro) ||
-        item.subcategoria.toLowerCase().includes(textoFiltro);
+        item.especificacao.toLowerCase().includes(textoFiltro);
 
       // Filtro por categoria
-      const matchCategoria = filtroCategoria === 'todas' || item.categoria === filtroCategoria;
+      const matchCategoria = filtroCategoria === 'todas' || false;
       
       // Filtro por condição
       const matchCondicao = filtroCondicao === 'todas' || item.condicao === filtroCondicao;
@@ -119,8 +116,6 @@ export const TabelaEstoque = () => {
     const dadosExport = itensFiltrados.map(item => ({
       'Código': item.codigoBarras,
       'Nome': item.nome,
-      'Categoria': item.categoria,
-      'Subcategoria': item.subcategoria,
       'Marca': item.marca,
       'Especificação': item.especificacao,
       'Localização': item.localizacao,
@@ -367,10 +362,9 @@ export const TabelaEstoque = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Código</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Marca</TableHead>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Marca</TableHead>
                   <TableHead>Localização</TableHead>
                   <TableHead>Estoque</TableHead>
                   <TableHead>Unidade</TableHead>
@@ -415,14 +409,6 @@ export const TabelaEstoque = () => {
                         <Badge variant={item.tipoItem === 'Ferramenta' ? 'default' : 'secondary'}>
                           {item.tipoItem}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="text-sm">{item.categoria}</p>
-                          {item.subcategoria && (
-                            <p className="text-xs text-muted-foreground">{item.subcategoria}</p>
-                          )}
-                        </div>
                       </TableCell>
                       <TableCell>{item.marca}</TableCell>
                       <TableCell>

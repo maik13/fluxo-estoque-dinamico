@@ -84,18 +84,10 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     return obterEstoque();
   }, [obterEstoque]);
 
-  // Obter categorias únicas das subcategorias
-  const categoriasUnicas = useMemo(() => {
-    const subcategorias = obterSubcategoriasAtivas();
-    const categorias = new Set(subcategorias.map(sub => sub.categoria));
-    return Array.from(categorias).sort();
+  // Obter subcategorias ativas
+  const subcategoriasAtivas = useMemo(() => {
+    return obterSubcategoriasAtivas();
   }, [obterSubcategoriasAtivas]);
-
-  // Filtrar subcategorias baseado na categoria selecionada
-  const subcategoriasFiltradas = useMemo(() => {
-    if (!formCadastro.categoria) return [];
-    return obterSubcategoriasAtivas().filter(sub => sub.categoria === formCadastro.categoria);
-  }, [formCadastro.categoria, obterSubcategoriasAtivas]);
 
   // Filtrar itens para busca inteligente na saída
   const itensFiltrarados = useMemo(() => {
@@ -456,45 +448,23 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                 </div>
                 
                 <div>
-                  <Label htmlFor="categoria">Categoria</Label>
-                  <Select 
-                    value={formCadastro.categoria} 
-                    onValueChange={(value) => setFormCadastro(prev => ({...prev, categoria: value, subcategoria: ''}))}
-                  >
-                    <SelectTrigger className="bg-background">
-                      <SelectValue placeholder="Selecione a categoria" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background z-50">
-                      {categoriasUnicas.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
                   <Label htmlFor="subcategoria">Subcategoria</Label>
                   <Select 
                     value={formCadastro.subcategoriaId} 
                     onValueChange={(value) => {
-                      const subcat = subcategoriasFiltradas.find(s => s.id === value);
                       setFormCadastro(prev => ({
                         ...prev, 
-                        subcategoriaId: value,
-                        subcategoria: subcat?.nome || ''
+                        subcategoriaId: value
                       }));
                     }}
-                    disabled={!formCadastro.categoria}
                   >
                     <SelectTrigger className="bg-background">
-                      <SelectValue placeholder={formCadastro.categoria ? "Selecione a subcategoria" : "Selecione primeiro a categoria"} />
+                      <SelectValue placeholder="Selecione a subcategoria" />
                     </SelectTrigger>
                     <SelectContent className="bg-background z-50">
-                      {subcategoriasFiltradas.map((sub) => (
+                      {subcategoriasAtivas.map((sub) => (
                         <SelectItem key={sub.id} value={sub.id}>
-                          {sub.nome}
+                          {sub.nome} ({sub.categoria})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -857,17 +827,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                     required
                   />
                 </div>
-                
-               <div>
-                 <Label htmlFor="responsavelSaida">Responsável *</Label>
-                 <Input
-                   id="responsavelSaida"
-                   value={formMovimentacao.responsavel}
-                   onChange={(e) => setFormMovimentacao(prev => ({...prev, responsavel: e.target.value}))}
-                   placeholder="Nome do responsável pela saída"
-                   required
-                 />
-               </div>
 
                <div>
                  <Label htmlFor="tipoOperacaoSaida">Operação *</Label>

@@ -123,8 +123,6 @@ export const DevolverMaterial = () => {
             id: item.id,
             nome: item.nome,
             codigoBarras: item.codigoBarras,
-            categoria: item.categoria,
-            subcategoria: item.subcategoria,
             unidade: item.unidade,
             marca: item.marca
           }
@@ -382,10 +380,10 @@ export const DevolverMaterial = () => {
                                   }
                                 }}
                               >
-                                <div className="flex flex-col">
+                                 <div className="flex flex-col">
                                   <span className="font-medium">{item.nome}</span>
                                   <span className="text-xs text-muted-foreground">
-                                    {item.codigoBarras} - {item.categoria}
+                                    {item.codigoBarras} - {item.marca || 'Sem marca'}
                                   </span>
                                 </div>
                               </CommandItem>
@@ -410,7 +408,6 @@ export const DevolverMaterial = () => {
                     <TableRow>
                       <TableHead>Item</TableHead>
                       <TableHead>Código</TableHead>
-                      <TableHead>Categoria</TableHead>
                       <TableHead className="w-32">Quantidade</TableHead>
                       <TableHead className="w-20">Ações</TableHead>
                     </TableRow>
@@ -422,7 +419,6 @@ export const DevolverMaterial = () => {
                           {item.item_snapshot.nome}
                         </TableCell>
                         <TableCell>{item.item_snapshot.codigoBarras}</TableCell>
-                        <TableCell>{item.item_snapshot.categoria}</TableCell>
                         <TableCell>
                           <Input
                             type="number"

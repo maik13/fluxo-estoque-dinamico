@@ -108,16 +108,6 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
               />
             </div>
             
-            <div>
-              <Label htmlFor="responsavel">Responsável *</Label>
-              <Input
-                id="responsavel"
-                value={formItem.responsavel}
-                onChange={(e) => setFormItem(prev => prev ? {...prev, responsavel: e.target.value} : null)}
-                placeholder="Nome do responsável"
-                required
-              />
-            </div>
             
             <div>
               <Label htmlFor="marca">Marca</Label>
@@ -145,47 +135,6 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
               </Select>
             </div>
             
-            <div>
-              <Label htmlFor="categoria">Categoria</Label>
-              <Input
-                id="categoria"
-                value={formItem.categoria}
-                onChange={(e) => setFormItem(prev => prev ? {...prev, categoria: e.target.value} : null)}
-                placeholder="Ex: Cabos, Disjuntores, Ferramentas"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="subcategoria">Subcategoria</Label>
-              <Select value={formItem.subcategoria} onValueChange={(value) => setFormItem(prev => prev ? {...prev, subcategoria: value} : null)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a subcategoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {obterSubcategoriasAtivas().map((sub) => (
-                    <SelectItem key={sub.id} value={sub.nome}>
-                      {sub.nome} ({sub.categoria})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="subDestino">Sub Destino (Estoque)</Label>
-              <Select value={formItem.subDestino} onValueChange={(value) => setFormItem(prev => prev ? {...prev, subDestino: value} : null)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o sub destino" />
-                </SelectTrigger>
-                <SelectContent>
-                  {obterTiposServicoAtivos().map((estoque) => (
-                    <SelectItem key={estoque.id} value={estoque.nome}>
-                      {estoque.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             
             <div>
               <Label htmlFor="quantidadeMinima">Quantidade Mínima</Label>

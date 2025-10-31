@@ -88,23 +88,17 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
       origem: dados.origem?.toString().trim() || '',
       caixaOrganizador: dados.caixaOrganizador?.toString().trim() || '',
       localizacao: dados.localizacao?.toString().trim() || '',
-      responsavel: dados.responsavel.toString().trim(),
       nome: dados.nome.toString().trim(),
       tipoItem: tipoInferido as 'Insumo' | 'Ferramenta',
-      metragem: dados.metragem && dados.metragem.toString().trim() !== '' ? parseFloat(dados.metragem.toString().trim().replace(',', '.')) : undefined,
-      peso: dados.peso && dados.peso.toString().trim() !== '' ? parseFloat(dados.peso.toString().trim().replace(',', '.')) : undefined,
-      comprimentoLixa: dados.comprimentoLixa && dados.comprimentoLixa.toString().trim() !== '' ? parseFloat(dados.comprimentoLixa.toString().trim().replace(',', '.')) : undefined,
-      polaridadeDisjuntor: dados.polaridadeDisjuntor?.toString().trim() || '',
       especificacao: dados.especificacao?.toString().trim() || '',
       marca: dados.marca?.toString().trim() || '',
       quantidade: quantidade,
       unidade: dados.unidade.toString().trim(),
       condicao: condicao as 'Novo' | 'Usado' | 'Defeito' | 'Descarte',
-      categoria: dados.categoria?.toString().trim() || '',
-      subcategoria: dados.subcategoria?.toString().trim() || '',
-      subDestino: dados.subDestino?.toString().trim() || '',
-      tipoServico: dados.tipoServico?.toString().trim() || '',
-      quantidadeMinima: quantidadeMinima
+      subcategoriaId: dados.subcategoriaId?.toString().trim() || undefined,
+      quantidadeMinima: quantidadeMinima,
+      ncm: dados.ncm?.toString().trim() || '',
+      valor: dados.valor ? parseFloat(dados.valor.toString().trim().replace(',', '.')) : undefined
     };
 
     return { item };

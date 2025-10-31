@@ -47,19 +47,15 @@ export const RelatoriosComFiltros = () => {
   
   // Obter valores únicos para os filtros
   const categorias = useMemo(() => {
-    const cats = new Set(itensEstoque.map(item => item.categoria).filter(Boolean));
-    return Array.from(cats).sort();
+    return [];
   }, [itensEstoque]);
 
   const subcategorias = useMemo(() => {
-    const subcats = new Set(itensEstoque.map(item => item.subcategoria).filter(Boolean));
-    return Array.from(subcats).sort();
+    return [];
   }, [itensEstoque]);
 
   const responsaveis = useMemo(() => {
-    const resps = new Set([
-      ...itensEstoque.map(item => item.responsavel).filter(Boolean)
-    ]);
+    const resps = new Set<string>();
     return Array.from(resps).sort();
   }, [itensEstoque]);
 
@@ -81,16 +77,12 @@ export const RelatoriosComFiltros = () => {
 
     // Filtro por categoria
     if (filtros.categoria) {
-      itemsFiltrados = itemsFiltrados.filter(item => 
-        item.categoria === filtros.categoria
-      );
+      itemsFiltrados = itemsFiltrados.filter(item => false);
     }
 
     // Filtro por subcategoria
     if (filtros.subcategoria) {
-      itemsFiltrados = itemsFiltrados.filter(item => 
-        item.subcategoria === filtros.subcategoria
-      );
+      itemsFiltrados = itemsFiltrados.filter(item => false);
     }
 
     // Filtro por localização
@@ -154,8 +146,6 @@ export const RelatoriosComFiltros = () => {
     const dados = itensFiltrados.map(item => ({
       'Código': item.codigoBarras,
       'Nome': item.nome,
-      'Categoria': item.categoria,
-      'Subcategoria': item.subcategoria,
       'Marca': item.marca,
       'Estoque Atual': item.estoqueAtual,
       'Unidade': item.unidade,
@@ -404,8 +394,6 @@ export const RelatoriosComFiltros = () => {
                     <TableRow>
                       <TableHead>Código</TableHead>
                       <TableHead>Nome</TableHead>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead>Subcategoria</TableHead>
                       <TableHead>Estoque</TableHead>
                       <TableHead>Unidade</TableHead>
                       <TableHead>Localização</TableHead>
@@ -414,8 +402,8 @@ export const RelatoriosComFiltros = () => {
                   </TableHeader>
                   <TableBody>
                     {itensFiltrados.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                           Nenhum item encontrado com os filtros aplicados.
                         </TableCell>
                       </TableRow>
@@ -424,8 +412,6 @@ export const RelatoriosComFiltros = () => {
                         <TableRow key={item.id}>
                           <TableCell className="font-mono">{item.codigoBarras}</TableCell>
                           <TableCell>{item.nome}</TableCell>
-                          <TableCell>{item.categoria}</TableCell>
-                          <TableCell>{item.subcategoria}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <span className={item.estoqueAtual === 0 ? 'text-destructive font-medium' : ''}>

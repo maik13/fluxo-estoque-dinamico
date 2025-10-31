@@ -104,8 +104,6 @@ export const SolicitarMaterial = () => {
             id: item.id,
             nome: item.nome,
             codigoBarras: item.codigoBarras,
-            categoria: item.categoria,
-            subcategoria: item.subcategoria,
             unidade: item.unidade,
             marca: item.marca,
             especificacao: item.especificacao
@@ -247,7 +245,6 @@ export const SolicitarMaterial = () => {
               <tr>
                 <th>Item</th>
                 <th>Código</th>
-                <th>Categoria</th>
                 <th>Qtd. Solicitada</th>
                 <th>Qtd. Aprovada</th>
                 <th>Unidade</th>
@@ -258,7 +255,6 @@ export const SolicitarMaterial = () => {
                 <tr>
                   <td>${item.item_snapshot.nome}</td>
                   <td>${item.item_snapshot.codigoBarras}</td>
-                  <td>${item.item_snapshot.categoria}</td>
                   <td>${item.quantidade_solicitada}</td>
                   <td>${item.quantidade_aprovada}</td>
                   <td>${item.item_snapshot.unidade}</td>
@@ -408,7 +404,7 @@ export const SolicitarMaterial = () => {
                               <div className="flex flex-col w-full">
                                 <div className="font-medium">{item.nome}</div>
                                 <div className="text-sm text-muted-foreground">
-                                  {item.codigoBarras} - {item.categoria} - Estoque: {item.estoqueAtual}
+                                  {item.codigoBarras} - {item.marca || 'Sem marca'} - Estoque: {item.estoqueAtual}
                                 </div>
                               </div>
                             </CommandItem>
@@ -434,7 +430,7 @@ export const SolicitarMaterial = () => {
                             <div className="flex-1">
                               <div className="font-medium">{item.nome}</div>
                               <div className="text-sm text-muted-foreground">
-                                {item.codigoBarras} - {item.categoria}
+                                {item.codigoBarras} - {item.marca || 'Sem marca'}
                               </div>
                             </div>
                             <div className="flex items-center space-x-2">
