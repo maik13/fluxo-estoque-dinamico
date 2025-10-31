@@ -73,6 +73,8 @@ export const useEstoque = () => {
           tipoServico: row.tipo_servico ?? '',
         dataCriacao: row.data_criacao ?? new Date().toISOString(),
         quantidadeMinima: row.quantidade_minima ?? undefined,
+        ncm: row.ncm ?? '',
+        valor: row.valor ?? undefined,
       }));
 
       const movsMapped: Movimentacao[] = (movsData ?? []).map((row: any) => ({
@@ -193,6 +195,8 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao' | 'codig
       tipo_servico: dadosItem.tipoServico,
       data_criacao: new Date().toISOString(),
       quantidade_minima: dadosItem.quantidadeMinima ?? null,
+      ncm: dadosItem.ncm ?? null,
+      valor: dadosItem.valor ?? null,
     };
 
     const { data, error } = await supabase.from('items').insert(insertItem).select('*').maybeSingle();
@@ -397,6 +401,8 @@ const editarItem = async (itemEditado: Item) => {
       sub_destino: itemEditado.subDestino,
       tipo_servico: itemEditado.tipoServico,
       quantidade_minima: itemEditado.quantidadeMinima ?? null,
+      ncm: itemEditado.ncm ?? null,
+      valor: itemEditado.valor ?? null,
     };
 
     const { error } = await supabase.from('items').update(update).eq('id', itemEditado.id);
@@ -455,6 +461,8 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBar
         tipo_servico: itemData.tipoServico,
         data_criacao: new Date().toISOString(),
         quantidade_minima: itemData.quantidadeMinima ?? null,
+        ncm: itemData.ncm ?? null,
+        valor: itemData.valor ?? null,
       };
 
       const { data: itemRow, error: itemErr } = await supabase.from('items').insert(insertItem).select('*').maybeSingle();
