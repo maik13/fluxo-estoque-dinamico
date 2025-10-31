@@ -155,15 +155,21 @@ export const useEstoque = () => {
   };
 
 // Função para cadastrar novo item
-const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>) => {
+const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao'> & { codigoBarras?: number }) => {
   try {
+    let codigoNumerico: number;
 
-    // Gerar código sequencial automático usando função do banco
-    const { data: codigoData, error: codigoError } = await supabase.rpc('gerar_proximo_codigo');
-    if (codigoError) throw codigoError;
-    
-    const codigoGerado = codigoData as string;
-    const codigoNumerico = parseInt(codigoGerado.replace('COD-', ''));
+    // Se o código de barras foi fornecido, usar ele; senão, gerar automaticamente
+    if (dadosItem.codigoBarras && dadosItem.codigoBarras > 0) {
+      codigoNumerico = dadosItem.codigoBarras;
+    } else {
+      // Gerar código sequencial automático usando função do banco
+      const { data: codigoData, error: codigoError } = await supabase.rpc('gerar_proximo_codigo');
+      if (codigoError) throw codigoError;
+      
+      const codigoGerado = codigoData as string;
+      codigoNumerico = parseInt(codigoGerado.replace('COD-', ''));
+    }
 
     const insertItem = {
       codigo_barras: codigoNumerico,

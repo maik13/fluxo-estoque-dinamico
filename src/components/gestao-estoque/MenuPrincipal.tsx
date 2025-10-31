@@ -185,7 +185,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       codigoBarras: codigoFinal
     };
     
-    if (cadastrarItem(dadosComCodigo as Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>)) {
+    if (cadastrarItem(dadosComCodigo as any)) {
       setDialogoCadastro(false);
       resetarFormularios();
       setCodigoBarrasManual('');
