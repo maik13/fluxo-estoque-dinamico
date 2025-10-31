@@ -1,0 +1,10 @@
+-- Remover colunas da tabela items
+ALTER TABLE public.items DROP COLUMN responsavel;
+ALTER TABLE public.items DROP COLUMN metragem;
+ALTER TABLE public.items DROP COLUMN peso;
+ALTER TABLE public.items DROP COLUMN comprimento_lixa;
+ALTER TABLE public.items DROP COLUMN polaridade_disjuntor;
+ALTER TABLE public.items DROP COLUMN categoria;
+ALTER TABLE public.items DROP COLUMN subcategoria;
+ALTER TABLE public.items DROP COLUMN sub_destino;
+ALTER TABLE public.items DROP COLUMN tipo_servico;

@@ -7,23 +7,14 @@ export interface Item {
   origem: string;
   caixaOrganizador: string;
   localizacao: string;
-  responsavel: string;
   nome: string;
   tipoItem: 'Insumo' | 'Ferramenta'; // Tipo do item
-  metragem?: number; // Para cabos
-  peso?: number;
-  comprimentoLixa?: number;
-  polaridadeDisjuntor?: string;
   especificacao: string; // Amperagem bateria, bitola, tipo de pisca, etc.
   marca: string;
   quantidade: number;
   unidade: string; // metro, peça, kg, etc.
   condicao: 'Novo' | 'Usado' | 'Defeito' | 'Descarte';
-  categoria: string;
-  subcategoria: string;
   subcategoriaId?: string; // ID da subcategoria (referência)
-  subDestino: string; // Estoque eterno/múltiplos estoques
-  tipoServico: string;
   dataCriacao: string;
   quantidadeMinima?: number; // Para alertas de estoque baixo
   ncm?: string; // NCM - Nomenclatura Comum do Mercosul

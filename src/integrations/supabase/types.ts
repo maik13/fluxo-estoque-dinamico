@@ -44,9 +44,7 @@ export type Database = {
       items: {
         Row: {
           caixa_organizador: string | null
-          categoria: string | null
           codigo_barras: number
-          comprimento_lixa: number | null
           condicao: string | null
           created_at: string
           data_criacao: string
@@ -54,29 +52,20 @@ export type Database = {
           id: string
           localizacao: string | null
           marca: string | null
-          metragem: number | null
           ncm: string | null
           nome: string
           origem: string | null
-          peso: number | null
-          polaridade_disjuntor: string | null
           quantidade: number
           quantidade_minima: number | null
-          responsavel: string | null
-          sub_destino: string | null
-          subcategoria: string | null
           subcategoria_id: string | null
           tipo_item: string | null
-          tipo_servico: string | null
           unidade: string
           updated_at: string
           valor: number | null
         }
         Insert: {
           caixa_organizador?: string | null
-          categoria?: string | null
           codigo_barras: number
-          comprimento_lixa?: number | null
           condicao?: string | null
           created_at?: string
           data_criacao?: string
@@ -84,29 +73,20 @@ export type Database = {
           id?: string
           localizacao?: string | null
           marca?: string | null
-          metragem?: number | null
           ncm?: string | null
           nome: string
           origem?: string | null
-          peso?: number | null
-          polaridade_disjuntor?: string | null
           quantidade?: number
           quantidade_minima?: number | null
-          responsavel?: string | null
-          sub_destino?: string | null
-          subcategoria?: string | null
           subcategoria_id?: string | null
           tipo_item?: string | null
-          tipo_servico?: string | null
           unidade: string
           updated_at?: string
           valor?: number | null
         }
         Update: {
           caixa_organizador?: string | null
-          categoria?: string | null
           codigo_barras?: number
-          comprimento_lixa?: number | null
           condicao?: string | null
           created_at?: string
           data_criacao?: string
@@ -114,20 +94,13 @@ export type Database = {
           id?: string
           localizacao?: string | null
           marca?: string | null
-          metragem?: number | null
           ncm?: string | null
           nome?: string
           origem?: string | null
-          peso?: number | null
-          polaridade_disjuntor?: string | null
           quantidade?: number
           quantidade_minima?: number | null
-          responsavel?: string | null
-          sub_destino?: string | null
-          subcategoria?: string | null
           subcategoria_id?: string | null
           tipo_item?: string | null
-          tipo_servico?: string | null
           unidade?: string
           updated_at?: string
           valor?: number | null

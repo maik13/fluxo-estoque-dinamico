@@ -21,8 +21,6 @@ export const exportarExcel = ({
   const dadosOrganizados = itens.map(item => ({
     'Código de Barras': item.codigoBarras,
     'Nome do Item': item.nome,
-    'Categoria': item.categoria || '',
-    'Subcategoria': item.subcategoria || '',
     'Marca': item.marca || '',
     'Especificação': item.especificacao || '',
     'Localização': item.localizacao || '',
@@ -32,12 +30,8 @@ export const exportarExcel = ({
     'Quantidade Mínima': item.quantidadeMinima || '',
     'Unidade': item.unidade,
     'Condição': item.condicao,
-    'Tipo de Serviço': item.tipoServico || '',
-    'Sub Destino': item.subDestino || '',
-    'Metragem': item.metragem || '',
-    'Peso (kg)': item.peso || '',
-    'Comprimento Lixa': item.comprimentoLixa || '',
-    'Polaridade Disjuntor': item.polaridadeDisjuntor || '',
+    'NCM': item.ncm || '',
+    'Valor': item.valor || '',
     'Data de Cadastro': item.dataCriacao ? new Date(item.dataCriacao).toLocaleDateString('pt-BR') : '',
     'Última Movimentação': item.ultimaMovimentacao ? 
       new Date(item.ultimaMovimentacao.dataHora).toLocaleDateString('pt-BR') + ' ' + 
@@ -53,8 +47,6 @@ export const exportarExcel = ({
   const columnWidths = [
     { wch: 15 }, // Código de Barras
     { wch: 30 }, // Nome do Item
-    { wch: 15 }, // Categoria
-    { wch: 15 }, // Subcategoria
     { wch: 15 }, // Marca
     { wch: 25 }, // Especificação
     { wch: 20 }, // Localização
@@ -64,12 +56,8 @@ export const exportarExcel = ({
     { wch: 12 }, // Quantidade Mínima
     { wch: 10 }, // Unidade
     { wch: 10 }, // Condição
-    { wch: 15 }, // Tipo de Serviço
-    { wch: 15 }, // Sub Destino
-    { wch: 10 }, // Metragem
-    { wch: 10 }, // Peso
-    { wch: 15 }, // Comprimento Lixa
-    { wch: 15 }, // Polaridade Disjuntor
+    { wch: 12 }, // NCM
+    { wch: 12 }, // Valor
     { wch: 15 }, // Data de Cadastro
     { wch: 20 }, // Última Movimentação
     { wch: 15 }, // Tipo Última Mov
@@ -83,6 +71,7 @@ export const exportarExcel = ({
 
   // Se incluir estatísticas, criar aba de resumo
   if (incluirEstatisticas) {
+    // Estatísticas gerais
     const totalItens = itens.length;
     const comEstoque = itens.filter(item => item.estoqueAtual > 0).length;
     const estoqueZero = itens.filter(item => item.estoqueAtual === 0).length;
@@ -90,35 +79,13 @@ export const exportarExcel = ({
       item.quantidadeMinima && item.estoqueAtual <= item.quantidadeMinima
     ).length;
 
-    // Estatísticas por categoria
-    const estatisticasPorCategoria = itens.reduce((acc, item) => {
-      const categoria = item.categoria || 'Sem Categoria';
-      if (!acc[categoria]) {
-        acc[categoria] = { total: 0, comEstoque: 0, semEstoque: 0 };
-      }
-      acc[categoria].total++;
-      if (item.estoqueAtual > 0) {
-        acc[categoria].comEstoque++;
-      } else {
-        acc[categoria].semEstoque++;
-      }
-      return acc;
-    }, {} as Record<string, { total: number; comEstoque: number; semEstoque: number }>);
-
     // Dados do resumo
     const dadosResumo = [
       { 'Métrica': 'RESUMO GERAL', 'Valor': '', 'Observação': '' },
       { 'Métrica': 'Total de Itens', 'Valor': totalItens, 'Observação': 'Todos os itens cadastrados' },
       { 'Métrica': 'Itens com Estoque', 'Valor': comEstoque, 'Observação': 'Quantidade > 0' },
       { 'Métrica': 'Itens com Estoque Baixo', 'Valor': estoqueBaixo, 'Observação': 'Abaixo do mínimo' },
-      { 'Métrica': 'Itens com Estoque Zerado', 'Valor': estoqueZero, 'Observação': 'Quantidade = 0' },
-      { 'Métrica': '', 'Valor': '', 'Observação': '' },
-      { 'Métrica': 'ESTATÍSTICAS POR CATEGORIA', 'Valor': '', 'Observação': '' },
-      ...Object.entries(estatisticasPorCategoria).map(([categoria, stats]) => ({
-        'Métrica': categoria,
-        'Valor': `${stats.total} itens`,
-        'Observação': `${stats.comEstoque} com estoque, ${stats.semEstoque} zerados`
-      }))
+      { 'Métrica': 'Itens com Estoque Zerado', 'Valor': estoqueZero, 'Observação': 'Quantidade = 0' }
     ];
 
     const worksheetResumo = XLSX.utils.json_to_sheet(dadosResumo);
@@ -126,65 +93,6 @@ export const exportarExcel = ({
     
     XLSX.utils.book_append_sheet(workbook, worksheetResumo, 'Resumo e Estatísticas');
   }
-
-  // Criar aba com itens organizados por categoria
-  const itensPorCategoria = itens.reduce((acc, item) => {
-    const categoria = item.categoria || 'Sem Categoria';
-    if (!acc[categoria]) {
-      acc[categoria] = [];
-    }
-    acc[categoria].push(item);
-    return acc;
-  }, {} as Record<string, EstoqueItem[]>);
-
-  // Criar dados organizados por categoria
-  const dadosPorCategoria: any[] = [];
-  
-  Object.entries(itensPorCategoria).forEach(([categoria, itensCategoria]) => {
-    // Adicionar cabeçalho da categoria
-    dadosPorCategoria.push({
-      'Item': `=== ${categoria.toUpperCase()} (${itensCategoria.length} itens) ===`,
-      'Código': '',
-      'Estoque': '',
-      'Localização': '',
-      'Condição': '',
-      'Status': ''
-    });
-    
-    // Adicionar itens da categoria
-    itensCategoria.forEach(item => {
-      dadosPorCategoria.push({
-        'Item': item.nome,
-        'Código': item.codigoBarras,
-        'Estoque': `${item.estoqueAtual} ${item.unidade}`,
-        'Localização': `${item.localizacao} ${item.caixaOrganizador ? '- ' + item.caixaOrganizador : ''}`.trim(),
-        'Condição': item.condicao,
-        'Status': getStatusEstoque(item)
-      });
-    });
-    
-    // Adicionar linha em branco
-    dadosPorCategoria.push({
-      'Item': '',
-      'Código': '',
-      'Estoque': '',
-      'Localização': '',
-      'Condição': '',
-      'Status': ''
-    });
-  });
-
-  const worksheetCategorias = XLSX.utils.json_to_sheet(dadosPorCategoria);
-  worksheetCategorias['!cols'] = [
-    { wch: 40 }, // Item
-    { wch: 15 }, // Código
-    { wch: 15 }, // Estoque
-    { wch: 30 }, // Localização
-    { wch: 10 }, // Condição
-    { wch: 15 }  // Status
-  ];
-  
-  XLSX.utils.book_append_sheet(workbook, worksheetCategorias, 'Por Categoria');
 
   // Gerar e baixar arquivo
   const nomeArquivo = `estoque-${nomeEstoque.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.xlsx`;

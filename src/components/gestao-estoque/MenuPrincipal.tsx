@@ -43,18 +43,13 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     origem: '',
     caixaOrganizador: '',
     localizacao: '',
-    responsavel: '',
     nome: '',
     especificacao: '',
     marca: '',
     quantidade: 0,
     unidade: '',
     condicao: 'Novo',
-    categoria: '',
-    subcategoria: '',
     subcategoriaId: undefined,
-    subDestino: '',
-    tipoServico: '',
     ncm: '',
     valor: 0
   });
@@ -65,7 +60,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const [formMovimentacao, setFormMovimentacao] = useState({
     codigoBarras: 0,
     quantidade: 0,
-    responsavel: '',
     observacoes: '',
     tipoOperacaoId: ''
   });
@@ -138,7 +132,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       origem: '',
       caixaOrganizador: '',
       localizacao: '',
-      responsavel: '',
       nome: '',
       tipoItem: 'Insumo',
       especificacao: '',
@@ -146,16 +139,11 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       quantidade: 0,
       unidade: '',
       condicao: 'Novo',
-      categoria: '',
-      subcategoria: '',
-      subcategoriaId: undefined,
-      subDestino: '',
-      tipoServico: ''
+      subcategoriaId: undefined
     });
     setFormMovimentacao({
       codigoBarras: 0,
       quantidade: 0,
-      responsavel: '',
       observacoes: '',
       tipoOperacaoId: ''
     });
@@ -264,7 +252,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     if (registrarSaida(
       codigoParaUsar,
       formMovimentacao.quantidade,
-      formMovimentacao.responsavel,
+      '',
       formMovimentacao.observacoes,
       formMovimentacao.tipoOperacaoId || undefined
     )) {
