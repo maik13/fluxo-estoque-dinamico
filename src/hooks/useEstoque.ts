@@ -3,12 +3,14 @@ import { Item, Movimentacao, EstoqueItem } from '@/types/estoque';
 import { toast } from '@/hooks/use-toast';
 import { useConfiguracoes } from './useConfiguracoes';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 
 export const useEstoque = () => {
   const [itens, setItens] = useState<Item[]>([]);
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
   const [loading, setLoading] = useState(true);
   const { estoqueAtivo, obterEstoqueAtivoInfo } = useConfiguracoes();
+  const { user } = useAuth();
 
   // Obter dados iniciais quando o estoque ativo mudar
   useEffect(() => {
@@ -86,6 +88,7 @@ export const useEstoque = () => {
           quantidadeAnterior: Number(row.quantidade_anterior),
           quantidadeAtual: Number(row.quantidade_atual),
           responsavel: row.responsavel,
+          userId: row.user_id ?? undefined,
           observacoes: row.observacoes ?? undefined,
           local_utilizacao: row.local_utilizacao ?? undefined,
         dataHora: row.data_hora,
@@ -221,6 +224,7 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao' | 'codig
       quantidadeAnterior: 0,
       quantidadeAtual: dadosItem.quantidade,
       responsavel: dadosItem.responsavel,
+      userId: user?.id,
       observacoes: undefined,
       dataHora: new Date().toISOString(),
       itemSnapshot: novoItem,
@@ -234,6 +238,7 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao' | 'codig
       quantidade_anterior: movimentacao.quantidadeAnterior,
       quantidade_atual: movimentacao.quantidadeAtual,
       responsavel: movimentacao.responsavel,
+      user_id: movimentacao.userId ?? null,
       observacoes: movimentacao.observacoes ?? null,
       data_hora: movimentacao.dataHora,
       item_snapshot: JSON.parse(JSON.stringify(movimentacao.itemSnapshot)),
@@ -277,6 +282,7 @@ const registrarEntrada = async (
       quantidadeAnterior: estoqueAnterior,
       quantidadeAtual: estoqueAtual,
       responsavel,
+      userId: user?.id,
       observacoes,
       dataHora: new Date().toISOString(),
       itemSnapshot: item,
@@ -290,6 +296,7 @@ const registrarEntrada = async (
       quantidade_anterior: movimento.quantidadeAnterior,
       quantidade_atual: movimento.quantidadeAtual,
       responsavel: movimento.responsavel,
+      user_id: movimento.userId ?? null,
       observacoes: movimento.observacoes ?? null,
       data_hora: movimento.dataHora,
       item_snapshot: JSON.parse(JSON.stringify(movimento.itemSnapshot)),
@@ -340,6 +347,7 @@ const registrarSaida = async (
       quantidadeAnterior: estoqueAnterior,
       quantidadeAtual: estoqueAtual,
       responsavel,
+      userId: user?.id,
       observacoes,
       dataHora: new Date().toISOString(),
       itemSnapshot: item,
@@ -353,6 +361,7 @@ const registrarSaida = async (
       quantidade_anterior: movimento.quantidadeAnterior,
       quantidade_atual: movimento.quantidadeAtual,
       responsavel: movimento.responsavel,
+      user_id: movimento.userId ?? null,
       observacoes: movimento.observacoes ?? null,
       local_utilizacao: localUtilizacao ?? null,
       data_hora: movimento.dataHora,

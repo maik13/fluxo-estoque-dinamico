@@ -184,6 +184,7 @@ export type Database = {
           solicitacao_id: string | null
           tipo: string
           tipo_operacao_id: string | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -202,6 +203,7 @@ export type Database = {
           solicitacao_id?: string | null
           tipo: string
           tipo_operacao_id?: string | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -220,6 +222,7 @@ export type Database = {
           solicitacao_id?: string | null
           tipo?: string
           tipo_operacao_id?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
