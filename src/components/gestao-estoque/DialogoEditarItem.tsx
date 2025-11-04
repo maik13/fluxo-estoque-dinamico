@@ -68,6 +68,17 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
             </div>
             
             <div>
+              <Label htmlFor="nome">Nome do Item *</Label>
+              <Input
+                id="nome"
+                value={formItem.nome}
+                onChange={(e) => setFormItem(prev => prev ? {...prev, nome: e.target.value} : null)}
+                placeholder="Ex: Cabo flexível 2,5mm"
+                required
+              />
+            </div>
+            
+            <div>
               <Label htmlFor="tipoItem">Tipo *</Label>
               <Select 
                 value={formItem.tipoItem} 
@@ -81,17 +92,6 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
                   <SelectItem value="Ferramenta">Ferramenta</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="nome">Nome do Item *</Label>
-              <Input
-                id="nome"
-                value={formItem.nome}
-                onChange={(e) => setFormItem(prev => prev ? {...prev, nome: e.target.value} : null)}
-                placeholder="Ex: Cabo flexível 2,5mm"
-                required
-              />
             </div>
             
             <div>
@@ -136,38 +136,22 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
             </div>
             
             <div>
-              <Label htmlFor="ncm">NCM</Label>
-              <Input
-                id="ncm"
-                value={formItem.ncm || ''}
-                onChange={(e) => setFormItem(prev => prev ? {...prev, ncm: e.target.value} : null)}
-                placeholder="Código NCM do produto"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="valor">Valor (R$)</Label>
-              <Input
-                id="valor"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formItem.valor || ''}
-                onChange={(e) => setFormItem(prev => prev ? {...prev, valor: e.target.value ? Number(e.target.value) : undefined} : null)}
-                placeholder="Valor unitário do item"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="quantidadeMinima">Quantidade Mínima</Label>
-              <Input
-                id="quantidadeMinima"
-                type="number"
-                min="0"
-                value={formItem.quantidadeMinima || ''}
-                onChange={(e) => setFormItem(prev => prev ? {...prev, quantidadeMinima: e.target.value ? Number(e.target.value) : undefined} : null)}
-                placeholder="Estoque mínimo para alerta"
-              />
+              <Label htmlFor="subcategoria">Subcategoria</Label>
+              <Select 
+                value={formItem.subcategoriaId || ''} 
+                onValueChange={(value) => setFormItem(prev => prev ? {...prev, subcategoriaId: value} : null)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a subcategoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {obterSubcategoriasAtivas().map((sub) => (
+                    <SelectItem key={sub.id} value={sub.id}>
+                      {sub.nome} ({sub.categoria})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             <div>
@@ -197,6 +181,28 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
                   <SelectItem value="Descarte">Descarte</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="ncm">NCM</Label>
+              <Input
+                id="ncm"
+                value={formItem.ncm || ''}
+                onChange={(e) => setFormItem(prev => prev ? {...prev, ncm: e.target.value} : null)}
+                placeholder="Ex: 8544.42.00"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="valor">Valor</Label>
+              <Input
+                id="valor"
+                type="number"
+                step="0.01"
+                value={formItem.valor || ''}
+                onChange={(e) => setFormItem(prev => prev ? {...prev, valor: e.target.value ? Number(e.target.value) : undefined} : null)}
+                placeholder="Ex: 10.50"
+              />
             </div>
           </div>
           
