@@ -16,11 +16,12 @@ import { SeletorEstoque } from './SeletorEstoque';
 import { DialogoImportacao } from './DialogoImportacao';
 import { SolicitarMaterial } from './SolicitarMaterial';
 import { DevolverMaterial } from './DevolverMaterial';
-
+import { Badge } from '@/components/ui/badge';
 import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MenuPrincipalProps {
   onMovimentacaoRealizada: () => void;
@@ -56,6 +57,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
 
   const [codigoBarrasManual, setCodigoBarrasManual] = useState<string>('');
   const [erroCodigoBarras, setErroCodigoBarras] = useState<string>('');
+  const [proximoCodigoDisponivel, setProximoCodigoDisponivel] = useState<number | null>(null);
 
   const [formMovimentacao, setFormMovimentacao] = useState({
     codigoBarras: 0,
@@ -117,6 +119,34 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const estoqueAtivoInfo = obterEstoqueAtivoInfo();
   const podeUsarCadastro = canCreateItems;
   const podeMovimentar = canManageStock;
+
+  // Buscar próximo código disponível quando o dialog de cadastro abrir
+  useEffect(() => {
+    const buscarProximoCodigo = async () => {
+      if (dialogoCadastro) {
+        try {
+          const { data, error } = await supabase
+            .from('items')
+            .select('codigo_barras')
+            .order('codigo_barras', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (error) {
+            console.error('Erro ao buscar próximo código:', error);
+            return;
+          }
+
+          const proximoCodigo = data ? Number(data.codigo_barras) + 1 : 1;
+          setProximoCodigoDisponivel(proximoCodigo);
+        } catch (error) {
+          console.error('Erro ao buscar próximo código:', error);
+        }
+      }
+    };
+
+    buscarProximoCodigo();
+  }, [dialogoCadastro]);
 
   // Função para resetar formulários
   const resetarFormularios = () => {
@@ -355,10 +385,19 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
           </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>📝 Cadastrar Novo Item</DialogTitle>
-              <DialogDescription>
-                Preencha todos os campos para cadastrar um novo item no estoque
-              </DialogDescription>
+              <div className="flex items-start justify-between">
+                <div>
+                  <DialogTitle>📝 Cadastrar Novo Item</DialogTitle>
+                  <DialogDescription>
+                    Preencha todos os campos para cadastrar um novo item no estoque
+                  </DialogDescription>
+                </div>
+                {proximoCodigoDisponivel && (
+                  <Badge variant="secondary" className="text-sm">
+                    Próximo código: {proximoCodigoDisponivel}
+                  </Badge>
+                )}
+              </div>
             </DialogHeader>
             
             <form onSubmit={handleCadastro} className="space-y-4">
