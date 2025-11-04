@@ -573,6 +573,51 @@ export const useConfiguracoes = () => {
   };
 
   // Funções para gerenciar solicitantes no Supabase
+  const editarSolicitante = async (id: string, nome: string, codigoBarras?: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('solicitantes')
+        .update({
+          nome,
+          codigo_barras: codigoBarras || null,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setSolicitantes(prev => prev.map(s => 
+          s.id === id 
+            ? {
+                id: data.id,
+                nome: data.nome,
+                codigoBarras: data.codigo_barras || undefined,
+                ativo: data.ativo,
+                dataCriacao: data.created_at,
+              }
+            : s
+        ));
+        
+        toast({
+          title: "Solicitante atualizado!",
+          description: `Solicitante "${nome}" foi atualizado com sucesso.`,
+        });
+
+        return true;
+      }
+    } catch (error: any) {
+      console.error('Erro ao editar solicitante:', error);
+      toast({
+        title: "Erro ao editar",
+        description: error.message || "Não foi possível editar o solicitante.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const adicionarSolicitante = async (nome: string, codigoBarras?: string) => {
     try {
       const { data, error } = await supabase
@@ -778,6 +823,7 @@ export const useConfiguracoes = () => {
     editarTipoOperacao,
     removerTipoOperacao,
     adicionarSolicitante,
+    editarSolicitante,
     removerSolicitante,
     adicionarLocalUtilizacao,
     editarLocalUtilizacao,

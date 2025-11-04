@@ -45,6 +45,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     editarTipoOperacao,
     removerTipoOperacao,
     adicionarSolicitante,
+    editarSolicitante,
     removerSolicitante,
     adicionarLocalUtilizacao,
     editarLocalUtilizacao,
@@ -92,6 +93,12 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     nome: '',
     codigoBarras: '',
   });
+
+  const [editandoSolicitante, setEditandoSolicitante] = useState<{
+    id: string;
+    nome: string;
+    codigoBarras: string;
+  } | null>(null);
 
   const [novoLocal, setNovoLocal] = useState({
     nome: '',
@@ -257,6 +264,30 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     await adicionarSolicitante(novoSolicitante.nome, novoSolicitante.codigoBarras);
     setNovoSolicitante({ nome: '', codigoBarras: '' });
     onConfigChange?.();
+  };
+
+  const handleEditarSolicitante = async () => {
+    if (!editandoSolicitante) return;
+
+    if (!editandoSolicitante.nome) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Digite o nome do solicitante.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const sucesso = await editarSolicitante(
+      editandoSolicitante.id,
+      editandoSolicitante.nome,
+      editandoSolicitante.codigoBarras
+    );
+
+    if (sucesso) {
+      setEditandoSolicitante(null);
+      onConfigChange?.();
+    }
   };
 
   const handleCadastroLocal = async () => {
@@ -603,13 +634,26 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                               </Badge>
                             )}
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removerSolicitante(solicitante.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditandoSolicitante({
+                                id: solicitante.id,
+                                nome: solicitante.nome,
+                                codigoBarras: solicitante.codigoBarras || ''
+                              })}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removerSolicitante(solicitante.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       ))
                     )}
@@ -617,6 +661,47 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Dialog de Edição */}
+            <Dialog open={!!editandoSolicitante} onOpenChange={(open) => !open && setEditandoSolicitante(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Editar Solicitante</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="editNomeSolicitante">Nome do Solicitante</Label>
+                    <Input
+                      id="editNomeSolicitante"
+                      value={editandoSolicitante?.nome || ''}
+                      onChange={(e) => setEditandoSolicitante(prev => 
+                        prev ? { ...prev, nome: e.target.value } : null
+                      )}
+                      placeholder="Nome completo"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="editCodigoBarrasSolicitante">Código de Barras (opcional)</Label>
+                    <Input
+                      id="editCodigoBarrasSolicitante"
+                      value={editandoSolicitante?.codigoBarras || ''}
+                      onChange={(e) => setEditandoSolicitante(prev => 
+                        prev ? { ...prev, codigoBarras: e.target.value } : null
+                      )}
+                      placeholder="Código de barras do crachá"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setEditandoSolicitante(null)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleEditarSolicitante}>
+                      Salvar Alterações
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* Aba Locais de Utilização */}
