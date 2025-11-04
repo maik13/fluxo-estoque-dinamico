@@ -28,21 +28,17 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   const { obterEstoque } = useEstoque();
   const {
     estoques,
-    tiposServico,
     subcategorias,
     tiposOperacao,
     solicitantes,
     locaisUtilizacao,
     obterEstoquesAtivos,
-    obterTiposServicoAtivos,
     obterSubcategoriasAtivas,
     obterTiposOperacaoAtivos,
     obterSolicitantesAtivos,
     obterLocaisUtilizacaoAtivos,
     adicionarEstoque,
     removerEstoque,
-    adicionarTipoServico,
-    removerTipoServico,
     adicionarSubcategoria,
     removerSubcategoria,
     adicionarTipoOperacao,
@@ -68,11 +64,6 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   });
 
   const [novoEstoque, setNovoEstoque] = useState({
-    nome: '',
-    descricao: '',
-  });
-
-  const [novoTipoServico, setNovoTipoServico] = useState({
     nome: '',
     descricao: '',
   });
@@ -181,21 +172,6 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
 
     adicionarEstoque(novoEstoque.nome, novoEstoque.descricao);
     setNovoEstoque({ nome: '', descricao: '' });
-    onConfigChange?.();
-  };
-
-  const handleCadastroTipoServico = () => {
-    if (!novoTipoServico.nome) {
-      toast({
-        title: "Nome obrigatório",
-        description: "Digite o nome do tipo de serviço.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    adicionarTipoServico(novoTipoServico.nome, novoTipoServico.descricao);
-    setNovoTipoServico({ nome: '', descricao: '' });
     onConfigChange?.();
   };
 
@@ -403,12 +379,11 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
         </DialogHeader>
         
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="grid w-full grid-cols-11 gap-1">
+          <TabsList className="grid w-full grid-cols-10 gap-1">
             <TabsTrigger value="usuarios" className="text-xs">Usuários</TabsTrigger>
             <TabsTrigger value="solicitantes" className="text-xs">Solicitantes</TabsTrigger>
             <TabsTrigger value="locais" className="text-xs">Locais</TabsTrigger>
             <TabsTrigger value="estoques" className="text-xs">Estoques</TabsTrigger>
-            <TabsTrigger value="tipos-servico" className="text-xs">Tipos Serviço</TabsTrigger>
             <TabsTrigger value="subcategorias" className="text-xs">Subcategorias</TabsTrigger>
             <TabsTrigger value="tipos-operacao" className="text-xs">Operações</TabsTrigger>
             <TabsTrigger value="importacao" className="text-xs">Importação</TabsTrigger>
@@ -687,70 +662,6 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                           variant="ghost"
                           size="sm"
                           onClick={() => removerEstoque(estoque.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Aba Tipos de Serviço */}
-          <TabsContent value="tipos-servico" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wrench className="h-5 w-5" />
-                  Gerenciar Tipos de Serviço
-                </CardTitle>
-                <CardDescription>
-                  Cadastre tipos de serviço para classificar itens
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="nomeTipoServico">Nome do Tipo</Label>
-                    <Input
-                      id="nomeTipoServico"
-                      value={novoTipoServico.nome}
-                      onChange={(e) => setNovoTipoServico(prev => ({ ...prev, nome: e.target.value }))}
-                      placeholder="Ex: Instalação Elétrica"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="descricaoTipoServico">Descrição</Label>
-                    <Input
-                      id="descricaoTipoServico"
-                      value={novoTipoServico.descricao}
-                      onChange={(e) => setNovoTipoServico(prev => ({ ...prev, descricao: e.target.value }))}
-                      placeholder="Descrição do tipo de serviço"
-                    />
-                  </div>
-                </div>
-                <Button onClick={handleCadastroTipoServico} className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Cadastrar Tipo de Serviço
-                </Button>
-                
-                <Separator />
-                
-                <div className="space-y-2">
-                  <h4 className="font-medium">Tipos de Serviço Cadastrados</h4>
-                  <div className="space-y-2">
-                    {tiposServico.map((tipo) => (
-                      <div key={tipo.id} className="flex items-center justify-between p-2 border rounded">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary">{tipo.nome}</Badge>
-                          {tipo.descricao && <span className="text-sm text-muted-foreground">{tipo.descricao}</span>}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removerTipoServico(tipo.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
