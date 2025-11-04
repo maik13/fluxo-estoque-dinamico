@@ -232,7 +232,6 @@ export type Database = {
       profiles: {
         Row: {
           ativo: boolean
-          codigo_assinatura: string | null
           created_at: string
           email: string
           id: string
@@ -243,7 +242,6 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
-          codigo_assinatura?: string | null
           created_at?: string
           email: string
           id?: string
@@ -254,7 +252,6 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
-          codigo_assinatura?: string | null
           created_at?: string
           email?: string
           id?: string
@@ -502,7 +499,6 @@ export type Database = {
       }
       can_create_items: { Args: never; Returns: boolean }
       can_manage_inventory: { Args: never; Returns: boolean }
-      gerar_codigo_assinatura: { Args: never; Returns: string }
       gerar_proximo_codigo: { Args: never; Returns: string }
       get_current_user_role: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
