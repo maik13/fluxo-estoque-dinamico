@@ -47,6 +47,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     adicionarSolicitante,
     removerSolicitante,
     adicionarLocalUtilizacao,
+    editarLocalUtilizacao,
     removerLocalUtilizacao,
   } = useConfiguracoes();
 
@@ -95,6 +96,11 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   const [novoLocal, setNovoLocal] = useState({
     nome: '',
   });
+
+  const [editandoLocal, setEditandoLocal] = useState<{
+    id: string;
+    nome: string;
+  } | null>(null);
 
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoUrl, setLogoUrl] = useState<string>('');
@@ -266,6 +272,29 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     await adicionarLocalUtilizacao(novoLocal.nome);
     setNovoLocal({ nome: '' });
     onConfigChange?.();
+  };
+
+  const handleEditarLocal = async () => {
+    if (!editandoLocal) return;
+
+    if (!editandoLocal.nome) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Digite o nome do local.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const sucesso = await editarLocalUtilizacao(
+      editandoLocal.id,
+      editandoLocal.nome
+    );
+
+    if (sucesso) {
+      setEditandoLocal(null);
+      onConfigChange?.();
+    }
   };
 
   const handleExportarDados = () => {
@@ -627,19 +656,61 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{local.nome}</span>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removerLocalUtilizacao(local.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditandoLocal({
+                              id: local.id,
+                              nome: local.nome
+                            })}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removerLocalUtilizacao(local.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Dialog de Edição */}
+            <Dialog open={!!editandoLocal} onOpenChange={(open) => !open && setEditandoLocal(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Editar Local de Utilização</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="editNomeLocal">Nome do Local</Label>
+                    <Input
+                      id="editNomeLocal"
+                      value={editandoLocal?.nome || ''}
+                      onChange={(e) => setEditandoLocal(prev => 
+                        prev ? { ...prev, nome: e.target.value } : null
+                      )}
+                      placeholder="Nome completo do local"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setEditandoLocal(null)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleEditarLocal}>
+                      Salvar Alterações
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* Aba Estoques */}

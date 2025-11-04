@@ -641,6 +641,49 @@ export const useConfiguracoes = () => {
   };
 
   // Funções para gerenciar locais de utilização no Supabase
+  const editarLocalUtilizacao = async (id: string, nome: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('locais_utilizacao')
+        .update({
+          nome,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setLocaisUtilizacao(prev => prev.map(l => 
+          l.id === id 
+            ? {
+                id: data.id,
+                nome: data.nome,
+                ativo: data.ativo,
+                dataCriacao: data.created_at,
+              }
+            : l
+        ));
+        
+        toast({
+          title: "Local atualizado!",
+          description: `Local "${nome}" foi atualizado com sucesso.`,
+        });
+
+        return true;
+      }
+    } catch (error: any) {
+      console.error('Erro ao editar local:', error);
+      toast({
+        title: "Erro ao editar",
+        description: error.message || "Não foi possível editar o local.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const adicionarLocalUtilizacao = async (nome: string) => {
     try {
       const { data, error } = await supabase
@@ -737,6 +780,7 @@ export const useConfiguracoes = () => {
     adicionarSolicitante,
     removerSolicitante,
     adicionarLocalUtilizacao,
+    editarLocalUtilizacao,
     removerLocalUtilizacao,
     obterEstoquesAtivos,
     obterTiposServicoAtivos,
