@@ -500,6 +500,53 @@ export const useConfiguracoes = () => {
     }
   };
 
+  const editarTipoOperacao = async (id: string, nome: string, tipo: 'entrada' | 'saida', descricao?: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('tipos_operacao')
+        .update({
+          nome,
+          tipo,
+          descricao: descricao || null,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setTiposOperacao(prev => prev.map(t => 
+          t.id === id 
+            ? {
+                id: data.id,
+                nome: data.nome,
+                descricao: data.descricao || undefined,
+                tipo: data.tipo as 'entrada' | 'saida',
+                ativo: data.ativo,
+                dataCriacao: data.created_at,
+              }
+            : t
+        ));
+        
+        toast({
+          title: "Operação atualizada!",
+          description: `Operação "${nome}" foi atualizada com sucesso.`,
+        });
+
+        return true;
+      }
+    } catch (error: any) {
+      console.error('Erro ao editar operação:', error);
+      toast({
+        title: "Erro ao editar",
+        description: error.message || "Não foi possível editar a operação.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const removerTipoOperacao = async (id: string) => {
     try {
       const { error } = await supabase
@@ -685,6 +732,7 @@ export const useConfiguracoes = () => {
     adicionarSubcategoria,
     removerSubcategoria,
     adicionarTipoOperacao,
+    editarTipoOperacao,
     removerTipoOperacao,
     adicionarSolicitante,
     removerSolicitante,

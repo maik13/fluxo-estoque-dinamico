@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Database, Wrench, Tag } from 'lucide-react';
+import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Database, Wrench, Tag, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { gerarRelatorioPDF } from '@/utils/pdfExport';
 import { useEstoque } from '@/hooks/useEstoque';
@@ -42,6 +42,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     adicionarSubcategoria,
     removerSubcategoria,
     adicionarTipoOperacao,
+    editarTipoOperacao,
     removerTipoOperacao,
     adicionarSolicitante,
     removerSolicitante,
@@ -78,6 +79,13 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     tipo: 'saida' as 'entrada' | 'saida',
     descricao: '',
   });
+
+  const [editandoTipoOperacao, setEditandoTipoOperacao] = useState<{
+    id: string;
+    nome: string;
+    tipo: 'entrada' | 'saida';
+    descricao: string;
+  } | null>(null);
 
   const [novoSolicitante, setNovoSolicitante] = useState({
     nome: '',
@@ -203,6 +211,31 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     adicionarTipoOperacao(novoTipoOperacao.nome, novoTipoOperacao.tipo, novoTipoOperacao.descricao);
     setNovoTipoOperacao({ nome: '', tipo: 'saida', descricao: '' });
     onConfigChange?.();
+  };
+
+  const handleEditarTipoOperacao = async () => {
+    if (!editandoTipoOperacao) return;
+
+    if (!editandoTipoOperacao.nome) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Digite o nome da operação.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const sucesso = await editarTipoOperacao(
+      editandoTipoOperacao.id,
+      editandoTipoOperacao.nome,
+      editandoTipoOperacao.tipo,
+      editandoTipoOperacao.descricao
+    );
+
+    if (sucesso) {
+      setEditandoTipoOperacao(null);
+      onConfigChange?.();
+    }
   };
 
   const handleCadastroSolicitante = async () => {
@@ -804,19 +837,93 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                           </Badge>
                           {tipo.descricao && <span className="text-sm text-muted-foreground">{tipo.descricao}</span>}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removerTipoOperacao(tipo.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditandoTipoOperacao({
+                              id: tipo.id,
+                              nome: tipo.nome,
+                              tipo: tipo.tipo,
+                              descricao: tipo.descricao || ''
+                            })}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removerTipoOperacao(tipo.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Dialog de Edição */}
+            <Dialog open={!!editandoTipoOperacao} onOpenChange={(open) => !open && setEditandoTipoOperacao(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Editar Operação</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="editNome">Nome da Operação</Label>
+                    <Input
+                      id="editNome"
+                      value={editandoTipoOperacao?.nome || ''}
+                      onChange={(e) => setEditandoTipoOperacao(prev => 
+                        prev ? { ...prev, nome: e.target.value } : null
+                      )}
+                      placeholder="Ex: Compra, Retirada"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="editTipo">Tipo</Label>
+                    <Select 
+                      value={editandoTipoOperacao?.tipo || 'saida'} 
+                      onValueChange={(value: 'entrada' | 'saida') => 
+                        setEditandoTipoOperacao(prev => 
+                          prev ? { ...prev, tipo: value } : null
+                        )
+                      }
+                    >
+                      <SelectTrigger id="editTipo">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="entrada">Entrada</SelectItem>
+                        <SelectItem value="saida">Saída</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="editDescricao">Descrição</Label>
+                    <Input
+                      id="editDescricao"
+                      value={editandoTipoOperacao?.descricao || ''}
+                      onChange={(e) => setEditandoTipoOperacao(prev => 
+                        prev ? { ...prev, descricao: e.target.value } : null
+                      )}
+                      placeholder="Descrição da operação"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setEditandoTipoOperacao(null)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleEditarTipoOperacao}>
+                      Salvar Alterações
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* Aba Importação */}
