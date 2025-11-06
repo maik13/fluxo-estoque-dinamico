@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingDown, Edit, FileText, FileSpreadsheet, Printer } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { EstoqueItem } from '@/types/estoque';
@@ -28,6 +29,10 @@ export const TabelaEstoque = () => {
   // Estados para edição
   const [dialogoEdicao, setDialogoEdicao] = useState(false);
   const [itemParaEditar, setItemParaEditar] = useState<EstoqueItem | null>(null);
+  
+  // Estados para paginação
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const itensPorPagina = 20;
 
   // Obter dados do estoque
   const estoque = useMemo(() => obterEstoque(), [obterEstoque]);
@@ -39,7 +44,7 @@ export const TabelaEstoque = () => {
 
   // Filtrar itens baseado nos filtros ativos
   const itensFiltrados = useMemo(() => {
-    return estoque.filter(item => {
+    const filtrados = estoque.filter(item => {
       // Filtro por texto (busca em nome, código, marca, especificação)
       const textoFiltro = filtroTexto.toLowerCase();
       const matchTexto = !textoFiltro || 
@@ -64,7 +69,22 @@ export const TabelaEstoque = () => {
 
       return matchTexto && matchCategoria && matchCondicao && matchEstoque;
     });
+    
+    // Resetar para primeira página quando filtros mudarem
+    setPaginaAtual(1);
+    
+    return filtrados;
   }, [estoque, filtroTexto, filtroCategoria, filtroCondicao, filtroEstoque]);
+  
+  // Calcular itens da página atual
+  const itensPaginados = useMemo(() => {
+    const inicio = (paginaAtual - 1) * itensPorPagina;
+    const fim = inicio + itensPorPagina;
+    return itensFiltrados.slice(inicio, fim);
+  }, [itensFiltrados, paginaAtual, itensPorPagina]);
+  
+  // Calcular número total de páginas
+  const totalPaginas = Math.ceil(itensFiltrados.length / itensPorPagina);
 
   // Estatísticas do estoque
   const estatisticas = useMemo(() => {
@@ -327,7 +347,7 @@ export const TabelaEstoque = () => {
           
           <div className="flex justify-between items-center mt-4">
             <p className="text-sm text-muted-foreground">
-              Mostrando {itensFiltrados.length} de {estoque.length} itens
+              Mostrando {itensPaginados.length} de {itensFiltrados.length} itens (Total: {estoque.length})
             </p>
             <div className="flex gap-2">
               <Button onClick={imprimirPagina} variant="outline" size="sm">
@@ -389,7 +409,7 @@ export const TabelaEstoque = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  itensFiltrados.map((item) => (
+                  itensPaginados.map((item) => (
                     <TableRow key={item.id} className="hover:bg-muted/50">
                       <TableCell className="font-mono text-sm">
                         {item.codigoBarras}
@@ -463,6 +483,99 @@ export const TabelaEstoque = () => {
               </TableBody>
             </Table>
           </div>
+          
+          {/* Paginação */}
+          {totalPaginas > 1 && (
+            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground">
+                Página {paginaAtual} de {totalPaginas}
+              </p>
+              
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
+                      className={paginaAtual === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  
+                  {/* Primeira página */}
+                  {paginaAtual > 2 && (
+                    <PaginationItem>
+                      <PaginationLink onClick={() => setPaginaAtual(1)} className="cursor-pointer">
+                        1
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+                  
+                  {/* Ellipsis inicial */}
+                  {paginaAtual > 3 && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+                  
+                  {/* Página anterior */}
+                  {paginaAtual > 1 && (
+                    <PaginationItem>
+                      <PaginationLink 
+                        onClick={() => setPaginaAtual(paginaAtual - 1)}
+                        className="cursor-pointer"
+                      >
+                        {paginaAtual - 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+                  
+                  {/* Página atual */}
+                  <PaginationItem>
+                    <PaginationLink isActive className="cursor-default">
+                      {paginaAtual}
+                    </PaginationLink>
+                  </PaginationItem>
+                  
+                  {/* Próxima página */}
+                  {paginaAtual < totalPaginas && (
+                    <PaginationItem>
+                      <PaginationLink 
+                        onClick={() => setPaginaAtual(paginaAtual + 1)}
+                        className="cursor-pointer"
+                      >
+                        {paginaAtual + 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+                  
+                  {/* Ellipsis final */}
+                  {paginaAtual < totalPaginas - 2 && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+                  
+                  {/* Última página */}
+                  {paginaAtual < totalPaginas - 1 && (
+                    <PaginationItem>
+                      <PaginationLink 
+                        onClick={() => setPaginaAtual(totalPaginas)}
+                        className="cursor-pointer"
+                      >
+                        {totalPaginas}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
+                      className={paginaAtual === totalPaginas ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
 
