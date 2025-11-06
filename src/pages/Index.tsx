@@ -68,7 +68,12 @@ const Index = () => {
               Controle completo do seu almoxarifado de materiais
             </h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {session?.user?.email && (
+              <span className="text-sm text-muted-foreground">
+                {session.user.email}
+              </span>
+            )}
             <Button variant="outline" size="sm" onClick={signOut}>
               <LogOut className="h-4 w-4 mr-2" /> Sair
             </Button>
