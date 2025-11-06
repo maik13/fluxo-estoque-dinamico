@@ -22,6 +22,7 @@ export const TabelaEstoque = () => {
   const { obterEstoqueAtivoInfo, obterSubcategoriasAtivas } = useConfiguracoes();
   const { canEditItems } = usePermissions();
   const [filtroTexto, setFiltroTexto] = useState('');
+  const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroSubcategoria, setFiltroSubcategoria] = useState('todas');
   const [filtroCondicao, setFiltroCondicao] = useState('todas');
   const [filtroEstoque, setFiltroEstoque] = useState('todos'); // todos, baixo, zerado
@@ -43,10 +44,27 @@ export const TabelaEstoque = () => {
     return obterEstoque();
   }, [obterEstoque, deveBuscar]);
   
-  // Obter subcategorias ativas para filtro
-  const subcategorias = useMemo(() => {
+  // Obter todas as subcategorias ativas
+  const todasSubcategorias = useMemo(() => {
     return obterSubcategoriasAtivas();
   }, [obterSubcategoriasAtivas]);
+
+  // Obter categorias únicas das subcategorias
+  const categorias = useMemo(() => {
+    const categoriasUnicas = new Set(todasSubcategorias.map(sub => sub.categoria));
+    return Array.from(categoriasUnicas).sort();
+  }, [todasSubcategorias]);
+
+  // Filtrar subcategorias baseado na categoria selecionada
+  const subcategoriasFiltradas = useMemo(() => {
+    if (filtroCategoria === 'todas') return todasSubcategorias;
+    return todasSubcategorias.filter(sub => sub.categoria === filtroCategoria);
+  }, [todasSubcategorias, filtroCategoria]);
+
+  // Resetar filtro de subcategoria quando categoria mudar
+  useEffect(() => {
+    setFiltroSubcategoria('todas');
+  }, [filtroCategoria]);
 
   // Filtrar itens baseado nos filtros ativos
   const itensFiltrados = useMemo(() => {
@@ -75,12 +93,12 @@ export const TabelaEstoque = () => {
 
       return matchTexto && matchSubcategoria && matchCondicao && matchEstoque;
     });
-  }, [estoque, filtroTexto, filtroSubcategoria, filtroCondicao, filtroEstoque]);
+  }, [estoque, filtroTexto, filtroCategoria, filtroSubcategoria, filtroCondicao, filtroEstoque]);
   
   // Resetar página quando filtros mudarem
   useEffect(() => {
     setPaginaAtual(1);
-  }, [filtroTexto, filtroSubcategoria, filtroCondicao, filtroEstoque]);
+  }, [filtroTexto, filtroCategoria, filtroSubcategoria, filtroCondicao, filtroEstoque]);
   
   // Função para realizar a busca
   const handleBuscar = () => {
@@ -309,7 +327,7 @@ export const TabelaEstoque = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -321,13 +339,31 @@ export const TabelaEstoque = () => {
               />
             </div>
             
-            <Select value={filtroSubcategoria} onValueChange={setFiltroSubcategoria}>
+            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+              <SelectTrigger>
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas as categorias</SelectItem>
+                {categorias.map(categoria => (
+                  <SelectItem key={categoria} value={categoria}>
+                    {categoria}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Select 
+              value={filtroSubcategoria} 
+              onValueChange={setFiltroSubcategoria}
+              disabled={filtroCategoria === 'todas'}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Subcategoria" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todas as subcategorias</SelectItem>
-                {subcategorias.map(subcategoria => (
+                {subcategoriasFiltradas.map(subcategoria => (
                   <SelectItem key={subcategoria.id} value={subcategoria.id}>
                     {subcategoria.nome}
                   </SelectItem>
