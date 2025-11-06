@@ -31,26 +31,43 @@ export const useEstoque = () => {
       const estoqueAtivoInfo = obterEstoqueAtivoInfo();
       const estoqueId = estoqueAtivoInfo?.id;
 
-      const { data: itensData, error: itensError } = await supabase
-        .from('items')
-        .select('*')
-        .order('created_at', { ascending: true })
-        .limit(100000);
-      if (itensError) throw itensError;
-
-      // Filtrar movimentações pelo estoque ativo
-      let movsQuery = supabase
-        .from('movements')
-        .select('*')
-        .order('data_hora', { ascending: true })
-        .limit(100000);
-      
-      if (estoqueId) {
-        movsQuery = movsQuery.eq('estoque_id', estoqueId);
+      // Buscar todos os itens em lotes de 1000 (limite do PostgREST)
+      const pageSize = 1000;
+      let from = 0;
+      let itensData: any[] = [];
+      while (true) {
+        const { data, error } = await supabase
+          .from('items')
+          .select('*')
+          .order('created_at', { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        itensData = itensData.concat(data);
+        if (data.length < pageSize) break;
+        from += pageSize;
       }
 
-      const { data: movsData, error: movsError } = await movsQuery;
-      if (movsError) throw movsError;
+      // Filtrar movimentações pelo estoque ativo e buscar em lotes
+      let movsQueryBase = supabase
+        .from('movements')
+        .select('*')
+        .order('data_hora', { ascending: true });
+      
+      if (estoqueId) {
+        movsQueryBase = movsQueryBase.eq('estoque_id', estoqueId);
+      }
+
+      let movsData: any[] = [];
+      let movFrom = 0;
+      while (true) {
+        const { data, error } = await movsQueryBase.range(movFrom, movFrom + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        movsData = movsData.concat(data);
+        if (data.length < pageSize) break;
+        movFrom += pageSize;
+      }
 
       // Mapear DB -> Tipos locais
       const itensMapped: Item[] = (itensData ?? []).map((row: any) => ({
