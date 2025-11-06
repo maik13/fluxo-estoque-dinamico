@@ -32,8 +32,7 @@ export const exportarExcel = ({
     'Condição': item.condicao,
     'NCM': item.ncm || '',
     'Valor': item.valor || '',
-    'Data de Cadastro': item.dataCriacao ? new Date(item.dataCriacao).toLocaleDateString('pt-BR') : '',
-    'Última Movimentação': item.ultimaMovimentacao ? 
+    'Última Movimentação': item.ultimaMovimentacao ?
       new Date(item.ultimaMovimentacao.dataHora).toLocaleDateString('pt-BR') + ' ' + 
       new Date(item.ultimaMovimentacao.dataHora).toLocaleTimeString('pt-BR') : '',
     'Tipo Última Mov.': item.ultimaMovimentacao?.tipo || '',

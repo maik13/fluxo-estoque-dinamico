@@ -309,7 +309,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   };
 
   // Função para importar itens
-  const handleImportarItens = async (itens: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>[]) => {
+  const handleImportarItens = async (itens: Omit<Item, 'id' | 'codigoBarras'>[]) => {
     // Tenta via servidor (Edge Function) para contornar RLS/limites
     const sucessoServidor = await importarItensServidor(itens);
     if (sucessoServidor) {

@@ -13,11 +13,11 @@ import * as XLSX from 'xlsx';
 interface DialogoImportacaoProps {
   aberto: boolean;
   onClose: () => void;
-  onImportar: (itens: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>[]) => void;
+  onImportar: (itens: Omit<Item, 'id' | 'codigoBarras'>[]) => void;
 }
 
 interface ResultadoValidacao {
-  validos: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>[];
+  validos: Omit<Item, 'id' | 'codigoBarras'>[];
   erros: { linha: number; erro: string; dados: any }[];
 }
 
@@ -29,7 +29,7 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
 
   const camposObrigatorios = ['nome', 'responsavel', 'unidade'];
 
-  const validarLinha = (dados: any, linha: number): { item?: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>; erro?: string } => {
+  const validarLinha = (dados: any, linha: number): { item?: Omit<Item, 'id' | 'codigoBarras'>; erro?: string } => {
     // Verificar campos obrigatórios
     for (const campo of camposObrigatorios) {
       const valor = dados[campo];
@@ -84,7 +84,7 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
       }
     }
 
-    const item: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'> = {
+    const item: Omit<Item, 'id' | 'codigoBarras'> = {
       origem: dados.origem?.toString().trim() || '',
       caixaOrganizador: dados.caixaOrganizador?.toString().trim() || '',
       localizacao: dados.localizacao?.toString().trim() || '',
@@ -109,7 +109,7 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
     setProgresso(0);
 
     const validarRegistros = async (cabecalho: string[], linhas: any[][]) => {
-      const validos: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>[] = [];
+      const validos: Omit<Item, 'id' | 'codigoBarras'>[] = [];
       const erros: { linha: number; erro: string; dados: any }[] = [];
 
       for (let i = 0; i < linhas.length; i++) {

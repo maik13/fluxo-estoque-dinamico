@@ -92,20 +92,8 @@ export const RelatoriosComFiltros = () => {
       );
     }
 
-    // Filtro por data (baseado na data de criação do item)
-    if (filtros.dataInicio) {
-      itemsFiltrados = itemsFiltrados.filter(item => 
-        new Date(item.dataCriacao) >= new Date(filtros.dataInicio)
-      );
-    }
-
-    if (filtros.dataFim) {
-      const dataFim = new Date(filtros.dataFim);
-      dataFim.setHours(23, 59, 59, 999); // Final do dia
-      itemsFiltrados = itemsFiltrados.filter(item => 
-        new Date(item.dataCriacao) <= dataFim
-      );
-    }
+    // Filtro por data não pode ser aplicado pois removemos dataCriacao
+    // Se precisar, use created_at diretamente do banco de dados
 
     // Filtro por estoque zerado
     if (filtros.apenasSemEstoque) {
@@ -150,8 +138,7 @@ export const RelatoriosComFiltros = () => {
       'Estoque Atual': item.estoqueAtual,
       'Unidade': item.unidade,
       'Localização': item.localizacao,
-      'Condição': item.condicao,
-      'Data Criação': format(new Date(item.dataCriacao), 'dd/MM/yyyy', { locale: ptBR })
+      'Condição': item.condicao
     }));
 
     const csv = [

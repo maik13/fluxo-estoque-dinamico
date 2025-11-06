@@ -16,7 +16,6 @@ export interface Item {
   unidade: string; // metro, peça, kg, etc.
   condicao: 'Novo' | 'Usado' | 'Defeito' | 'Descarte';
   subcategoriaId?: string; // ID da subcategoria (referência)
-  dataCriacao: string;
   quantidadeMinima?: number; // Para alertas de estoque baixo
   ncm?: string; // NCM - Nomenclatura Comum do Mercosul
   valor?: number; // Valor unitário do item
@@ -49,7 +48,7 @@ export interface EstoqueConfig {
   nome: string;
   descricao?: string;
   ativo: boolean;
-  dataCriacao: string;
+  created_at: string;
 }
 
 export interface TipoServicoConfig {
@@ -57,7 +56,7 @@ export interface TipoServicoConfig {
   nome: string;
   descricao?: string;
   ativo: boolean;
-  dataCriacao: string;
+  created_at: string;
 }
 
 export interface SubcategoriaConfig {
@@ -65,5 +64,5 @@ export interface SubcategoriaConfig {
   nome: string;
   categoria: string;
   ativo: boolean;
-  dataCriacao: string;
+  created_at: string;
 }

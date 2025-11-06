@@ -65,7 +65,6 @@ export const useEstoque = () => {
           unidade: row.unidade,
           condicao: row.condicao ?? 'Novo',
           subcategoriaId: row.subcategoria_id ?? undefined,
-        dataCriacao: row.data_criacao ?? new Date().toISOString(),
         quantidadeMinima: row.quantidade_minima ?? undefined,
         ncm: row.ncm ?? '',
         valor: row.valor ?? undefined,
@@ -155,7 +154,7 @@ export const useEstoque = () => {
   };
 
 // Função para cadastrar novo item
-const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao'> & { codigoBarras?: number }) => {
+const cadastrarItem = async (dadosItem: Omit<Item, 'id'> & { codigoBarras?: number }) => {
   try {
     let codigoNumerico: number;
 
@@ -184,7 +183,6 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao'> & { cod
       unidade: dadosItem.unidade,
       condicao: dadosItem.condicao,
       subcategoria_id: dadosItem.subcategoriaId ?? null,
-      data_criacao: new Date().toISOString(),
       quantidade_minima: dadosItem.quantidadeMinima ?? null,
       ncm: dadosItem.ncm ?? null,
       valor: dadosItem.valor ?? null,
@@ -198,7 +196,6 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id' | 'dataCriacao'> & { cod
       ...dadosItem,
       id: novoItemId,
       codigoBarras: codigoNumerico,
-      dataCriacao: insertItem.data_criacao,
     };
     setItens(prev => [...prev, novoItem]);
 
@@ -400,7 +397,7 @@ const editarItem = async (itemEditado: Item) => {
 };
 
 // Importar itens
-const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>[]) => {
+const importarItens = async (lista: Omit<Item, 'id' | 'codigoBarras'>[]) => {
   try {
 
     let sucessos = 0;
@@ -432,7 +429,6 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBar
         unidade: itemData.unidade,
         condicao: itemData.condicao,
         subcategoria_id: itemData.subcategoriaId ?? null,
-        data_criacao: new Date().toISOString(),
         quantidade_minima: itemData.quantidadeMinima ?? null,
         ncm: itemData.ncm ?? null,
         valor: itemData.valor ?? null,
@@ -445,7 +441,7 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBar
         continue;
       }
 
-      const novoItem: Item = { ...itemData, id: itemRow!.id, codigoBarras: codigoNumerico, dataCriacao: insertItem.data_criacao };
+      const novoItem: Item = { ...itemData, id: itemRow!.id, codigoBarras: codigoNumerico };
       setItens(prev => [...prev, novoItem]);
 
       const { error: movErr } = await supabase.from('movements').insert({
@@ -488,7 +484,7 @@ const importarItens = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBar
 };
 
 // Importação alternativa via Função Edge (servidor)
-const importarItensServidor = async (lista: Omit<Item, 'id' | 'dataCriacao' | 'codigoBarras'>[]) => {
+const importarItensServidor = async (lista: Omit<Item, 'id' | 'codigoBarras'>[]) => {
   try {
     const { data, error } = await supabase.functions.invoke('import-items', {
       body: { itens: lista },

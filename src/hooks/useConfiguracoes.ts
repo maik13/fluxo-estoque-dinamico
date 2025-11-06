@@ -9,7 +9,7 @@ export interface TipoOperacaoConfig {
   descricao?: string;
   tipo: 'entrada' | 'saida';
   ativo: boolean;
-  dataCriacao: string;
+  created_at: string;
 }
 
 export interface SolicitanteConfig {
@@ -17,14 +17,14 @@ export interface SolicitanteConfig {
   nome: string;
   codigoBarras?: string;
   ativo: boolean;
-  dataCriacao: string;
+  created_at: string;
 }
 
 export interface LocalUtilizacaoConfig {
   id: string;
   nome: string;
   ativo: boolean;
-  dataCriacao: string;
+  created_at: string;
 }
 
 export const useConfiguracoes = () => {
@@ -54,7 +54,7 @@ export const useConfiguracoes = () => {
           nome: e.nome,
           descricao: e.descricao || undefined,
           ativo: e.ativo,
-          dataCriacao: e.created_at,
+          created_at: e.created_at,
         }));
         setEstoques(estoquesCarregados);
         
@@ -95,7 +95,7 @@ export const useConfiguracoes = () => {
           nome: s.nome,
           codigoBarras: s.codigo_barras || undefined,
           ativo: s.ativo,
-          dataCriacao: s.created_at,
+          created_at: s.created_at,
         })));
       }
     } catch (error: any) {
@@ -124,7 +124,7 @@ export const useConfiguracoes = () => {
           id: l.id,
           nome: l.nome,
           ativo: l.ativo,
-          dataCriacao: l.created_at,
+          created_at: l.created_at,
         })));
       }
     } catch (error: any) {
@@ -154,7 +154,7 @@ export const useConfiguracoes = () => {
           nome: s.nome,
           categoria: s.categoria,
           ativo: s.ativo,
-          dataCriacao: s.created_at,
+          created_at: s.created_at,
         })));
       }
     } catch (error: any) {
@@ -185,7 +185,7 @@ export const useConfiguracoes = () => {
           descricao: t.descricao || undefined,
           tipo: t.tipo as 'entrada' | 'saida',
           ativo: t.ativo,
-          dataCriacao: t.created_at,
+          created_at: t.created_at,
         })));
       }
     } catch (error: any) {
@@ -281,7 +281,7 @@ export const useConfiguracoes = () => {
           nome: data.nome,
           descricao: data.descricao || undefined,
           ativo: data.ativo,
-          dataCriacao: data.created_at,
+          created_at: data.created_at,
         };
 
         setEstoques(prev => [...prev, novoEstoque]);
@@ -365,7 +365,7 @@ export const useConfiguracoes = () => {
       nome,
       descricao,
       ativo: true,
-      dataCriacao: new Date().toISOString(),
+      created_at: new Date().toISOString(),
     };
 
     setTiposServico(prev => [...prev, novoTipo]);
@@ -408,7 +408,7 @@ export const useConfiguracoes = () => {
           nome: data.nome,
           categoria: data.categoria,
           ativo: data.ativo,
-          dataCriacao: data.created_at,
+          created_at: data.created_at,
         };
 
         setSubcategorias(prev => [...prev, novaSubcategoria]);
@@ -478,7 +478,7 @@ export const useConfiguracoes = () => {
           descricao: data.descricao || undefined,
           tipo: data.tipo as 'entrada' | 'saida',
           ativo: data.ativo,
-          dataCriacao: data.created_at,
+          created_at: data.created_at,
         };
 
         setTiposOperacao(prev => [...prev, novoTipo]);
@@ -524,7 +524,7 @@ export const useConfiguracoes = () => {
                 descricao: data.descricao || undefined,
                 tipo: data.tipo as 'entrada' | 'saida',
                 ativo: data.ativo,
-                dataCriacao: data.created_at,
+                created_at: data.created_at,
               }
             : t
         ));
@@ -595,7 +595,7 @@ export const useConfiguracoes = () => {
                 nome: data.nome,
                 codigoBarras: data.codigo_barras || undefined,
                 ativo: data.ativo,
-                dataCriacao: data.created_at,
+                created_at: data.created_at,
               }
             : s
         ));
@@ -638,7 +638,7 @@ export const useConfiguracoes = () => {
           nome: data.nome,
           codigoBarras: data.codigo_barras || undefined,
           ativo: data.ativo,
-          dataCriacao: data.created_at,
+          created_at: data.created_at,
         };
 
         setSolicitantes(prev => [...prev, novoSolicitante]);
@@ -706,7 +706,7 @@ export const useConfiguracoes = () => {
                 id: data.id,
                 nome: data.nome,
                 ativo: data.ativo,
-                dataCriacao: data.created_at,
+                created_at: data.created_at,
               }
             : l
         ));
@@ -747,7 +747,7 @@ export const useConfiguracoes = () => {
           id: data.id,
           nome: data.nome,
           ativo: data.ativo,
-          dataCriacao: data.created_at,
+          created_at: data.created_at,
         };
 
         setLocaisUtilizacao(prev => [...prev, novoLocal]);

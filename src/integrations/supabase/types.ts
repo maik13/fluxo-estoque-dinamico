@@ -48,7 +48,6 @@ export type Database = {
           codigo_barras: number
           condicao: string | null
           created_at: string
-          data_criacao: string
           especificacao: string | null
           id: string
           localizacao: string | null
@@ -70,7 +69,6 @@ export type Database = {
           codigo_barras: number
           condicao?: string | null
           created_at?: string
-          data_criacao?: string
           especificacao?: string | null
           id?: string
           localizacao?: string | null
@@ -92,7 +90,6 @@ export type Database = {
           codigo_barras?: number
           condicao?: string | null
           created_at?: string
-          data_criacao?: string
           especificacao?: string | null
           id?: string
           localizacao?: string | null

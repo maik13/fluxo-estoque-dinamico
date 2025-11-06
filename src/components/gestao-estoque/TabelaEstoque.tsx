@@ -124,7 +124,6 @@ export const TabelaEstoque = () => {
       'Quantidade Mínima': item.quantidadeMinima,
       'Unidade': item.unidade,
       'Condição': item.condicao,
-      'Data Cadastro': item.dataCriacao ? formatarData(item.dataCriacao) : '',
       'Última Movimentação': item.ultimaMovimentacao ? formatarData(item.ultimaMovimentacao.dataHora) : ''
     }));
 
