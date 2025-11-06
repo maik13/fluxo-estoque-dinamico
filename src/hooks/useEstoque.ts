@@ -34,14 +34,16 @@ export const useEstoque = () => {
       const { data: itensData, error: itensError } = await supabase
         .from('items')
         .select('*')
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true })
+        .limit(100000);
       if (itensError) throw itensError;
 
       // Filtrar movimentações pelo estoque ativo
       let movsQuery = supabase
         .from('movements')
         .select('*')
-        .order('data_hora', { ascending: true });
+        .order('data_hora', { ascending: true })
+        .limit(100000);
       
       if (estoqueId) {
         movsQuery = movsQuery.eq('estoque_id', estoqueId);
