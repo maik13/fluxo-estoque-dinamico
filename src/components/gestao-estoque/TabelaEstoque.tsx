@@ -19,10 +19,10 @@ import { usePermissions } from '@/hooks/usePermissions';
 
 export const TabelaEstoque = () => {
   const { obterEstoque, loading, editarItem, registrarEntrada, registrarSaida } = useEstoque();
-  const { obterEstoqueAtivoInfo } = useConfiguracoes();
+  const { obterEstoqueAtivoInfo, obterSubcategoriasAtivas } = useConfiguracoes();
   const { canEditItems } = usePermissions();
   const [filtroTexto, setFiltroTexto] = useState('');
-  const [filtroCategoria, setFiltroCategoria] = useState('todas');
+  const [filtroSubcategoria, setFiltroSubcategoria] = useState('todas');
   const [filtroCondicao, setFiltroCondicao] = useState('todas');
   const [filtroEstoque, setFiltroEstoque] = useState('todos'); // todos, baixo, zerado
   
@@ -43,10 +43,10 @@ export const TabelaEstoque = () => {
     return obterEstoque();
   }, [obterEstoque, deveBuscar]);
   
-  // Obter categorias únicas para filtro
-  const categorias = useMemo(() => {
-    return [];
-  }, [estoque]);
+  // Obter subcategorias ativas para filtro
+  const subcategorias = useMemo(() => {
+    return obterSubcategoriasAtivas();
+  }, [obterSubcategoriasAtivas]);
 
   // Filtrar itens baseado nos filtros ativos
   const itensFiltrados = useMemo(() => {
@@ -59,8 +59,8 @@ export const TabelaEstoque = () => {
         item.marca.toLowerCase().includes(textoFiltro) ||
         item.especificacao.toLowerCase().includes(textoFiltro);
 
-      // Filtro por categoria
-      const matchCategoria = filtroCategoria === 'todas' || false;
+      // Filtro por subcategoria
+      const matchSubcategoria = filtroSubcategoria === 'todas' || item.subcategoriaId === filtroSubcategoria;
       
       // Filtro por condição
       const matchCondicao = filtroCondicao === 'todas' || item.condicao === filtroCondicao;
@@ -73,14 +73,14 @@ export const TabelaEstoque = () => {
         matchEstoque = item.estoqueAtual === 0;
       }
 
-      return matchTexto && matchCategoria && matchCondicao && matchEstoque;
+      return matchTexto && matchSubcategoria && matchCondicao && matchEstoque;
     });
-  }, [estoque, filtroTexto, filtroCategoria, filtroCondicao, filtroEstoque]);
+  }, [estoque, filtroTexto, filtroSubcategoria, filtroCondicao, filtroEstoque]);
   
   // Resetar página quando filtros mudarem
   useEffect(() => {
     setPaginaAtual(1);
-  }, [filtroTexto, filtroCategoria, filtroCondicao, filtroEstoque]);
+  }, [filtroTexto, filtroSubcategoria, filtroCondicao, filtroEstoque]);
   
   // Função para realizar a busca
   const handleBuscar = () => {
@@ -321,15 +321,15 @@ export const TabelaEstoque = () => {
               />
             </div>
             
-            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+            <Select value={filtroSubcategoria} onValueChange={setFiltroSubcategoria}>
               <SelectTrigger>
-                <SelectValue placeholder="Categoria" />
+                <SelectValue placeholder="Subcategoria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todas">Todas as categorias</SelectItem>
-                {categorias.map(categoria => (
-                  <SelectItem key={categoria} value={categoria}>
-                    {categoria}
+                <SelectItem value="todas">Todas as subcategorias</SelectItem>
+                {subcategorias.map(subcategoria => (
+                  <SelectItem key={subcategoria.id} value={subcategoria.id}>
+                    {subcategoria.nome}
                   </SelectItem>
                 ))}
               </SelectContent>
