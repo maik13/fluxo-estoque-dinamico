@@ -54,6 +54,7 @@ export const useEstoque = () => {
       const itensMapped: Item[] = (itensData ?? []).map((row: any) => ({
           id: row.id,
           codigoBarras: Number(row.codigo_barras),
+          codigoAntigo: row.codigo_antigo ?? undefined,
           origem: row.origem ?? '',
           caixaOrganizador: row.caixa_organizador ?? '',
           localizacao: row.localizacao ?? '',
