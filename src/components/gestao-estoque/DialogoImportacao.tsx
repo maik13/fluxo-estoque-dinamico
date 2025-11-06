@@ -92,7 +92,6 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
       tipoItem: tipoInferido as 'Insumo' | 'Ferramenta',
       especificacao: dados.especificacao?.toString().trim() || '',
       marca: dados.marca?.toString().trim() || '',
-      quantidade: quantidade,
       unidade: dados.unidade.toString().trim(),
       condicao: condicao as 'Novo' | 'Usado' | 'Defeito' | 'Descarte',
       subcategoriaId: dados.subcategoriaId?.toString().trim() || undefined,

@@ -55,7 +55,6 @@ export type Database = {
           ncm: string | null
           nome: string
           origem: string | null
-          quantidade: number
           quantidade_minima: number | null
           subcategoria_id: string | null
           tipo_item: string | null
@@ -76,7 +75,6 @@ export type Database = {
           ncm?: string | null
           nome: string
           origem?: string | null
-          quantidade?: number
           quantidade_minima?: number | null
           subcategoria_id?: string | null
           tipo_item?: string | null
@@ -97,7 +95,6 @@ export type Database = {
           ncm?: string | null
           nome?: string
           origem?: string | null
-          quantidade?: number
           quantidade_minima?: number | null
           subcategoria_id?: string | null
           tipo_item?: string | null

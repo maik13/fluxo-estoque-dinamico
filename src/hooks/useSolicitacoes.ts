@@ -146,34 +146,26 @@ export const useSolicitacoes = () => {
 
         if (itemEstoqueError) throw itemEstoqueError;
 
-        const quantidadeAnterior = itemEstoque.quantidade;
-        let novaQuantidade = quantidadeAnterior;
+        // Calcular quantidades para a movimentação
+        // O estoque real é calculado pelas movimentações, não pela coluna quantidade
+        const quantidadeAnterior = 0; // Será calculado pelas movimentações
+        let quantidadeAtual = 0;
         let tipoMovimentacao: 'ENTRADA' | 'SAIDA' = 'SAIDA';
 
         if (isRetirada) {
-          novaQuantidade = quantidadeAnterior - item.quantidade_solicitada;
           tipoMovimentacao = 'SAIDA';
         } else if (isDevolucao) {
-          novaQuantidade = quantidadeAnterior + item.quantidade_solicitada;
           tipoMovimentacao = 'ENTRADA';
         }
 
-        // Atualizar quantidade no estoque
-        const { error: updateEstoqueError } = await supabase
-          .from('items')
-          .update({ quantidade: novaQuantidade })
-          .eq('id', item.item_id);
-
-        if (updateEstoqueError) throw updateEstoqueError;
-
-        // Criar movimentação
+        // Criar movimentação (não atualizar coluna quantidade pois ela foi removida)
         const estoqueAtivoInfo = obterEstoqueAtivoInfo();
         const movimentacaoData = {
           item_id: item.item_id,
           tipo: tipoMovimentacao,
           quantidade: item.quantidade_solicitada,
           quantidade_anterior: quantidadeAnterior,
-          quantidade_atual: novaQuantidade,
+          quantidade_atual: quantidadeAtual,
           responsavel: userProfile.nome,
           observacoes: `${isDevolucao ? 'Devolução' : 'Retirada'} - Solicitação #${solicitacaoData.numero || solicitacaoData.id.slice(-8)}${novaSolicitacao.observacoes ? ' - ' + novaSolicitacao.observacoes : ''}`,
           local_utilizacao_id: novaSolicitacao.local_utilizacao_id,

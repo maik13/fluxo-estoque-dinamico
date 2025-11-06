@@ -48,7 +48,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     nome: '',
     especificacao: '',
     marca: '',
-    quantidade: 0,
     unidade: '',
     condicao: 'Novo',
     subcategoriaId: undefined,
@@ -160,7 +159,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       tipoItem: 'Insumo',
       especificacao: '',
       marca: '',
-      quantidade: 0,
       unidade: '',
       condicao: 'Novo',
       subcategoriaId: undefined

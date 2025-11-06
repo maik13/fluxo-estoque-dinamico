@@ -12,7 +12,6 @@ export interface Item {
   tipoItem: 'Insumo' | 'Ferramenta'; // Tipo do item
   especificacao: string; // Amperagem bateria, bitola, tipo de pisca, etc.
   marca: string;
-  quantidade: number;
   unidade: string; // metro, peça, kg, etc.
   condicao: 'Novo' | 'Usado' | 'Defeito' | 'Descarte';
   subcategoriaId?: string; // ID da subcategoria (referência)
