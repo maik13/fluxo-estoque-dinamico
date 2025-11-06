@@ -507,20 +507,19 @@ export const SolicitarMaterial = () => {
                 <Input
                   id="codigoAssinatura"
                   type="text"
-                  placeholder="Digite o código de 8 dígitos do solicitante"
+                  placeholder="Digite o código de assinatura do solicitante"
                   value={codigoAssinatura}
                   onChange={(e) => {
                     setCodigoAssinatura(e.target.value);
                     setErroAssinatura('');
                   }}
-                  maxLength={8}
                   className={erroAssinatura ? 'border-destructive' : ''}
                 />
                 {erroAssinatura && (
                   <p className="text-sm text-destructive">{erroAssinatura}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Para confirmar a retirada, insira o código de assinatura do solicitante (8 dígitos)
+                  Para confirmar a retirada, insira o código de assinatura do solicitante
                 </p>
               </div>
             </div>

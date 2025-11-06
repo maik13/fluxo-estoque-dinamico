@@ -318,8 +318,7 @@ export const DevolverMaterial = () => {
                           setCodigoAssinatura(e.target.value);
                           setErroAssinatura('');
                         }}
-                        placeholder="Digite seu código de 8 dígitos"
-                        maxLength={8}
+                        placeholder="Digite seu código de assinatura"
                         className={erroAssinatura ? 'border-destructive' : ''}
                       />
                       {erroAssinatura && (
