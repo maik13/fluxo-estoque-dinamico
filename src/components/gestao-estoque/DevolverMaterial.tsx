@@ -370,7 +370,7 @@ export const DevolverMaterial = () => {
                         <CommandList>
                           <CommandEmpty>Nenhum item encontrado</CommandEmpty>
                           <CommandGroup>
-                            {itensFiltrarados.slice(0, 10).map(item => (
+                            {itensFiltrarados.map(item => (
                               <CommandItem
                                 key={item.id}
                                 onSelect={() => {
