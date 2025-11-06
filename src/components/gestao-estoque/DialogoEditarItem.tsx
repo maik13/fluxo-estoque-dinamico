@@ -66,6 +66,16 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
                 O código de barras não pode ser alterado
               </p>
             </div>
+
+            <div>
+              <Label htmlFor="codigoAntigo">Código Antigo</Label>
+              <Input
+                id="codigoAntigo"
+                value={formItem.codigoAntigo || ''}
+                onChange={(e) => setFormItem(prev => prev ? {...prev, codigoAntigo: e.target.value} : null)}
+                placeholder="Código anterior do item (se houver)"
+              />
+            </div>
             
             <div>
               <Label htmlFor="nome">Nome do Item *</Label>

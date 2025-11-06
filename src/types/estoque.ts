@@ -4,6 +4,7 @@
 export interface Item {
   id: string;
   codigoBarras: number;
+  codigoAntigo?: string; // Código antigo do item (opcional)
   origem: string;
   caixaOrganizador: string;
   localizacao: string;

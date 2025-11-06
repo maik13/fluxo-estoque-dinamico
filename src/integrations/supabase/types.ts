@@ -44,6 +44,7 @@ export type Database = {
       items: {
         Row: {
           caixa_organizador: string | null
+          codigo_antigo: string | null
           codigo_barras: number
           condicao: string | null
           created_at: string
@@ -65,6 +66,7 @@ export type Database = {
         }
         Insert: {
           caixa_organizador?: string | null
+          codigo_antigo?: string | null
           codigo_barras: number
           condicao?: string | null
           created_at?: string
@@ -86,6 +88,7 @@ export type Database = {
         }
         Update: {
           caixa_organizador?: string | null
+          codigo_antigo?: string | null
           codigo_barras?: number
           condicao?: string | null
           created_at?: string

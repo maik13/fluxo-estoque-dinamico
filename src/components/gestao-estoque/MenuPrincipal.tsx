@@ -41,6 +41,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   // Estados para os formulários
   const [formCadastro, setFormCadastro] = useState<Partial<Item>>({
     codigoBarras: 0,
+    codigoAntigo: '',
     origem: '',
     caixaOrganizador: '',
     localizacao: '',
@@ -152,6 +153,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const resetarFormularios = () => {
     setFormCadastro({
       origem: '',
+      codigoAntigo: '',
       caixaOrganizador: '',
       localizacao: '',
       nome: '',
@@ -417,6 +419,16 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   {erroCodigoBarras && (
                     <p className="text-xs text-destructive mt-1">{erroCodigoBarras}</p>
                   )}
+                </div>
+
+                <div>
+                  <Label htmlFor="codigoAntigo">Código Antigo</Label>
+                  <Input
+                    id="codigoAntigo"
+                    value={formCadastro.codigoAntigo || ''}
+                    onChange={(e) => setFormCadastro(prev => ({...prev, codigoAntigo: e.target.value}))}
+                    placeholder="Código anterior do item (se houver)"
+                  />
                 </div>
 
                 <div>
