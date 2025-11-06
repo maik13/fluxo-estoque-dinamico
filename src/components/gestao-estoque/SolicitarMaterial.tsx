@@ -389,7 +389,6 @@ export const SolicitarMaterial = () => {
                             item.nome.toLowerCase().includes(busca.toLowerCase()) ||
                             item.codigoBarras.toString().includes(busca)
                           )
-                          .slice(0, 10)
                           .map((item) => (
                             <CommandItem
                               key={item.id}
