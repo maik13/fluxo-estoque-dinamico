@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -44,7 +44,7 @@ export const TabelaEstoque = () => {
 
   // Filtrar itens baseado nos filtros ativos
   const itensFiltrados = useMemo(() => {
-    const filtrados = estoque.filter(item => {
+    return estoque.filter(item => {
       // Filtro por texto (busca em nome, código, marca, especificação)
       const textoFiltro = filtroTexto.toLowerCase();
       const matchTexto = !textoFiltro || 
@@ -69,12 +69,12 @@ export const TabelaEstoque = () => {
 
       return matchTexto && matchCategoria && matchCondicao && matchEstoque;
     });
-    
-    // Resetar para primeira página quando filtros mudarem
-    setPaginaAtual(1);
-    
-    return filtrados;
   }, [estoque, filtroTexto, filtroCategoria, filtroCondicao, filtroEstoque]);
+  
+  // Resetar página quando filtros mudarem
+  useEffect(() => {
+    setPaginaAtual(1);
+  }, [filtroTexto, filtroCategoria, filtroCondicao, filtroEstoque]);
   
   // Calcular itens da página atual
   const itensPaginados = useMemo(() => {
