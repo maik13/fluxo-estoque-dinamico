@@ -33,9 +33,15 @@ export const TabelaEstoque = () => {
   // Estados para paginação
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 20;
+  
+  // Estado para controlar se deve buscar
+  const [deveBuscar, setDeveBuscar] = useState(false);
 
-  // Obter dados do estoque
-  const estoque = useMemo(() => obterEstoque(), [obterEstoque]);
+  // Obter dados do estoque apenas quando deveBuscar for true
+  const estoque = useMemo(() => {
+    if (!deveBuscar) return [];
+    return obterEstoque();
+  }, [obterEstoque, deveBuscar]);
   
   // Obter categorias únicas para filtro
   const categorias = useMemo(() => {
@@ -75,6 +81,12 @@ export const TabelaEstoque = () => {
   useEffect(() => {
     setPaginaAtual(1);
   }, [filtroTexto, filtroCategoria, filtroCondicao, filtroEstoque]);
+  
+  // Função para realizar a busca
+  const handleBuscar = () => {
+    setDeveBuscar(true);
+    setPaginaAtual(1);
+  };
   
   // Calcular itens da página atual
   const itensPaginados = useMemo(() => {
@@ -232,7 +244,8 @@ export const TabelaEstoque = () => {
 
   return (
     <div className="space-y-6">
-      {/* Estatísticas */}
+      {/* Estatísticas - só mostrar após buscar */}
+      {deveBuscar && (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
@@ -282,6 +295,7 @@ export const TabelaEstoque = () => {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* Filtros */}
       <Card>
@@ -302,6 +316,7 @@ export const TabelaEstoque = () => {
                 placeholder="Buscar por nome, código, marca..."
                 value={filtroTexto}
                 onChange={(e) => setFiltroTexto(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleBuscar()}
                 className="pl-10"
               />
             </div>
@@ -346,19 +361,27 @@ export const TabelaEstoque = () => {
           </div>
           
           <div className="flex justify-between items-center mt-4">
-            <p className="text-sm text-muted-foreground">
-              Mostrando {itensPaginados.length} de {itensFiltrados.length} itens (Total: {estoque.length})
-            </p>
+            <div className="flex items-center gap-4">
+              <Button onClick={handleBuscar} variant="default" size="default">
+                <Search className="h-4 w-4 mr-2" />
+                Buscar
+              </Button>
+              {deveBuscar && (
+                <p className="text-sm text-muted-foreground">
+                  Mostrando {itensPaginados.length} de {itensFiltrados.length} itens (Total: {estoque.length})
+                </p>
+              )}
+            </div>
             <div className="flex gap-2">
-              <Button onClick={imprimirPagina} variant="outline" size="sm">
+              <Button onClick={imprimirPagina} variant="outline" size="sm" disabled={!deveBuscar}>
                 <Printer className="h-4 w-4 mr-2" />
                 Imprimir
               </Button>
-              <Button onClick={exportarPDF} variant="outline" size="sm">
+              <Button onClick={exportarPDF} variant="outline" size="sm" disabled={!deveBuscar}>
                 <FileText className="h-4 w-4 mr-2" />
                 PDF Estoque
               </Button>
-              <Button onClick={exportarExcelCompleto} variant="outline" size="sm">
+              <Button onClick={exportarExcelCompleto} variant="outline" size="sm" disabled={!deveBuscar}>
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
                 Excel
               </Button>
@@ -394,7 +417,18 @@ export const TabelaEstoque = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {itensFiltrados.length === 0 ? (
+                {!deveBuscar ? (
+                  <TableRow>
+                    <TableCell colSpan={12} className="text-center py-8">
+                      <div className="flex flex-col items-center gap-2">
+                        <Search className="h-12 w-12 text-muted-foreground" />
+                        <p className="text-muted-foreground font-medium">
+                          Configure os filtros acima e clique em "Buscar" para visualizar o estoque
+                        </p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : itensFiltrados.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={12} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
@@ -485,7 +519,7 @@ export const TabelaEstoque = () => {
           </div>
           
           {/* Paginação */}
-          {totalPaginas > 1 && (
+          {deveBuscar && totalPaginas > 1 && (
             <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
               <p className="text-sm text-muted-foreground">
                 Página {paginaAtual} de {totalPaginas}
