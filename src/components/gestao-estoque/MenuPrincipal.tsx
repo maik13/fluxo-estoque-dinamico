@@ -16,6 +16,7 @@ import { SeletorEstoque } from './SeletorEstoque';
 import { DialogoImportacao } from './DialogoImportacao';
 import { SolicitarMaterial } from './SolicitarMaterial';
 import { DevolverMaterial } from './DevolverMaterial';
+import { RegistrarEntrada } from './RegistrarEntrada';
 import { Badge } from '@/components/ui/badge';
 import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
@@ -34,7 +35,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   
   // Estados para controlar os diálogos
   const [dialogoCadastro, setDialogoCadastro] = useState(false);
-  const [dialogoEntrada, setDialogoEntrada] = useState(false);
   const [dialogoSaida, setDialogoSaida] = useState(false);
   const [dialogoImportacao, setDialogoImportacao] = useState(false);
 
@@ -71,19 +71,9 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const [popoverSaidaAberto, setPopoverSaidaAberto] = useState(false);
   const [itemSelecionadoSaida, setItemSelecionadoSaida] = useState<EstoqueItem | null>(null);
 
-  // Estados para busca inteligente na entrada
-  const [buscaEntrada, setBuscaEntrada] = useState('');
-  const [popoverEntradaAberto, setPopoverEntradaAberto] = useState(false);
-  const [itemSelecionadoEntrada, setItemSelecionadoEntrada] = useState<EstoqueItem | null>(null);
-
   // Obter todos os itens do estoque para busca inteligente
   const itensEstoque = useMemo(() => {
     return obterEstoque().filter(item => item.estoqueAtual > 0);
-  }, [obterEstoque]);
-
-  // Obter todos os itens para entrada (sem filtrar por estoque)
-  const todosItensEstoque = useMemo(() => {
-    return obterEstoque();
   }, [obterEstoque]);
 
   // Obter subcategorias ativas
@@ -102,18 +92,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       item.marca.toLowerCase().includes(termo)
     );
   }, [buscaSaida, itensEstoque]);
-
-  // Filtrar itens para busca inteligente na entrada
-  const itensFiltradosEntrada = useMemo(() => {
-    if (!buscaEntrada) return todosItensEstoque;
-    
-    const termo = buscaEntrada.toLowerCase();
-    return todosItensEstoque.filter(item => 
-      item.nome.toLowerCase().includes(termo) ||
-      item.codigoBarras.toString().includes(termo) ||
-      item.marca.toLowerCase().includes(termo)
-    );
-  }, [buscaEntrada, todosItensEstoque]);
 
   // Obter informações do estoque ativo
   const estoqueAtivoInfo = obterEstoqueAtivoInfo();
@@ -170,10 +148,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       tipoOperacaoId: ''
     });
     setBuscaSaida('');
-    setBuscaEntrada('');
     setDialogoImportacao(false);
     setItemSelecionadoSaida(null);
-    setItemSelecionadoEntrada(null);
   };
 
   // Função para validar código de barras ao sair do campo
@@ -220,47 +196,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       resetarFormularios();
       setCodigoBarrasManual('');
       setErroCodigoBarras('');
-      onMovimentacaoRealizada();
-    }
-  };
-
-  // Função para selecionar item na busca inteligente de entrada
-  const selecionarItemEntrada = (item: EstoqueItem) => {
-    setItemSelecionadoEntrada(item);
-    setBuscaEntrada(item.nome);
-    setFormMovimentacao(prev => ({
-      ...prev,
-      codigoBarras: item.codigoBarras
-    }));
-    setPopoverEntradaAberto(false);
-  };
-
-  // Função para lidar com entrada
-  const handleEntrada = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Se o usuário digitou um código manualmente, usar esse código
-    // Caso contrário, usar o código do item selecionado na busca
-    // Se nenhum dos dois, gerar automaticamente
-    let codigoParaUsar = formMovimentacao.codigoBarras;
-    
-    if (!codigoParaUsar || codigoParaUsar === 0) {
-      if (itemSelecionadoEntrada?.codigoBarras) {
-        codigoParaUsar = itemSelecionadoEntrada.codigoBarras;
-      } else {
-        codigoParaUsar = obterProximoCodigoDisponivel();
-      }
-    }
-    
-    if (registrarEntrada(
-      codigoParaUsar,
-      formMovimentacao.quantidade,
-      '',
-      formMovimentacao.observacoes,
-      formMovimentacao.tipoOperacaoId || undefined
-    )) {
-      setDialogoEntrada(false);
-      resetarFormularios();
       onMovimentacaoRealizada();
     }
   };
@@ -352,6 +287,9 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
         
         {/* Devolução de Material */}
         <DevolverMaterial />
+        
+        {/* Registrar Entrada */}
+        <RegistrarEntrada onEntradaRealizada={onMovimentacaoRealizada} />
         
         {/* BOTÃO CADASTRO */}
         <Dialog open={dialogoCadastro} onOpenChange={setDialogoCadastro}>
@@ -610,164 +548,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
           </DialogContent>
         </Dialog>
 
-        {/* BOTÃO ENTRADA */}
-        <Dialog open={dialogoEntrada} onOpenChange={setDialogoEntrada}>
-          <DialogTrigger asChild>
-            <Card className={cn(
-              "cursor-pointer hover:scale-105 transition-all duration-300",
-              podeMovimentar 
-                ? "border-info/20 hover:border-info/40" 
-                : "border-muted/20 hover:border-muted/40 opacity-60"
-            )}>
-              <CardHeader className="text-center">
-                <div className="mx-auto w-16 h-16 bg-info/10 rounded-full flex items-center justify-center mb-4">
-                  <ArrowUp className="h-8 w-8 text-info" />
-                </div>
-                <CardTitle className="text-info">Entrada</CardTitle>
-                <CardDescription>
-                  Registrar entrada de materiais
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>📥 Registrar Entrada</DialogTitle>
-              <DialogDescription>
-                Registre a entrada de materiais no estoque
-              </DialogDescription>
-            </DialogHeader>
-            
-            <form onSubmit={handleEntrada} className="space-y-4">
-                <div>
-                  <Label>Buscar Item</Label>
-                  <Popover open={popoverEntradaAberto} onOpenChange={setPopoverEntradaAberto}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={popoverEntradaAberto}
-                        className="w-full justify-between"
-                      >
-                        {itemSelecionadoEntrada 
-                          ? `${itemSelecionadoEntrada.nome} (${itemSelecionadoEntrada.codigoBarras})`
-                          : "Buscar por nome ou código..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput 
-                          placeholder="Digite para buscar..." 
-                          value={buscaEntrada}
-                          onValueChange={setBuscaEntrada}
-                        />
-                        <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
-                        <CommandList>
-                          <CommandGroup>
-                            {itensFiltradosEntrada.slice(0, 10).map((item) => (
-                              <CommandItem
-                                key={item.id}
-                                value={item.nome}
-                                onSelect={() => selecionarItemEntrada(item)}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    itemSelecionadoEntrada?.id === item.id ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{item.nome}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    Código: {item.codigoBarras} | Estoque: {item.estoqueAtual} {item.unidade}
-                                  </span>
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-              <div>
-                <Label htmlFor="codigoBarrasEntrada">Código de Barras</Label>
-                <Input
-                  id="codigoBarrasEntrada"
-                  type="number"
-                  value={formMovimentacao.codigoBarras || ''}
-                  onChange={(e) => setFormMovimentacao(prev => ({...prev, codigoBarras: Number(e.target.value)}))}
-                  placeholder="Digite o código ou deixe em branco para usar o item selecionado"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formMovimentacao.codigoBarras && formMovimentacao.codigoBarras > 0
-                    ? "Usando código digitado"
-                    : itemSelecionadoEntrada
-                    ? `Usando código do item selecionado: ${itemSelecionadoEntrada.codigoBarras}`
-                    : "Será gerado automaticamente se deixado em branco"}
-                </p>
-              </div>
-              
-              <div>
-                <Label htmlFor="quantidadeEntrada">Quantidade *</Label>
-                <Input
-                  id="quantidadeEntrada"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={formMovimentacao.quantidade}
-                  onChange={(e) => setFormMovimentacao(prev => ({...prev, quantidade: Number(e.target.value)}))}
-                  required
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="tipoOperacaoEntrada">Operação *</Label>
-                <Select 
-                  value={formMovimentacao.tipoOperacaoId} 
-                  onValueChange={(value) => setFormMovimentacao(prev => ({...prev, tipoOperacaoId: value}))}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a operação" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tiposOperacao
-                      .filter(op => op.ativo && op.tipo === 'entrada')
-                      .map(op => (
-                        <SelectItem key={op.id} value={op.id}>
-                          {op.nome}
-                        </SelectItem>
-                      ))
-                    }
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="observacoesEntrada">Observações</Label>
-                <Textarea
-                  id="observacoesEntrada"
-                  value={formMovimentacao.observacoes}
-                  onChange={(e) => setFormMovimentacao(prev => ({...prev, observacoes: e.target.value}))}
-                  placeholder="Observações sobre a entrada (opcional)"
-                  rows={3}
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setDialogoEntrada(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit">
-                  Registrar Entrada
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
 
         {/* BOTÃO SAÍDA */}
         <Dialog open={dialogoSaida} onOpenChange={setDialogoSaida}>
