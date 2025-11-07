@@ -127,11 +127,12 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
     const total = estoque.length;
     const comEstoque = estoque.filter(item => item.estoqueAtual > 0).length;
     const estoqueZero = estoque.filter(item => item.estoqueAtual === 0).length;
+    const estoqueNegativo = estoque.filter(item => item.estoqueAtual < 0).length;
     const estoqueBaixo = estoque.filter(item => 
       item.quantidadeMinima && item.estoqueAtual <= item.quantidadeMinima
     ).length;
 
-    return { total, comEstoque, estoqueZero, estoqueBaixo };
+    return { total, comEstoque, estoqueZero, estoqueNegativo, estoqueBaixo };
   }, [estoque]);
 
   // Função para obter cor do badge baseado no estoque
@@ -310,7 +311,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   return (
     <div className="space-y-6">
       {/* Estatísticas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -353,6 +354,18 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
               <div>
                 <p className="text-sm text-muted-foreground">Zerados</p>
                 <p className="text-2xl font-bold text-destructive">{estatisticas.estoqueZero}</p>
+              </div>
+              <AlertTriangle className="h-8 w-8 text-destructive" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Negativos</p>
+                <p className="text-2xl font-bold text-destructive">{estatisticas.estoqueNegativo}</p>
               </div>
               <AlertTriangle className="h-8 w-8 text-destructive" />
             </div>
