@@ -397,6 +397,13 @@ export const TabelaMovimentacoes = () => {
                           </div>
                         </TableCell>
                         <TableCell>
+                          {mov.localUtilizacaoNome ? (
+                            <span className="text-sm">{mov.localUtilizacaoNome}</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           {mov.observacoes && mov.tipo !== 'SAIDA' ? (
                             <span className="text-sm">{mov.observacoes}</span>
                           ) : (

@@ -51,7 +51,12 @@ export const useEstoque = () => {
       // Filtrar movimentações pelo estoque ativo e buscar em lotes
       let movsQueryBase = supabase
         .from('movements')
-        .select('*')
+        .select(`
+          *,
+          locais_utilizacao:local_utilizacao_id (
+            nome
+          )
+        `)
         .order('data_hora', { ascending: true });
       
       if (estoqueId) {
@@ -99,6 +104,8 @@ export const useEstoque = () => {
           userId: row.user_id ?? undefined,
           observacoes: row.observacoes ?? undefined,
         dataHora: row.data_hora,
+        localUtilizacaoId: row.local_utilizacao_id ?? undefined,
+        localUtilizacaoNome: row.locais_utilizacao?.nome ?? undefined,
         itemSnapshot: row.item_snapshot as Partial<Item>,
       }));
 

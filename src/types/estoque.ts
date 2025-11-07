@@ -30,6 +30,8 @@ export interface Movimentacao {
   userId?: string; // ID do usuário que realizou a movimentação
   observacoes?: string;
   dataHora: string;
+  localUtilizacaoId?: string; // ID do local de utilização
+  localUtilizacaoNome?: string; // Nome do local de utilização
   // Dados do item no momento da movimentação (para histórico)
   itemSnapshot: Partial<Item>;
 }
