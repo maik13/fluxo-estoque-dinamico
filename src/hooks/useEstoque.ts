@@ -59,8 +59,9 @@ export const useEstoque = () => {
         `)
         .order('data_hora', { ascending: true });
       
+      // Se houver estoque ativo, buscar movimentações desse estoque OU sem estoque definido
       if (estoqueId) {
-        movsQueryBase = movsQueryBase.eq('estoque_id', estoqueId);
+        movsQueryBase = movsQueryBase.or(`estoque_id.eq.${estoqueId},estoque_id.is.null`);
       }
 
       let movsData: any[] = [];
