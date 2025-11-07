@@ -166,7 +166,7 @@ export const useSolicitacoes = () => {
           quantidade: item.quantidade_solicitada,
           quantidade_anterior: quantidadeAnterior,
           quantidade_atual: quantidadeAtual,
-          responsavel: userProfile.nome,
+          user_id: user.id,
           observacoes: `${isDevolucao ? 'Devolução' : 'Retirada'} - Solicitação #${solicitacaoData.numero || solicitacaoData.id.slice(-8)}${novaSolicitacao.observacoes ? ' - ' + novaSolicitacao.observacoes : ''}`,
           local_utilizacao_id: novaSolicitacao.local_utilizacao_id,
           item_snapshot: item.item_snapshot,
