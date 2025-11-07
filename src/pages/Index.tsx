@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { SeletorEstoque } from '@/components/gestao-estoque/SeletorEstoque';
 
 const Index = () => {
   const [tabAtiva, setTabAtiva] = useState('menu');
@@ -69,6 +70,7 @@ const Index = () => {
             </h1>
           </div>
           <div className="flex items-center gap-3">
+            <SeletorEstoque />
             {session?.user?.email && (
               <span className="text-sm text-muted-foreground">
                 {session.user.email}

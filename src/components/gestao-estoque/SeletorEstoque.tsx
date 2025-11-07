@@ -12,7 +12,7 @@ export const SeletorEstoque = () => {
     <div className="flex items-center gap-2">
       <Database className="h-4 w-4" />
       <Select value={estoqueAtivo} onValueChange={alterarEstoqueAtivo}>
-        <SelectTrigger className="w-40">
+        <SelectTrigger className="w-64">
           <SelectValue placeholder="Selecione o estoque" />
         </SelectTrigger>
         <SelectContent>
