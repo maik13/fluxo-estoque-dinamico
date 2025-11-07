@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingDown, Edit, FileText, FileSpreadsheet, Printer, ShoppingCart } from 'lucide-react';
+import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingDown, Edit, FileText, FileSpreadsheet, Printer, ShoppingCart, Trash2 } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { EstoqueItem } from '@/types/estoque';
 import { DialogoEditarItem } from './DialogoEditarItem';
@@ -49,6 +50,10 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   const [dialogoRetirada, setDialogoRetirada] = useState(false);
   const [itemRetirada, setItemRetirada] = useState<EstoqueItem | null>(null);
   const [quantidadeRetirada, setQuantidadeRetirada] = useState<string>('1');
+
+  // Estados para exclusão
+  const [dialogoExclusao, setDialogoExclusao] = useState(false);
+  const [itemParaExcluir, setItemParaExcluir] = useState<EstoqueItem | null>(null);
 
   // Obter dados do estoque apenas quando deveBuscar for true
   const estoque = useMemo(() => {
@@ -294,6 +299,34 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
     // Chamar callback para mudar tab
     if (onAbrirRetirada) {
       onAbrirRetirada();
+    }
+  };
+
+  // Função para abrir diálogo de exclusão
+  const handleAbrirExclusao = (item: EstoqueItem) => {
+    setItemParaExcluir(item);
+    setDialogoExclusao(true);
+  };
+
+  // Função para confirmar exclusão
+  const handleConfirmarExclusao = async () => {
+    if (!itemParaExcluir) return;
+
+    try {
+      // Excluir o item do banco de dados
+      const { error } = await supabase
+        .from('items')
+        .delete()
+        .eq('id', itemParaExcluir.id);
+
+      if (error) throw error;
+
+      toast.success('Item excluído com sucesso!');
+      setDialogoExclusao(false);
+      setItemParaExcluir(null);
+    } catch (error) {
+      console.error('Erro ao excluir item:', error);
+      toast.error('Erro ao excluir item. Verifique se não existem movimentações vinculadas.');
     }
   };
 
@@ -595,6 +628,15 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
+                          <Button
+                            onClick={() => handleAbrirExclusao(item)}
+                            variant="ghost"
+                            size="sm"
+                            disabled={!canEditItems}
+                            title={!canEditItems ? "Sem permissão para excluir itens" : "Excluir item"}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -748,6 +790,33 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Diálogo de confirmação de exclusão */}
+      <AlertDialog open={dialogoExclusao} onOpenChange={setDialogoExclusao}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja excluir este item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {itemParaExcluir && (
+                <div className="space-y-2 mt-2">
+                  <p className="font-medium">{itemParaExcluir.nome}</p>
+                  <p className="text-sm">Código: {itemParaExcluir.codigoBarras}</p>
+                  <p className="text-sm">Marca: {itemParaExcluir.marca}</p>
+                  <p className="text-sm text-destructive mt-4">
+                    Esta ação não pode ser desfeita. O item será permanentemente excluído do sistema.
+                  </p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmarExclusao} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
