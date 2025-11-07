@@ -8,12 +8,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, Upload, FileBarChart, Send } from 'lucide-react';
+import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { Item, EstoqueItem } from '@/types/estoque';
 import { Configuracoes } from './Configuracoes';
 import { SeletorEstoque } from './SeletorEstoque';
-import { DialogoImportacao } from './DialogoImportacao';
+
 import { SolicitarMaterial } from './SolicitarMaterial';
 import { DevolverMaterial } from './DevolverMaterial';
 import { RegistrarEntrada } from './RegistrarEntrada';
@@ -29,14 +29,14 @@ interface MenuPrincipalProps {
 }
 
 export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) => {
-  const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque, importarItens, importarItensServidor } = useEstoque();
+  const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoque();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
   const { canCreateItems, canManageStock } = usePermissions();
   
   // Estados para controlar os diálogos
   const [dialogoCadastro, setDialogoCadastro] = useState(false);
   const [dialogoSaida, setDialogoSaida] = useState(false);
-  const [dialogoImportacao, setDialogoImportacao] = useState(false);
+  
 
   // Estados para os formulários
   const [formCadastro, setFormCadastro] = useState<Partial<Item>>({
@@ -148,7 +148,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       tipoOperacaoId: ''
     });
     setBuscaSaida('');
-    setDialogoImportacao(false);
     setItemSelecionadoSaida(null);
   };
 
@@ -241,20 +240,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     }
   };
 
-  // Função para importar itens
-  const handleImportarItens = async (itens: Omit<Item, 'id' | 'codigoBarras'>[]) => {
-    // Tenta via servidor (Edge Function) para contornar RLS/limites
-    const sucessoServidor = await importarItensServidor(itens);
-    if (sucessoServidor) {
-      onMovimentacaoRealizada();
-      return;
-    }
-    // Fallback: tenta a importação cliente a cliente
-    const sucessoCliente = await importarItens(itens);
-    if (sucessoCliente) {
-      onMovimentacaoRealizada();
-    }
-  };
 
   return (
     <div className="p-6 space-y-6">
@@ -702,41 +687,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
           </DialogContent>
         </Dialog>
 
-        {/* BOTÃO IMPORTAÇÃO */}
-        <Card 
-          onClick={() => podeUsarCadastro && setDialogoImportacao(true)}
-          className={cn(
-            "cursor-pointer hover:scale-105 transition-all duration-300",
-            podeUsarCadastro 
-              ? "border-purple-200 hover:border-purple-400" 
-              : "border-muted/20 hover:border-muted/40 opacity-60"
-          )}
-        >
-          <CardHeader className="text-center">
-            <div className={cn(
-              "mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4",
-              podeUsarCadastro ? "bg-purple-50" : "bg-muted/10"
-            )}>
-              <Upload className={cn("h-8 w-8", podeUsarCadastro ? "text-purple-600" : "text-muted-foreground")} />
-            </div>
-            <CardTitle className={cn(podeUsarCadastro ? "text-purple-600" : "text-muted-foreground")}>
-              Importar Lista
-            </CardTitle>
-            <CardDescription>
-              {podeUsarCadastro 
-                ? "Carregar lista de itens em lote"
-                : "Disponível apenas no Estoque Principal"
-              }
-            </CardDescription>
-          </CardHeader>
-        </Card>
-
-        {/* Diálogo de Importação */}
-        <DialogoImportacao
-          aberto={dialogoImportacao}
-          onClose={() => setDialogoImportacao(false)}
-          onImportar={handleImportarItens}
-        />
       </div>
 
     </div>
