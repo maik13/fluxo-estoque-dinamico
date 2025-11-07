@@ -24,6 +24,130 @@ export const useEstoque = () => {
     }
   }, [estoqueAtivo]);
 
+  // Real-time updates para itens e movimentações
+  useEffect(() => {
+    // Canal para mudanças nos itens
+    const itemsChannel = supabase
+      .channel('items-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'items'
+        },
+        (payload) => {
+          const novoItem: Item = {
+            id: payload.new.id,
+            codigoBarras: Number(payload.new.codigo_barras),
+            codigoAntigo: payload.new.codigo_antigo ?? undefined,
+            origem: payload.new.origem ?? '',
+            caixaOrganizador: payload.new.caixa_organizador ?? '',
+            localizacao: payload.new.localizacao ?? '',
+            nome: payload.new.nome,
+            tipoItem: (payload.new.tipo_item ?? 'Insumo') as 'Insumo' | 'Ferramenta',
+            especificacao: payload.new.especificacao ?? '',
+            marca: payload.new.marca ?? '',
+            unidade: payload.new.unidade,
+            condicao: payload.new.condicao ?? 'Novo',
+            subcategoriaId: payload.new.subcategoria_id ?? undefined,
+            quantidadeMinima: payload.new.quantidade_minima ?? undefined,
+            ncm: payload.new.ncm ?? '',
+            valor: payload.new.valor ?? undefined,
+          };
+          setItens(prev => {
+            // Evitar duplicatas
+            if (prev.some(i => i.id === novoItem.id)) return prev;
+            return [...prev, novoItem];
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'items'
+        },
+        (payload) => {
+          const itemAtualizado: Item = {
+            id: payload.new.id,
+            codigoBarras: Number(payload.new.codigo_barras),
+            codigoAntigo: payload.new.codigo_antigo ?? undefined,
+            origem: payload.new.origem ?? '',
+            caixaOrganizador: payload.new.caixa_organizador ?? '',
+            localizacao: payload.new.localizacao ?? '',
+            nome: payload.new.nome,
+            tipoItem: (payload.new.tipo_item ?? 'Insumo') as 'Insumo' | 'Ferramenta',
+            especificacao: payload.new.especificacao ?? '',
+            marca: payload.new.marca ?? '',
+            unidade: payload.new.unidade,
+            condicao: payload.new.condicao ?? 'Novo',
+            subcategoriaId: payload.new.subcategoria_id ?? undefined,
+            quantidadeMinima: payload.new.quantidade_minima ?? undefined,
+            ncm: payload.new.ncm ?? '',
+            valor: payload.new.valor ?? undefined,
+          };
+          setItens(prev => prev.map(i => i.id === itemAtualizado.id ? itemAtualizado : i));
+        }
+      )
+      .subscribe();
+
+    // Canal para mudanças nas movimentações
+    const movementsChannel = supabase
+      .channel('movements-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'movements'
+        },
+        async (payload) => {
+          const estoqueAtivoInfo = obterEstoqueAtivoInfo();
+          // Só adicionar se for do estoque ativo ou se não houver filtro
+          if (!estoqueAtivoInfo?.id || payload.new.estoque_id === estoqueAtivoInfo.id) {
+            // Buscar nome do local se houver local_utilizacao_id
+            let localNome: string | undefined;
+            if (payload.new.local_utilizacao_id) {
+              const { data } = await supabase
+                .from('locais_utilizacao')
+                .select('nome')
+                .eq('id', payload.new.local_utilizacao_id)
+                .single();
+              localNome = data?.nome;
+            }
+
+            const novaMovimentacao: Movimentacao = {
+              id: payload.new.id,
+              itemId: payload.new.item_id,
+              tipo: payload.new.tipo,
+              quantidade: Number(payload.new.quantidade),
+              quantidadeAnterior: Number(payload.new.quantidade_anterior),
+              quantidadeAtual: Number(payload.new.quantidade_atual),
+              userId: payload.new.user_id ?? undefined,
+              observacoes: payload.new.observacoes ?? undefined,
+              dataHora: payload.new.data_hora,
+              localUtilizacaoId: payload.new.local_utilizacao_id ?? undefined,
+              localUtilizacaoNome: localNome,
+              itemSnapshot: payload.new.item_snapshot as Partial<Item>,
+            };
+            setMovimentacoes(prev => {
+              // Evitar duplicatas
+              if (prev.some(m => m.id === novaMovimentacao.id)) return prev;
+              return [...prev, novaMovimentacao];
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(itemsChannel);
+      supabase.removeChannel(movementsChannel);
+    };
+  }, [estoqueAtivo]);
+
   // Função para carregar dados do Supabase
   const carregarDados = async () => {
     try {
