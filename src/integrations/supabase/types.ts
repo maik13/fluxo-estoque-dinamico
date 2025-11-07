@@ -480,6 +480,96 @@ export type Database = {
         }
         Relationships: []
       }
+      transferencia_itens: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          item_snapshot: Json
+          quantidade: number
+          transferencia_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          item_snapshot: Json
+          quantidade: number
+          transferencia_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_snapshot?: Json
+          quantidade?: number
+          transferencia_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transferencia_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transferencia_itens_transferencia_id_fkey"
+            columns: ["transferencia_id"]
+            isOneToOne: false
+            referencedRelation: "transferencias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transferencias: {
+        Row: {
+          created_at: string
+          data_transferencia: string
+          estoque_destino_id: string
+          estoque_origem_id: string
+          id: string
+          observacoes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data_transferencia?: string
+          estoque_destino_id: string
+          estoque_origem_id: string
+          id?: string
+          observacoes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data_transferencia?: string
+          estoque_destino_id?: string
+          estoque_origem_id?: string
+          id?: string
+          observacoes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transferencias_estoque_destino_id_fkey"
+            columns: ["estoque_destino_id"]
+            isOneToOne: false
+            referencedRelation: "estoques"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transferencias_estoque_origem_id_fkey"
+            columns: ["estoque_origem_id"]
+            isOneToOne: false
+            referencedRelation: "estoques"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

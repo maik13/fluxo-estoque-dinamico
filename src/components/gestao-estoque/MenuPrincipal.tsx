@@ -17,6 +17,7 @@ import { SeletorEstoque } from './SeletorEstoque';
 import { SolicitarMaterial } from './SolicitarMaterial';
 import { DevolverMaterial } from './DevolverMaterial';
 import { RegistrarEntrada } from './RegistrarEntrada';
+import { Transferencia } from './Transferencia';
 import { Badge } from '@/components/ui/badge';
 import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
@@ -274,6 +275,9 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
         
         {/* Registrar Entrada */}
         <RegistrarEntrada onEntradaRealizada={onMovimentacaoRealizada} />
+        
+        {/* Transferência */}
+        <Transferencia onTransferenciaRealizada={onMovimentacaoRealizada} />
         
         {/* BOTÃO CADASTRO */}
         <Dialog open={dialogoCadastro} onOpenChange={setDialogoCadastro}>
