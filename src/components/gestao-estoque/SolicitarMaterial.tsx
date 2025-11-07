@@ -41,6 +41,8 @@ export const SolicitarMaterial = () => {
   const [mostrarCodigoUsuario, setMostrarCodigoUsuario] = useState(false);
   const [solicitanteSelecionado, setSolicitanteSelecionado] = useState<{id: string, nome: string, codigo_barras?: string} | null>(null);
   const [solicitantesCarregados, setSolicitantesCarregados] = useState<{id: string, nome: string, codigo_barras?: string, email?: string}[]>([]);
+  const [popoverSolicitanteAberto, setPopoverSolicitanteAberto] = useState(false);
+  const [popoverLocalAberto, setPopoverLocalAberto] = useState(false);
 
   const { obterEstoque } = useEstoque();
   const { criarSolicitacao, solicitacoes, loading, atualizarAceites } = useSolicitacoes();
@@ -326,7 +328,7 @@ export const SolicitarMaterial = () => {
             {/* Campo Solicitante */}
             <div className="space-y-2">
               <Label htmlFor="solicitante">Solicitante *</Label>
-              <Popover>
+              <Popover open={popoverSolicitanteAberto} onOpenChange={setPopoverSolicitanteAberto}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -355,6 +357,7 @@ export const SolicitarMaterial = () => {
                                 });
                                 setCodigoAssinatura('');
                                 setErroAssinatura('');
+                                setPopoverSolicitanteAberto(false);
                               }}
                             >
                               {solicitante.nome}
@@ -370,7 +373,7 @@ export const SolicitarMaterial = () => {
             {/* Campo Local de Utilização */}
             <div className="space-y-2">
               <Label htmlFor="localUtilizacao">Local onde será utilizado *</Label>
-              <Popover>
+              <Popover open={popoverLocalAberto} onOpenChange={setPopoverLocalAberto}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -391,7 +394,10 @@ export const SolicitarMaterial = () => {
                         {locaisDisponiveis.map(local => (
                           <CommandItem
                             key={local.id}
-                            onSelect={() => setLocalUtilizacao(local.id)}
+                            onSelect={() => {
+                              setLocalUtilizacao(local.id);
+                              setPopoverLocalAberto(false);
+                            }}
                           >
                             {local.nome}
                           </CommandItem>
