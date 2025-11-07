@@ -75,6 +75,29 @@ export const SolicitarMaterial = () => {
     carregarSolicitantes();
   }, []);
 
+  // Verificar se há retirada rápida pendente
+  useEffect(() => {
+    const retiradaPendente = sessionStorage.getItem('retirada_rapida');
+    if (retiradaPendente) {
+      try {
+        const dados = JSON.parse(retiradaPendente);
+        // Adicionar item à lista
+        setItensSolicitados(prev => [...prev, {
+          item_id: dados.item_id,
+          quantidade_solicitada: dados.quantidade,
+          item_snapshot: dados.item_snapshot
+        }]);
+        // Limpar sessionStorage
+        sessionStorage.removeItem('retirada_rapida');
+        // Abrir diálogo
+        setDialogoAberto(true);
+        toast.success('Item adicionado à solicitação');
+      } catch (error) {
+        console.error('Erro ao processar retirada rápida:', error);
+      }
+    }
+  }, []);
+
   const adicionarItem = (item: Item, quantidade: number) => {
     const itemExistente = itensSolicitados.find(i => i.item_id === item.id);
     

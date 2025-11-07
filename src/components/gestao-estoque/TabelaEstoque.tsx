@@ -1,12 +1,14 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingDown, Edit, FileText, FileSpreadsheet, Printer } from 'lucide-react';
+import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingDown, Edit, FileText, FileSpreadsheet, Printer, ShoppingCart } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { EstoqueItem } from '@/types/estoque';
 import { DialogoEditarItem } from './DialogoEditarItem';
@@ -16,8 +18,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { exportarExcel } from '@/utils/excelExport';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
+import { toast } from 'sonner';
 
-export const TabelaEstoque = () => {
+interface TabelaEstoqueProps {
+  onAbrirRetirada?: () => void;
+}
+
+export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   const { obterEstoque, loading, editarItem, registrarEntrada, registrarSaida } = useEstoque();
   const { obterEstoqueAtivoInfo, obterSubcategoriasAtivas } = useConfiguracoes();
   const { canEditItems } = usePermissions();
@@ -37,6 +44,11 @@ export const TabelaEstoque = () => {
   
   // Estado para controlar se deve buscar
   const [deveBuscar, setDeveBuscar] = useState(false);
+
+  // Estados para retirada rápida
+  const [dialogoRetirada, setDialogoRetirada] = useState(false);
+  const [itemRetirada, setItemRetirada] = useState<EstoqueItem | null>(null);
+  const [quantidadeRetirada, setQuantidadeRetirada] = useState<string>('1');
 
   // Obter dados do estoque apenas quando deveBuscar for true
   const estoque = useMemo(() => {
@@ -247,6 +259,47 @@ export const TabelaEstoque = () => {
   // Função para salvar edição
   const handleSalvarEdicao = async (itemEditado: any) => {
     return await editarItem(itemEditado);
+  };
+
+  // Função para iniciar retirada rápida
+  const handleIniciarRetirada = (item: EstoqueItem) => {
+    setItemRetirada(item);
+    setQuantidadeRetirada('1');
+    setDialogoRetirada(true);
+  };
+
+  // Função para confirmar retirada
+  const handleConfirmarRetirada = () => {
+    if (!itemRetirada || !quantidadeRetirada) return;
+
+    const qtd = parseFloat(quantidadeRetirada);
+    if (isNaN(qtd) || qtd <= 0) {
+      toast.error('Por favor, insira uma quantidade válida');
+      return;
+    }
+
+    // Salvar no sessionStorage
+    sessionStorage.setItem('retirada_rapida', JSON.stringify({
+      item_id: itemRetirada.id,
+      quantidade: qtd,
+      item_snapshot: {
+        id: itemRetirada.id,
+        nome: itemRetirada.nome,
+        codigoBarras: itemRetirada.codigoBarras,
+        unidade: itemRetirada.unidade,
+        marca: itemRetirada.marca,
+        especificacao: itemRetirada.especificacao
+      }
+    }));
+
+    toast.success('Item adicionado! Abrindo tela de retirada...');
+    setDialogoRetirada(false);
+    setItemRetirada(null);
+    
+    // Chamar callback para mudar tab
+    if (onAbrirRetirada) {
+      onAbrirRetirada();
+    }
   };
 
   if (loading) {
@@ -537,15 +590,25 @@ export const TabelaEstoque = () => {
                           )}</TableCell>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          onClick={() => handleEditarItem(item)}
-                          variant="ghost"
-                          size="sm"
-                          disabled={!canEditItems}
-                          title={!canEditItems ? "Sem permissão para editar itens" : "Editar item"}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            onClick={() => handleIniciarRetirada(item)}
+                            variant="ghost"
+                            size="sm"
+                            title="Criar retirada rápida"
+                          >
+                            <ShoppingCart className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            onClick={() => handleEditarItem(item)}
+                            variant="ghost"
+                            size="sm"
+                            disabled={!canEditItems}
+                            title={!canEditItems ? "Sem permissão para editar itens" : "Editar item"}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -659,6 +722,45 @@ export const TabelaEstoque = () => {
         item={itemParaEditar}
         onSalvar={handleSalvarEdicao}
       />
+
+      {/* Diálogo de retirada rápida */}
+      <Dialog open={dialogoRetirada} onOpenChange={setDialogoRetirada}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Retirada Rápida</DialogTitle>
+          </DialogHeader>
+          {itemRetirada && (
+            <div className="space-y-4">
+              <div>
+                <p className="font-medium">{itemRetirada.nome}</p>
+                <p className="text-sm text-muted-foreground">
+                  Código: {itemRetirada.codigoBarras} | Estoque atual: {itemRetirada.estoqueAtual} {itemRetirada.unidade}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="quantidade">Quantidade a retirar</Label>
+                <Input
+                  id="quantidade"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={quantidadeRetirada}
+                  onChange={(e) => setQuantidadeRetirada(e.target.value)}
+                  placeholder="Digite a quantidade"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setDialogoRetirada(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleConfirmarRetirada}>
+                  Confirmar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

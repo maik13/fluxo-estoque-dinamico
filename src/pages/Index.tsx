@@ -103,7 +103,10 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="estoque" className="space-y-6">
-            <TabelaEstoque key={refreshTrigger} />
+            <TabelaEstoque 
+              key={refreshTrigger} 
+              onAbrirRetirada={() => setTabAtiva('menu')}
+            />
           </TabsContent>
 
           <TabsContent value="movimentacoes" className="space-y-6">
