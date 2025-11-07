@@ -70,14 +70,6 @@ export const SolicitarMaterial = () => {
       if (data) {
         console.log('Solicitantes carregados:', data);
         setSolicitantesCarregados(data);
-        // Define o primeiro solicitante como padrão se houver
-        if (data.length > 0 && !solicitanteSelecionado) {
-          setSolicitanteSelecionado({ 
-            id: data[0].id, 
-            nome: data[0].nome,
-            codigo_barras: data[0].codigo_barras || undefined
-          });
-        }
       }
     };
     carregarSolicitantes();
@@ -183,14 +175,7 @@ export const SolicitarMaterial = () => {
     setCodigoAssinatura('');
     setErroAssinatura('');
     setMostrarCodigoUsuario(false);
-    // Redefine para o primeiro solicitante se houver
-    if (solicitantesCarregados.length > 0) {
-      setSolicitanteSelecionado({ 
-        id: solicitantesCarregados[0].id, 
-        nome: solicitantesCarregados[0].nome,
-        codigo_barras: solicitantesCarregados[0].codigo_barras || undefined
-      });
-    }
+    setSolicitanteSelecionado(null);
   };
 
 
