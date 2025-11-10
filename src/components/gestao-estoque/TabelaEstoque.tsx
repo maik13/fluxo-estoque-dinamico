@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingDown, Edit, FileText, FileSpreadsheet, Printer, ShoppingCart, Trash2 } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { EstoqueItem } from '@/types/estoque';
@@ -519,7 +520,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          <ScrollArea className="h-[600px] w-full">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -644,7 +645,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                 )}
               </TableBody>
             </Table>
-          </div>
+          </ScrollArea>
           
           {/* Paginação */}
           {totalPaginas > 1 && (
