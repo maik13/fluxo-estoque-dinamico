@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar, User, Package, RotateCcw } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { Movimentacao, TipoMovimentacao } from '@/types/estoque';
@@ -307,7 +308,7 @@ export const TabelaMovimentacoes = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          <ScrollArea className="h-[600px] w-full">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -416,7 +417,7 @@ export const TabelaMovimentacoes = () => {
                 )}
               </TableBody>
             </Table>
-          </div>
+          </ScrollArea>
         </CardContent>
           </Card>
         </TabsContent>
