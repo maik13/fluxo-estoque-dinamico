@@ -3,6 +3,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Edit, UserCheck, UserX, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +23,13 @@ export const UsuariosList = () => {
   const [usuarios, setUsuarios] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [editandoUsuario, setEditandoUsuario] = useState<Profile | null>(null);
+  const [dialogAberto, setDialogAberto] = useState(false);
+  const [formData, setFormData] = useState({
+    nome: '',
+    email: '',
+    tipo_usuario: 'estoquista'
+  });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -53,6 +63,65 @@ export const UsuariosList = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const abrirDialogEdicao = (usuario: Profile) => {
+    setEditandoUsuario(usuario);
+    setFormData({
+      nome: usuario.nome,
+      email: usuario.email,
+      tipo_usuario: usuario.tipo_usuario
+    });
+    setDialogAberto(true);
+  };
+
+  const fecharDialog = () => {
+    setDialogAberto(false);
+    setEditandoUsuario(null);
+    setFormData({
+      nome: '',
+      email: '',
+      tipo_usuario: 'estoquista'
+    });
+  };
+
+  const salvarEdicao = async () => {
+    if (!editandoUsuario) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          nome: formData.nome,
+          email: formData.email,
+          tipo_usuario: formData.tipo_usuario
+        })
+        .eq('id', editandoUsuario.id);
+
+      if (error) throw error;
+
+      setUsuarios(prev =>
+        prev.map(user =>
+          user.id === editandoUsuario.id
+            ? { ...user, ...formData }
+            : user
+        )
+      );
+
+      toast({
+        title: "Usuário atualizado!",
+        description: "As informações do usuário foram atualizadas com sucesso.",
+      });
+
+      fecharDialog();
+    } catch (error) {
+      console.error('Erro ao atualizar usuário:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o usuário.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -201,12 +270,7 @@ export const UsuariosList = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          toast({
-                            title: "Funcionalidade em desenvolvimento",
-                            description: "A edição de usuários será implementada em breve.",
-                          });
-                        }}
+                        onClick={() => abrirDialogEdicao(usuario)}
                         title="Editar usuário"
                       >
                         <Edit className="h-4 w-4" />
@@ -219,6 +283,69 @@ export const UsuariosList = () => {
           </TableBody>
         </Table>
       </div>
+
+      {/* Dialog de Edição */}
+      <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Editar Usuário</DialogTitle>
+            <DialogDescription>
+              Altere as informações do usuário abaixo.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="nome">Nome</Label>
+              <Input
+                id="nome"
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                placeholder="Nome completo"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="email@exemplo.com"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="tipo_usuario">Tipo de Usuário</Label>
+              <Select
+                value={formData.tipo_usuario}
+                onValueChange={(value) => setFormData({ ...formData, tipo_usuario: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="administrador">Administrador</SelectItem>
+                  <SelectItem value="gestor">Gestor</SelectItem>
+                  <SelectItem value="engenharia">Engenharia</SelectItem>
+                  <SelectItem value="mestre">Mestre</SelectItem>
+                  <SelectItem value="estoquista">Estoquista</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={fecharDialog}>
+              Cancelar
+            </Button>
+            <Button onClick={salvarEdicao}>
+              Salvar Alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
