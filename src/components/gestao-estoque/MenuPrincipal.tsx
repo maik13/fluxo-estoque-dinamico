@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send } from 'lucide-react';
+import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { Item, EstoqueItem } from '@/types/estoque';
 import { Configuracoes } from './Configuracoes';
@@ -151,6 +151,46 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     });
     setBuscaSaida('');
     setItemSelecionadoSaida(null);
+  };
+
+  // Função para carregar último cadastro
+  const carregarUltimoCadastro = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('items')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Erro ao buscar último cadastro:', error);
+        return;
+      }
+
+      if (data) {
+        setFormCadastro({
+          codigoAntigo: data.codigo_antigo || '',
+          origem: data.origem || '',
+          caixaOrganizador: data.caixa_organizador || '',
+          localizacao: data.localizacao || '',
+          nome: data.nome || '',
+          tipoItem: data.tipo_item as 'Insumo' | 'Ferramenta',
+          especificacao: data.especificacao || '',
+          marca: data.marca || '',
+          unidade: data.unidade || '',
+          condicao: data.condicao as any,
+          subcategoriaId: data.subcategoria_id || undefined,
+          ncm: data.ncm || '',
+          valor: data.valor || 0
+        });
+        // Limpar código de barras para forçar novo cadastro
+        setCodigoBarrasManual('');
+        setErroCodigoBarras('');
+      }
+    } catch (error) {
+      console.error('Erro ao carregar último cadastro:', error);
+    }
   };
 
   // Função para validar código de barras ao sair do campo
@@ -319,11 +359,23 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                     Preencha todos os campos para cadastrar um novo item no estoque
                   </DialogDescription>
                 </div>
-                {proximoCodigoDisponivel && (
-                  <Badge variant="secondary" className="text-sm">
-                    Próximo código: {proximoCodigoDisponivel}
-                  </Badge>
-                )}
+                <div className="flex gap-2">
+                  {proximoCodigoDisponivel && (
+                    <Badge variant="secondary" className="text-sm">
+                      Próximo código: {proximoCodigoDisponivel}
+                    </Badge>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={carregarUltimoCadastro}
+                    className="flex items-center gap-1"
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copiar Último
+                  </Button>
+                </div>
               </div>
             </DialogHeader>
             
