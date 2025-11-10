@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { InputCurrency } from '@/components/ui/input-currency';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -205,13 +206,11 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
             
             <div>
               <Label htmlFor="valor">Valor</Label>
-              <Input
+              <InputCurrency
                 id="valor"
-                type="number"
-                step="0.01"
-                value={formItem.valor || ''}
-                onChange={(e) => setFormItem(prev => prev ? {...prev, valor: e.target.value ? Number(e.target.value) : undefined} : null)}
-                placeholder="Ex: 10.50"
+                value={formItem.valor || 0}
+                onChange={(valor) => setFormItem(prev => prev ? {...prev, valor} : null)}
+                placeholder="0,00"
               />
             </div>
           </div>

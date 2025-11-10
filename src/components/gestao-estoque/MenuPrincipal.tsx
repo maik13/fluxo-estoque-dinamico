@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { InputCurrency } from '@/components/ui/input-currency';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -502,13 +503,11 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
 
                 <div>
                   <Label htmlFor="valor">Valor</Label>
-                  <Input
+                  <InputCurrency
                     id="valor"
-                    type="number"
-                    step="0.01"
                     value={formCadastro.valor}
-                    onChange={(e) => setFormCadastro(prev => ({...prev, valor: parseFloat(e.target.value) || 0}))}
-                    placeholder="Ex: 10.50"
+                    onChange={(valor) => setFormCadastro(prev => ({...prev, valor}))}
+                    placeholder="0,00"
                   />
                 </div>
               </div>
