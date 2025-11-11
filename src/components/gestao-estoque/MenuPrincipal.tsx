@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy } from 'lucide-react';
+import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { Item, EstoqueItem } from '@/types/estoque';
 import { Configuracoes } from './Configuracoes';
@@ -304,6 +304,16 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       codigoBarras: item.codigoBarras
     }));
     setPopoverSaidaAberto(false);
+  };
+
+  // Função para limpar item selecionado
+  const limparItemSelecionado = () => {
+    setItemSelecionadoSaida(null);
+    setBuscaSaida('');
+    setFormMovimentacao(prev => ({
+      ...prev,
+      codigoBarras: 0
+    }));
   };
 
   // Função para buscar item quando código for digitado
@@ -702,13 +712,33 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                       </Command>
                     </PopoverContent>
                   </Popover>
+                  {itemSelecionadoSaida && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="icon"
+                      onClick={limparItemSelecionado}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button type="button" variant="outline" size="icon">
                     <Scan className="h-4 w-4" />
                   </Button>
                 </div>
                 {itemSelecionadoSaida && (
-                  <div className="mt-2 p-3 bg-muted rounded-md">
-                    <div className="text-sm">
+                  <div className="mt-2 p-3 bg-muted rounded-md relative">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={limparItemSelecionado}
+                      className="absolute top-1 right-1 h-6 w-6 p-0"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                    <div className="text-sm pr-6">
                       <p><strong>Nome:</strong> {itemSelecionadoSaida.nome}</p>
                       <p><strong>Código:</strong> {itemSelecionadoSaida.codigoBarras}</p>
                       <p><strong>Estoque Atual:</strong> {itemSelecionadoSaida.estoqueAtual} {itemSelecionadoSaida.unidade}</p>
