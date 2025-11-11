@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, Printer, Eye, RotateCcw, AlertTriangle } from 'lucide-react';
 import { useSolicitacoes } from '@/hooks/useSolicitacoes';
@@ -13,11 +14,14 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { SolicitacaoCompleta } from '@/types/solicitacao';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export const ConsultarSolicitacoes = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
   const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState<SolicitacaoCompleta | null>(null);
   const [filtroAtivo, setFiltroAtivo] = useState<'todas' | 'devolucoes' | 'inconformidade'>('todas');
+  const [destinatario, setDestinatario] = useState('');
   
   const { solicitacoes, loading, atualizarAceites } = useSolicitacoes();
   const { canManageStock, userProfile } = usePermissions();
@@ -40,7 +44,44 @@ export const ConsultarSolicitacoes = () => {
 
   const abrirDetalhes = (solicitacao: SolicitacaoCompleta) => {
     setSolicitacaoSelecionada(solicitacao);
+    setDestinatario(solicitacao.destinatario || '');
     setDialogoAberto(true);
+  };
+
+  const atualizarDestinatario = async () => {
+    if (!solicitacaoSelecionada || !destinatario.trim()) {
+      toast.error('Por favor, informe o destinatário');
+      return;
+    }
+
+    try {
+      // Atualizar solicitação
+      const { error: solicitacaoError } = await supabase
+        .from('solicitacoes')
+        .update({ destinatario: destinatario.trim() })
+        .eq('id', solicitacaoSelecionada.id);
+
+      if (solicitacaoError) throw solicitacaoError;
+
+      // Atualizar movimentações relacionadas
+      const { error: movimentacoesError } = await supabase
+        .from('movements')
+        .update({ destinatario: destinatario.trim() })
+        .eq('solicitacao_id', solicitacaoSelecionada.id);
+
+      if (movimentacoesError) throw movimentacoesError;
+
+      toast.success('Destinatário atualizado com sucesso');
+      
+      // Atualizar estado local
+      setSolicitacaoSelecionada({
+        ...solicitacaoSelecionada,
+        destinatario: destinatario.trim()
+      });
+    } catch (error: any) {
+      console.error('Erro ao atualizar destinatário:', error);
+      toast.error('Erro ao atualizar destinatário');
+    }
   };
 
   const imprimirSolicitacao = (solicitacao: SolicitacaoCompleta) => {
@@ -289,6 +330,33 @@ export const ConsultarSolicitacoes = () => {
                 </Table>
               </div>
 
+              {/* Campo Destinatário (para gestores/estoquistas) */}
+              {canManageStock() && (
+                <div className="space-y-2">
+                  <Label htmlFor="destinatario-saida">Destinatário (Nome da pessoa) *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="destinatario-saida"
+                      value={destinatario}
+                      onChange={(e) => setDestinatario(e.target.value)}
+                      placeholder="Nome da pessoa que receberá o material"
+                      disabled={solicitacaoSelecionada.aceite_separador}
+                    />
+                    <Button 
+                      onClick={atualizarDestinatario}
+                      disabled={solicitacaoSelecionada.aceite_separador || !destinatario.trim()}
+                    >
+                      Salvar
+                    </Button>
+                  </div>
+                  {solicitacaoSelecionada.destinatario && (
+                    <p className="text-sm text-muted-foreground">
+                      Destinatário atual: {solicitacaoSelecionada.destinatario}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Aceites */}
               <div className="space-y-4">
                 <Label>Aceites</Label>
@@ -300,9 +368,9 @@ export const ConsultarSolicitacoes = () => {
                       onCheckedChange={(checked) => 
                         atualizarAceites(solicitacaoSelecionada.id, !!checked, undefined)
                       }
-                      disabled={!canManageStock()}
+                      disabled={!canManageStock() || !solicitacaoSelecionada.destinatario}
                     />
-                    <Label htmlFor="aceite-separador">Aceite do Responsável pela Separação</Label>
+                    <Label htmlFor="aceite-separador">Aceite do Responsável pela Separação (SAÍDA)</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox 
@@ -316,6 +384,11 @@ export const ConsultarSolicitacoes = () => {
                     <Label htmlFor="aceite-solicitante">Aceite do Solicitante</Label>
                   </div>
                 </div>
+                {!solicitacaoSelecionada.destinatario && canManageStock() && (
+                  <p className="text-sm text-amber-600">
+                    ⚠️ Informe o destinatário antes de processar a saída
+                  </p>
+                )}
               </div>
 
               {/* Botões de ação */}
