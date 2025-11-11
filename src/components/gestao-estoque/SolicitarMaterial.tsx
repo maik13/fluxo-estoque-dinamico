@@ -422,6 +422,18 @@ export const SolicitarMaterial = () => {
               </Popover>
             </div>
 
+            {/* Campo Responsável pelo Estoque */}
+            <div className="space-y-2">
+              <Label htmlFor="responsavelEstoque">Responsável pelo Estoque *</Label>
+              <Input
+                id="responsavelEstoque"
+                type="text"
+                placeholder="Nome do responsável pelo estoque"
+                value={responsavelEstoque}
+                onChange={(e) => setResponsavelEstoque(e.target.value)}
+              />
+            </div>
+
             {/* Buscar e adicionar itens */}
             <div className="space-y-2">
               <Label>Adicionar Item</Label>
@@ -601,7 +613,13 @@ export const SolicitarMaterial = () => {
                 </Button>
                 <Button 
                   onClick={handleSubmit}
-                  disabled={itensSolicitados.length === 0 || !localUtilizacao.trim() || !codigoAssinatura.trim()}
+                  disabled={
+                    itensSolicitados.length === 0 || 
+                    !solicitanteSelecionado || 
+                    !localUtilizacao.trim() || 
+                    !responsavelEstoque.trim() ||
+                    !codigoAssinatura.trim()
+                  }
                 >
                   Enviar Solicitação
                 </Button>
