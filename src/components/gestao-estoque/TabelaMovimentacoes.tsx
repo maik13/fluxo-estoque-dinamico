@@ -461,7 +461,7 @@ export const TabelaMovimentacoes = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[600px] w-full">
+          <ScrollArea className="h-[600px] w-full scrollbar-visible">
             <Table>
               <TableHeader>
                 <TableRow>
