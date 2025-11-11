@@ -461,7 +461,7 @@ export const TabelaMovimentacoes = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[600px] w-full scrollbar-visible">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -581,7 +581,7 @@ export const TabelaMovimentacoes = () => {
                 )}
               </TableBody>
             </Table>
-          </ScrollArea>
+          </div>
         </CardContent>
           </Card>
         </TabsContent>
