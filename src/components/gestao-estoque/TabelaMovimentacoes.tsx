@@ -20,35 +20,35 @@ export const TabelaMovimentacoes = () => {
   const [filtroTipo, setFiltroTipo] = useState<TipoMovimentacao | 'todas'>('todas');
   const [filtroDestino, setFiltroDestino] = useState('todos');
   const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes'>('todas');
-  const [usuariosMap, setUsuariosMap] = useState<Record<string, string>>({});
+  const [solicitantesMap, setSolicitantesMap] = useState<Record<string, string>>({});
 
-  // Buscar informações dos usuários
+  // Buscar informações dos solicitantes
   useEffect(() => {
-    const buscarUsuarios = async () => {
-      const userIds = [...new Set(movimentacoes.map(m => m.userId).filter(Boolean))];
+    const buscarSolicitantes = async () => {
+      const solicitacaoIds = [...new Set(movimentacoes.map(m => m.solicitacaoId).filter(Boolean))];
       
-      if (userIds.length === 0) return;
+      if (solicitacaoIds.length === 0) return;
 
       const { data, error } = await supabase
-        .from('profiles')
-        .select('user_id, nome')
-        .in('user_id', userIds);
+        .from('solicitacoes')
+        .select('id, solicitante_nome')
+        .in('id', solicitacaoIds);
 
       if (error) {
-        console.error('Erro ao buscar usuários:', error);
+        console.error('Erro ao buscar solicitantes:', error);
         return;
       }
 
       const map: Record<string, string> = {};
-      data?.forEach(profile => {
-        if (profile.user_id) {
-          map[profile.user_id] = profile.nome;
+      data?.forEach(solicitacao => {
+        if (solicitacao.id) {
+          map[solicitacao.id] = solicitacao.solicitante_nome;
         }
       });
-      setUsuariosMap(map);
+      setSolicitantesMap(map);
     };
 
-    buscarUsuarios();
+    buscarSolicitantes();
   }, [movimentacoes]);
 
   // Ordenar movimentações por data (mais recente primeiro)
@@ -136,10 +136,9 @@ export const TabelaMovimentacoes = () => {
         const eDevolucao = isDevolucao(mov);
         let responsavel = '-';
         
-        if (mov.tipo === 'SAIDA' && mov.observacoes) {
-          responsavel = mov.observacoes; // Nome do solicitante
-        } else if (eDevolucao && mov.userId) {
-          responsavel = usuariosMap[mov.userId] || 'Usuário não identificado';
+        // Buscar nome do solicitante se houver solicitação associada
+        if (mov.solicitacaoId && solicitantesMap[mov.solicitacaoId]) {
+          responsavel = solicitantesMap[mov.solicitacaoId];
         } else if (mov.itemSnapshot?.localizacao) {
           responsavel = mov.itemSnapshot.localizacao;
         }
@@ -517,11 +516,9 @@ export const TabelaMovimentacoes = () => {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            {mov.tipo === 'SAIDA' && mov.observacoes ? (
-                              <Badge variant="outline">{mov.observacoes}</Badge>
-                            ) : eDevolucao && mov.userId ? (
-                              <Badge variant="outline" className="bg-info/10 text-info border-info/20">
-                                {usuariosMap[mov.userId] || 'Carregando...'}
+                            {mov.solicitacaoId && solicitantesMap[mov.solicitacaoId] ? (
+                              <Badge variant="outline" className={eDevolucao ? "bg-info/10 text-info border-info/20" : ""}>
+                                {solicitantesMap[mov.solicitacaoId]}
                               </Badge>
                             ) : mov.itemSnapshot?.localizacao ? (
                               <span className="text-muted-foreground">{mov.itemSnapshot.localizacao}</span>

@@ -130,6 +130,7 @@ export const useEstoque = () => {
               dataHora: payload.new.data_hora,
               localUtilizacaoId: payload.new.local_utilizacao_id ?? undefined,
               localUtilizacaoNome: localNome,
+              solicitacaoId: payload.new.solicitacao_id ?? undefined,
               itemSnapshot: payload.new.item_snapshot as Partial<Item>,
             };
             setMovimentacoes(prev => {
@@ -230,6 +231,7 @@ export const useEstoque = () => {
         dataHora: row.data_hora,
         localUtilizacaoId: row.local_utilizacao_id ?? undefined,
         localUtilizacaoNome: row.locais_utilizacao?.nome ?? undefined,
+        solicitacaoId: row.solicitacao_id ?? undefined,
         itemSnapshot: row.item_snapshot as Partial<Item>,
       }));
 
