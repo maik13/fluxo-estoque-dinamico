@@ -58,14 +58,16 @@ export const useConfiguracoes = () => {
         }));
         setEstoques(estoquesCarregados);
         
-        // Se não há estoque ativo salvo ou o estoque ativo não existe mais, definir o primeiro como ativo
-        const estoqueAtivoSalvo = localStorage.getItem('estoque-ativo');
-        if (!estoqueAtivoSalvo || !estoquesCarregados.find(e => e.id === estoqueAtivoSalvo)) {
-          if (estoquesCarregados.length > 0) {
-            setEstoqueAtivo(estoquesCarregados[0].id);
-          }
-        } else {
-          setEstoqueAtivo(estoqueAtivoSalvo);
+        // Sempre definir "almoxarifado principal" como estoque ativo ao abrir o app
+        const almoxarifadoPrincipal = estoquesCarregados.find(
+          e => e.nome.toLowerCase() === 'almoxarifado principal'
+        );
+        
+        if (almoxarifadoPrincipal) {
+          setEstoqueAtivo(almoxarifadoPrincipal.id);
+        } else if (estoquesCarregados.length > 0) {
+          // Fallback: usar o primeiro estoque se "almoxarifado principal" não existir
+          setEstoqueAtivo(estoquesCarregados[0].id);
         }
       }
     } catch (error: any) {
