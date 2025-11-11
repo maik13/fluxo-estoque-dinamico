@@ -2,13 +2,16 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar, User, Package, RotateCcw } from 'lucide-react';
+import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar, User, Package, RotateCcw, FileSpreadsheet } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { Movimentacao, TipoMovimentacao } from '@/types/estoque';
+import * as XLSX from 'xlsx';
+import { toast } from '@/hooks/use-toast';
 
 export const TabelaMovimentacoes = () => {
   const { movimentacoes, loading } = useEstoque();
@@ -24,10 +27,14 @@ export const TabelaMovimentacoes = () => {
     );
   }, [movimentacoes]);
 
-  // Obter destinos únicos para filtro
-  const destinos = useMemo(() => {
-    const dest = new Set(movimentacoes.map(mov => mov.itemSnapshot?.localizacao).filter(Boolean));
-    return Array.from(dest);
+  // Obter locais de utilização únicos para filtro
+  const locaisUtilizacao = useMemo(() => {
+    const locais = new Set(
+      movimentacoes
+        .map(mov => mov.localUtilizacaoNome)
+        .filter(Boolean)
+    );
+    return Array.from(locais).sort();
   }, [movimentacoes]);
 
   // Verificar se uma movimentação é devolução
@@ -49,8 +56,8 @@ export const TabelaMovimentacoes = () => {
       // Filtro por tipo
       const matchTipo = filtroTipo === 'todas' || mov.tipo === filtroTipo;
       
-      // Filtro por destino
-      const matchDestino = filtroDestino === 'todos' || mov.itemSnapshot?.localizacao === filtroDestino;
+      // Filtro por local de utilização (Estoque/Destino)
+      const matchDestino = filtroDestino === 'todos' || mov.localUtilizacaoNome === filtroDestino;
 
       // Filtro por tipo de visualização
       let matchVisualizacao = true;
@@ -89,6 +96,75 @@ export const TabelaMovimentacoes = () => {
       devolucoes
     };
   }, [movimentacoes]);
+
+  // Função para exportar movimentações para Excel
+  const exportarParaExcel = () => {
+    try {
+      // Preparar dados para exportação
+      const dadosExportacao = movimentacoesFiltradas.map(mov => ({
+        'Tipo': isDevolucao(mov) ? 'Devolução' : getTipoInfo(mov.tipo).label,
+        'Data': new Date(mov.dataHora).toLocaleDateString('pt-BR'),
+        'Hora': new Date(mov.dataHora).toLocaleTimeString('pt-BR'),
+        'Item': mov.itemSnapshot?.nome || 'Item não identificado',
+        'Código de Barras': mov.itemSnapshot?.codigoBarras || '',
+        'Marca': mov.itemSnapshot?.marca || '',
+        'Quantidade': `${mov.tipo === 'SAIDA' ? '-' : '+'}${mov.quantidade}`,
+        'Unidade': mov.itemSnapshot?.unidade || '',
+        'Qtd. Anterior': mov.quantidadeAnterior,
+        'Qtd. Atual': mov.quantidadeAtual,
+        'Responsável': mov.tipo === 'SAIDA' && mov.observacoes ? mov.observacoes : mov.itemSnapshot?.localizacao || '-',
+        'Estoque/Destino': mov.localUtilizacaoNome || '-',
+        'Observações': mov.observacoes && mov.tipo !== 'SAIDA' ? mov.observacoes : '-'
+      }));
+
+      // Criar workbook
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(dadosExportacao);
+
+      // Definir larguras das colunas
+      const columnWidths = [
+        { wch: 12 },  // Tipo
+        { wch: 12 },  // Data
+        { wch: 10 },  // Hora
+        { wch: 30 },  // Item
+        { wch: 18 },  // Código de Barras
+        { wch: 15 },  // Marca
+        { wch: 12 },  // Quantidade
+        { wch: 10 },  // Unidade
+        { wch: 12 },  // Qtd. Anterior
+        { wch: 12 },  // Qtd. Atual
+        { wch: 20 },  // Responsável
+        { wch: 20 },  // Estoque/Destino
+        { wch: 30 }   // Observações
+      ];
+      
+      worksheet['!cols'] = columnWidths;
+
+      // Adicionar aba
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Movimentações');
+
+      // Gerar nome do arquivo
+      const tipoExportacao = tipoVisualizacao === 'todas' ? 'todas' : 
+                            tipoVisualizacao === 'saidas' ? 'saidas' : 'devolucoes';
+      const dataAtual = new Date().toISOString().split('T')[0];
+      const nomeArquivo = `movimentacoes-${tipoExportacao}-${dataAtual}.xlsx`;
+
+      // Baixar arquivo
+      XLSX.writeFile(workbook, nomeArquivo);
+
+      toast({
+        title: "Exportação concluída!",
+        description: `${movimentacoesFiltradas.length} movimentações exportadas com sucesso.`,
+      });
+    } catch (error) {
+      console.error('Erro ao exportar:', error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar as movimentações.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Função para obter ícone e cor do tipo de movimentação
   const getTipoInfo = (tipo: TipoMovimentacao) => {
@@ -278,17 +354,26 @@ export const TabelaMovimentacoes = () => {
             
             <Select value={filtroDestino} onValueChange={setFiltroDestino}>
               <SelectTrigger>
-                <SelectValue placeholder="Destino/Localização" />
+                <SelectValue placeholder="Estoque/Destino" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todos">Todos os destinos</SelectItem>
-                {destinos.map(destino => (
-                  <SelectItem key={destino} value={destino}>
-                    {destino}
+                <SelectItem value="todos">Todos os estoques/destinos</SelectItem>
+                {locaisUtilizacao.map(local => (
+                  <SelectItem key={local} value={local!}>
+                    {local}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+
+            <Button 
+              onClick={exportarParaExcel}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Exportar Excel
+            </Button>
           </div>
           
           <div className="mt-4">
