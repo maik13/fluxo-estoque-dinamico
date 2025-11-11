@@ -29,7 +29,6 @@ export const SolicitarMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
   const [observacoes, setObservacoes] = useState('');
   const [localUtilizacao, setLocalUtilizacao] = useState('');
-  const [responsavelEstoque, setResponsavelEstoque] = useState('');
   const [tipoOperacao, setTipoOperacao] = useState('retirada');
   const [itensSolicitados, setItensSolicitados] = useState<NovoItemSolicitacao[]>([]);
   const [popoverAberto, setPopoverAberto] = useState(false);
@@ -157,7 +156,7 @@ export const SolicitarMaterial = () => {
     // Validar com zod
     const dadosParaValidar = {
       localUtilizacao: localUtilizacao || '',
-      responsavelEstoque: responsavelEstoque || '',
+      responsavelEstoque: userProfile?.nome || '',
       observacoes: observacoes || undefined,
       solicitanteId: solicitanteSelecionado?.id || '',
       codigoAssinatura: codigoAssinatura || '',
@@ -189,7 +188,7 @@ export const SolicitarMaterial = () => {
     const sucesso = await criarSolicitacao({
       observacoes,
       local_utilizacao_id: localUtilizacao,
-      responsavel_estoque: responsavelEstoque,
+      responsavel_estoque: userProfile?.nome || '',
       tipo_operacao: tipoOperacao,
       tipo_operacao_id: '4008ee81-3d16-4c38-a65d-078a6347f462',
       solicitante_id: solicitanteSelecionado!.id,
@@ -206,7 +205,6 @@ export const SolicitarMaterial = () => {
   const resetarFormulario = () => {
     setObservacoes('');
     setLocalUtilizacao('');
-    setResponsavelEstoque('');
     setTipoOperacao('retirada');
     setItensSolicitados([]);
     setBusca('');
@@ -422,18 +420,6 @@ export const SolicitarMaterial = () => {
               </Popover>
             </div>
 
-            {/* Campo Responsável pelo Estoque */}
-            <div className="space-y-2">
-              <Label htmlFor="responsavelEstoque">Responsável pelo Estoque *</Label>
-              <Input
-                id="responsavelEstoque"
-                type="text"
-                placeholder="Nome do responsável pelo estoque"
-                value={responsavelEstoque}
-                onChange={(e) => setResponsavelEstoque(e.target.value)}
-              />
-            </div>
-
             {/* Buscar e adicionar itens */}
             <div className="space-y-2">
               <Label>Adicionar Item</Label>
@@ -616,8 +602,7 @@ export const SolicitarMaterial = () => {
                   disabled={
                     itensSolicitados.length === 0 || 
                     !solicitanteSelecionado || 
-                    !localUtilizacao.trim() || 
-                    !responsavelEstoque.trim() ||
+                    !localUtilizacao.trim() ||
                     !codigoAssinatura.trim()
                   }
                 >
