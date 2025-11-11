@@ -13,6 +13,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
 import { EstoqueItem } from '@/types/estoque';
+import { materialEntrySchema } from '@/schemas/validation';
 
 interface ItemEntrada {
   item: EstoqueItem;
@@ -85,13 +86,23 @@ export const RegistrarEntrada = ({ onEntradaRealizada }: RegistrarEntradaProps) 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (itensEntrada.length === 0) {
-      toast.error('Adicione pelo menos um item');
-      return;
-    }
+    // Preparar dados para validação
+    const dadosParaValidar = {
+      tipoOperacaoId: tipoOperacaoId || '',
+      observacoes: observacoes || undefined,
+      itensEntrada: itensEntrada.map(ie => ({
+        item_id: ie.item.id,
+        quantidade: ie.quantidade
+      }))
+    };
 
-    if (!tipoOperacaoId) {
-      toast.error('Selecione o tipo de operação');
+    // Validar com zod
+    const resultado = materialEntrySchema.safeParse(dadosParaValidar);
+    
+    if (!resultado.success) {
+      const primeiroErro = resultado.error.errors[0];
+      toast.error(primeiroErro.message);
+      console.error('Erros de validação:', resultado.error.errors);
       return;
     }
 

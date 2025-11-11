@@ -9,6 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Edit, UserCheck, UserX, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { userEditSchema, type UserEditInput } from '@/schemas/validation';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 interface Profile {
   id: string;
@@ -25,12 +29,16 @@ export const UsuariosList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editandoUsuario, setEditandoUsuario] = useState<Profile | null>(null);
   const [dialogAberto, setDialogAberto] = useState(false);
-  const [formData, setFormData] = useState({
-    nome: '',
-    email: '',
-    tipo_usuario: 'estoquista'
-  });
   const { toast } = useToast();
+  
+  const form = useForm<UserEditInput>({
+    resolver: zodResolver(userEditSchema),
+    defaultValues: {
+      nome: '',
+      email: '',
+      tipo_usuario: 'estoquista'
+    }
+  });
 
   useEffect(() => {
     carregarUsuarios();
@@ -68,10 +76,10 @@ export const UsuariosList = () => {
 
   const abrirDialogEdicao = (usuario: Profile) => {
     setEditandoUsuario(usuario);
-    setFormData({
+    form.reset({
       nome: usuario.nome,
       email: usuario.email,
-      tipo_usuario: usuario.tipo_usuario
+      tipo_usuario: usuario.tipo_usuario as any
     });
     setDialogAberto(true);
   };
@@ -79,23 +87,19 @@ export const UsuariosList = () => {
   const fecharDialog = () => {
     setDialogAberto(false);
     setEditandoUsuario(null);
-    setFormData({
-      nome: '',
-      email: '',
-      tipo_usuario: 'estoquista'
-    });
+    form.reset();
   };
 
-  const salvarEdicao = async () => {
+  const salvarEdicao = async (data: UserEditInput) => {
     if (!editandoUsuario) return;
 
     try {
       const { error } = await supabase
         .from('profiles')
         .update({
-          nome: formData.nome,
-          email: formData.email,
-          tipo_usuario: formData.tipo_usuario
+          nome: data.nome,
+          email: data.email,
+          tipo_usuario: data.tipo_usuario
         })
         .eq('id', editandoUsuario.id);
 
@@ -104,7 +108,7 @@ export const UsuariosList = () => {
       setUsuarios(prev =>
         prev.map(user =>
           user.id === editandoUsuario.id
-            ? { ...user, ...formData }
+            ? { ...user, ...data }
             : user
         )
       );
@@ -294,56 +298,71 @@ export const UsuariosList = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="nome">Nome</Label>
-              <Input
-                id="nome"
-                value={formData.nome}
-                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                placeholder="Nome completo"
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(salvarEdicao)} className="grid gap-4 py-4">
+              <FormField
+                control={form.control}
+                name="nome"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nome completo" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="email@exemplo.com"
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="email@exemplo.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="tipo_usuario">Tipo de Usuário</Label>
-              <Select
-                value={formData.tipo_usuario}
-                onValueChange={(value) => setFormData({ ...formData, tipo_usuario: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="administrador">Administrador</SelectItem>
-                  <SelectItem value="gestor">Gestor</SelectItem>
-                  <SelectItem value="engenharia">Engenharia</SelectItem>
-                  <SelectItem value="mestre">Mestre</SelectItem>
-                  <SelectItem value="estoquista">Estoquista</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+              <FormField
+                control={form.control}
+                name="tipo_usuario"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Usuário</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o tipo" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="administrador">Administrador</SelectItem>
+                        <SelectItem value="gestor">Gestor</SelectItem>
+                        <SelectItem value="engenharia">Engenharia</SelectItem>
+                        <SelectItem value="mestre">Mestre</SelectItem>
+                        <SelectItem value="estoquista">Estoquista</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <DialogFooter>
-            <Button variant="outline" onClick={fecharDialog}>
-              Cancelar
-            </Button>
-            <Button onClick={salvarEdicao}>
-              Salvar Alterações
-            </Button>
-          </DialogFooter>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={fecharDialog}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>

@@ -25,6 +25,8 @@ import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { itemRegistrationSchema } from '@/schemas/validation';
+import { toast } from 'sonner';
 
 interface MenuPrincipalProps {
   onMovimentacaoRealizada: () => void;
@@ -218,6 +220,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     // Validar que o código de barras foi preenchido
     if (!codigoBarrasManual) {
       setErroCodigoBarras('O código de barras é obrigatório');
+      toast.error('O código de barras é obrigatório');
       return;
     }
     
@@ -227,12 +230,27 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     
     const codigoFinal = Number(codigoBarrasManual);
     
-    const dadosComCodigo = {
+    const dadosParaValidar = {
       ...formCadastro,
-      codigoBarras: codigoFinal
+      codigoBarras: codigoFinal,
+      nome: formCadastro.nome || '',
+      unidade: formCadastro.unidade || '',
+      condicao: formCadastro.condicao || 'Novo',
+      subcategoriaId: formCadastro.subcategoriaId || '',
+      valor: formCadastro.valor || 0
     };
     
-    if (cadastrarItem(dadosComCodigo as any)) {
+    // Validar com zod
+    const resultado = itemRegistrationSchema.safeParse(dadosParaValidar);
+    
+    if (!resultado.success) {
+      const erros = resultado.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join('\n');
+      toast.error(`Erro de validação:\n${erros}`);
+      console.error('Erros de validação:', resultado.error.errors);
+      return;
+    }
+    
+    if (cadastrarItem(resultado.data as any)) {
       setDialogoCadastro(false);
       resetarFormularios();
       setCodigoBarrasManual('');

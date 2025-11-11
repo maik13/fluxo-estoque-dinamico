@@ -20,6 +20,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { materialReturnSchema } from '@/schemas/validation';
 
 export const DevolverMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
@@ -156,8 +157,27 @@ export const DevolverMaterial = () => {
   };
 
   const handleSubmit = async () => {
-    if (itensDevolucao.length === 0) {
-      toast.error('Adicione pelo menos um item para devolução');
+    // Validar com zod
+    const resultado = materialReturnSchema.safeParse({
+      localUtilizacao: localUtilizacao || '',
+      responsavelEstoque: responsavelEstoque || '',
+      observacoes: observacoes || undefined,
+      solicitanteId: solicitanteSelecionado?.id || '',
+      codigoAssinatura: codigoAssinatura || '',
+      itensDevolucao: itensDevolucao
+    });
+    
+    if (!resultado.success) {
+      toast.error(resultado.error.errors[0].message);
+      if (resultado.error.errors[0].path.includes('codigoAssinatura')) {
+        setErroAssinatura(resultado.error.errors[0].message);
+      }
+      return;
+    }
+
+    if (codigoAssinatura !== solicitanteSelecionado!.codigo_barras) {
+      setErroAssinatura('Código de assinatura inválido');
+      toast.error('Código de assinatura inválido');
       return;
     }
 

@@ -23,6 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { materialRequestSchema } from '@/schemas/validation';
 
 export const SolicitarMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
@@ -153,23 +154,35 @@ export const SolicitarMaterial = () => {
   };
 
   const handleSubmit = async () => {
-    if (itensSolicitados.length === 0) {
+    // Validar com zod
+    const dadosParaValidar = {
+      localUtilizacao: localUtilizacao || '',
+      responsavelEstoque: responsavelEstoque || '',
+      observacoes: observacoes || undefined,
+      solicitanteId: solicitanteSelecionado?.id || '',
+      codigoAssinatura: codigoAssinatura || '',
+      itensSolicitados: itensSolicitados
+    };
+
+    const resultado = materialRequestSchema.safeParse(dadosParaValidar);
+    
+    if (!resultado.success) {
+      const primeiroErro = resultado.error.errors[0];
+      toast.error(primeiroErro.message);
+      
+      // Setar erro específico para assinatura
+      if (primeiroErro.path.includes('codigoAssinatura')) {
+        setErroAssinatura(primeiroErro.message);
+      }
+      
+      console.error('Erros de validação:', resultado.error.errors);
       return;
     }
 
-    if (!solicitanteSelecionado) {
-      toast.error('Por favor, selecione o solicitante');
-      return;
-    }
-
-    // Validar assinatura eletrônica
-    if (!codigoAssinatura.trim()) {
-      setErroAssinatura('Por favor, insira o código de assinatura do solicitante');
-      return;
-    }
-
-    if (codigoAssinatura !== solicitanteSelecionado.codigo_barras) {
+    // Validar assinatura específica do solicitante
+    if (codigoAssinatura !== solicitanteSelecionado!.codigo_barras) {
       setErroAssinatura('Código de assinatura inválido para este solicitante');
+      toast.error('Código de assinatura inválido');
       return;
     }
 
@@ -179,8 +192,8 @@ export const SolicitarMaterial = () => {
       responsavel_estoque: responsavelEstoque,
       tipo_operacao: tipoOperacao,
       tipo_operacao_id: '4008ee81-3d16-4c38-a65d-078a6347f462',
-      solicitante_id: solicitanteSelecionado.id,
-      solicitante_nome: solicitanteSelecionado.nome,
+      solicitante_id: solicitanteSelecionado!.id,
+      solicitante_nome: solicitanteSelecionado!.nome,
       itens: itensSolicitados
     });
 

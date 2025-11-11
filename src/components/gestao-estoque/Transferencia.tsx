@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { toast } from 'sonner';
 import { EstoqueItem } from '@/types/estoque';
 import { supabase } from '@/integrations/supabase/client';
+import { transferSchema } from '@/schemas/validation';
 
 interface ItemTransferencia {
   item: EstoqueItem;
@@ -85,23 +86,27 @@ export const Transferencia = ({ onTransferenciaRealizada }: TransferenciaProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!estoqueOrigemId) {
-      toast.error('Selecione o estoque de origem');
-      return;
-    }
-
-    if (!estoqueDestinoId) {
-      toast.error('Selecione o estoque de destino');
-      return;
-    }
-
-    if (estoqueOrigemId === estoqueDestinoId) {
-      toast.error('Os estoques de origem e destino devem ser diferentes');
-      return;
-    }
-
-    if (itensTransferencia.length === 0) {
-      toast.error('Adicione pelo menos um item');
+    // Validar com zod
+    const resultado = transferSchema.safeParse({
+      estoqueOrigemId: estoqueOrigemId || '',
+      estoqueDestinoId: estoqueDestinoId || '',
+      observacoes: observacoes || undefined,
+      itensTransferencia: itensTransferencia.map(it => ({
+        item_id: it.item.id,
+        quantidade: it.quantidade,
+        item_snapshot: {
+          id: it.item.id,
+          nome: it.item.nome,
+          codigoBarras: it.item.codigoBarras,
+          unidade: it.item.unidade,
+          marca: it.item.marca || '',
+          especificacao: it.item.especificacao || ''
+        }
+      }))
+    });
+    
+    if (!resultado.success) {
+      toast.error(resultado.error.errors[0].message);
       return;
     }
 
