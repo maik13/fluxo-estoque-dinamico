@@ -67,7 +67,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     codigoBarras: 0,
     quantidade: 0,
     observacoes: '',
-    tipoOperacaoId: ''
+    tipoOperacaoId: '',
+    destinatario: ''
   });
 
   // Estados para busca inteligente na saída
@@ -154,7 +155,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       codigoBarras: 0,
       quantidade: 0,
       observacoes: '',
-      tipoOperacaoId: ''
+      tipoOperacaoId: '',
+      destinatario: ''
     });
     setBuscaSaida('');
     setItemSelecionadoSaida(null);
@@ -268,6 +270,15 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const handleSaida = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Verificar se destinatário é obrigatório para ENTREGA DE EPI
+    const tipoOperacao = tiposOperacao.find(op => op.id === formMovimentacao.tipoOperacaoId);
+    const isEntregaEPI = tipoOperacao?.nome.toUpperCase().includes('ENTREGA DE EPI');
+    
+    if (isEntregaEPI && !formMovimentacao.destinatario.trim()) {
+      toast.error('O campo Destinatário é obrigatório para Entrega de EPI');
+      return;
+    }
+    
     const codigoParaUsar = itemSelecionadoSaida?.codigoBarras || Number(formMovimentacao.codigoBarras);
     
     if (registrarSaida(
@@ -275,7 +286,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       formMovimentacao.quantidade,
       '',
       formMovimentacao.observacoes,
-      formMovimentacao.tipoOperacaoId || undefined
+      formMovimentacao.tipoOperacaoId || undefined,
+      formMovimentacao.destinatario || undefined
     )) {
       setDialogoSaida(false);
       resetarFormularios();
@@ -741,6 +753,21 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                    </SelectContent>
                  </Select>
                </div>
+
+               {/* Campo Destinatário - obrigatório para ENTREGA DE EPI */}
+               {formMovimentacao.tipoOperacaoId && 
+                 tiposOperacao.find(op => op.id === formMovimentacao.tipoOperacaoId)?.nome.toUpperCase().includes('ENTREGA DE EPI') && (
+                 <div>
+                   <Label htmlFor="destinatarioSaida">Destinatário (Nome da pessoa) *</Label>
+                   <Input
+                     id="destinatarioSaida"
+                     value={formMovimentacao.destinatario}
+                     onChange={(e) => setFormMovimentacao(prev => ({...prev, destinatario: e.target.value}))}
+                     placeholder="Nome de quem está recebendo o EPI"
+                     required
+                   />
+                 </div>
+               )}
                  
                   <div>
                     <Label htmlFor="observacoesSaida">Observações Adicionais</Label>

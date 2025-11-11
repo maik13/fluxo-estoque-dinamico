@@ -131,6 +131,7 @@ export const useEstoque = () => {
               localUtilizacaoId: payload.new.local_utilizacao_id ?? undefined,
               localUtilizacaoNome: localNome,
               solicitacaoId: payload.new.solicitacao_id ?? undefined,
+              destinatario: payload.new.destinatario ?? undefined,
               itemSnapshot: payload.new.item_snapshot as Partial<Item>,
             };
             setMovimentacoes(prev => {
@@ -232,6 +233,7 @@ export const useEstoque = () => {
         localUtilizacaoId: row.local_utilizacao_id ?? undefined,
         localUtilizacaoNome: row.locais_utilizacao?.nome ?? undefined,
         solicitacaoId: row.solicitacao_id ?? undefined,
+        destinatario: row.destinatario ?? undefined,
         itemSnapshot: row.item_snapshot as Partial<Item>,
       }));
 
@@ -452,7 +454,8 @@ const registrarSaida = async (
   quantidade: number,
   responsavel: string,
   observacoes?: string,
-  tipoOperacaoId?: string
+  tipoOperacaoId?: string,
+  destinatario?: string
 ) => {
   try {
     const item = buscarItemPorCodigo(codigoBarras);
@@ -494,6 +497,7 @@ const registrarSaida = async (
       item_snapshot: JSON.parse(JSON.stringify(movimento.itemSnapshot)),
       estoque_id: estoqueAtivoInfo?.id ?? null,
       tipo_operacao_id: tipoOperacaoId ?? null,
+      destinatario: destinatario ?? null,
     }).select('*').maybeSingle();
     if (error) throw error;
 
