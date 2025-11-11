@@ -110,16 +110,21 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
           const { data, error } = await supabase
             .from('items')
             .select('codigo_barras')
-            .order('codigo_barras', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            .order('codigo_barras', { ascending: true });
 
           if (error) {
             console.error('Erro ao buscar próximo código:', error);
             return;
           }
 
-          const proximoCodigo = data ? Number(data.codigo_barras) + 1 : 1;
+          // Encontrar o primeiro número inteiro positivo disponível
+          const codigosUsados = new Set(data?.map(item => Number(item.codigo_barras)) || []);
+          let proximoCodigo = 1;
+          
+          while (codigosUsados.has(proximoCodigo)) {
+            proximoCodigo++;
+          }
+          
           setProximoCodigoDisponivel(proximoCodigo);
         } catch (error) {
           console.error('Erro ao buscar próximo código:', error);
