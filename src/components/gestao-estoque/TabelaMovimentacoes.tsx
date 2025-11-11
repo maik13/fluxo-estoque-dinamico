@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import { useEstoque } from '@/hooks/useEstoque';
 import { Movimentacao, TipoMovimentacao } from '@/types/estoque';
 import * as XLSX from 'xlsx';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export const TabelaMovimentacoes = () => {
   const { movimentacoes, loading } = useEstoque();
@@ -19,6 +20,36 @@ export const TabelaMovimentacoes = () => {
   const [filtroTipo, setFiltroTipo] = useState<TipoMovimentacao | 'todas'>('todas');
   const [filtroDestino, setFiltroDestino] = useState('todos');
   const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes'>('todas');
+  const [usuariosMap, setUsuariosMap] = useState<Record<string, string>>({});
+
+  // Buscar informações dos usuários
+  useEffect(() => {
+    const buscarUsuarios = async () => {
+      const userIds = [...new Set(movimentacoes.map(m => m.userId).filter(Boolean))];
+      
+      if (userIds.length === 0) return;
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, nome')
+        .in('user_id', userIds);
+
+      if (error) {
+        console.error('Erro ao buscar usuários:', error);
+        return;
+      }
+
+      const map: Record<string, string> = {};
+      data?.forEach(profile => {
+        if (profile.user_id) {
+          map[profile.user_id] = profile.nome;
+        }
+      });
+      setUsuariosMap(map);
+    };
+
+    buscarUsuarios();
+  }, [movimentacoes]);
 
   // Ordenar movimentações por data (mais recente primeiro)
   const movimentacoesOrdenadas = useMemo(() => {
@@ -101,21 +132,34 @@ export const TabelaMovimentacoes = () => {
   const exportarParaExcel = () => {
     try {
       // Preparar dados para exportação
-      const dadosExportacao = movimentacoesFiltradas.map(mov => ({
-        'Tipo': isDevolucao(mov) ? 'Devolução' : getTipoInfo(mov.tipo).label,
-        'Data': new Date(mov.dataHora).toLocaleDateString('pt-BR'),
-        'Hora': new Date(mov.dataHora).toLocaleTimeString('pt-BR'),
-        'Item': mov.itemSnapshot?.nome || 'Item não identificado',
-        'Código de Barras': mov.itemSnapshot?.codigoBarras || '',
-        'Marca': mov.itemSnapshot?.marca || '',
-        'Quantidade': `${mov.tipo === 'SAIDA' ? '-' : '+'}${mov.quantidade}`,
-        'Unidade': mov.itemSnapshot?.unidade || '',
-        'Qtd. Anterior': mov.quantidadeAnterior,
-        'Qtd. Atual': mov.quantidadeAtual,
-        'Responsável': mov.tipo === 'SAIDA' && mov.observacoes ? mov.observacoes : mov.itemSnapshot?.localizacao || '-',
-        'Estoque/Destino': mov.localUtilizacaoNome || '-',
-        'Observações': mov.observacoes && mov.tipo !== 'SAIDA' ? mov.observacoes : '-'
-      }));
+      const dadosExportacao = movimentacoesFiltradas.map(mov => {
+        const eDevolucao = isDevolucao(mov);
+        let responsavel = '-';
+        
+        if (mov.tipo === 'SAIDA' && mov.observacoes) {
+          responsavel = mov.observacoes; // Nome do solicitante
+        } else if (eDevolucao && mov.userId) {
+          responsavel = usuariosMap[mov.userId] || 'Usuário não identificado';
+        } else if (mov.itemSnapshot?.localizacao) {
+          responsavel = mov.itemSnapshot.localizacao;
+        }
+
+        return {
+          'Tipo': eDevolucao ? 'Devolução' : getTipoInfo(mov.tipo).label,
+          'Data': new Date(mov.dataHora).toLocaleDateString('pt-BR'),
+          'Hora': new Date(mov.dataHora).toLocaleTimeString('pt-BR'),
+          'Item': mov.itemSnapshot?.nome || 'Item não identificado',
+          'Código de Barras': mov.itemSnapshot?.codigoBarras || '',
+          'Marca': mov.itemSnapshot?.marca || '',
+          'Quantidade': `${mov.tipo === 'SAIDA' ? '-' : '+'}${mov.quantidade}`,
+          'Unidade': mov.itemSnapshot?.unidade || '',
+          'Qtd. Anterior': mov.quantidadeAnterior,
+          'Qtd. Atual': mov.quantidadeAtual,
+          'Responsável': responsavel,
+          'Estoque/Destino': mov.localUtilizacaoNome || '-',
+          'Observações': mov.observacoes && mov.tipo !== 'SAIDA' ? mov.observacoes : '-'
+        };
+      });
 
       // Criar workbook
       const workbook = XLSX.utils.book_new();
@@ -475,6 +519,10 @@ export const TabelaMovimentacoes = () => {
                           <div className="text-sm">
                             {mov.tipo === 'SAIDA' && mov.observacoes ? (
                               <Badge variant="outline">{mov.observacoes}</Badge>
+                            ) : eDevolucao && mov.userId ? (
+                              <Badge variant="outline" className="bg-info/10 text-info border-info/20">
+                                {usuariosMap[mov.userId] || 'Carregando...'}
+                              </Badge>
                             ) : mov.itemSnapshot?.localizacao ? (
                               <span className="text-muted-foreground">{mov.itemSnapshot.localizacao}</span>
                             ) : (
