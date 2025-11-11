@@ -160,7 +160,7 @@ export const DevolverMaterial = () => {
     // Validar com zod
     const resultado = materialReturnSchema.safeParse({
       localUtilizacao: localUtilizacao || '',
-      responsavelEstoque: responsavelEstoque || '',
+      responsavelEstoque: userProfile?.nome || '',
       observacoes: observacoes || undefined,
       solicitanteId: solicitanteSelecionado?.id || '',
       codigoAssinatura: codigoAssinatura || '',
@@ -215,7 +215,7 @@ export const DevolverMaterial = () => {
     const sucesso = await criarSolicitacao({
       observacoes,
       local_utilizacao_id: localUtilizacao,
-      responsavel_estoque: responsavelEstoque,
+      responsavel_estoque: userProfile?.nome || '',
       tipo_operacao: 'devolucao',
       tipo_operacao_id: '8462f967-121e-4a0a-8d43-5e7131fc1981',
       solicitante_id: solicitanteSelecionado.id,
