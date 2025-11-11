@@ -180,6 +180,7 @@ export const TabelaMovimentacoes = () => {
           'Qtd. Anterior': mov.quantidadeAnterior,
           'Qtd. Atual': mov.quantidadeAtual,
           'Responsável': responsavel,
+          'Destinatário': mov.destinatario || '-',
           'Estoque/Destino': mov.localUtilizacaoNome || '-',
           'Observações': mov.observacoes && mov.tipo !== 'SAIDA' ? mov.observacoes : '-'
         };
@@ -202,6 +203,7 @@ export const TabelaMovimentacoes = () => {
         { wch: 12 },  // Qtd. Anterior
         { wch: 12 },  // Qtd. Atual
         { wch: 20 },  // Responsável
+        { wch: 20 },  // Destinatário
         { wch: 20 },  // Estoque/Destino
         { wch: 30 }   // Observações
       ];
@@ -473,6 +475,7 @@ export const TabelaMovimentacoes = () => {
                   <TableHead>Anterior</TableHead>
                   <TableHead>Atual</TableHead>
                   <TableHead>Responsável</TableHead>
+                  <TableHead>Destinatário</TableHead>
                   <TableHead>Estoque/Destino</TableHead>
                   <TableHead>Observações</TableHead>
                 </TableRow>
@@ -480,7 +483,7 @@ export const TabelaMovimentacoes = () => {
               <TableBody>
                 {movimentacoesFiltradas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
+                    <TableCell colSpan={11} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-muted-foreground">
@@ -560,6 +563,15 @@ export const TabelaMovimentacoes = () => {
                               <span className="text-xs text-muted-foreground">-</span>
                             )}
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {mov.destinatario ? (
+                            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                              {mov.destinatario}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           {mov.localUtilizacaoNome ? (

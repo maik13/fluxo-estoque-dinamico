@@ -33,6 +33,7 @@ export interface Movimentacao {
   localUtilizacaoId?: string; // ID do local de utilização
   localUtilizacaoNome?: string; // Nome do local de utilização
   solicitacaoId?: string; // ID da solicitação associada
+  destinatario?: string; // Nome da pessoa para quem o item foi direcionado
   // Dados do item no momento da movimentação (para histórico)
   itemSnapshot: Partial<Item>;
 }

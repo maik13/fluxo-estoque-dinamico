@@ -105,6 +105,7 @@ export const useSolicitacoes = () => {
           tipo_operacao: novaSolicitacao.tipo_operacao || 'retirada',
           tipo_operacao_id: novaSolicitacao.tipo_operacao_id || null,
           solicitacao_origem_id: novaSolicitacao.solicitacao_origem_id,
+          destinatario: novaSolicitacao.destinatario,
           criado_por_id: user.id, // Registra o ID do usuário logado
           estoque_id: estoqueAtivoInfo?.id ?? null
         }])
@@ -169,6 +170,7 @@ export const useSolicitacoes = () => {
           user_id: user.id,
           observacoes: `${isDevolucao ? 'Devolução' : 'Retirada'} - Solicitação #${solicitacaoData.numero || solicitacaoData.id.slice(-8)}${novaSolicitacao.observacoes ? ' - ' + novaSolicitacao.observacoes : ''}`,
           local_utilizacao_id: novaSolicitacao.local_utilizacao_id,
+          destinatario: novaSolicitacao.destinatario,
           item_snapshot: item.item_snapshot,
           solicitacao_id: solicitacaoData.id,
           estoque_id: estoqueAtivoInfo?.id ?? null

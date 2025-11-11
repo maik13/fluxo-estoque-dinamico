@@ -29,6 +29,7 @@ export const SolicitarMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
   const [observacoes, setObservacoes] = useState('');
   const [localUtilizacao, setLocalUtilizacao] = useState('');
+  const [destinatario, setDestinatario] = useState('');
   const [tipoOperacao, setTipoOperacao] = useState('retirada');
   const [itensSolicitados, setItensSolicitados] = useState<NovoItemSolicitacao[]>([]);
   const [popoverAberto, setPopoverAberto] = useState(false);
@@ -159,6 +160,7 @@ export const SolicitarMaterial = () => {
       responsavelEstoque: userProfile?.nome || '',
       observacoes: observacoes || undefined,
       solicitanteId: solicitanteSelecionado?.id || '',
+      destinatario: destinatario || '',
       codigoAssinatura: codigoAssinatura || '',
       itensSolicitados: itensSolicitados
     };
@@ -193,6 +195,7 @@ export const SolicitarMaterial = () => {
       tipo_operacao_id: '4008ee81-3d16-4c38-a65d-078a6347f462',
       solicitante_id: solicitanteSelecionado!.id,
       solicitante_nome: solicitanteSelecionado!.nome,
+      destinatario: destinatario || undefined,
       itens: itensSolicitados
     });
 
@@ -205,6 +208,7 @@ export const SolicitarMaterial = () => {
   const resetarFormulario = () => {
     setObservacoes('');
     setLocalUtilizacao('');
+    setDestinatario('');
     setTipoOperacao('retirada');
     setItensSolicitados([]);
     setBusca('');
@@ -418,6 +422,17 @@ export const SolicitarMaterial = () => {
                   </Command>
                 </PopoverContent>
               </Popover>
+            </div>
+
+            {/* Campo Destinatário */}
+            <div className="space-y-2">
+              <Label htmlFor="destinatario">Destinatário (Nome da pessoa) *</Label>
+              <Input
+                id="destinatario"
+                placeholder="Nome de quem vai receber o item (ex: EPI)"
+                value={destinatario}
+                onChange={(e) => setDestinatario(e.target.value)}
+              />
             </div>
 
             {/* Buscar e adicionar itens */}

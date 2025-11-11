@@ -12,6 +12,7 @@ export interface Solicitacao {
   tipo_operacao_id?: string;
   local_utilizacao_id?: string;
   solicitacao_origem_id?: string;
+  destinatario?: string;
   data_solicitacao: string;
   aceite_separador: boolean;
   aceite_solicitante: boolean;
@@ -48,5 +49,6 @@ export interface NovaSolicitacao {
   solicitacao_origem_id?: string;
   solicitante_id?: string;
   solicitante_nome?: string;
+  destinatario?: string;
   itens: NovoItemSolicitacao[];
 }

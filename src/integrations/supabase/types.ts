@@ -140,6 +140,7 @@ export type Database = {
         Row: {
           created_at: string
           data_hora: string
+          destinatario: string | null
           estoque_id: string | null
           id: string
           item_id: string
@@ -157,6 +158,7 @@ export type Database = {
         Insert: {
           created_at?: string
           data_hora?: string
+          destinatario?: string | null
           estoque_id?: string | null
           id?: string
           item_id: string
@@ -174,6 +176,7 @@ export type Database = {
         Update: {
           created_at?: string
           data_hora?: string
+          destinatario?: string | null
           estoque_id?: string | null
           id?: string
           item_id?: string
@@ -311,6 +314,7 @@ export type Database = {
           created_at: string
           criado_por_id: string | null
           data_solicitacao: string
+          destinatario: string | null
           estoque_id: string | null
           id: string
           local_utilizacao: string | null
@@ -331,6 +335,7 @@ export type Database = {
           created_at?: string
           criado_por_id?: string | null
           data_solicitacao?: string
+          destinatario?: string | null
           estoque_id?: string | null
           id?: string
           local_utilizacao?: string | null
@@ -351,6 +356,7 @@ export type Database = {
           created_at?: string
           criado_por_id?: string | null
           data_solicitacao?: string
+          destinatario?: string | null
           estoque_id?: string | null
           id?: string
           local_utilizacao?: string | null

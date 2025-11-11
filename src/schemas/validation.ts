@@ -65,6 +65,7 @@ export const materialRequestSchema = z.object({
   responsavelEstoque: nonEmptyStringSchema.max(100, { message: 'Máximo 100 caracteres' }),
   observacoes: z.string().trim().max(1000, { message: 'Máximo 1000 caracteres' }).optional(),
   solicitanteId: uuidSchema,
+  destinatario: z.string().trim().min(1, { message: 'Campo destinatário obrigatório' }).max(200, { message: 'Máximo 200 caracteres' }),
   codigoAssinatura: nonEmptyStringSchema
     .regex(/^\d+$/, { message: 'Código deve conter apenas números' })
     .min(1, { message: 'Código de assinatura obrigatório' }),
