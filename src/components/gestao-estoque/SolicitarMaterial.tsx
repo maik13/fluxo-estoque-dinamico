@@ -420,16 +420,6 @@ export const SolicitarMaterial = () => {
               </Popover>
             </div>
 
-            {/* Campo Observações */}
-            <div className="space-y-2">
-              <Label htmlFor="observacoes">Observações</Label>
-              <Textarea
-                id="observacoes"
-                value={observacoes}
-                onChange={(e) => setObservacoes(e.target.value)}
-              />
-            </div>
-
             {/* Buscar e adicionar itens */}
             <div className="space-y-2">
               <Label>Adicionar Item</Label>
