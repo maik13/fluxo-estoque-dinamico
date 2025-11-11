@@ -14,9 +14,12 @@ interface EditarQuantidadeInlineProps {
 export const EditarQuantidadeInline = ({ item, onSalvar, disabled }: EditarQuantidadeInlineProps) => {
   const [editando, setEditando] = useState(false);
   const [quantidade, setQuantidade] = useState(item.estoqueAtual.toString());
-  const { canManageStock } = usePermissions();
+  const { isAdmin, isGestor } = usePermissions();
 
-  if (!canManageStock() || disabled) {
+  // Apenas gestores e administradores podem editar
+  const podeEditar = isAdmin() || isGestor();
+
+  if (!podeEditar || disabled) {
     return (
       <span className="text-right font-bold">
         {item.estoqueAtual.toLocaleString('pt-BR')}
