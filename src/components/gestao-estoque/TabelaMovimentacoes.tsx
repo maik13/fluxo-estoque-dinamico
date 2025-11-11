@@ -461,7 +461,7 @@ export const TabelaMovimentacoes = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-visible" style={{ overflowX: 'scroll' }}>
             <Table>
               <TableHeader>
                 <TableRow>
