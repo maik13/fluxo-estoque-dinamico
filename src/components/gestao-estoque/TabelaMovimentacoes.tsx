@@ -21,34 +21,53 @@ export const TabelaMovimentacoes = () => {
   const [filtroDestino, setFiltroDestino] = useState('todos');
   const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes'>('todas');
   const [solicitantesMap, setSolicitantesMap] = useState<Record<string, string>>({});
+  const [usuariosMap, setUsuariosMap] = useState<Record<string, string>>({});
 
-  // Buscar informações dos solicitantes
+  // Buscar informações dos solicitantes e usuários
   useEffect(() => {
-    const buscarSolicitantes = async () => {
+    const buscarDados = async () => {
+      // Buscar solicitantes (para saídas/devoluções)
       const solicitacaoIds = [...new Set(movimentacoes.map(m => m.solicitacaoId).filter(Boolean))];
       
-      if (solicitacaoIds.length === 0) return;
+      if (solicitacaoIds.length > 0) {
+        const { data, error } = await supabase
+          .from('solicitacoes')
+          .select('id, solicitante_nome')
+          .in('id', solicitacaoIds);
 
-      const { data, error } = await supabase
-        .from('solicitacoes')
-        .select('id, solicitante_nome')
-        .in('id', solicitacaoIds);
-
-      if (error) {
-        console.error('Erro ao buscar solicitantes:', error);
-        return;
+        if (!error && data) {
+          const map: Record<string, string> = {};
+          data.forEach(solicitacao => {
+            if (solicitacao.id) {
+              map[solicitacao.id] = solicitacao.solicitante_nome;
+            }
+          });
+          setSolicitantesMap(map);
+        }
       }
 
-      const map: Record<string, string> = {};
-      data?.forEach(solicitacao => {
-        if (solicitacao.id) {
-          map[solicitacao.id] = solicitacao.solicitante_nome;
+      // Buscar usuários (para entradas/cadastros)
+      const userIds = [...new Set(movimentacoes.map(m => m.userId).filter(Boolean))];
+      
+      if (userIds.length > 0) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('user_id, nome')
+          .in('user_id', userIds);
+
+        if (!error && data) {
+          const map: Record<string, string> = {};
+          data.forEach(profile => {
+            if (profile.user_id) {
+              map[profile.user_id] = profile.nome;
+            }
+          });
+          setUsuariosMap(map);
         }
-      });
-      setSolicitantesMap(map);
+      }
     };
 
-    buscarSolicitantes();
+    buscarDados();
   }, [movimentacoes]);
 
   // Ordenar movimentações por data (mais recente primeiro)
@@ -136,10 +155,16 @@ export const TabelaMovimentacoes = () => {
         const eDevolucao = isDevolucao(mov);
         let responsavel = '-';
         
-        // Buscar nome do solicitante se houver solicitação associada
+        // Para SAÍDA e DEVOLUÇÃO: mostrar nome do solicitante
         if (mov.solicitacaoId && solicitantesMap[mov.solicitacaoId]) {
           responsavel = solicitantesMap[mov.solicitacaoId];
-        } else if (mov.itemSnapshot?.localizacao) {
+        } 
+        // Para ENTRADA e CADASTRO: mostrar nome do usuário que fez a operação
+        else if ((mov.tipo === 'ENTRADA' || mov.tipo === 'CADASTRO') && mov.userId && usuariosMap[mov.userId]) {
+          responsavel = usuariosMap[mov.userId];
+        } 
+        // Fallback para localização
+        else if (mov.itemSnapshot?.localizacao) {
           responsavel = mov.itemSnapshot.localizacao;
         }
 
@@ -516,11 +541,20 @@ export const TabelaMovimentacoes = () => {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
+                            {/* Para SAÍDA e DEVOLUÇÃO: mostrar solicitante */}
                             {mov.solicitacaoId && solicitantesMap[mov.solicitacaoId] ? (
                               <Badge variant="outline" className={eDevolucao ? "bg-info/10 text-info border-info/20" : ""}>
                                 {solicitantesMap[mov.solicitacaoId]}
                               </Badge>
-                            ) : mov.itemSnapshot?.localizacao ? (
+                            ) 
+                            /* Para ENTRADA e CADASTRO: mostrar usuário que fez a operação */
+                            : (mov.tipo === 'ENTRADA' || mov.tipo === 'CADASTRO') && mov.userId && usuariosMap[mov.userId] ? (
+                              <Badge variant="outline" className="bg-success/10 text-success border-success/20">
+                                {usuariosMap[mov.userId]}
+                              </Badge>
+                            ) 
+                            /* Fallback */
+                            : mov.itemSnapshot?.localizacao ? (
                               <span className="text-muted-foreground">{mov.itemSnapshot.localizacao}</span>
                             ) : (
                               <span className="text-xs text-muted-foreground">-</span>
