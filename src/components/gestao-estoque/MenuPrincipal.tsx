@@ -78,7 +78,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
 
   // Obter todos os itens do estoque para busca inteligente
   const itensEstoque = useMemo(() => {
-    return obterEstoque().filter(item => item.estoqueAtual > 0);
+    return obterEstoque(); // Retorna todos os itens, independente do estoque
   }, [obterEstoque]);
 
   // Obter subcategorias ativas
