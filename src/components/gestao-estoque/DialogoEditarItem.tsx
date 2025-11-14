@@ -17,14 +17,32 @@ interface DialogoEditarItemProps {
 }
 
 export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEditarItemProps) => {
-  const { obterTiposServicoAtivos, obterSubcategoriasAtivas } = useConfiguracoes();
+  const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria } = useConfiguracoes();
   const [formItem, setFormItem] = useState<Item | null>(null);
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState<string>('');
 
   useEffect(() => {
     if (item) {
       setFormItem({ ...item });
+      // Carregar categoria do item se houver subcategoria
+      if (item.subcategoriaId) {
+        const subcategoria = obterSubcategoriasAtivas().find(s => s.id === item.subcategoriaId);
+        if (subcategoria) {
+          setCategoriaSelecionada(subcategoria.categoria);
+        }
+      } else {
+        setCategoriaSelecionada('');
+      }
     }
-  }, [item]);
+  }, [item, obterSubcategoriasAtivas]);
+
+  // Obter categorias únicas
+  const categoriasUnicas = obterCategoriasUnicas();
+
+  // Obter subcategorias filtradas por categoria
+  const subcategoriasFiltradas = categoriaSelecionada 
+    ? obterSubcategoriasPorCategoria(categoriaSelecionada) 
+    : [];
 
   const handleSalvar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +56,7 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
 
   const handleClose = () => {
     setFormItem(null);
+    setCategoriaSelecionada('');
     onClose();
   };
 
@@ -136,18 +155,42 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
             </div>
             
             <div>
-              <Label htmlFor="subcategoria">Subcategoria</Label>
+              <Label htmlFor="categoria">Categoria *</Label>
+              <Select 
+                value={categoriaSelecionada} 
+                onValueChange={(value) => {
+                  setCategoriaSelecionada(value);
+                  // Limpar subcategoria quando categoria mudar
+                  setFormItem(prev => prev ? {...prev, subcategoriaId: undefined} : null);
+                }}
+              >
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder="Selecione a categoria" />
+                </SelectTrigger>
+                <SelectContent className="bg-background z-50">
+                  {categoriasUnicas.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="subcategoria">Subcategoria *</Label>
               <Select 
                 value={formItem.subcategoriaId || ''} 
                 onValueChange={(value) => setFormItem(prev => prev ? {...prev, subcategoriaId: value} : null)}
+                disabled={!categoriaSelecionada}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a subcategoria" />
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder={categoriaSelecionada ? "Selecione a subcategoria" : "Selecione uma categoria primeiro"} />
                 </SelectTrigger>
-                <SelectContent>
-                  {obterSubcategoriasAtivas().map((sub) => (
+                <SelectContent className="bg-background z-50">
+                  {subcategoriasFiltradas.map((sub) => (
                     <SelectItem key={sub.id} value={sub.id}>
-                      {sub.nome} ({sub.categoria})
+                      {sub.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>
