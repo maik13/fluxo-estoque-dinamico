@@ -77,6 +77,13 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   
   // Estado para categoria selecionada no formulário de cadastro
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<string>('');
+  
+  // Estado para lista de itens na saída
+  interface ItemSaida {
+    item: EstoqueItem;
+    quantidade: number;
+  }
+  const [itensSaida, setItensSaida] = useState<ItemSaida[]>([]);
 
   // Obter todos os itens do estoque para busca inteligente
   const itensEstoque = useMemo(() => {
@@ -273,9 +280,55 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     }
   };
 
-  // Função para lidar com saída
+  // Função para adicionar item à lista de saída
+  const adicionarItemSaida = () => {
+    if (!itemSelecionadoSaida) {
+      toast.error('Selecione um item');
+      return;
+    }
+    
+    if (!formMovimentacao.quantidade || formMovimentacao.quantidade <= 0) {
+      toast.error('Informe uma quantidade válida');
+      return;
+    }
+    
+    // Verificar se o item já está na lista
+    const itemJaAdicionado = itensSaida.find(i => i.item.id === itemSelecionadoSaida.id);
+    if (itemJaAdicionado) {
+      toast.error('Este item já foi adicionado à lista');
+      return;
+    }
+    
+    // Adicionar item à lista
+    setItensSaida(prev => [...prev, {
+      item: itemSelecionadoSaida,
+      quantidade: formMovimentacao.quantidade
+    }]);
+    
+    // Limpar seleção
+    limparItemSelecionado();
+    setFormMovimentacao(prev => ({
+      ...prev,
+      quantidade: 0
+    }));
+    
+    toast.success('Item adicionado à lista de saída');
+  };
+  
+  // Função para remover item da lista de saída
+  const removerItemSaida = (itemId: string) => {
+    setItensSaida(prev => prev.filter(i => i.item.id !== itemId));
+    toast.success('Item removido da lista');
+  };
+  
+  // Função para lidar com saída (registrar todos os itens)
   const handleSaida = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (itensSaida.length === 0) {
+      toast.error('Adicione pelo menos um item à lista de saída');
+      return;
+    }
     
     // Verificar se destinatário é obrigatório para ENTREGA DE EPI
     const tipoOperacao = tiposOperacao.find(op => op.id === formMovimentacao.tipoOperacaoId);
@@ -286,19 +339,30 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       return;
     }
     
-    const codigoParaUsar = itemSelecionadoSaida?.codigoBarras || Number(formMovimentacao.codigoBarras);
+    // Registrar saída de todos os itens
+    let todosRegistrados = true;
+    for (const itemSaida of itensSaida) {
+      const sucesso = registrarSaida(
+        itemSaida.item.codigoBarras,
+        itemSaida.quantidade,
+        '',
+        formMovimentacao.observacoes,
+        formMovimentacao.tipoOperacaoId || undefined,
+        formMovimentacao.destinatario || undefined
+      );
+      
+      if (!sucesso) {
+        todosRegistrados = false;
+        break;
+      }
+    }
     
-    if (registrarSaida(
-      codigoParaUsar,
-      formMovimentacao.quantidade,
-      '',
-      formMovimentacao.observacoes,
-      formMovimentacao.tipoOperacaoId || undefined,
-      formMovimentacao.destinatario || undefined
-    )) {
+    if (todosRegistrados) {
       setDialogoSaida(false);
+      setItensSaida([]);
       resetarFormularios();
       onMovimentacaoRealizada();
+      toast.success(`Saída registrada com sucesso! ${itensSaida.length} item(ns) processado(s).`);
     }
   };
 
@@ -321,6 +385,14 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       ...prev,
       codigoBarras: 0
     }));
+  };
+  
+  // Limpar lista de itens ao fechar o diálogo de saída
+  const fecharDialogoSaida = () => {
+    setDialogoSaida(false);
+    setItensSaida([]);
+    limparItemSelecionado();
+    resetarFormularios();
   };
 
   // Função para buscar item quando código for digitado
@@ -658,7 +730,13 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
 
 
         {/* BOTÃO SAÍDA */}
-        <Dialog open={dialogoSaida} onOpenChange={setDialogoSaida}>
+        <Dialog open={dialogoSaida} onOpenChange={(aberto) => {
+          if (!aberto) {
+            fecharDialogoSaida();
+          } else {
+            setDialogoSaida(true);
+          }
+        }}>
           <DialogTrigger asChild>
             <Card className={cn(
               "cursor-pointer hover:scale-105 transition-all duration-300",
@@ -681,11 +759,11 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
             <DialogHeader>
               <DialogTitle>📤 Registrar Saída</DialogTitle>
               <DialogDescription>
-                Registre a saída de materiais do estoque
+                Adicione múltiplos itens para registrar a saída de materiais do estoque
               </DialogDescription>
             </DialogHeader>
             
-            <form onSubmit={handleSaida} className="space-y-4">
+            <form onSubmit={handleSaida} className="space-y-4 max-h-[70vh] overflow-y-auto">
               <div>
                 <Label htmlFor="buscaSaida">Buscar Item (Nome ou Código de Barras) *</Label>
                 <div className="flex space-x-2">
@@ -772,18 +850,64 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                 )}
               </div>
               
-                <div>
-                  <Label htmlFor="quantidadeSaida">Quantidade *</Label>
+              <div>
+                <Label htmlFor="quantidadeSaida">Quantidade *</Label>
+                <div className="flex space-x-2">
                   <Input
                     id="quantidadeSaida"
                     type="number"
                     min="0.01"
                     step="0.01"
-                    value={formMovimentacao.quantidade}
+                    value={formMovimentacao.quantidade || ''}
                     onChange={(e) => setFormMovimentacao(prev => ({...prev, quantidade: Number(e.target.value)}))}
-                    required
+                    placeholder="Digite a quantidade"
+                    className="flex-1"
                   />
+                  <Button 
+                    type="button" 
+                    onClick={adicionarItemSaida}
+                    variant="default"
+                    className="whitespace-nowrap"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar
+                  </Button>
                 </div>
+              </div>
+
+              {/* Lista de itens adicionados */}
+              {itensSaida.length > 0 && (
+                <div className="border rounded-md p-4 space-y-2 bg-muted/30">
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-base font-semibold">Itens da Saída ({itensSaida.length})</Label>
+                  </div>
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                    {itensSaida.map((itemSaida, index) => (
+                      <div key={itemSaida.item.id} className="flex items-start justify-between p-3 bg-background rounded border">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{itemSaida.item.nome}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Código: {itemSaida.item.codigoBarras} • 
+                            Quantidade: <strong>{itemSaida.quantidade} {itemSaida.item.unidade}</strong>
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Estoque disponível: {itemSaida.item.estoqueAtual} {itemSaida.item.unidade}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removerItemSaida(itemSaida.item.id)}
+                          className="text-destructive hover:text-destructive ml-2"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
                <div>
                  <Label htmlFor="tipoOperacaoSaida">Operação *</Label>
@@ -834,12 +958,12 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                     />
                   </div>
               
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setDialogoSaida(false)}>
+              <div className="flex justify-end space-x-2 pt-4 border-t mt-4">
+                <Button type="button" variant="outline" onClick={fecharDialogoSaida}>
                   Cancelar
                 </Button>
-                <Button type="submit">
-                  Registrar Saída
+                <Button type="submit" disabled={itensSaida.length === 0}>
+                  Registrar Saída ({itensSaida.length} {itensSaida.length === 1 ? 'item' : 'itens'})
                 </Button>
               </div>
             </form>
