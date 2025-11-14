@@ -132,6 +132,7 @@ export const useEstoque = () => {
               localUtilizacaoNome: localNome,
               solicitacaoId: payload.new.solicitacao_id ?? undefined,
               destinatario: payload.new.destinatario ?? undefined,
+              estoqueId: payload.new.estoque_id ?? undefined,
               itemSnapshot: payload.new.item_snapshot as Partial<Item>,
             };
             setMovimentacoes(prev => {
@@ -234,6 +235,7 @@ export const useEstoque = () => {
         localUtilizacaoNome: row.locais_utilizacao?.nome ?? undefined,
         solicitacaoId: row.solicitacao_id ?? undefined,
         destinatario: row.destinatario ?? undefined,
+        estoqueId: row.estoque_id ?? undefined,
         itemSnapshot: row.item_snapshot as Partial<Item>,
       }));
 
@@ -273,9 +275,13 @@ export const useEstoque = () => {
     return Math.max(...codigos) + 1;
   };
 
-  // Função para calcular estoque atual de um item
+  // Função para calcular estoque atual de um item considerando apenas o estoque ativo
   const calcularEstoqueAtual = (itemId: string): number => {
-    const movimentacoesItem = movimentacoes.filter(mov => mov.itemId === itemId);
+    // Filtrar movimentações do item E do estoque ativo
+    const movimentacoesItem = movimentacoes.filter(mov => 
+      mov.itemId === itemId && 
+      (!mov.estoqueId || mov.estoqueId === estoqueAtivo)
+    );
     let estoque = 0;
     
     movimentacoesItem.forEach(mov => {
@@ -295,8 +301,12 @@ export const useEstoque = () => {
     // O que muda é o estoque atual calculado pelas movimentações de cada estoque
     return itens.map(item => {
       const estoqueAtual = calcularEstoqueAtual(item.id);
+      // Filtrar última movimentação apenas do estoque ativo
       const ultimaMovimentacao = movimentacoes
-        .filter(mov => mov.itemId === item.id)
+        .filter(mov => 
+          mov.itemId === item.id && 
+          (!mov.estoqueId || mov.estoqueId === estoqueAtivo)
+        )
         .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())[0];
 
       return {
