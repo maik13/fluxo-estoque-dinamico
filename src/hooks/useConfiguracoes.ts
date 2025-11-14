@@ -800,6 +800,17 @@ export const useConfiguracoes = () => {
   const obterEstoquesAtivos = () => estoques.filter(e => e.ativo);
   const obterTiposServicoAtivos = () => tiposServico.filter(t => t.ativo);
   const obterSubcategoriasAtivas = () => subcategorias.filter(s => s.ativo);
+  const obterCategoriasUnicas = () => {
+    const categorias = subcategorias
+      .filter(s => s.ativo)
+      .map(s => s.categoria)
+      .filter((value, index, self) => self.indexOf(value) === index)
+      .sort();
+    return categorias;
+  };
+  const obterSubcategoriasPorCategoria = (categoria: string) => {
+    return subcategorias.filter(s => s.ativo && s.categoria === categoria);
+  };
   const obterTiposOperacaoAtivos = () => tiposOperacao.filter(t => t.ativo);
   const obterSolicitantesAtivos = () => solicitantes.filter(s => s.ativo);
   const obterLocaisUtilizacaoAtivos = () => locaisUtilizacao.filter(l => l.ativo);
@@ -833,6 +844,8 @@ export const useConfiguracoes = () => {
     obterEstoquesAtivos,
     obterTiposServicoAtivos,
     obterSubcategoriasAtivas,
+    obterCategoriasUnicas,
+    obterSubcategoriasPorCategoria,
     obterTiposOperacaoAtivos,
     obterSolicitantesAtivos,
     obterLocaisUtilizacaoAtivos,

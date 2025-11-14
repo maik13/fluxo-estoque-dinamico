@@ -34,7 +34,7 @@ interface MenuPrincipalProps {
 
 export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) => {
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoque();
-  const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
+  const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
   const { canCreateItems, canManageStock } = usePermissions();
   
   // Estados para controlar os diálogos
@@ -74,16 +74,25 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const [buscaSaida, setBuscaSaida] = useState('');
   const [popoverSaidaAberto, setPopoverSaidaAberto] = useState(false);
   const [itemSelecionadoSaida, setItemSelecionadoSaida] = useState<EstoqueItem | null>(null);
+  
+  // Estado para categoria selecionada no formulário de cadastro
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState<string>('');
 
   // Obter todos os itens do estoque para busca inteligente
   const itensEstoque = useMemo(() => {
     return obterEstoque(); // Retorna todos os itens, independente do estoque
   }, [obterEstoque]);
 
-  // Obter subcategorias ativas
-  const subcategoriasAtivas = useMemo(() => {
-    return obterSubcategoriasAtivas();
-  }, [obterSubcategoriasAtivas]);
+  // Obter categorias únicas
+  const categoriasUnicas = useMemo(() => {
+    return obterCategoriasUnicas();
+  }, [obterCategoriasUnicas]);
+
+  // Obter subcategorias ativas filtradas por categoria
+  const subcategoriasFiltradas = useMemo(() => {
+    if (!categoriaSelecionada) return [];
+    return obterSubcategoriasPorCategoria(categoriaSelecionada);
+  }, [categoriaSelecionada, obterSubcategoriasPorCategoria]);
 
   // Filtrar itens para busca inteligente na saída
   const itensFiltrarados = useMemo(() => {
@@ -149,6 +158,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       condicao: 'Novo',
       subcategoriaId: undefined
     });
+    setCategoriaSelecionada('');
     setFormMovimentacao({
       codigoBarras: 0,
       quantidade: 0,
@@ -508,7 +518,33 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                 </div>
                 
                 <div>
-                  <Label htmlFor="subcategoria">Subcategoria</Label>
+                  <Label htmlFor="categoria">Categoria *</Label>
+                  <Select 
+                    value={categoriaSelecionada} 
+                    onValueChange={(value) => {
+                      setCategoriaSelecionada(value);
+                      // Limpar subcategoria quando categoria mudar
+                      setFormCadastro(prev => ({
+                        ...prev, 
+                        subcategoriaId: undefined
+                      }));
+                    }}
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Selecione a categoria" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background z-50">
+                      {categoriasUnicas.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="subcategoria">Subcategoria *</Label>
                   <Select 
                     value={formCadastro.subcategoriaId} 
                     onValueChange={(value) => {
@@ -517,14 +553,15 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                         subcategoriaId: value
                       }));
                     }}
+                    disabled={!categoriaSelecionada}
                   >
                     <SelectTrigger className="bg-background">
-                      <SelectValue placeholder="Selecione a subcategoria" />
+                      <SelectValue placeholder={categoriaSelecionada ? "Selecione a subcategoria" : "Selecione uma categoria primeiro"} />
                     </SelectTrigger>
                     <SelectContent className="bg-background z-50">
-                      {subcategoriasAtivas.map((sub) => (
+                      {subcategoriasFiltradas.map((sub) => (
                         <SelectItem key={sub.id} value={sub.id}>
-                          {sub.nome} ({sub.categoria})
+                          {sub.nome}
                         </SelectItem>
                       ))}
                     </SelectContent>
