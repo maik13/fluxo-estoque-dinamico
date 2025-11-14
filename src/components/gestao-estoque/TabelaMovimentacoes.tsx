@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar, User, Package, RotateCcw, FileSpreadsheet } from 'lucide-react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { Movimentacao, TipoMovimentacao } from '@/types/estoque';
@@ -22,6 +23,8 @@ export const TabelaMovimentacoes = () => {
   const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes'>('todas');
   const [solicitantesMap, setSolicitantesMap] = useState<Record<string, string>>({});
   const [usuariosMap, setUsuariosMap] = useState<Record<string, string>>({});
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const itensPorPagina = 20;
 
   // Buscar informações dos solicitantes e usuários
   useEffect(() => {
@@ -120,6 +123,19 @@ export const TabelaMovimentacoes = () => {
       return matchTexto && matchTipo && matchDestino && matchVisualizacao;
     });
   }, [movimentacoesOrdenadas, filtroTexto, filtroTipo, filtroDestino, tipoVisualizacao]);
+
+  // Resetar página quando filtros mudarem
+  useEffect(() => {
+    setPaginaAtual(1);
+  }, [filtroTexto, filtroTipo, filtroDestino, tipoVisualizacao]);
+
+  // Calcular paginação
+  const totalPaginas = Math.ceil(movimentacoesFiltradas.length / itensPorPagina);
+  const movimentacoesPaginadas = useMemo(() => {
+    const inicio = (paginaAtual - 1) * itensPorPagina;
+    const fim = inicio + itensPorPagina;
+    return movimentacoesFiltradas.slice(inicio, fim);
+  }, [movimentacoesFiltradas, paginaAtual, itensPorPagina]);
 
   // Estatísticas das movimentações
   const estatisticas = useMemo(() => {
@@ -496,7 +512,7 @@ export const TabelaMovimentacoes = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  movimentacoesFiltradas.map((mov) => {
+                  movimentacoesPaginadas.map((mov) => {
                     const tipoInfo = getTipoInfo(mov.tipo);
                     const eDevolucao = isDevolucao(mov);
                     
@@ -594,6 +610,71 @@ export const TabelaMovimentacoes = () => {
               </TableBody>
             </Table>
           </div>
+          
+          {/* Paginação */}
+          {totalPaginas > 1 && (
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, movimentacoesFiltradas.length)} de {movimentacoesFiltradas.length} movimentações
+              </p>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
+                      className={paginaAtual === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((pagina) => {
+                    // Mostrar sempre primeira, última, atual e adjacentes
+                    const mostrar = 
+                      pagina === 1 || 
+                      pagina === totalPaginas || 
+                      Math.abs(pagina - paginaAtual) <= 1;
+                    
+                    if (!mostrar) {
+                      // Mostrar elipses
+                      if (pagina === 2 && paginaAtual > 3) {
+                        return (
+                          <PaginationItem key={pagina}>
+                            <span className="px-2">...</span>
+                          </PaginationItem>
+                        );
+                      }
+                      if (pagina === totalPaginas - 1 && paginaAtual < totalPaginas - 2) {
+                        return (
+                          <PaginationItem key={pagina}>
+                            <span className="px-2">...</span>
+                          </PaginationItem>
+                        );
+                      }
+                      return null;
+                    }
+                    
+                    return (
+                      <PaginationItem key={pagina}>
+                        <PaginationLink
+                          onClick={() => setPaginaAtual(pagina)}
+                          isActive={paginaAtual === pagina}
+                          className="cursor-pointer"
+                        >
+                          {pagina}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
+                      className={paginaAtual === totalPaginas ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
           </Card>
         </TabsContent>
