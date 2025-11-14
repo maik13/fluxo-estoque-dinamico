@@ -48,7 +48,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     codigoAntigo: '',
     origem: '',
     caixaOrganizador: '',
-    localizacao: '',
     nome: '',
     especificacao: '',
     marca: '',
@@ -142,7 +141,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       origem: '',
       codigoAntigo: '',
       caixaOrganizador: '',
-      localizacao: '',
       nome: '',
       tipoItem: 'Insumo',
       especificacao: '',
@@ -182,7 +180,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
           codigoAntigo: data.codigo_antigo || '',
           origem: data.origem || '',
           caixaOrganizador: data.caixa_organizador || '',
-          localizacao: data.localizacao || '',
           nome: data.nome || '',
           tipoItem: data.tipo_item as 'Insumo' | 'Ferramenta',
           especificacao: data.especificacao || '',
@@ -497,16 +494,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                     value={formCadastro.caixaOrganizador}
                     onChange={(e) => setFormCadastro(prev => ({...prev, caixaOrganizador: e.target.value}))}
                     placeholder="Caixa 01, Estante A, etc."
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="localizacao">Localização</Label>
-                  <Input
-                    id="localizacao"
-                    value={formCadastro.localizacao}
-                    onChange={(e) => setFormCadastro(prev => ({...prev, localizacao: e.target.value}))}
-                    placeholder="Prateleira, setor, etc."
                   />
                 </div>
                 

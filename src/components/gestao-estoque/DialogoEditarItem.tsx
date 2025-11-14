@@ -126,17 +126,6 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
             </div>
             
             <div>
-              <Label htmlFor="localizacao">Localização</Label>
-              <Input
-                id="localizacao"
-                value={formItem.localizacao}
-                onChange={(e) => setFormItem(prev => prev ? {...prev, localizacao: e.target.value} : null)}
-                placeholder="Prateleira, setor, etc."
-              />
-            </div>
-            
-            
-            <div>
               <Label htmlFor="marca">Marca</Label>
               <Input
                 id="marca"
