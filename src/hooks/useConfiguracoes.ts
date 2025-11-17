@@ -432,6 +432,36 @@ export const useConfiguracoes = () => {
     }
   };
 
+  const editarSubcategoria = async (id: string, nome: string, categoria: string) => {
+    try {
+      const { error } = await supabase
+        .from('subcategorias')
+        .update({ nome, categoria, updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setSubcategorias(prev =>
+        prev.map(s => s.id === id ? { ...s, nome, categoria } : s)
+      );
+
+      toast({
+        title: "Subcategoria editada",
+        description: "A subcategoria foi atualizada com sucesso.",
+      });
+
+      return true;
+    } catch (error: any) {
+      console.error('Erro ao editar subcategoria:', error);
+      toast({
+        title: "Erro ao editar",
+        description: error.message || "Não foi possível editar a subcategoria.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const removerSubcategoria = async (id: string) => {
     try {
       const { error } = await supabase
@@ -831,6 +861,7 @@ export const useConfiguracoes = () => {
     adicionarTipoServico,
     removerTipoServico,
     adicionarSubcategoria,
+    editarSubcategoria,
     removerSubcategoria,
     adicionarTipoOperacao,
     editarTipoOperacao,
