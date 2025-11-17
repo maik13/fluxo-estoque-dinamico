@@ -37,6 +37,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     obterTiposOperacaoAtivos,
     obterSolicitantesAtivos,
     obterLocaisUtilizacaoAtivos,
+    obterCategoriasUnicas,
     adicionarEstoque,
     removerEstoque,
     adicionarSubcategoria,
@@ -75,6 +76,8 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     nome: '',
     categoria: '',
   });
+
+  const [modoCriacaoCategoria, setModoCriacaoCategoria] = useState<'categoria' | 'subcategoria'>('subcategoria');
 
   const [novoTipoOperacao, setNovoTipoOperacao] = useState({
     nome: '',
@@ -197,10 +200,29 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   };
 
   const handleCadastroSubcategoria = () => {
+    // Modo: criar apenas categoria
+    if (modoCriacaoCategoria === 'categoria') {
+      if (!novaSubcategoria.categoria) {
+        toast({
+          title: "Campo obrigatório",
+          description: "Digite o nome da categoria.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Cria uma "subcategoria" com o mesmo nome da categoria (representa a categoria raiz)
+      adicionarSubcategoria(novaSubcategoria.categoria, novaSubcategoria.categoria);
+      setNovaSubcategoria({ nome: '', categoria: '' });
+      onConfigChange?.();
+      return;
+    }
+
+    // Modo: criar subcategoria vinculada a categoria existente
     if (!novaSubcategoria.nome || !novaSubcategoria.categoria) {
       toast({
         title: "Campos obrigatórios",
-        description: "Digite o nome da subcategoria e a categoria.",
+        description: "Selecione a categoria e digite o nome da subcategoria.",
         variant: "destructive",
       });
       return;
@@ -868,36 +890,99 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Tag className="h-5 w-5" />
-                  Gerenciar Subcategorias
+                  Gerenciar Categorias e Subcategorias
                 </CardTitle>
                 <CardDescription>
-                  Cadastre subcategorias para organizar melhor os itens
+                  Cadastre categorias e subcategorias para organizar melhor os itens
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="nomeSubcategoria">Nome da Subcategoria</Label>
-                    <Input
-                      id="nomeSubcategoria"
-                      value={novaSubcategoria.nome}
-                      onChange={(e) => setNovaSubcategoria(prev => ({ ...prev, nome: e.target.value }))}
-                      placeholder="Ex: Cabo Flexível"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="categoriaSubcategoria">Categoria</Label>
-                    <Input
-                      id="categoriaSubcategoria"
-                      value={novaSubcategoria.categoria}
-                      onChange={(e) => setNovaSubcategoria(prev => ({ ...prev, categoria: e.target.value }))}
-                      placeholder="Ex: Cabos"
-                    />
+                {/* Seletor de Modo */}
+                <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                  <Label className="font-medium">Modo de Cadastro:</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={modoCriacaoCategoria === 'categoria' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setModoCriacaoCategoria('categoria');
+                        setNovaSubcategoria({ nome: '', categoria: '' });
+                      }}
+                    >
+                      Criar Categoria
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={modoCriacaoCategoria === 'subcategoria' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setModoCriacaoCategoria('subcategoria');
+                        setNovaSubcategoria({ nome: '', categoria: '' });
+                      }}
+                    >
+                      Criar Subcategoria
+                    </Button>
                   </div>
                 </div>
+
+                {/* Formulário de Cadastro */}
+                {modoCriacaoCategoria === 'categoria' ? (
+                  // Modo: Criar apenas Categoria
+                  <div>
+                    <Label htmlFor="nomeCategoria">Nome da Categoria</Label>
+                    <Input
+                      id="nomeCategoria"
+                      value={novaSubcategoria.categoria}
+                      onChange={(e) => setNovaSubcategoria(prev => ({ ...prev, categoria: e.target.value }))}
+                      placeholder="Ex: INSUMO, FERRAMENTA, EPI"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Digite o nome da categoria principal (ex: INSUMO)
+                    </p>
+                  </div>
+                ) : (
+                  // Modo: Criar Subcategoria vinculada a categoria existente
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="categoriaExistente">Categoria</Label>
+                      <Select
+                        value={novaSubcategoria.categoria}
+                        onValueChange={(value) => setNovaSubcategoria(prev => ({ ...prev, categoria: value }))}
+                      >
+                        <SelectTrigger id="categoriaExistente">
+                          <SelectValue placeholder="Selecione a categoria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {obterCategoriasUnicas().map((categoria) => (
+                            <SelectItem key={categoria} value={categoria}>
+                              {categoria}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Selecione a categoria à qual a subcategoria pertence
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="nomeSubcategoria">Nome da Subcategoria</Label>
+                      <Input
+                        id="nomeSubcategoria"
+                        value={novaSubcategoria.nome}
+                        onChange={(e) => setNovaSubcategoria(prev => ({ ...prev, nome: e.target.value }))}
+                        placeholder="Ex: CONDUTOR, PARAFUSO"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Digite o nome específico da subcategoria
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <Button onClick={handleCadastroSubcategoria} className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
-                  Cadastrar Subcategoria
+                  {modoCriacaoCategoria === 'categoria' ? 'Cadastrar Categoria' : 'Cadastrar Subcategoria'}
                 </Button>
                 
                 <Separator />
