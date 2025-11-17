@@ -9,7 +9,7 @@ export interface Item {
   caixaOrganizador: string;
   localizacao: string;
   nome: string;
-  tipoItem: 'Insumo' | 'Ferramenta'; // Tipo do item
+  tipoItem: 'Insumo' | 'Ferramenta' | 'Produto Acabado' | 'Matéria Prima'; // Tipo do item
   especificacao: string; // Amperagem bateria, bitola, tipo de pisca, etc.
   marca: string;
   unidade: string; // metro, peça, kg, etc.
