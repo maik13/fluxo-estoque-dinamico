@@ -41,6 +41,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     adicionarEstoque,
     removerEstoque,
     adicionarSubcategoria,
+    editarSubcategoria,
     removerSubcategoria,
     adicionarTipoOperacao,
     editarTipoOperacao,
@@ -78,6 +79,12 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   });
 
   const [modoCriacaoCategoria, setModoCriacaoCategoria] = useState<'categoria' | 'subcategoria'>('subcategoria');
+
+  const [editandoSubcategoria, setEditandoSubcategoria] = useState<{
+    id: string;
+    nome: string;
+    categoria: string;
+  } | null>(null);
 
   const [novoTipoOperacao, setNovoTipoOperacao] = useState({
     nome: '',
@@ -231,6 +238,30 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     adicionarSubcategoria(novaSubcategoria.nome, novaSubcategoria.categoria);
     setNovaSubcategoria({ nome: '', categoria: '' });
     onConfigChange?.();
+  };
+
+  const handleEditarSubcategoria = async () => {
+    if (!editandoSubcategoria) return;
+
+    if (!editandoSubcategoria.nome || !editandoSubcategoria.categoria) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Digite o nome da subcategoria e a categoria.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const sucesso = await editarSubcategoria(
+      editandoSubcategoria.id,
+      editandoSubcategoria.nome,
+      editandoSubcategoria.categoria
+    );
+
+    if (sucesso) {
+      setEditandoSubcategoria(null);
+      onConfigChange?.();
+    }
   };
 
   const handleCadastroTipoOperacao = () => {
@@ -996,19 +1027,77 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                           <Badge variant="secondary">{subcategoria.nome}</Badge>
                           <span className="text-sm text-muted-foreground">({subcategoria.categoria})</span>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removerSubcategoria(subcategoria.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditandoSubcategoria({
+                              id: subcategoria.id,
+                              nome: subcategoria.nome,
+                              categoria: subcategoria.categoria
+                            })}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removerSubcategoria(subcategoria.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Dialog de Edição de Subcategoria */}
+            <Dialog open={!!editandoSubcategoria} onOpenChange={(open) => !open && setEditandoSubcategoria(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Editar Subcategoria</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="editCategoriaSubcategoria">Categoria</Label>
+                    <Select
+                      value={editandoSubcategoria?.categoria || ''}
+                      onValueChange={(value) => setEditandoSubcategoria(prev => 
+                        prev ? { ...prev, categoria: value } : null
+                      )}
+                    >
+                      <SelectTrigger id="editCategoriaSubcategoria">
+                        <SelectValue placeholder="Selecione a categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {obterCategoriasUnicas().map((categoria) => (
+                          <SelectItem key={categoria} value={categoria}>
+                            {categoria}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="editNomeSubcategoria">Nome da Subcategoria</Label>
+                    <Input
+                      id="editNomeSubcategoria"
+                      value={editandoSubcategoria?.nome || ''}
+                      onChange={(e) => setEditandoSubcategoria(prev => 
+                        prev ? { ...prev, nome: e.target.value } : null
+                      )}
+                      placeholder="Nome da subcategoria"
+                    />
+                  </div>
+                  <Button onClick={handleEditarSubcategoria} className="w-full">
+                    Salvar Alterações
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* Aba Tipos de Operação */}
