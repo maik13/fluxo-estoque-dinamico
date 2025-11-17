@@ -112,7 +112,7 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
               <Label htmlFor="tipoItem">Tipo *</Label>
               <Select 
                 value={formItem.tipoItem} 
-                onValueChange={(value) => setFormItem(prev => prev ? {...prev, tipoItem: value as 'Insumo' | 'Ferramenta'} : null)}
+                onValueChange={(value) => setFormItem(prev => prev ? {...prev, tipoItem: value as 'Insumo' | 'Ferramenta' | 'Produto Acabado' | 'Matéria Prima'} : null)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o tipo" />
@@ -120,6 +120,8 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
                 <SelectContent>
                   <SelectItem value="Insumo">Insumo</SelectItem>
                   <SelectItem value="Ferramenta">Ferramenta</SelectItem>
+                  <SelectItem value="Produto Acabado">Produto Acabado</SelectItem>
+                  <SelectItem value="Matéria Prima">Matéria Prima</SelectItem>
                 </SelectContent>
               </Select>
             </div>

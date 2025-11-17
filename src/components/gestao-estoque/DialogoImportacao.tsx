@@ -40,8 +40,8 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
 
     // Determinar tipo de item (aceita ausência e infere por categoria)
     const rawTipo = dados.tipoItem?.toString().trim();
-    if (rawTipo && !['Insumo', 'Ferramenta'].includes(rawTipo)) {
-      return { erro: `Tipo de item inválido: "${dados.tipoItem}". Deve ser "Insumo" ou "Ferramenta"` };
+    if (rawTipo && !['Insumo', 'Ferramenta', 'Produto Acabado', 'Matéria Prima'].includes(rawTipo)) {
+      return { erro: `Tipo de item inválido: "${dados.tipoItem}". Deve ser "Insumo", "Ferramenta", "Produto Acabado" ou "Matéria Prima"` };
     }
     const tipoInferido = rawTipo || (dados.categoria?.toString().trim() === 'Ferramenta' ? 'Ferramenta' : 'Insumo');
 
@@ -89,7 +89,7 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
       caixaOrganizador: dados.caixaOrganizador?.toString().trim() || '',
       localizacao: dados.localizacao?.toString().trim() || '',
       nome: dados.nome.toString().trim(),
-      tipoItem: tipoInferido as 'Insumo' | 'Ferramenta',
+      tipoItem: tipoInferido as 'Insumo' | 'Ferramenta' | 'Produto Acabado' | 'Matéria Prima',
       especificacao: dados.especificacao?.toString().trim() || '',
       marca: dados.marca?.toString().trim() || '',
       unidade: dados.unidade.toString().trim(),
