@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -86,6 +87,8 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     nome: '',
     categorias: [] as string[], // Array de IDs de categorias
   });
+
+  const [selecionandoCategorias, setSelecionandoCategorias] = useState(false);
 
   const [editandoSubcategoria, setEditandoSubcategoria] = useState<{
     id: string;
@@ -1009,13 +1012,13 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                   <h4 className="font-medium">Categorias Cadastradas</h4>
                   <div className="flex flex-wrap gap-2">
                     {obterCategoriasUnicas().map((categoria) => (
-                      <Badge key={categoria} variant="default" className="text-sm flex items-center gap-2">
-                        {categoria}
+                      <Badge key={categoria.id} variant="default" className="text-sm flex items-center gap-2">
+                        {categoria.nome}
                         <button
-                          onClick={() => handleExcluirCategoria(categoria)}
+                          onClick={() => handleExcluirCategoria(categoria.id)}
                           className="ml-1 hover:text-destructive transition-colors"
                           title="Excluir categoria"
-                          aria-label={`Excluir categoria ${categoria}`}
+                          aria-label={`Excluir categoria ${categoria.nome}`}
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -1033,16 +1036,16 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                 <div className="space-y-2">
                   <h4 className="font-medium">3. Vincular Subcategorias às Categorias</h4>
                   <div className="space-y-2">
-                    {subcategorias
-                      .filter(sub => sub.nome !== sub.categoria) // Exclui as "categorias raiz"
-                      .map((subcategoria) => (
+                    {subcategorias.map((subcategoria) => {
+                      const categoriasVinculadas = obterCategoriasDaSubcategoria(subcategoria.id);
+                      return (
                         <div key={subcategoria.id} className="flex items-center gap-4 p-3 border rounded">
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <Badge variant="secondary">{subcategoria.nome}</Badge>
-                              {subcategoria.categoria ? (
+                              {categoriasVinculadas.length > 0 ? (
                                 <span className="text-sm text-muted-foreground">
-                                  → vinculada a: <strong>{subcategoria.categoria}</strong>
+                                  → vinculada a: <strong>{categoriasVinculadas.map(c => c.nome).join(', ')}</strong>
                                 </span>
                               ) : (
                                 <span className="text-sm text-yellow-600">
@@ -1052,28 +1055,13 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Select
-                              value={subcategoria.categoria || undefined}
-                              onValueChange={(value) => handleVincularCategoria(subcategoria.id, value)}
-                            >
-                              <SelectTrigger className="w-[200px]">
-                                <SelectValue placeholder="Selecionar categoria" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {obterCategoriasUnicas().map((categoria) => (
-                                  <SelectItem key={categoria} value={categoria}>
-                                    {categoria}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => setEditandoSubcategoria({
                                 id: subcategoria.id,
                                 nome: subcategoria.nome,
-                                categoria: subcategoria.categoria
+                                categorias: categoriasVinculadas.map(c => c.id)
                               })}
                             >
                               <Pencil className="h-4 w-4" />
@@ -1087,8 +1075,9 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                             </Button>
                           </div>
                         </div>
-                      ))}
-                    {subcategorias.filter(sub => sub.nome !== sub.categoria).length === 0 && (
+                      );
+                    })}
+                    {subcategorias.length === 0 && (
                       <p className="text-sm text-muted-foreground">Nenhuma subcategoria cadastrada</p>
                     )}
                   </div>
@@ -1104,26 +1093,6 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="editCategoriaSubcategoria">Categoria</Label>
-                    <Select
-                      value={editandoSubcategoria?.categoria || ''}
-                      onValueChange={(value) => setEditandoSubcategoria(prev => 
-                        prev ? { ...prev, categoria: value } : null
-                      )}
-                    >
-                      <SelectTrigger id="editCategoriaSubcategoria">
-                        <SelectValue placeholder="Selecione a categoria" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {obterCategoriasUnicas().map((categoria) => (
-                          <SelectItem key={categoria} value={categoria}>
-                            {categoria}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
                     <Label htmlFor="editNomeSubcategoria">Nome da Subcategoria</Label>
                     <Input
                       id="editNomeSubcategoria"
@@ -1133,6 +1102,40 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                       )}
                       placeholder="Nome da subcategoria"
                     />
+                  </div>
+                  <div>
+                    <Label>Categorias (selecione uma ou mais)</Label>
+                    <div className="mt-2 space-y-2 max-h-[300px] overflow-y-auto border rounded-md p-3">
+                      {obterCategoriasUnicas().map((categoria) => {
+                        const isChecked = editandoSubcategoria?.categorias.includes(categoria.id) || false;
+                        return (
+                          <div key={categoria.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`cat-${categoria.id}`}
+                              checked={isChecked}
+                              onCheckedChange={(checked) => {
+                                setEditandoSubcategoria(prev => {
+                                  if (!prev) return null;
+                                  const newCategorias = checked
+                                    ? [...prev.categorias, categoria.id]
+                                    : prev.categorias.filter(id => id !== categoria.id);
+                                  return { ...prev, categorias: newCategorias };
+                                });
+                              }}
+                            />
+                            <label
+                              htmlFor={`cat-${categoria.id}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                            >
+                              {categoria.nome}
+                            </label>
+                          </div>
+                        );
+                      })}
+                      {obterCategoriasUnicas().length === 0 && (
+                        <p className="text-sm text-muted-foreground">Nenhuma categoria disponível. Crie categorias primeiro.</p>
+                      )}
+                    </div>
                   </div>
                   <Button onClick={handleEditarSubcategoria} className="w-full">
                     Salvar Alterações

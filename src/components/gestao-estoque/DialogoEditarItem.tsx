@@ -18,7 +18,13 @@ interface DialogoEditarItemProps {
 }
 
 export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = false }: DialogoEditarItemProps) => {
-  const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria } = useConfiguracoes();
+  const { 
+    obterTiposServicoAtivos, 
+    obterSubcategoriasAtivas, 
+    obterCategoriasUnicas, 
+    obterSubcategoriasPorCategoria,
+    obterPrimeiraCategoriaDeSubcategoria 
+  } = useConfiguracoes();
   const [formItem, setFormItem] = useState<Item | null>(null);
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<string>('');
 
@@ -27,15 +33,13 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
       setFormItem({ ...item });
       // Carregar categoria do item se houver subcategoria
       if (item.subcategoriaId) {
-        const subcategoria = obterSubcategoriasAtivas().find(s => s.id === item.subcategoriaId);
-        if (subcategoria) {
-          setCategoriaSelecionada(subcategoria.categoria);
-        }
+        const primeiraCategoria = obterPrimeiraCategoriaDeSubcategoria(item.subcategoriaId);
+        setCategoriaSelecionada(primeiraCategoria);
       } else {
         setCategoriaSelecionada('');
       }
     }
-  }, [item, obterSubcategoriasAtivas]);
+  }, [item, obterPrimeiraCategoriaDeSubcategoria]);
 
   // Obter categorias únicas
   const categoriasUnicas = obterCategoriasUnicas();
@@ -196,8 +200,8 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
                 </SelectTrigger>
                 <SelectContent className="bg-background z-50">
                   {categoriasUnicas.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
+                    <SelectItem key={cat.id} value={cat.nome}>
+                      {cat.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>

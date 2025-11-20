@@ -28,7 +28,7 @@ interface TabelaEstoqueProps {
 
 export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   const { obterEstoque, loading, editarItem, registrarEntrada, registrarSaida } = useEstoque();
-  const { obterEstoqueAtivoInfo, obterSubcategoriasAtivas } = useConfiguracoes();
+  const { obterEstoqueAtivoInfo, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria } = useConfiguracoes();
   const { canEditItems, isAdmin } = usePermissions();
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
@@ -69,15 +69,14 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
 
   // Obter categorias únicas das subcategorias
   const categorias = useMemo(() => {
-    const categoriasUnicas = new Set(todasSubcategorias.map(sub => sub.categoria));
-    return Array.from(categoriasUnicas).sort();
-  }, [todasSubcategorias]);
+    return obterCategoriasUnicas();
+  }, [obterCategoriasUnicas]);
 
   // Filtrar subcategorias baseado na categoria selecionada
   const subcategoriasFiltradas = useMemo(() => {
     if (filtroCategoria === 'todas') return todasSubcategorias;
-    return todasSubcategorias.filter(sub => sub.categoria === filtroCategoria);
-  }, [todasSubcategorias, filtroCategoria]);
+    return obterSubcategoriasPorCategoria(filtroCategoria);
+  }, [todasSubcategorias, filtroCategoria, obterSubcategoriasPorCategoria]);
 
   // Resetar filtro de subcategoria quando categoria mudar
   useEffect(() => {
@@ -437,8 +436,8 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
               <SelectContent>
                 <SelectItem value="todas">Todas as categorias</SelectItem>
                 {categorias.map(categoria => (
-                  <SelectItem key={categoria} value={categoria}>
-                    {categoria}
+                  <SelectItem key={categoria.id} value={categoria.nome}>
+                    {categoria.nome}
                   </SelectItem>
                 ))}
               </SelectContent>

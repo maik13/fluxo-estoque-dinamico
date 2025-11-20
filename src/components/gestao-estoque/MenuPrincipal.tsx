@@ -609,8 +609,8 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                     </SelectTrigger>
                     <SelectContent className="bg-background z-50">
                       {categoriasUnicas.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
+                        <SelectItem key={cat.id} value={cat.nome}>
+                          {cat.nome}
                         </SelectItem>
                       ))}
                     </SelectContent>
