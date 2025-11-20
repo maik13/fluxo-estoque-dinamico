@@ -24,15 +24,23 @@ export const useSolicitacoes = () => {
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
+    const solicitacoesChannel = supabase
       .channel('solicitacoes-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitacoes' }, () => {
         carregarSolicitacoes();
       })
       .subscribe();
 
+    const solicitacaoItensChannel = supabase
+      .channel('solicitacao-itens-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitacao_itens' }, () => {
+        carregarSolicitacoes();
+      })
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(solicitacoesChannel);
+      supabase.removeChannel(solicitacaoItensChannel);
     };
   }, [user]);
 
