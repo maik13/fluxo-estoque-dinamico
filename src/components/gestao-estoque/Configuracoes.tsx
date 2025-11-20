@@ -1036,7 +1036,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                           </div>
                           <div className="flex items-center gap-2">
                             <Select
-                              value={subcategoria.categoria}
+                              value={subcategoria.categoria || undefined}
                               onValueChange={(value) => handleVincularCategoria(subcategoria.id, value)}
                             >
                               <SelectTrigger className="w-[200px]">
