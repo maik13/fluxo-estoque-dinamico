@@ -834,6 +834,7 @@ export const useConfiguracoes = () => {
     const categorias = subcategorias
       .filter(s => s.ativo)
       .map(s => s.categoria)
+      .filter(cat => cat && cat.trim() !== '') // Filtrar categorias vazias
       .filter((value, index, self) => self.indexOf(value) === index)
       .sort();
     return categorias;
