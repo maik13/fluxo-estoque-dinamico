@@ -66,7 +66,6 @@ export interface TipoServicoConfig {
 export interface SubcategoriaConfig {
   id: string;
   nome: string;
-  categoria: string;
   ativo: boolean;
   created_at: string;
 }

@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      categoria_subcategoria: {
+        Row: {
+          categoria_id: string
+          created_at: string
+          id: string
+          subcategoria_id: string
+        }
+        Insert: {
+          categoria_id: string
+          created_at?: string
+          id?: string
+          subcategoria_id: string
+        }
+        Update: {
+          categoria_id?: string
+          created_at?: string
+          id?: string
+          subcategoria_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categoria_subcategoria_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "categoria_subcategoria_subcategoria_id_fkey"
+            columns: ["subcategoria_id"]
+            isOneToOne: false
+            referencedRelation: "subcategorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      categorias: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       estoques: {
         Row: {
           ativo: boolean
@@ -432,7 +492,6 @@ export type Database = {
       subcategorias: {
         Row: {
           ativo: boolean
-          categoria: string
           created_at: string
           id: string
           nome: string
@@ -440,7 +499,6 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
-          categoria: string
           created_at?: string
           id?: string
           nome: string
@@ -448,7 +506,6 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
-          categoria?: string
           created_at?: string
           id?: string
           nome?: string

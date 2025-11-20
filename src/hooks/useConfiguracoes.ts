@@ -27,10 +27,26 @@ export interface LocalUtilizacaoConfig {
   created_at: string;
 }
 
+export interface CategoriaConfig {
+  id: string;
+  nome: string;
+  ativo: boolean;
+  created_at: string;
+}
+
+export interface CategoriaSubcategoriaRelacao {
+  id: string;
+  categoria_id: string;
+  subcategoria_id: string;
+  created_at: string;
+}
+
 export const useConfiguracoes = () => {
   const [estoques, setEstoques] = useState<EstoqueConfig[]>([]);
   const [tiposServico, setTiposServico] = useState<TipoServicoConfig[]>([]);
   const [subcategorias, setSubcategorias] = useState<SubcategoriaConfig[]>([]);
+  const [categorias, setCategorias] = useState<CategoriaConfig[]>([]);
+  const [categoriasSubcategorias, setCategoriasSubcategorias] = useState<CategoriaSubcategoriaRelacao[]>([]);
   const [tiposOperacao, setTiposOperacao] = useState<TipoOperacaoConfig[]>([]);
   const [solicitantes, setSolicitantes] = useState<SolicitanteConfig[]>([]);
   const [locaisUtilizacao, setLocaisUtilizacao] = useState<LocalUtilizacaoConfig[]>([]);
@@ -139,6 +155,52 @@ export const useConfiguracoes = () => {
     }
   };
 
+  // Carregar categorias do Supabase
+  const carregarCategorias = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categorias')
+        .select('*')
+        .eq('ativo', true)
+        .order('nome', { ascending: true });
+
+      if (error) throw error;
+      
+      if (data) {
+        setCategorias(data);
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar categorias:', error);
+      toast({
+        title: "Erro ao carregar categorias",
+        description: error.message || "Não foi possível carregar as categorias.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  //Carregar relacionamentos categoria-subcategoria do Supabase
+  const carregarCategoriasSubcategorias = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categoria_subcategoria')
+        .select('*');
+
+      if (error) throw error;
+      
+      if (data) {
+        setCategoriasSubcategorias(data);
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar relacionamentos:', error);
+      toast({
+        title: "Erro ao carregar relacionamentos",
+        description: error.message || "Não foi possível carregar os relacionamentos.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Carregar subcategorias do Supabase
   const carregarSubcategorias = async () => {
     try {
@@ -154,7 +216,6 @@ export const useConfiguracoes = () => {
         setSubcategorias(data.map(s => ({
           id: s.id,
           nome: s.nome,
-          categoria: s.categoria,
           ativo: s.ativo,
           created_at: s.created_at,
         })));
@@ -213,8 +274,10 @@ export const useConfiguracoes = () => {
           setTiposServico(JSON.parse(tiposServicoSalvos));
         }
 
-        // Carregar subcategorias do Supabase
-        carregarSubcategorias();
+        // Carregar categorias, subcategorias e relacionamentos do Supabase
+        await carregarCategorias();
+        await carregarSubcategorias();
+        await carregarCategoriasSubcategorias();
 
         // Carregar tipos de operação do Supabase
         carregarTiposOperacao();
@@ -389,14 +452,13 @@ export const useConfiguracoes = () => {
     });
   };
 
-  // Funções para gerenciar subcategorias no Supabase
-  const adicionarSubcategoria = async (nome: string, categoria: string) => {
+  // Funções para gerenciar categorias no Supabase
+  const adicionarCategoria = async (nome: string) => {
     try {
       const { data, error } = await supabase
-        .from('subcategorias')
+        .from('categorias')
         .insert({
           nome,
-          categoria,
           ativo: true,
         })
         .select()
@@ -405,15 +467,90 @@ export const useConfiguracoes = () => {
       if (error) throw error;
 
       if (data) {
+        setCategorias(prev => [...prev, data]);
+        await carregarCategoriasSubcategorias(); // Recarregar relacionamentos
+        
+        toast({
+          title: "Categoria criada!",
+          description: `Categoria "${nome}" foi criada com sucesso.`,
+        });
+
+        return data;
+      }
+    } catch (error: any) {
+      console.error('Erro ao cadastrar categoria:', error);
+      toast({
+        title: "Erro ao cadastrar",
+        description: error.message || "Não foi possível cadastrar a categoria.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const removerCategoria = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('categorias')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setCategorias(prev => prev.filter(c => c.id !== id));
+      
+      toast({
+        title: "Categoria removida!",
+        description: "Categoria foi removida com sucesso.",
+      });
+    } catch (error: any) {
+      console.error('Erro ao remover categoria:', error);
+      toast({
+        title: "Erro ao remover",
+        description: error.message || "Não foi possível remover a categoria.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Funções para gerenciar subcategorias no Supabase
+  const adicionarSubcategoria = async (nome: string, categoriaIds: string[]) => {
+    try {
+      // 1. Criar a subcategoria
+      const { data: subData, error: subError } = await supabase
+        .from('subcategorias')
+        .insert({
+          nome,
+          ativo: true,
+        })
+        .select()
+        .single();
+
+      if (subError) throw subError;
+
+      if (subData) {
         const novaSubcategoria: SubcategoriaConfig = {
-          id: data.id,
-          nome: data.nome,
-          categoria: data.categoria,
-          ativo: data.ativo,
-          created_at: data.created_at,
+          id: subData.id,
+          nome: subData.nome,
+          ativo: subData.ativo,
+          created_at: subData.created_at,
         };
 
+        // 2. Criar relacionamentos com categorias
+        if (categoriaIds.length > 0) {
+          const relacionamentos = categoriaIds.map(catId => ({
+            categoria_id: catId,
+            subcategoria_id: subData.id,
+          }));
+
+          const { error: relError } = await supabase
+            .from('categoria_subcategoria')
+            .insert(relacionamentos);
+
+          if (relError) throw relError;
+        }
+
         setSubcategorias(prev => [...prev, novaSubcategoria]);
+        await carregarCategoriasSubcategorias(); // Recarregar relacionamentos
         
         toast({
           title: "Subcategoria criada!",
@@ -432,17 +569,17 @@ export const useConfiguracoes = () => {
     }
   };
 
-  const editarSubcategoria = async (id: string, nome: string, categoria: string) => {
+  const editarSubcategoria = async (id: string, nome: string) => {
     try {
       const { error } = await supabase
         .from('subcategorias')
-        .update({ nome, categoria, updated_at: new Date().toISOString() })
+        .update({ nome, updated_at: new Date().toISOString() })
         .eq('id', id);
 
       if (error) throw error;
 
       setSubcategorias(prev =>
-        prev.map(s => s.id === id ? { ...s, nome, categoria } : s)
+        prev.map(s => s.id === id ? { ...s, nome } : s)
       );
 
       toast({
@@ -456,6 +593,49 @@ export const useConfiguracoes = () => {
       toast({
         title: "Erro ao editar",
         description: error.message || "Não foi possível editar a subcategoria.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const vincularSubcategoriaACategorias = async (subcategoriaId: string, categoriaIds: string[]) => {
+    try {
+      // 1. Remover vínculos existentes
+      const { error: deleteError } = await supabase
+        .from('categoria_subcategoria')
+        .delete()
+        .eq('subcategoria_id', subcategoriaId);
+
+      if (deleteError) throw deleteError;
+
+      // 2. Criar novos vínculos
+      if (categoriaIds.length > 0) {
+        const relacionamentos = categoriaIds.map(catId => ({
+          categoria_id: catId,
+          subcategoria_id: subcategoriaId,
+        }));
+
+        const { error: insertError } = await supabase
+          .from('categoria_subcategoria')
+          .insert(relacionamentos);
+
+        if (insertError) throw insertError;
+      }
+
+      await carregarCategoriasSubcategorias(); // Recarregar relacionamentos
+      
+      toast({
+        title: "Categorias atualizadas!",
+        description: "As categorias da subcategoria foram atualizadas com sucesso.",
+      });
+
+      return true;
+    } catch (error: any) {
+      console.error('Erro ao vincular categorias:', error);
+      toast({
+        title: "Erro ao vincular",
+        description: error.message || "Não foi possível vincular as categorias.",
         variant: "destructive",
       });
       return false;
@@ -830,18 +1010,29 @@ export const useConfiguracoes = () => {
   const obterEstoquesAtivos = () => estoques.filter(e => e.ativo);
   const obterTiposServicoAtivos = () => tiposServico.filter(t => t.ativo);
   const obterSubcategoriasAtivas = () => subcategorias.filter(s => s.ativo);
+  const obterCategoriasAtivas = () => categorias.filter(c => c.ativo);
   const obterCategoriasUnicas = () => {
-    const categorias = subcategorias
-      .filter(s => s.ativo)
-      .map(s => s.categoria)
-      .filter(cat => cat && cat.trim() !== '') // Filtrar categorias vazias
-      .filter((value, index, self) => self.indexOf(value) === index)
-      .sort();
-    return categorias;
+    return categorias.filter(c => c.ativo).sort((a, b) => a.nome.localeCompare(b.nome));
   };
-  const obterSubcategoriasPorCategoria = (categoria: string) => {
-    return subcategorias.filter(s => s.ativo && s.categoria === categoria);
+  
+  const obterCategoriasDaSubcategoria = (subcategoriaId: string) => {
+    const relacoes = categoriasSubcategorias.filter(r => r.subcategoria_id === subcategoriaId);
+    const catIds = relacoes.map(r => r.categoria_id);
+    return categorias.filter(c => catIds.includes(c.id));
   };
+
+  const obterSubcategoriasDaCategoria = (categoriaId: string) => {
+    const relacoes = categoriasSubcategorias.filter(r => r.categoria_id === categoriaId);
+    const subIds = relacoes.map(r => r.subcategoria_id);
+    return subcategorias.filter(s => subIds.includes(s.id) && s.ativo);
+  };
+
+  const obterSubcategoriasPorCategoria = (categoriaNome: string) => {
+    const categoria = categorias.find(c => c.nome === categoriaNome);
+    if (!categoria) return [];
+    return obterSubcategoriasDaCategoria(categoria.id);
+  };
+
   const obterTiposOperacaoAtivos = () => tiposOperacao.filter(t => t.ativo);
   const obterSolicitantesAtivos = () => solicitantes.filter(s => s.ativo);
   const obterLocaisUtilizacaoAtivos = () => locaisUtilizacao.filter(l => l.ativo);
@@ -851,6 +1042,8 @@ export const useConfiguracoes = () => {
     estoques,
     tiposServico,
     subcategorias,
+    categorias,
+    categoriasSubcategorias,
     tiposOperacao,
     solicitantes,
     locaisUtilizacao,
@@ -861,8 +1054,11 @@ export const useConfiguracoes = () => {
     alterarEstoqueAtivo,
     adicionarTipoServico,
     removerTipoServico,
+    adicionarCategoria,
+    removerCategoria,
     adicionarSubcategoria,
     editarSubcategoria,
+    vincularSubcategoriaACategorias,
     removerSubcategoria,
     adicionarTipoOperacao,
     editarTipoOperacao,
@@ -876,7 +1072,10 @@ export const useConfiguracoes = () => {
     obterEstoquesAtivos,
     obterTiposServicoAtivos,
     obterSubcategoriasAtivas,
+    obterCategoriasAtivas,
     obterCategoriasUnicas,
+    obterCategoriasDaSubcategoria,
+    obterSubcategoriasDaCategoria,
     obterSubcategoriasPorCategoria,
     obterTiposOperacaoAtivos,
     obterSolicitantesAtivos,

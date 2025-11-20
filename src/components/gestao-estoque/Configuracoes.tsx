@@ -29,19 +29,26 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   const {
     estoques,
     subcategorias,
+    categorias,
+    categoriasSubcategorias,
     tiposOperacao,
     solicitantes,
     locaisUtilizacao,
     obterEstoquesAtivos,
     obterSubcategoriasAtivas,
+    obterCategoriasAtivas,
     obterTiposOperacaoAtivos,
     obterSolicitantesAtivos,
     obterLocaisUtilizacaoAtivos,
     obterCategoriasUnicas,
+    obterCategoriasDaSubcategoria,
     adicionarEstoque,
     removerEstoque,
+    adicionarCategoria,
+    removerCategoria,
     adicionarSubcategoria,
     editarSubcategoria,
+    vincularSubcategoriaACategorias,
     removerSubcategoria,
     adicionarTipoOperacao,
     editarTipoOperacao,
@@ -77,13 +84,13 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   
   const [novaSubcategoria, setNovaSubcategoria] = useState({
     nome: '',
-    categoria: '',
+    categorias: [] as string[], // Array de IDs de categorias
   });
 
   const [editandoSubcategoria, setEditandoSubcategoria] = useState<{
     id: string;
     nome: string;
-    categoria: string;
+    categorias: string[]; // Array de IDs de categorias
   } | null>(null);
 
   const [novoTipoOperacao, setNovoTipoOperacao] = useState({
@@ -206,7 +213,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     onConfigChange?.();
   };
 
-  const handleCadastroCategoria = () => {
+  const handleCadastroCategoria = async () => {
     if (!novaCategoria) {
       toast({
         title: "Campo obrigatório",
@@ -217,8 +224,8 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     }
 
     // Verifica se categoria já existe
-    const categorias = obterCategoriasUnicas();
-    if (categorias.includes(novaCategoria.toUpperCase())) {
+    const categoriasExistentes = obterCategoriasUnicas();
+    if (categoriasExistentes.some(c => c.nome.toUpperCase() === novaCategoria.toUpperCase())) {
       toast({
         title: "Categoria já existe",
         description: "Esta categoria já está cadastrada.",
@@ -227,13 +234,12 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
       return;
     }
 
-    // Cria uma entrada representando a categoria
-    adicionarSubcategoria(novaCategoria.toUpperCase(), novaCategoria.toUpperCase());
+    await adicionarCategoria(novaCategoria.toUpperCase());
     setNovaCategoria('');
     onConfigChange?.();
   };
 
-  const handleCadastroSubcategoria = () => {
+  const handleCadastroSubcategoria = async () => {
     if (!novaSubcategoria.nome) {
       toast({
         title: "Campo obrigatório",
@@ -243,77 +249,31 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
       return;
     }
 
-    // Cria subcategoria sem categoria (será vinculada depois)
-    adicionarSubcategoria(novaSubcategoria.nome, '');
-    setNovaSubcategoria({ nome: '', categoria: '' });
+    await adicionarSubcategoria(novaSubcategoria.nome, novaSubcategoria.categorias);
+    setNovaSubcategoria({ nome: '', categorias: [] });
     onConfigChange?.();
   };
 
-  const handleVincularCategoria = async (subcategoriaId: string, categoria: string) => {
-    const subcategoria = subcategorias.find(s => s.id === subcategoriaId);
-    if (!subcategoria) return;
+  const handleExcluirCategoria = async (categoriaId: string) => {
+    const categoria = categorias.find(c => c.id === categoriaId);
+    if (!categoria) return;
 
-    const sucesso = await editarSubcategoria(subcategoriaId, subcategoria.nome, categoria);
-    if (sucesso) {
-      onConfigChange?.();
-    }
-  };
+    const confirmar = window.confirm(
+      `Deseja realmente excluir a categoria "${categoria.nome}"? Todas as subcategorias vinculadas serão desvinculadas.`
+    );
+    if (!confirmar) return;
 
-  const handleExcluirCategoria = async (categoria: string) => {
-    try {
-      // Encontrar subcategorias vinculadas (excluindo a categoria raiz)
-      const subcategoriasVinculadas = subcategorias.filter(
-        sub => sub.categoria === categoria && sub.nome !== categoria
-      );
-
-      if (subcategoriasVinculadas.length > 0) {
-        const confirmar = window.confirm(
-          `Esta categoria possui ${subcategoriasVinculadas.length} subcategoria(s) vinculada(s). Ao excluir a categoria, as subcategorias serão desvinculadas. Deseja continuar?`
-        );
-        if (!confirmar) return;
-      } else {
-        const confirmar = window.confirm(
-          `Deseja realmente excluir a categoria "${categoria}"?`
-        );
-        if (!confirmar) return;
-      }
-
-      // Desvincular todas as subcategorias desta categoria
-      for (const sub of subcategoriasVinculadas) {
-        await editarSubcategoria(sub.id, sub.nome, '');
-      }
-
-      // Encontrar e excluir a subcategoria que representa a categoria (onde nome === categoria)
-      const subcategoriaCategoria = subcategorias.find(
-        sub => sub.nome === categoria && sub.categoria === categoria
-      );
-
-      if (subcategoriaCategoria) {
-        await removerSubcategoria(subcategoriaCategoria.id);
-      }
-
-      toast({
-        title: "Categoria excluída",
-        description: "A categoria foi excluída com sucesso.",
-      });
-      onConfigChange?.();
-    } catch (error) {
-      console.error("Erro ao excluir categoria:", error);
-      toast({
-        title: "Erro",
-        description: "Erro ao excluir categoria.",
-        variant: "destructive",
-      });
-    }
+    await removerCategoria(categoriaId);
+    onConfigChange?.();
   };
 
   const handleEditarSubcategoria = async () => {
     if (!editandoSubcategoria) return;
 
-    if (!editandoSubcategoria.nome || !editandoSubcategoria.categoria) {
+    if (!editandoSubcategoria.nome) {
       toast({
-        title: "Campos obrigatórios",
-        description: "Digite o nome da subcategoria e a categoria.",
+        title: "Campo obrigatório",
+        description: "Digite o nome da subcategoria.",
         variant: "destructive",
       });
       return;
@@ -321,11 +281,12 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
 
     const sucesso = await editarSubcategoria(
       editandoSubcategoria.id,
-      editandoSubcategoria.nome,
-      editandoSubcategoria.categoria
+      editandoSubcategoria.nome
     );
 
     if (sucesso) {
+      // Atualizar vínculos de categorias
+      await vincularSubcategoriaACategorias(editandoSubcategoria.id, editandoSubcategoria.categorias);
       setEditandoSubcategoria(null);
       onConfigChange?.();
     }
