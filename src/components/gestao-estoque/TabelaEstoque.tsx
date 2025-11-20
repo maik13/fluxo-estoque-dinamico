@@ -29,7 +29,7 @@ interface TabelaEstoqueProps {
 export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   const { obterEstoque, loading, editarItem, registrarEntrada, registrarSaida } = useEstoque();
   const { obterEstoqueAtivoInfo, obterSubcategoriasAtivas } = useConfiguracoes();
-  const { canEditItems } = usePermissions();
+  const { canEditItems, isAdmin } = usePermissions();
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroSubcategoria, setFiltroSubcategoria] = useState('todas');
@@ -751,6 +751,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
         }}
         item={itemParaEditar}
         onSalvar={handleSalvarEdicao}
+        isAdmin={isAdmin()}
       />
 
       {/* Diálogo de retirada rápida */}
