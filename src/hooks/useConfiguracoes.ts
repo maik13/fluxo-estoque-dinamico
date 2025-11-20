@@ -1033,6 +1033,11 @@ export const useConfiguracoes = () => {
     return obterSubcategoriasDaCategoria(categoria.id);
   };
 
+  const obterPrimeiraCategoriaDeSubcategoria = (subcategoriaId: string) => {
+    const cats = obterCategoriasDaSubcategoria(subcategoriaId);
+    return cats.length > 0 ? cats[0].nome : '';
+  };
+
   const obterTiposOperacaoAtivos = () => tiposOperacao.filter(t => t.ativo);
   const obterSolicitantesAtivos = () => solicitantes.filter(s => s.ativo);
   const obterLocaisUtilizacaoAtivos = () => locaisUtilizacao.filter(l => l.ativo);
@@ -1077,6 +1082,7 @@ export const useConfiguracoes = () => {
     obterCategoriasDaSubcategoria,
     obterSubcategoriasDaCategoria,
     obterSubcategoriasPorCategoria,
+    obterPrimeiraCategoriaDeSubcategoria,
     obterTiposOperacaoAtivos,
     obterSolicitantesAtivos,
     obterLocaisUtilizacaoAtivos,
