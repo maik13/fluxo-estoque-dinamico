@@ -73,12 +73,12 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     descricao: '',
   });
 
+  const [novaCategoria, setNovaCategoria] = useState('');
+  
   const [novaSubcategoria, setNovaSubcategoria] = useState({
     nome: '',
     categoria: '',
   });
-
-  const [modoCriacaoCategoria, setModoCriacaoCategoria] = useState<'categoria' | 'subcategoria'>('subcategoria');
 
   const [editandoSubcategoria, setEditandoSubcategoria] = useState<{
     id: string;
@@ -206,38 +206,57 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     onConfigChange?.();
   };
 
-  const handleCadastroSubcategoria = () => {
-    // Modo: criar apenas categoria
-    if (modoCriacaoCategoria === 'categoria') {
-      if (!novaSubcategoria.categoria) {
-        toast({
-          title: "Campo obrigatório",
-          description: "Digite o nome da categoria.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Cria uma "subcategoria" com o mesmo nome da categoria (representa a categoria raiz)
-      adicionarSubcategoria(novaSubcategoria.categoria, novaSubcategoria.categoria);
-      setNovaSubcategoria({ nome: '', categoria: '' });
-      onConfigChange?.();
-      return;
-    }
-
-    // Modo: criar subcategoria vinculada a categoria existente
-    if (!novaSubcategoria.nome || !novaSubcategoria.categoria) {
+  const handleCadastroCategoria = () => {
+    if (!novaCategoria) {
       toast({
-        title: "Campos obrigatórios",
-        description: "Selecione a categoria e digite o nome da subcategoria.",
+        title: "Campo obrigatório",
+        description: "Digite o nome da categoria.",
         variant: "destructive",
       });
       return;
     }
 
-    adicionarSubcategoria(novaSubcategoria.nome, novaSubcategoria.categoria);
+    // Verifica se categoria já existe
+    const categorias = obterCategoriasUnicas();
+    if (categorias.includes(novaCategoria.toUpperCase())) {
+      toast({
+        title: "Categoria já existe",
+        description: "Esta categoria já está cadastrada.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Cria uma entrada representando a categoria
+    adicionarSubcategoria(novaCategoria.toUpperCase(), novaCategoria.toUpperCase());
+    setNovaCategoria('');
+    onConfigChange?.();
+  };
+
+  const handleCadastroSubcategoria = () => {
+    if (!novaSubcategoria.nome) {
+      toast({
+        title: "Campo obrigatório",
+        description: "Digite o nome da subcategoria.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Cria subcategoria sem categoria (será vinculada depois)
+    adicionarSubcategoria(novaSubcategoria.nome, '');
     setNovaSubcategoria({ nome: '', categoria: '' });
     onConfigChange?.();
+  };
+
+  const handleVincularCategoria = async (subcategoriaId: string, categoria: string) => {
+    const subcategoria = subcategorias.find(s => s.id === subcategoriaId);
+    if (!subcategoria) return;
+
+    const sucesso = await editarSubcategoria(subcategoriaId, subcategoria.nome, categoria);
+    if (sucesso) {
+      onConfigChange?.();
+    }
   };
 
   const handleEditarSubcategoria = async () => {
@@ -927,128 +946,134 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                   Cadastre categorias e subcategorias para organizar melhor os itens
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Seletor de Modo */}
-                <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
-                  <Label className="font-medium">Modo de Cadastro:</Label>
+              <CardContent className="space-y-6">
+                {/* Cadastro de Categoria */}
+                <div className="space-y-2">
+                  <h4 className="font-medium">1. Cadastrar Nova Categoria</h4>
                   <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant={modoCriacaoCategoria === 'categoria' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => {
-                        setModoCriacaoCategoria('categoria');
-                        setNovaSubcategoria({ nome: '', categoria: '' });
-                      }}
-                    >
-                      Criar Categoria
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={modoCriacaoCategoria === 'subcategoria' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => {
-                        setModoCriacaoCategoria('subcategoria');
-                        setNovaSubcategoria({ nome: '', categoria: '' });
-                      }}
-                    >
-                      Criar Subcategoria
+                    <div className="flex-1">
+                      <Input
+                        id="nomeCategoria"
+                        value={novaCategoria}
+                        onChange={(e) => setNovaCategoria(e.target.value)}
+                        placeholder="Ex: INSUMO, FERRAMENTA, EPI"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Digite o nome da categoria principal
+                      </p>
+                    </div>
+                    <Button onClick={handleCadastroCategoria}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Cadastrar Categoria
                     </Button>
                   </div>
                 </div>
 
-                {/* Formulário de Cadastro */}
-                {modoCriacaoCategoria === 'categoria' ? (
-                  // Modo: Criar apenas Categoria
-                  <div>
-                    <Label htmlFor="nomeCategoria">Nome da Categoria</Label>
-                    <Input
-                      id="nomeCategoria"
-                      value={novaSubcategoria.categoria}
-                      onChange={(e) => setNovaSubcategoria(prev => ({ ...prev, categoria: e.target.value }))}
-                      placeholder="Ex: INSUMO, FERRAMENTA, EPI"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Digite o nome da categoria principal (ex: INSUMO)
-                    </p>
-                  </div>
-                ) : (
-                  // Modo: Criar Subcategoria vinculada a categoria existente
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="categoriaExistente">Categoria</Label>
-                      <Select
-                        value={novaSubcategoria.categoria}
-                        onValueChange={(value) => setNovaSubcategoria(prev => ({ ...prev, categoria: value }))}
-                      >
-                        <SelectTrigger id="categoriaExistente">
-                          <SelectValue placeholder="Selecione a categoria" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {obterCategoriasUnicas().map((categoria) => (
-                            <SelectItem key={categoria} value={categoria}>
-                              {categoria}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Selecione a categoria à qual a subcategoria pertence
-                      </p>
-                    </div>
-                    <div>
-                      <Label htmlFor="nomeSubcategoria">Nome da Subcategoria</Label>
+                <Separator />
+
+                {/* Cadastro de Subcategoria */}
+                <div className="space-y-2">
+                  <h4 className="font-medium">2. Cadastrar Nova Subcategoria</h4>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
                       <Input
                         id="nomeSubcategoria"
                         value={novaSubcategoria.nome}
                         onChange={(e) => setNovaSubcategoria(prev => ({ ...prev, nome: e.target.value }))}
-                        placeholder="Ex: CONDUTOR, PARAFUSO"
+                        placeholder="Ex: Parafuso, Chave, Luva"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Digite o nome específico da subcategoria
+                        Digite o nome da subcategoria (vinculação com categoria será feita depois)
                       </p>
                     </div>
+                    <Button onClick={handleCadastroSubcategoria}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Cadastrar Subcategoria
+                    </Button>
                   </div>
-                )}
+                </div>
 
-                <Button onClick={handleCadastroSubcategoria} className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  {modoCriacaoCategoria === 'categoria' ? 'Cadastrar Categoria' : 'Cadastrar Subcategoria'}
-                </Button>
+                <Separator />
+
+                {/* Categorias Cadastradas */}
+                <div className="space-y-2">
+                  <h4 className="font-medium">Categorias Cadastradas</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {obterCategoriasUnicas().map((categoria) => (
+                      <Badge key={categoria} variant="default" className="text-sm">
+                        {categoria}
+                      </Badge>
+                    ))}
+                    {obterCategoriasUnicas().length === 0 && (
+                      <p className="text-sm text-muted-foreground">Nenhuma categoria cadastrada</p>
+                    )}
+                  </div>
+                </div>
                 
                 <Separator />
                 
+                {/* Vincular Subcategorias */}
                 <div className="space-y-2">
-                  <h4 className="font-medium">Subcategorias Cadastradas</h4>
+                  <h4 className="font-medium">3. Vincular Subcategorias às Categorias</h4>
                   <div className="space-y-2">
-                    {subcategorias.map((subcategoria) => (
-                      <div key={subcategoria.id} className="flex items-center justify-between p-2 border rounded">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary">{subcategoria.nome}</Badge>
-                          <span className="text-sm text-muted-foreground">({subcategoria.categoria})</span>
+                    {subcategorias
+                      .filter(sub => sub.nome !== sub.categoria) // Exclui as "categorias raiz"
+                      .map((subcategoria) => (
+                        <div key={subcategoria.id} className="flex items-center gap-4 p-3 border rounded">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary">{subcategoria.nome}</Badge>
+                              {subcategoria.categoria ? (
+                                <span className="text-sm text-muted-foreground">
+                                  → vinculada a: <strong>{subcategoria.categoria}</strong>
+                                </span>
+                              ) : (
+                                <span className="text-sm text-yellow-600">
+                                  → sem categoria
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={subcategoria.categoria}
+                              onValueChange={(value) => handleVincularCategoria(subcategoria.id, value)}
+                            >
+                              <SelectTrigger className="w-[200px]">
+                                <SelectValue placeholder="Selecionar categoria" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {obterCategoriasUnicas().map((categoria) => (
+                                  <SelectItem key={categoria} value={categoria}>
+                                    {categoria}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditandoSubcategoria({
+                                id: subcategoria.id,
+                                nome: subcategoria.nome,
+                                categoria: subcategoria.categoria
+                              })}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removerSubcategoria(subcategoria.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditandoSubcategoria({
-                              id: subcategoria.id,
-                              nome: subcategoria.nome,
-                              categoria: subcategoria.categoria
-                            })}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removerSubcategoria(subcategoria.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    {subcategorias.filter(sub => sub.nome !== sub.categoria).length === 0 && (
+                      <p className="text-sm text-muted-foreground">Nenhuma subcategoria cadastrada</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
