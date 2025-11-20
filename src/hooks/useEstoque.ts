@@ -529,7 +529,6 @@ const registrarSaida = async (
 // Editar item
 const editarItem = async (itemEditado: Item) => {
   try {
-
     const update = {
       codigo_barras: Number(itemEditado.codigoBarras),
       origem: itemEditado.origem,
@@ -549,6 +548,21 @@ const editarItem = async (itemEditado: Item) => {
 
     const { error } = await supabase.from('items').update(update).eq('id', itemEditado.id);
     if (error) throw error;
+
+    // Atualizar item_snapshot em todas as movimentações deste item
+    const { error: movError } = await supabase
+      .from('movements')
+      .update({ item_snapshot: JSON.parse(JSON.stringify(itemEditado)) })
+      .eq('item_id', itemEditado.id);
+    
+    if (movError) {
+      console.error('Erro ao atualizar movimentações:', movError);
+      toast({ 
+        title: 'Aviso', 
+        description: 'Item atualizado, mas houve um erro ao atualizar o histórico de movimentações.', 
+        variant: 'default' 
+      });
+    }
 
     setItens(prev => prev.map(i => (i.id === itemEditado.id ? itemEditado : i)));
     toast({ title: 'Item atualizado!', description: `${itemEditado.nome} foi atualizado com sucesso.` });

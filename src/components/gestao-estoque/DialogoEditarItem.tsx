@@ -14,9 +14,10 @@ interface DialogoEditarItemProps {
   onClose: () => void;
   item: Item | null;
   onSalvar: (itemEditado: Item) => Promise<boolean>;
+  isAdmin?: boolean;
 }
 
-export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEditarItemProps) => {
+export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = false }: DialogoEditarItemProps) => {
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria } = useConfiguracoes();
   const [formItem, setFormItem] = useState<Item | null>(null);
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<string>('');
@@ -78,13 +79,22 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar }: DialogoEd
               <Label htmlFor="codigoBarras">Código de Barras</Label>
               <Input
                 id="codigoBarras"
+                type="number"
                 value={formItem.codigoBarras}
-                disabled
-                className="bg-muted"
+                onChange={(e) => setFormItem(prev => prev ? {...prev, codigoBarras: Number(e.target.value)} : null)}
+                disabled={!isAdmin}
+                className={!isAdmin ? "bg-muted" : ""}
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                O código de barras não pode ser alterado
-              </p>
+              {!isAdmin && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  O código de barras só pode ser alterado por administradores
+                </p>
+              )}
+              {isAdmin && (
+                <p className="text-xs text-yellow-600 mt-1">
+                  ⚠️ Alterar o código de barras atualizará todas as movimentações deste item
+                </p>
+              )}
             </div>
 
             <div>
