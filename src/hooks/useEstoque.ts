@@ -91,6 +91,17 @@ export const useEstoque = () => {
           setItens(prev => prev.map(i => i.id === itemAtualizado.id ? itemAtualizado : i));
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'items'
+        },
+        (payload) => {
+          setItens(prev => prev.filter(i => i.id !== payload.old.id));
+        }
+      )
       .subscribe();
 
     // Canal para mudanças nas movimentações
@@ -141,6 +152,65 @@ export const useEstoque = () => {
               return [...prev, novaMovimentacao];
             });
           }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'movements'
+        },
+        async (payload) => {
+          const estoqueAtivoInfo = obterEstoqueAtivoInfo();
+          const estoqueId = estoqueAtivoInfo?.id;
+          
+          // Verificar se a movimentação pertence ao estoque ativo
+          if (payload.new.estoque_id !== estoqueId && payload.new.estoque_id !== null) {
+            return;
+          }
+
+          let localNome = '';
+          if (payload.new.local_utilizacao_id) {
+            const { data: localData } = await supabase
+              .from('locais_utilizacao')
+              .select('nome')
+              .eq('id', payload.new.local_utilizacao_id)
+              .single();
+            if (localData) {
+              localNome = localData.nome;
+            }
+          }
+
+          const movimentacaoAtualizada: Movimentacao = {
+            id: payload.new.id,
+            itemId: payload.new.item_id,
+            tipo: payload.new.tipo,
+            quantidade: Number(payload.new.quantidade),
+            quantidadeAnterior: Number(payload.new.quantidade_anterior),
+            quantidadeAtual: Number(payload.new.quantidade_atual),
+            userId: payload.new.user_id ?? undefined,
+            observacoes: payload.new.observacoes ?? undefined,
+            dataHora: payload.new.data_hora,
+            localUtilizacaoId: payload.new.local_utilizacao_id ?? undefined,
+            localUtilizacaoNome: localNome,
+            solicitacaoId: payload.new.solicitacao_id ?? undefined,
+            destinatario: payload.new.destinatario ?? undefined,
+            estoqueId: payload.new.estoque_id ?? undefined,
+            itemSnapshot: payload.new.item_snapshot as Partial<Item>,
+          };
+          setMovimentacoes(prev => prev.map(m => m.id === movimentacaoAtualizada.id ? movimentacaoAtualizada : m));
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'movements'
+        },
+        (payload) => {
+          setMovimentacoes(prev => prev.filter(m => m.id !== payload.old.id));
         }
       )
       .subscribe();

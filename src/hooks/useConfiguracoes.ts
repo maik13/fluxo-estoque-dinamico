@@ -302,6 +302,68 @@ export const useConfiguracoes = () => {
     inicializarDados();
   }, []);
 
+  // Real-time updates para todas as configurações
+  useEffect(() => {
+    const estoquesChannel = supabase
+      .channel('estoques-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'estoques' }, () => {
+        carregarEstoques();
+      })
+      .subscribe();
+
+    const categoriasChannel = supabase
+      .channel('categorias-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categorias' }, () => {
+        carregarCategorias();
+      })
+      .subscribe();
+
+    const subcategoriasChannel = supabase
+      .channel('subcategorias-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'subcategorias' }, () => {
+        carregarSubcategorias();
+      })
+      .subscribe();
+
+    const categoriasSubcategoriasChannel = supabase
+      .channel('categoria-subcategoria-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categoria_subcategoria' }, () => {
+        carregarCategoriasSubcategorias();
+      })
+      .subscribe();
+
+    const tiposOperacaoChannel = supabase
+      .channel('tipos-operacao-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tipos_operacao' }, () => {
+        carregarTiposOperacao();
+      })
+      .subscribe();
+
+    const solicitantesChannel = supabase
+      .channel('solicitantes-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitantes' }, () => {
+        carregarSolicitantes();
+      })
+      .subscribe();
+
+    const locaisChannel = supabase
+      .channel('locais-utilizacao-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'locais_utilizacao' }, () => {
+        carregarLocaisUtilizacao();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(estoquesChannel);
+      supabase.removeChannel(categoriasChannel);
+      supabase.removeChannel(subcategoriasChannel);
+      supabase.removeChannel(categoriasSubcategoriasChannel);
+      supabase.removeChannel(tiposOperacaoChannel);
+      supabase.removeChannel(solicitantesChannel);
+      supabase.removeChannel(locaisChannel);
+    };
+  }, []);
+
   // Estoques agora são gerenciados no Supabase, não precisa salvar no localStorage
 
   useEffect(() => {
