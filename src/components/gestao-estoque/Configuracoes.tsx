@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Database, Wrench, Tag, Pencil } from 'lucide-react';
+import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Database, Wrench, Tag, Pencil, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { gerarRelatorioPDF } from '@/utils/pdfExport';
 import { useEstoque } from '@/hooks/useEstoque';
@@ -256,6 +256,54 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     const sucesso = await editarSubcategoria(subcategoriaId, subcategoria.nome, categoria);
     if (sucesso) {
       onConfigChange?.();
+    }
+  };
+
+  const handleExcluirCategoria = async (categoria: string) => {
+    try {
+      // Encontrar subcategorias vinculadas (excluindo a categoria raiz)
+      const subcategoriasVinculadas = subcategorias.filter(
+        sub => sub.categoria === categoria && sub.nome !== categoria
+      );
+
+      if (subcategoriasVinculadas.length > 0) {
+        const confirmar = window.confirm(
+          `Esta categoria possui ${subcategoriasVinculadas.length} subcategoria(s) vinculada(s). Ao excluir a categoria, as subcategorias serão desvinculadas. Deseja continuar?`
+        );
+        if (!confirmar) return;
+      } else {
+        const confirmar = window.confirm(
+          `Deseja realmente excluir a categoria "${categoria}"?`
+        );
+        if (!confirmar) return;
+      }
+
+      // Desvincular todas as subcategorias desta categoria
+      for (const sub of subcategoriasVinculadas) {
+        await editarSubcategoria(sub.id, sub.nome, '');
+      }
+
+      // Encontrar e excluir a subcategoria que representa a categoria (onde nome === categoria)
+      const subcategoriaCategoria = subcategorias.find(
+        sub => sub.nome === categoria && sub.categoria === categoria
+      );
+
+      if (subcategoriaCategoria) {
+        await removerSubcategoria(subcategoriaCategoria.id);
+      }
+
+      toast({
+        title: "Categoria excluída",
+        description: "A categoria foi excluída com sucesso.",
+      });
+      onConfigChange?.();
+    } catch (error) {
+      console.error("Erro ao excluir categoria:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir categoria.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1000,8 +1048,16 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                   <h4 className="font-medium">Categorias Cadastradas</h4>
                   <div className="flex flex-wrap gap-2">
                     {obterCategoriasUnicas().map((categoria) => (
-                      <Badge key={categoria} variant="default" className="text-sm">
+                      <Badge key={categoria} variant="default" className="text-sm flex items-center gap-2">
                         {categoria}
+                        <button
+                          onClick={() => handleExcluirCategoria(categoria)}
+                          className="ml-1 hover:text-destructive transition-colors"
+                          title="Excluir categoria"
+                          aria-label={`Excluir categoria ${categoria}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       </Badge>
                     ))}
                     {obterCategoriasUnicas().length === 0 && (
