@@ -23,7 +23,8 @@ export const itemRegistrationSchema = z.object({
   ncm: z.string().trim().max(20, { message: 'Máximo 20 caracteres' }).optional(),
   valor: z.number()
     .min(0, { message: 'Valor não pode ser negativo' })
-    .max(999999999.99, { message: 'Valor muito alto' })
+    .max(999999999.99, { message: 'Valor muito alto' }),
+  fotoUrl: z.string().url({ message: 'URL inválida' }).optional()
 });
 
 export type ItemRegistrationInput = z.infer<typeof itemRegistrationSchema>;

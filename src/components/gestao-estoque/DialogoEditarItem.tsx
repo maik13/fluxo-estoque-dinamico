@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { Item } from '@/types/estoque';
+import { UploadFotoProduto } from './UploadFotoProduto';
 
 interface DialogoEditarItemProps {
   aberto: boolean;
@@ -280,6 +281,12 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
               rows={3}
             />
           </div>
+          
+          <UploadFotoProduto
+            fotoUrl={formItem.fotoUrl}
+            onFotoChange={(url) => setFormItem(prev => prev ? {...prev, fotoUrl: url} : null)}
+            itemId={formItem.id}
+          />
           
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={handleClose}>
