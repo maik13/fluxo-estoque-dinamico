@@ -73,10 +73,7 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
         <DialogHeader>
           <DialogTitle>✏️ Editar Item</DialogTitle>
           <DialogDescription>
-            {isAdmin 
-              ? "Edite as informações do item. Como administrador, você pode alterar o nome e código de barras."
-              : "Edite as informações do item. O nome e código de barras só podem ser alterados por administradores."
-            }
+            Edite as informações do item. O código de barras não pode ser alterado.
           </DialogDescription>
         </DialogHeader>
         
@@ -114,20 +111,8 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
                 value={formItem.nome}
                 onChange={(e) => setFormItem(prev => prev ? {...prev, nome: e.target.value} : null)}
                 placeholder="Ex: Cabo flexível 2,5mm"
-                disabled={!isAdmin}
-                className={!isAdmin ? "bg-muted" : ""}
                 required
               />
-              {!isAdmin && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  O nome do item só pode ser alterado por administradores
-                </p>
-              )}
-              {isAdmin && (
-                <p className="text-xs text-yellow-600 mt-1">
-                  ⚠️ Alterar o nome atualizará todas as movimentações deste item
-                </p>
-              )}
             </div>
             
             <div>
