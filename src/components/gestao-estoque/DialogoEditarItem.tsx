@@ -89,19 +89,12 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
                 type="number"
                 value={formItem.codigoBarras}
                 onChange={(e) => setFormItem(prev => prev ? {...prev, codigoBarras: Number(e.target.value)} : null)}
-                disabled={!isAdmin}
-                className={!isAdmin ? "bg-muted" : ""}
+                disabled={true}
+                className="bg-muted"
               />
-              {!isAdmin && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  O código de barras só pode ser alterado por administradores
-                </p>
-              )}
-              {isAdmin && (
-                <p className="text-xs text-yellow-600 mt-1">
-                  ⚠️ Alterar o código de barras atualizará todas as movimentações deste item
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                O código de barras não pode ser alterado
+              </p>
             </div>
 
             <div>
