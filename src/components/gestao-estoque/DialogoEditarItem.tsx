@@ -29,17 +29,25 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<string>('');
 
   useEffect(() => {
-    if (item) {
-      setFormItem({ ...item });
-      // Carregar categoria do item se houver subcategoria
-      if (item.subcategoriaId) {
-        const primeiraCategoria = obterPrimeiraCategoriaDeSubcategoria(item.subcategoriaId);
-        setCategoriaSelecionada(primeiraCategoria);
-      } else {
-        setCategoriaSelecionada('');
+    if (!item) return;
+
+    // Mantém o estado local enquanto o usuário edita, evitando que
+    // atualizações externas do item sobrescrevam o que está sendo digitado
+    setFormItem((prev) => {
+      if (prev && prev.id === item.id) {
+        return prev;
       }
+      return { ...item };
+    });
+
+    // Carregar categoria do item se houver subcategoria
+    if (item.subcategoriaId) {
+      const primeiraCategoria = obterPrimeiraCategoriaDeSubcategoria(item.subcategoriaId);
+      setCategoriaSelecionada(primeiraCategoria);
+    } else {
+      setCategoriaSelecionada('');
     }
-  }, [item, obterPrimeiraCategoriaDeSubcategoria]);
+  }, [item?.id, item?.subcategoriaId, obterPrimeiraCategoriaDeSubcategoria]);
 
   // Obter categorias únicas
   const categoriasUnicas = obterCategoriasUnicas();
