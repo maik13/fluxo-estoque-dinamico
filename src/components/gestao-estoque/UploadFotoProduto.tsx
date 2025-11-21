@@ -4,6 +4,12 @@ import { Label } from '@/components/ui/label';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface UploadFotoProdutoProps {
   fotoUrl?: string;
@@ -14,6 +20,7 @@ interface UploadFotoProdutoProps {
 export const UploadFotoProduto = ({ fotoUrl, onFotoChange, itemId }: UploadFotoProdutoProps) => {
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(fotoUrl);
+  const [showModal, setShowModal] = useState(false);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -95,53 +102,71 @@ export const UploadFotoProduto = ({ fotoUrl, onFotoChange, itemId }: UploadFotoP
   };
 
   return (
-    <div className="space-y-2">
-      <Label>Foto do Produto</Label>
-      <div className="flex items-start gap-4">
-        {previewUrl ? (
-          <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-border">
-            <img
-              src={previewUrl}
-              alt="Foto do produto"
-              className="w-full h-full object-cover"
-            />
-            <Button
-              type="button"
-              size="icon"
-              variant="destructive"
-              className="absolute top-1 right-1 h-6 w-6"
-              onClick={handleRemovePhoto}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        ) : (
-          <div className="w-32 h-32 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-muted/50">
-            <ImageIcon className="h-8 w-8 text-muted-foreground" />
-          </div>
-        )}
+    <>
+      <div className="space-y-2">
+        <Label>Foto do Produto</Label>
+        <div className="flex items-start gap-4">
+          {previewUrl ? (
+            <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-border">
+              <img
+                src={previewUrl}
+                alt="Foto do produto"
+                className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => setShowModal(true)}
+              />
+              <Button
+                type="button"
+                size="icon"
+                variant="destructive"
+                className="absolute top-1 right-1 h-6 w-6"
+                onClick={handleRemovePhoto}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="w-32 h-32 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-muted/50">
+              <ImageIcon className="h-8 w-8 text-muted-foreground" />
+            </div>
+          )}
 
-        <div className="flex flex-col gap-2">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileSelect}
-            className="hidden"
-            id="foto-upload"
-            disabled={uploading}
-          />
-          <Label
-            htmlFor="foto-upload"
-            className={`cursor-pointer inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            <Upload className="h-4 w-4" />
-            {uploading ? 'Enviando...' : previewUrl ? 'Alterar Foto' : 'Adicionar Foto'}
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            JPG, PNG ou WEBP (máx. 5MB)
-          </p>
+          <div className="flex flex-col gap-2">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="foto-upload"
+              disabled={uploading}
+            />
+            <Label
+              htmlFor="foto-upload"
+              className={`cursor-pointer inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <Upload className="h-4 w-4" />
+              {uploading ? 'Enviando...' : previewUrl ? 'Alterar Foto' : 'Adicionar Foto'}
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              JPG, PNG ou WEBP (máx. 5MB)
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Foto do Produto</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center">
+            <img
+              src={previewUrl}
+              alt="Foto do produto em tamanho maior"
+              className="max-w-full max-h-[70vh] object-contain rounded-lg"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
