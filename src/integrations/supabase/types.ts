@@ -109,6 +109,7 @@ export type Database = {
           condicao: string | null
           created_at: string
           especificacao: string | null
+          foto_url: string | null
           id: string
           localizacao: string | null
           marca: string | null
@@ -129,6 +130,7 @@ export type Database = {
           condicao?: string | null
           created_at?: string
           especificacao?: string | null
+          foto_url?: string | null
           id?: string
           localizacao?: string | null
           marca?: string | null
@@ -149,6 +151,7 @@ export type Database = {
           condicao?: string | null
           created_at?: string
           especificacao?: string | null
+          foto_url?: string | null
           id?: string
           localizacao?: string | null
           marca?: string | null

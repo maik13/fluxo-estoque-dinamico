@@ -54,6 +54,7 @@ export const useEstoque = () => {
             quantidadeMinima: payload.new.quantidade_minima ?? undefined,
             ncm: payload.new.ncm ?? '',
             valor: payload.new.valor ?? undefined,
+            fotoUrl: payload.new.foto_url ?? undefined,
           };
           setItens(prev => {
             // Evitar duplicatas
@@ -87,6 +88,7 @@ export const useEstoque = () => {
             quantidadeMinima: payload.new.quantidade_minima ?? undefined,
             ncm: payload.new.ncm ?? '',
             valor: payload.new.valor ?? undefined,
+            fotoUrl: payload.new.foto_url ?? undefined,
           };
           setItens(prev => prev.map(i => i.id === itemAtualizado.id ? itemAtualizado : i));
         }
@@ -289,6 +291,7 @@ export const useEstoque = () => {
         quantidadeMinima: row.quantidade_minima ?? undefined,
         ncm: row.ncm ?? '',
         valor: row.valor ?? undefined,
+        fotoUrl: row.foto_url ?? undefined,
       }));
 
       const movsMapped: Movimentacao[] = (movsData ?? []).map((row: any) => ({
@@ -419,6 +422,7 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id'> & { codigoBarras?: numb
       quantidade_minima: dadosItem.quantidadeMinima ?? null,
       ncm: dadosItem.ncm ?? null,
       valor: dadosItem.valor ?? null,
+      foto_url: dadosItem.fotoUrl ?? null,
     };
 
     const { data, error } = await supabase.from('items').insert(insertItem).select('*').maybeSingle();
@@ -614,6 +618,7 @@ const editarItem = async (itemEditado: Item) => {
       quantidade_minima: itemEditado.quantidadeMinima ?? null,
       ncm: itemEditado.ncm ?? null,
       valor: itemEditado.valor ?? null,
+      foto_url: itemEditado.fotoUrl ?? null,
     };
 
     const { error } = await supabase.from('items').update(update).eq('id', itemEditado.id);

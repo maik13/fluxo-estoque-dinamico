@@ -14,7 +14,7 @@ import { useEstoque } from '@/hooks/useEstoque';
 import { Item, EstoqueItem } from '@/types/estoque';
 import { Configuracoes } from './Configuracoes';
 import { SeletorEstoque } from './SeletorEstoque';
-
+import { UploadFotoProduto } from './UploadFotoProduto';
 import { SolicitarMaterial } from './SolicitarMaterial';
 import { DevolverMaterial } from './DevolverMaterial';
 import { RegistrarEntrada } from './RegistrarEntrada';
@@ -717,6 +717,11 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   rows={3}
                 />
               </div>
+              
+              <UploadFotoProduto
+                fotoUrl={formCadastro.fotoUrl}
+                onFotoChange={(url) => setFormCadastro(prev => ({...prev, fotoUrl: url}))}
+              />
               
               <div className="flex justify-end space-x-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => setDialogoCadastro(false)}>
