@@ -108,10 +108,16 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
               <Label htmlFor="nome">Nome do Item *</Label>
               <Input
                 id="nome"
+                type="text"
                 value={formItem.nome}
-                onChange={(e) => setFormItem(prev => prev ? {...prev, nome: e.target.value} : null)}
+                onChange={(e) => {
+                  console.log('Nome alterado:', e.target.value);
+                  setFormItem(prev => prev ? {...prev, nome: e.target.value} : null);
+                }}
                 placeholder="Ex: Cabo flexível 2,5mm"
                 required
+                disabled={false}
+                readOnly={false}
               />
             </div>
             
