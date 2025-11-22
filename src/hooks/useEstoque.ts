@@ -344,8 +344,22 @@ export const useEstoque = () => {
 
   const obterProximoCodigoDisponivel = (): number => {
     if (itens.length === 0) return 1;
+    
+    // Ordena os códigos existentes
     const codigos = itens.map(item => item.codigoBarras).sort((a, b) => a - b);
-    return Math.max(...codigos) + 1;
+    
+    // Encontra o primeiro número inteiro positivo não utilizado
+    let proximoCodigo = 1;
+    for (const codigo of codigos) {
+      if (codigo === proximoCodigo) {
+        proximoCodigo++;
+      } else if (codigo > proximoCodigo) {
+        // Encontrou um "buraco" na sequência
+        break;
+      }
+    }
+    
+    return proximoCodigo;
   };
 
   // Função para calcular estoque atual de um item considerando apenas o estoque ativo
