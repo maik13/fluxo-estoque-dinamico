@@ -343,6 +343,9 @@ export const useEstoque = () => {
   };
 
   const obterProximoCodigoDisponivel = (): number => {
+    // Códigos bloqueados/reservados que não devem ser sugeridos
+    const codigosBloqueados = [1001];
+    
     if (itens.length === 0) return 1;
     
     // Ordena os códigos existentes
@@ -357,6 +360,11 @@ export const useEstoque = () => {
         // Encontrou um "buraco" na sequência
         break;
       }
+    }
+    
+    // Verifica se o código sugerido está na lista de bloqueados
+    while (codigosBloqueados.includes(proximoCodigo)) {
+      proximoCodigo++;
     }
     
     return proximoCodigo;
