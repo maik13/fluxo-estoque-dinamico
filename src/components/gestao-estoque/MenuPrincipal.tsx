@@ -217,14 +217,28 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   };
 
   // Função para validar código de barras ao sair do campo
-  const validarCodigoBarras = () => {
+  const validarCodigoBarras = async () => {
     if (!codigoBarrasManual) {
       setErroCodigoBarras('O código de barras é obrigatório');
       return false;
     }
     
     const codigo = Number(codigoBarrasManual);
-    if (verificarCodigoExistente(codigo)) {
+    
+    // Validar diretamente no banco de dados
+    const { data, error } = await supabase
+      .from('items')
+      .select('id')
+      .eq('codigo_barras', codigo)
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Erro ao validar código:', error);
+      setErroCodigoBarras('Erro ao validar código de barras');
+      return false;
+    }
+    
+    if (data) {
       setErroCodigoBarras('Este código de barras já está sendo usado por outro item');
       return false;
     } else {
@@ -235,7 +249,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   };
 
   // Função para lidar com cadastro
-  const handleCadastro = (e: React.FormEvent) => {
+  const handleCadastro = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validar que o código de barras foi preenchido
@@ -245,8 +259,10 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       return;
     }
     
-    if (erroCodigoBarras) {
-      return; // Não permite cadastrar se há erro no código
+    // Validar código no banco antes de prosseguir
+    const codigoValido = await validarCodigoBarras();
+    if (!codigoValido) {
+      return;
     }
     
     const codigoFinal = Number(codigoBarrasManual);
