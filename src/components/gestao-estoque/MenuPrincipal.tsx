@@ -133,11 +133,14 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
             return;
           }
 
+          // Códigos bloqueados/reservados que não devem ser sugeridos
+          const codigosBloqueados = new Set([1001]);
+
           // Encontrar o primeiro número inteiro positivo disponível
           const codigosUsados = new Set(data?.map(item => Number(item.codigo_barras)) || []);
           let proximoCodigo = 1;
           
-          while (codigosUsados.has(proximoCodigo)) {
+          while (codigosUsados.has(proximoCodigo) || codigosBloqueados.has(proximoCodigo)) {
             proximoCodigo++;
           }
           
