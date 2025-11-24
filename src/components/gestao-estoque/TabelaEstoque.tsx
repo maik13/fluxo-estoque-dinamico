@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
@@ -55,6 +56,10 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   // Estados para exclusão
   const [dialogoExclusao, setDialogoExclusao] = useState(false);
   const [itemParaExcluir, setItemParaExcluir] = useState<EstoqueItem | null>(null);
+
+  // Estados para seleção múltipla
+  const [itensSelecionados, setItensSelecionados] = useState<Set<string>>(new Set());
+  const [dialogoExclusaoMultipla, setDialogoExclusaoMultipla] = useState(false);
 
   // Obter dados do estoque apenas quando deveBuscar for true
   const estoque = useMemo(() => {
@@ -330,6 +335,54 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
     }
   };
 
+  // Função para selecionar/desselecionar item
+  const handleToggleSelecao = (itemId: string) => {
+    const novaSelecao = new Set(itensSelecionados);
+    if (novaSelecao.has(itemId)) {
+      novaSelecao.delete(itemId);
+    } else {
+      novaSelecao.add(itemId);
+    }
+    setItensSelecionados(novaSelecao);
+  };
+
+  // Função para selecionar/desselecionar todos os itens da página
+  const handleToggleTodos = () => {
+    if (itensSelecionados.size === itensPaginados.length) {
+      setItensSelecionados(new Set());
+    } else {
+      const todosIds = new Set(itensPaginados.map(item => item.id));
+      setItensSelecionados(todosIds);
+    }
+  };
+
+  // Função para excluir itens selecionados
+  const handleExcluirSelecionados = async () => {
+    if (itensSelecionados.size === 0) return;
+
+    try {
+      const idsArray = Array.from(itensSelecionados);
+      const { error } = await supabase
+        .from('items')
+        .delete()
+        .in('id', idsArray);
+
+      if (error) throw error;
+
+      toast.success(`${itensSelecionados.size} item(ns) excluído(s) com sucesso!`);
+      setItensSelecionados(new Set());
+      setDialogoExclusaoMultipla(false);
+    } catch (error) {
+      console.error('Erro ao excluir itens:', error);
+      toast.error('Erro ao excluir itens. Verifique se não existem movimentações vinculadas.');
+    }
+  };
+
+  // Limpar seleção ao mudar de página
+  useEffect(() => {
+    setItensSelecionados(new Set());
+  }, [paginaAtual]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -510,6 +563,38 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
         </CardContent>
       </Card>
 
+      {/* Barra de ações para seleção múltipla - apenas para admins */}
+      {isAdmin && itensSelecionados.size > 0 && (
+        <Card className="bg-primary/10 border-primary">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <p className="text-sm font-medium">
+                  {itensSelecionados.size} item(ns) selecionado(s)
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setItensSelecionados(new Set())}
+                >
+                  Limpar seleção
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDialogoExclusaoMultipla(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir Selecionados
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tabela */}
       <Card>
         <CardHeader>
@@ -523,10 +608,18 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  {isAdmin && (
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={itensPaginados.length > 0 && itensSelecionados.size === itensPaginados.length}
+                        onCheckedChange={handleToggleTodos}
+                      />
+                    </TableHead>
+                  )}
                   <TableHead>Código</TableHead>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Marca</TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Marca</TableHead>
                   <TableHead>Localização</TableHead>
                   <TableHead>Estoque</TableHead>
                   <TableHead>Unidade</TableHead>
@@ -539,7 +632,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
               <TableBody>
                 {itensFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center py-8">
+                    <TableCell colSpan={isAdmin ? 12 : 11} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-muted-foreground">
@@ -554,6 +647,14 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                 ) : (
                   itensPaginados.map((item) => (
                     <TableRow key={item.id} className="hover:bg-muted/50">
+                      {isAdmin && (
+                        <TableCell>
+                          <Checkbox
+                            checked={itensSelecionados.has(item.id)}
+                            onCheckedChange={() => handleToggleSelecao(item.id)}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell className="font-mono text-sm">
                         {item.codigoBarras}
                       </TableCell>
@@ -598,16 +699,16 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                         {getEstoqueBadge(item)}
                       </TableCell>
                       <TableCell>
-                          <TableCell>{item.ultimaMovimentacao ? (
-                            <div className="text-xs">
-                              <p>{formatarData(item.ultimaMovimentacao.dataHora)}</p>
-                              <p className="text-muted-foreground">
-                                {item.ultimaMovimentacao.tipo}
-                              </p>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">Sem movimentação</span>
-                          )}</TableCell>
+                        <TableCell>{item.ultimaMovimentacao ? (
+                          <div className="text-xs">
+                            <p>{formatarData(item.ultimaMovimentacao.dataHora)}</p>
+                            <p className="text-muted-foreground">
+                              {item.ultimaMovimentacao.tipo}
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">Sem movimentação</span>
+                        )}</TableCell>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -814,6 +915,29 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmarExclusao} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Diálogo de confirmação de exclusão múltipla */}
+      <AlertDialog open={dialogoExclusaoMultipla} onOpenChange={setDialogoExclusaoMultipla}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja excluir os itens selecionados?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <div className="space-y-2 mt-2">
+                <p className="font-medium">{itensSelecionados.size} item(ns) será(ão) excluído(s)</p>
+                <p className="text-sm text-destructive mt-4">
+                  Esta ação não pode ser desfeita. Os itens serão permanentemente excluídos do sistema.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleExcluirSelecionados} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir {itensSelecionados.size} Item(ns)
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
