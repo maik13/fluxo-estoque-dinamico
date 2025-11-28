@@ -29,7 +29,14 @@ const InputCurrency = React.forwardRef<HTMLInputElement, InputCurrencyProps>(
       // Remove tudo exceto dígitos
       inputValue = inputValue.replace(/\D/g, "");
       
-      // Converte para número (centavos)
+      // Se vazio, retorna 0
+      if (!inputValue || inputValue === "") {
+        setDisplayValue(formatCurrency(0));
+        onChange(0);
+        return;
+      }
+      
+      // Converte para número (centavos) - digita da direita para esquerda
       const numberValue = parseFloat(inputValue) / 100;
       
       // Atualiza o valor formatado
