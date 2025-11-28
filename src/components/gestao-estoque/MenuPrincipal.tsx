@@ -120,43 +120,11 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
 
   // Buscar próximo código disponível quando o dialog de cadastro abrir
   useEffect(() => {
-    const buscarProximoCodigo = async () => {
-      if (!dialogoCadastro) return;
-
-      try {
-        const { data, error } = await supabase
-          .from('items')
-          .select('codigo_barras')
-          .order('codigo_barras', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (error) {
-          console.error('Erro ao buscar próximo código:', error);
-          return;
-        }
-
-        // Códigos bloqueados/reservados que não devem ser sugeridos
-        const codigosBloqueados = new Set([1001]);
-
-        // Próximo código é sempre o maior código atual + 1, pulando bloqueados
-        let proximoCodigo = 1;
-        if (data?.codigo_barras) {
-          proximoCodigo = Number(data.codigo_barras) + 1;
-        }
-
-        while (codigosBloqueados.has(proximoCodigo)) {
-          proximoCodigo++;
-        }
-
-        setProximoCodigoDisponivel(proximoCodigo);
-      } catch (error) {
-        console.error('Erro ao buscar próximo código:', error);
-      }
-    };
-
-    buscarProximoCodigo();
-  }, [dialogoCadastro]);
+    if (dialogoCadastro) {
+      const proximoCodigo = obterProximoCodigoDisponivel();
+      setProximoCodigoDisponivel(proximoCodigo);
+    }
+  }, [dialogoCadastro, obterProximoCodigoDisponivel]);
 
   // Função para resetar formulários
   const resetarFormularios = () => {
