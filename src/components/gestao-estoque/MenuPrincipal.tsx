@@ -173,7 +173,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
           origem: data.origem || '',
           caixaOrganizador: data.caixa_organizador || '',
           nome: data.nome || '',
-          tipoItem: data.tipo_item as 'Insumo' | 'Ferramenta' | 'Produto Acabado' | 'Matéria Prima',
+          tipoItem: data.tipo_item as 'Insumo' | 'Ferramenta' | 'Matéria Prima',
           especificacao: data.especificacao || '',
           marca: data.marca || '',
           unidade: data.unidade || '',
@@ -538,7 +538,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   <Label htmlFor="tipoItem">Tipo *</Label>
                   <Select 
                     value={formCadastro.tipoItem} 
-                    onValueChange={(value) => setFormCadastro(prev => ({...prev, tipoItem: value as 'Insumo' | 'Ferramenta' | 'Produto Acabado' | 'Matéria Prima'}))}
+                    onValueChange={(value) => setFormCadastro(prev => ({...prev, tipoItem: value as 'Insumo' | 'Ferramenta' | 'Matéria Prima'}))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o tipo" />
@@ -546,7 +546,6 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                     <SelectContent>
                       <SelectItem value="Insumo">Insumo</SelectItem>
                       <SelectItem value="Ferramenta">Ferramenta</SelectItem>
-                      <SelectItem value="Produto Acabado">Produto Acabado</SelectItem>
                       <SelectItem value="Matéria Prima">Matéria Prima</SelectItem>
                     </SelectContent>
                   </Select>

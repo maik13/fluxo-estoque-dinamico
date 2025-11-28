@@ -134,7 +134,7 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
               <Label htmlFor="tipoItem">Tipo *</Label>
               <Select 
                 value={formItem.tipoItem} 
-                onValueChange={(value) => setFormItem(prev => prev ? {...prev, tipoItem: value as 'Insumo' | 'Ferramenta' | 'Produto Acabado' | 'Matéria Prima'} : null)}
+                onValueChange={(value) => setFormItem(prev => prev ? {...prev, tipoItem: value as 'Insumo' | 'Ferramenta' | 'Matéria Prima'} : null)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o tipo" />
@@ -142,7 +142,6 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
                 <SelectContent>
                   <SelectItem value="Insumo">Insumo</SelectItem>
                   <SelectItem value="Ferramenta">Ferramenta</SelectItem>
-                  <SelectItem value="Produto Acabado">Produto Acabado</SelectItem>
                   <SelectItem value="Matéria Prima">Matéria Prima</SelectItem>
                 </SelectContent>
               </Select>
