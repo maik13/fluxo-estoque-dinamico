@@ -126,6 +126,32 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     }
   }, [dialogoCadastro, obterProximoCodigoDisponivel]);
 
+  // Função para lidar com abertura/fechamento do dialog de cadastro
+  const handleDialogoCadastroChange = (aberto: boolean) => {
+    setDialogoCadastro(aberto);
+    
+    // Limpar campos ao fechar
+    if (!aberto) {
+      setFormCadastro({
+        codigoBarras: 0,
+        codigoAntigo: '',
+        origem: '',
+        caixaOrganizador: '',
+        nome: '',
+        especificacao: '',
+        marca: '',
+        unidade: '',
+        condicao: 'Novo',
+        subcategoriaId: undefined,
+        ncm: '',
+        valor: 0
+      });
+      setCodigoBarrasManual('');
+      setErroCodigoBarras('');
+      setCategoriaSelecionada('');
+    }
+  };
+
   // Função para resetar formulários
   const resetarFormularios = () => {
     setFormCadastro({
@@ -436,7 +462,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
         <Transferencia onTransferenciaRealizada={onMovimentacaoRealizada} />
         
         {/* BOTÃO CADASTRO */}
-        <Dialog open={dialogoCadastro} onOpenChange={setDialogoCadastro}>
+        <Dialog open={dialogoCadastro} onOpenChange={handleDialogoCadastroChange}>
           <DialogTrigger asChild>
             <Card className={cn(
               "cursor-pointer hover:scale-105 transition-all duration-300",
