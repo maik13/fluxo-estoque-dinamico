@@ -138,3 +138,63 @@ export const transferSchema = z.object({
 );
 
 export type TransferInput = z.infer<typeof transferSchema>;
+
+// Exit Registration Schema (for material withdrawal)
+const exitItemSchema = z.object({
+  item_id: uuidSchema,
+  quantidade: positiveNumberSchema.max(999999, { message: 'Quantidade muito alta' })
+});
+
+export const exitRegistrationSchema = z.object({
+  tipoOperacaoId: uuidSchema.optional(),
+  destinatario: z.string().trim().max(200, { message: 'Máximo 200 caracteres' }).optional(),
+  observacoes: z.string().trim().max(1000, { message: 'Máximo 1000 caracteres' }).optional(),
+  itensSaida: z.array(exitItemSchema)
+    .min(1, { message: 'Adicione pelo menos um item' })
+    .max(100, { message: 'Máximo 100 itens por saída' })
+});
+
+export type ExitRegistrationInput = z.infer<typeof exitRegistrationSchema>;
+
+// User Creation Schema (for admin-create-user edge function)
+export const userCreationSchema = z.object({
+  email: z.string()
+    .trim()
+    .email({ message: 'Email inválido' })
+    .max(255, { message: 'Email muito longo' })
+    .toLowerCase(),
+  password: z.string()
+    .min(8, { message: 'Senha deve ter no mínimo 8 caracteres' })
+    .max(72, { message: 'Senha muito longa' })
+    .regex(/[A-Z]/, { message: 'Senha deve conter ao menos uma letra maiúscula' })
+    .regex(/[a-z]/, { message: 'Senha deve conter ao menos uma letra minúscula' })
+    .regex(/[0-9]/, { message: 'Senha deve conter ao menos um número' }),
+  nome: nonEmptyStringSchema
+    .min(2, { message: 'Nome deve ter no mínimo 2 caracteres' })
+    .max(100, { message: 'Nome deve ter no máximo 100 caracteres' }),
+  tipo: z.enum(['administrador', 'gestor', 'engenharia', 'mestre', 'estoquista'], {
+    message: 'Tipo de usuário inválido'
+  }).optional()
+});
+
+export type UserCreationInput = z.infer<typeof userCreationSchema>;
+
+// Item Import Schema (for import-items edge function)
+export const itemImportSchema = z.object({
+  nome: nonEmptyStringSchema.max(200, { message: 'Nome: máximo 200 caracteres' }),
+  responsavel: z.string().trim().max(100, { message: 'Responsável: máximo 100 caracteres' }).optional(),
+  tipoItem: z.string().trim().max(50, { message: 'Tipo: máximo 50 caracteres' }).optional(),
+  unidade: nonEmptyStringSchema.max(20, { message: 'Unidade: máximo 20 caracteres' }),
+  codigoAntigo: z.string().trim().max(50, { message: 'Código antigo: máximo 50 caracteres' }).optional(),
+  ncm: z.string().trim().max(20, { message: 'NCM: máximo 20 caracteres' }).optional(),
+  especificacao: z.string().trim().max(500, { message: 'Especificação: máximo 500 caracteres' }).optional(),
+  marca: z.string().trim().max(100, { message: 'Marca: máximo 100 caracteres' }).optional(),
+  condicao: z.enum(['Novo', 'Usado']).optional(),
+  localizacao: z.string().trim().max(100, { message: 'Localização: máximo 100 caracteres' }).optional(),
+  caixaOrganizador: z.string().trim().max(50, { message: 'Caixa: máximo 50 caracteres' }).optional(),
+  valor: z.number().min(0, { message: 'Valor não pode ser negativo' }).max(999999999.99, { message: 'Valor muito alto' }).optional(),
+  quantidadeMinima: z.number().int().min(0, { message: 'Quantidade mínima não pode ser negativa' }).max(999999, { message: 'Quantidade muito alta' }).optional(),
+  origem: z.string().trim().max(100, { message: 'Origem: máximo 100 caracteres' }).optional()
+});
+
+export type ItemImportInput = z.infer<typeof itemImportSchema>;

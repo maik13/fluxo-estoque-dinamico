@@ -25,7 +25,7 @@ import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
-import { itemRegistrationSchema } from '@/schemas/validation';
+import { itemRegistrationSchema, exitRegistrationSchema } from '@/schemas/validation';
 import { toast } from 'sonner';
 
 interface MenuPrincipalProps {
@@ -304,8 +304,15 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       return;
     }
     
-    if (!formMovimentacao.quantidade || formMovimentacao.quantidade <= 0) {
-      toast.error('Informe uma quantidade válida');
+    // Validar quantidade
+    const quantidade = formMovimentacao.quantidade;
+    if (!quantidade || typeof quantidade !== 'number' || quantidade <= 0) {
+      toast.error('Informe uma quantidade válida maior que zero');
+      return;
+    }
+    
+    if (quantidade > 999999) {
+      toast.error('Quantidade muito alta (máximo 999999)');
       return;
     }
     
@@ -319,7 +326,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     // Adicionar item à lista
     setItensSaida(prev => [...prev, {
       item: itemSelecionadoSaida,
-      quantidade: formMovimentacao.quantidade
+      quantidade: quantidade
     }]);
     
     // Limpar seleção
@@ -342,8 +349,24 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   const handleSaida = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (itensSaida.length === 0) {
-      toast.error('Adicione pelo menos um item à lista de saída');
+    // Preparar dados para validação
+    const dadosParaValidar = {
+      tipoOperacaoId: formMovimentacao.tipoOperacaoId || undefined,
+      destinatario: formMovimentacao.destinatario?.trim() || undefined,
+      observacoes: formMovimentacao.observacoes?.trim() || undefined,
+      itensSaida: itensSaida.map(i => ({
+        item_id: i.item.id,
+        quantidade: i.quantidade
+      }))
+    };
+    
+    // Validar com zod
+    const resultado = exitRegistrationSchema.safeParse(dadosParaValidar);
+    
+    if (!resultado.success) {
+      const erros = resultado.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join('\n');
+      toast.error(`Erro de validação:\n${erros}`);
+      console.error('Erros de validação:', resultado.error.errors);
       return;
     }
     
