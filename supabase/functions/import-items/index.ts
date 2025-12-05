@@ -12,14 +12,14 @@ interface ItemInput {
   localizacao?: string;
   responsavel: string;
   nome: string;
-  tipoItem: 'Insumo' | 'Ferramenta';
+  tipoItem: 'Insumo' | 'Ferramenta' | 'Matéria Prima';
   metragem?: number;
   peso?: number;
   comprimentoLixa?: number;
   polaridadeDisjuntor?: string;
   especificacao?: string;
   marca?: string;
-  quantidade?: number; // default 0
+  quantidade?: number;
   unidade: string;
   condicao?: 'Novo' | 'Usado' | 'Defeito' | 'Descarte';
   categoria?: string;
@@ -27,6 +27,8 @@ interface ItemInput {
   subDestino?: string;
   tipoServico?: string;
   quantidadeMinima?: number;
+  valor?: number;
+  ncm?: string;
 }
 
 type ImportRequest = { itens: ItemInput[] };
@@ -36,6 +38,89 @@ type ImportResult = {
   imported?: number;
   errors?: { index: number; nome?: string; message: string }[];
 };
+
+// Input validation function
+function validateItemInput(item: any, index: number): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  
+  // Required fields
+  if (!item.nome || typeof item.nome !== 'string') {
+    errors.push('Nome é obrigatório');
+  } else if (item.nome.trim().length > 200) {
+    errors.push('Nome: máximo 200 caracteres');
+  }
+  
+  if (!item.responsavel || typeof item.responsavel !== 'string') {
+    errors.push('Responsável é obrigatório');
+  } else if (item.responsavel.trim().length > 100) {
+    errors.push('Responsável: máximo 100 caracteres');
+  }
+  
+  if (!item.unidade || typeof item.unidade !== 'string') {
+    errors.push('Unidade é obrigatória');
+  } else if (item.unidade.trim().length > 20) {
+    errors.push('Unidade: máximo 20 caracteres');
+  }
+  
+  if (!item.tipoItem || typeof item.tipoItem !== 'string') {
+    errors.push('Tipo de item é obrigatório');
+  } else if (!['Insumo', 'Ferramenta', 'Matéria Prima'].includes(item.tipoItem)) {
+    errors.push('tipoItem inválido. Use "Insumo", "Ferramenta" ou "Matéria Prima"');
+  }
+  
+  // Optional string fields with length limits
+  const stringFieldLimits: Record<string, number> = {
+    origem: 100,
+    caixaOrganizador: 50,
+    localizacao: 100,
+    especificacao: 500,
+    marca: 100,
+    categoria: 100,
+    subcategoria: 100,
+    subDestino: 100,
+    tipoServico: 100,
+    ncm: 20,
+    polaridadeDisjuntor: 50
+  };
+  
+  for (const [field, maxLength] of Object.entries(stringFieldLimits)) {
+    if (item[field] !== undefined && item[field] !== null) {
+      if (typeof item[field] !== 'string') {
+        errors.push(`${field} deve ser texto`);
+      } else if (item[field].trim().length > maxLength) {
+        errors.push(`${field}: máximo ${maxLength} caracteres`);
+      }
+    }
+  }
+  
+  // Optional numeric fields
+  if (item.quantidade !== undefined && item.quantidade !== null) {
+    if (typeof item.quantidade !== 'number' || item.quantidade < 0 || item.quantidade > 999999) {
+      errors.push('Quantidade deve ser um número entre 0 e 999999');
+    }
+  }
+  
+  if (item.quantidadeMinima !== undefined && item.quantidadeMinima !== null) {
+    if (typeof item.quantidadeMinima !== 'number' || item.quantidadeMinima < 0 || item.quantidadeMinima > 999999) {
+      errors.push('Quantidade mínima deve ser um número entre 0 e 999999');
+    }
+  }
+  
+  if (item.valor !== undefined && item.valor !== null) {
+    if (typeof item.valor !== 'number' || item.valor < 0 || item.valor > 999999999.99) {
+      errors.push('Valor deve ser um número entre 0 e 999999999.99');
+    }
+  }
+  
+  // Condition validation
+  if (item.condicao !== undefined && item.condicao !== null) {
+    if (!['Novo', 'Usado', 'Defeito', 'Descarte'].includes(item.condicao)) {
+      errors.push('Condição inválida. Use "Novo", "Usado", "Defeito" ou "Descarte"');
+    }
+  }
+  
+  return { valid: errors.length === 0, errors };
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -67,6 +152,7 @@ Deno.serve(async (req: Request) => {
     // Validate session
     const { data: userData, error: userErr } = await supabaseAuth.auth.getUser();
     if (userErr || !userData.user) {
+      console.log('Authentication failed:', userErr?.message);
       return new Response(JSON.stringify({ success: false, message: 'Não autenticado' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -74,6 +160,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const callerId = userData.user.id;
+    console.log('Import request from user:', callerId);
 
     // Check permissions: administrador, gestor, engenharia
     const { data: perfil, error: perfilErr } = await supabaseAdmin
@@ -83,6 +170,7 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (perfilErr || !perfil || !['administrador', 'gestor', 'engenharia'].includes(perfil.tipo_usuario)) {
+      console.log('Permission denied for user:', callerId, 'role:', perfil?.tipo_usuario);
       return new Response(JSON.stringify({ success: false, message: 'Sem permissão para importar itens' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -97,18 +185,26 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Limit batch size to prevent abuse
+    if (body.itens.length > 500) {
+      return new Response(JSON.stringify({ success: false, message: 'Máximo 500 itens por importação' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const errors: { index: number; nome?: string; message: string }[] = [];
     let imported = 0;
+
+    console.log('Starting import of', body.itens.length, 'items');
 
     for (let i = 0; i < body.itens.length; i++) {
       const inItem = body.itens[i];
       try {
-        // Basic validation
-        if (!inItem.nome || !inItem.responsavel || !inItem.unidade || !inItem.tipoItem) {
-          throw new Error('Campos obrigatórios ausentes (nome, responsavel, unidade, tipoItem)');
-        }
-        if (!['Insumo', 'Ferramenta'].includes(inItem.tipoItem)) {
-          throw new Error('tipoItem inválido. Use "Insumo" ou "Ferramenta"');
+        // Validate input
+        const validation = validateItemInput(inItem, i);
+        if (!validation.valid) {
+          throw new Error(validation.errors.join('; '));
         }
 
         // Generate next code
@@ -116,30 +212,26 @@ Deno.serve(async (req: Request) => {
         if (codigoErr || !codigoData) throw new Error(`Falha ao gerar código: ${codigoErr?.message}`);
         const codigoGerado = codigoData as string;
 
+        // Sanitize inputs
+        const nome = inItem.nome.trim();
+        const responsavel = inItem.responsavel.trim();
+        const unidade = inItem.unidade.trim();
+
         // Insert item
         const insertItem = {
           codigo_barras: codigoGerado,
-          origem: inItem.origem || null,
-          caixa_organizador: inItem.caixaOrganizador || null,
-          localizacao: inItem.localizacao || null,
-          responsavel: inItem.responsavel,
-          nome: inItem.nome,
+          origem: inItem.origem?.trim() || null,
+          caixa_organizador: inItem.caixaOrganizador?.trim() || null,
+          localizacao: inItem.localizacao?.trim() || null,
+          nome,
           tipo_item: inItem.tipoItem,
-          metragem: inItem.metragem ?? null,
-          peso: inItem.peso ?? null,
-          comprimento_lixa: inItem.comprimentoLixa ?? null,
-          polaridade_disjuntor: inItem.polaridadeDisjuntor || null,
-          especificacao: inItem.especificacao || null,
-          marca: inItem.marca || null,
-          quantidade: typeof inItem.quantidade === 'number' ? inItem.quantidade : 0,
-          unidade: inItem.unidade,
+          especificacao: inItem.especificacao?.trim() || null,
+          marca: inItem.marca?.trim() || null,
+          unidade,
           condicao: inItem.condicao || 'Novo',
-          categoria: inItem.categoria || null,
-          subcategoria: inItem.subcategoria || null,
-          sub_destino: inItem.subDestino || null,
-          tipo_servico: inItem.tipoServico || null,
-          data_criacao: new Date().toISOString(),
           quantidade_minima: typeof inItem.quantidadeMinima === 'number' ? inItem.quantidadeMinima : null,
+          valor: typeof inItem.valor === 'number' ? inItem.valor : null,
+          ncm: inItem.ncm?.trim() || null,
         };
 
         const { data: itemRow, error: itemErr } = await supabaseAdmin
@@ -150,13 +242,14 @@ Deno.serve(async (req: Request) => {
         if (itemErr || !itemRow) throw new Error(`Falha ao inserir item: ${itemErr?.message}`);
 
         // Insert movement log (best-effort)
+        const quantidade = typeof inItem.quantidade === 'number' ? inItem.quantidade : 0;
         const { error: movErr } = await supabaseAdmin.from('movements').insert({
           item_id: itemRow.id,
           tipo: 'CADASTRO',
-          quantidade: insertItem.quantidade,
+          quantidade: quantidade,
           quantidade_anterior: 0,
-          quantidade_atual: insertItem.quantidade,
-          responsavel: insertItem.responsavel,
+          quantidade_atual: quantidade,
+          user_id: callerId,
           observacoes: null,
           data_hora: new Date().toISOString(),
           item_snapshot: {
@@ -166,15 +259,9 @@ Deno.serve(async (req: Request) => {
             origem: insertItem.origem,
             unidade: insertItem.unidade,
             condicao: insertItem.condicao,
-            categoria: insertItem.categoria,
-            quantidade: insertItem.quantidade,
-            subDestino: insertItem.sub_destino,
-            dataCriacao: insertItem.data_criacao,
+            quantidade: quantidade,
             localizacao: insertItem.localizacao,
-            responsavel: insertItem.responsavel,
-            tipoServico: insertItem.tipo_servico,
             codigoBarras: codigoGerado,
-            subcategoria: insertItem.subcategoria,
             especificacao: insertItem.especificacao,
             caixaOrganizador: insertItem.caixa_organizador,
           },
@@ -190,12 +277,15 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    console.log('Import completed:', imported, 'items imported,', errors.length, 'errors');
+
     const result: ImportResult = { success: true, imported, errors };
     return new Response(JSON.stringify(result), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e: any) {
+    console.error('Unexpected error:', e?.message);
     return new Response(JSON.stringify({ success: false, message: e?.message || 'Erro inesperado' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
