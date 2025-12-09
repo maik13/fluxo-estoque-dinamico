@@ -430,15 +430,22 @@ export const SolicitarMaterial = () => {
                     Buscar item para adicionar...
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[400px] p-0" align="start" sideOffset={4}>
-                  <Command>
+                <PopoverContent 
+                  className="w-[var(--radix-popover-trigger-width)] min-w-[400px] p-0" 
+                  align="start" 
+                  side="bottom"
+                  sideOffset={4}
+                  avoidCollisions={false}
+                >
+                  <Command className="flex flex-col">
                     <CommandInput 
                       placeholder="Buscar por nome ou código..." 
                       value={busca}
                       onValueChange={setBusca}
+                      className="sticky top-0 z-10"
                     />
                     <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
-                    <CommandList className="max-h-[300px]">
+                    <CommandList className="max-h-[250px] overflow-y-auto">
                       <CommandGroup>
                         {itensDisponiveis
                           .filter(item => 
