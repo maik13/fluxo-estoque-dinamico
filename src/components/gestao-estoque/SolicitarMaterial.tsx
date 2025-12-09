@@ -349,7 +349,7 @@ export const SolicitarMaterial = () => {
                     {solicitanteSelecionado ? solicitanteSelecionado.nome : "Selecione o solicitante"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[300px] p-0" align="start" sideOffset={4}>
                   <Command>
                     <CommandInput placeholder="Buscar solicitante..." />
                     <CommandList>
@@ -396,7 +396,7 @@ export const SolicitarMaterial = () => {
                       : "Selecione o local"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[300px] p-0" align="start" sideOffset={4}>
                   <Command>
                     <CommandInput placeholder="Buscar local..." />
                     <CommandList>
@@ -430,7 +430,7 @@ export const SolicitarMaterial = () => {
                     Buscar item para adicionar...
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0">
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[400px] p-0" align="start" sideOffset={4}>
                   <Command>
                     <CommandInput 
                       placeholder="Buscar por nome ou código..." 
@@ -438,7 +438,7 @@ export const SolicitarMaterial = () => {
                       onValueChange={setBusca}
                     />
                     <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
-                    <CommandList>
+                    <CommandList className="max-h-[300px]">
                       <CommandGroup>
                         {itensDisponiveis
                           .filter(item => 
