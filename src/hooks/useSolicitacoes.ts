@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { usePermissions } from './usePermissions';
@@ -13,6 +13,31 @@ export const useSolicitacoes = () => {
   const { user } = useAuth();
   const { userProfile, canManageStock } = usePermissions();
   const { obterEstoqueAtivoInfo } = useConfiguracoes();
+  
+  // Refs para controle de debounce e prevenção de duplicatas
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLoadingRef = useRef(false);
+  const lastLoadTimeRef = useRef<number>(0);
+
+  // Função de carregamento com debounce para evitar chamadas múltiplas
+  const carregarSolicitacoesDebounced = useCallback(() => {
+    // Se já estiver carregando, não fazer nada
+    if (isLoadingRef.current) return;
+    
+    // Limpar timer anterior
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    // Debounce de 300ms para evitar chamadas múltiplas
+    debounceTimerRef.current = setTimeout(() => {
+      const now = Date.now();
+      // Evitar recarregar se foi carregado há menos de 500ms
+      if (now - lastLoadTimeRef.current < 500) return;
+      
+      carregarSolicitacoes();
+    }, 300);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -27,24 +52,32 @@ export const useSolicitacoes = () => {
     const solicitacoesChannel = supabase
       .channel('solicitacoes-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitacoes' }, () => {
-        carregarSolicitacoes();
+        carregarSolicitacoesDebounced();
       })
       .subscribe();
 
     const solicitacaoItensChannel = supabase
       .channel('solicitacao-itens-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitacao_itens' }, () => {
-        carregarSolicitacoes();
+        carregarSolicitacoesDebounced();
       })
       .subscribe();
 
     return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
       supabase.removeChannel(solicitacoesChannel);
       supabase.removeChannel(solicitacaoItensChannel);
     };
-  }, [user]);
+  }, [user, carregarSolicitacoesDebounced]);
 
   const carregarSolicitacoes = async () => {
+    // Prevenir múltiplas chamadas simultâneas
+    if (isLoadingRef.current) return;
+    isLoadingRef.current = true;
+    lastLoadTimeRef.current = Date.now();
+    
     try {
       setLoading(true);
       const estoqueAtivoInfo = obterEstoqueAtivoInfo();
@@ -86,6 +119,7 @@ export const useSolicitacoes = () => {
       toast.error('Erro ao carregar solicitações');
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
   };
 
@@ -195,7 +229,7 @@ export const useSolicitacoes = () => {
       }
 
       toast.success('Solicitação criada e estoque atualizado!');
-      await carregarSolicitacoes();
+      // Não chamar carregarSolicitacoes() aqui - o realtime já vai atualizar
       return true;
     } catch (error) {
       console.error('Erro ao criar solicitação:', error);
@@ -218,7 +252,7 @@ export const useSolicitacoes = () => {
 
       if (error) throw error;
 
-      await carregarSolicitacoes();
+      // Não chamar carregarSolicitacoes() aqui - o realtime já vai atualizar
       return true;
     } catch (error) {
       console.error('Erro ao atualizar aceites:', error);
