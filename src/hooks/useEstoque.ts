@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Item, Movimentacao, EstoqueItem } from '@/types/estoque';
 import { toast } from '@/hooks/use-toast';
 import { useConfiguracoes } from './useConfiguracoes';
@@ -407,27 +407,40 @@ export const useEstoque = () => {
     return Math.max(0, estoque); // Não pode ser negativo
   };
 
-  // Obter estoque com quantidades atuais baseado nas movimentações do estoque ativo
-  const obterEstoque = (): EstoqueItem[] => {
-    // Todos os itens são compartilhados entre estoques
-    // O que muda é o estoque atual calculado pelas movimentações de cada estoque
+  // Cache do estoque calculado - usa useMemo para evitar recálculo a cada render
+  const estoqueCalculado = useMemo(() => {
     return itens.map(item => {
-      const estoqueAtual = calcularEstoqueAtual(item.id);
-      // Filtrar última movimentação apenas do estoque ativo
-      const ultimaMovimentacao = movimentacoes
-        .filter(mov => 
-          mov.itemId === item.id && 
-          (!mov.estoqueId || mov.estoqueId === estoqueAtivo)
-        )
+      // Filtrar movimentações do item E do estoque ativo
+      const movimentacoesItem = movimentacoes.filter(mov => 
+        mov.itemId === item.id && 
+        (!mov.estoqueId || mov.estoqueId === estoqueAtivo)
+      );
+      
+      let estoqueAtual = 0;
+      movimentacoesItem.forEach(mov => {
+        if (mov.tipo === 'ENTRADA' || mov.tipo === 'CADASTRO') {
+          estoqueAtual += mov.quantidade;
+        } else if (mov.tipo === 'SAIDA') {
+          estoqueAtual -= mov.quantidade;
+        }
+      });
+      
+      // Encontrar última movimentação
+      const ultimaMovimentacao = movimentacoesItem
         .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())[0];
 
       return {
         ...item,
-        estoqueAtual,
+        estoqueAtual: Math.max(0, estoqueAtual),
         ultimaMovimentacao: ultimaMovimentacao || null
       };
     });
-  };
+  }, [itens, movimentacoes, estoqueAtivo]);
+
+  // Obter estoque com quantidades atuais - agora retorna o cache
+  const obterEstoque = useCallback((): EstoqueItem[] => {
+    return estoqueCalculado;
+  }, [estoqueCalculado]);
 
 // Função para cadastrar novo item
 const cadastrarItem = async (dadosItem: Omit<Item, 'id'> & { codigoBarras?: number }) => {
