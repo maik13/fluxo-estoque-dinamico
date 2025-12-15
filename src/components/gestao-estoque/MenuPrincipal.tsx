@@ -85,12 +85,10 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
   }
   const [itensSaida, setItensSaida] = useState<ItemSaida[]>([]);
 
-  // Obter todos os itens do estoque para busca inteligente
-  const itensEstoque = useMemo(() => {
-    return obterEstoque(); // Retorna todos os itens, independente do estoque
-  }, [obterEstoque]);
+  // Obter todos os itens do estoque para busca inteligente - memorizado
+  const itensEstoque = obterEstoque();
 
-  // Obter categorias únicas
+  // Obter categorias únicas - memorizado
   const categoriasUnicas = useMemo(() => {
     return obterCategoriasUnicas();
   }, [obterCategoriasUnicas]);
@@ -101,7 +99,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     return obterSubcategoriasPorCategoria(categoriaSelecionada);
   }, [categoriaSelecionada, obterSubcategoriasPorCategoria]);
 
-  // Filtrar itens para busca inteligente na saída
+  // Filtrar itens para busca inteligente na saída - só recalcula quando necessário
   const itensFiltrarados = useMemo(() => {
     if (!buscaSaida) return itensEstoque;
     
