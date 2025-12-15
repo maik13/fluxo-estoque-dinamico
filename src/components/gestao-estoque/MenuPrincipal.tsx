@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,6 +84,15 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
     quantidade: number;
   }
   const [itensSaida, setItensSaida] = useState<ItemSaida[]>([]);
+
+  // Handlers memoizados para evitar recriação a cada render
+  const handleFormCadastroChange = useCallback((field: keyof Item, value: any) => {
+    setFormCadastro(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  const handleFormMovimentacaoChange = useCallback((field: string, value: any) => {
+    setFormMovimentacao(prev => ({ ...prev, [field]: value }));
+  }, []);
 
   // Obter todos os itens do estoque para busca inteligente - memorizado
   const itensEstoque = obterEstoque();
@@ -565,7 +574,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   <Input
                     id="codigoAntigo"
                     value={formCadastro.codigoAntigo || ''}
-                    onChange={(e) => setFormCadastro(prev => ({...prev, codigoAntigo: e.target.value}))}
+                    onChange={(e) => handleFormCadastroChange('codigoAntigo', e.target.value)}
                     placeholder="Código anterior do item (se houver)"
                   />
                 </div>
@@ -575,7 +584,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   <Input
                     id="nome"
                     value={formCadastro.nome}
-                    onChange={(e) => setFormCadastro(prev => ({...prev, nome: e.target.value}))}
+                    onChange={(e) => handleFormCadastroChange('nome', e.target.value)}
                     placeholder="Ex: Cabo flexível 2,5mm"
                     required
                   />
@@ -585,7 +594,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   <Label htmlFor="tipoItem">Tipo *</Label>
                   <Select 
                     value={formCadastro.tipoItem} 
-                    onValueChange={(value) => setFormCadastro(prev => ({...prev, tipoItem: value as 'Insumo' | 'Ferramenta' | 'Matéria Prima'}))}
+                    onValueChange={(value) => handleFormCadastroChange('tipoItem', value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o tipo" />
@@ -603,7 +612,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   <Input
                     id="origem"
                     value={formCadastro.origem}
-                    onChange={(e) => setFormCadastro(prev => ({...prev, origem: e.target.value}))}
+                    onChange={(e) => handleFormCadastroChange('origem', e.target.value)}
                     placeholder="Fornecedor, nota fiscal, etc."
                   />
                 </div>
@@ -613,7 +622,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   <Input
                     id="caixaOrganizador"
                     value={formCadastro.caixaOrganizador}
-                    onChange={(e) => setFormCadastro(prev => ({...prev, caixaOrganizador: e.target.value}))}
+                    onChange={(e) => handleFormCadastroChange('caixaOrganizador', e.target.value)}
                     placeholder="Caixa 01, Estante A, etc."
                   />
                 </div>
@@ -623,7 +632,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   <Input
                     id="marca"
                     value={formCadastro.marca}
-                    onChange={(e) => setFormCadastro(prev => ({...prev, marca: e.target.value}))}
+                    onChange={(e) => handleFormCadastroChange('marca', e.target.value)}
                     placeholder="Ex: Tramontina, Schneider"
                   />
                 </div>
@@ -684,7 +693,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   <Input
                     id="unidade"
                     value={formCadastro.unidade}
-                    onChange={(e) => setFormCadastro(prev => ({...prev, unidade: e.target.value}))}
+                    onChange={(e) => handleFormCadastroChange('unidade', e.target.value)}
                     placeholder="metro, peça, kg, rolo"
                     required
                   />
@@ -694,7 +703,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   <Label htmlFor="condicao">Condição</Label>
                   <Select 
                     value={formCadastro.condicao} 
-                    onValueChange={(value) => setFormCadastro(prev => ({...prev, condicao: value as any}))}
+                    onValueChange={(value) => handleFormCadastroChange('condicao', value)}
                   >
                     <SelectTrigger className="bg-background">
                       <SelectValue placeholder="Selecione a condição" />
@@ -714,18 +723,15 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                     id="ncm"
                     value={formCadastro.ncm}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é número
+                      const value = e.target.value.replace(/\D/g, '');
                       let formatted = value;
-                      
-                      // Aplica a máscara 0000.00.00
                       if (value.length > 4) {
                         formatted = value.slice(0, 4) + '.' + value.slice(4);
                       }
                       if (value.length > 6) {
                         formatted = value.slice(0, 4) + '.' + value.slice(4, 6) + '.' + value.slice(6, 8);
                       }
-                      
-                      setFormCadastro(prev => ({...prev, ncm: formatted}));
+                      handleFormCadastroChange('ncm', formatted);
                     }}
                     placeholder="Ex: 8544.42.00"
                     maxLength={10}
@@ -738,7 +744,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                   <InputCurrency
                     id="valor"
                     value={formCadastro.valor}
-                    onChange={(valor) => setFormCadastro(prev => ({...prev, valor}))}
+                    onChange={(valor) => handleFormCadastroChange('valor', valor)}
                     placeholder="0,00"
                   />
                 </div>
@@ -749,7 +755,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
                 <Textarea
                   id="especificacao"
                   value={formCadastro.especificacao}
-                  onChange={(e) => setFormCadastro(prev => ({...prev, especificacao: e.target.value}))}
+                  onChange={(e) => handleFormCadastroChange('especificacao', e.target.value)}
                   placeholder="Amperagem, bitola, tipo, BWG, gramatura, etc."
                   rows={3}
                 />
@@ -757,7 +763,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
               
               <UploadFotoProduto
                 fotoUrl={formCadastro.fotoUrl}
-                onFotoChange={(url) => setFormCadastro(prev => ({...prev, fotoUrl: url}))}
+                onFotoChange={(url) => handleFormCadastroChange('fotoUrl', url)}
               />
               
               <div className="flex justify-end space-x-2 pt-4">
