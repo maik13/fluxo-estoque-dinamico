@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Item, Movimentacao, EstoqueItem } from '@/types/estoque';
 import { toast } from '@/hooks/use-toast';
 import { useConfiguracoes } from './useConfiguracoes';
@@ -11,6 +11,12 @@ export const useEstoque = () => {
   const [loading, setLoading] = useState(true);
   const { estoqueAtivo, obterEstoqueAtivoInfo } = useConfiguracoes();
   const { user } = useAuth();
+  
+  // Refs para controle de carregamento e prevenção de duplicatas
+  const isLoadingRef = useRef(false);
+  const lastLoadTimeRef = useRef<number>(0);
+  const processedItemsRef = useRef<Set<string>>(new Set());
+  const processedMovementsRef = useRef<Set<string>>(new Set());
 
   // Obter dados iniciais quando o estoque ativo mudar
   useEffect(() => {
@@ -223,8 +229,18 @@ export const useEstoque = () => {
     };
   }, [estoqueAtivo]);
 
-  // Função para carregar dados do Supabase
+  // Função para carregar dados do Supabase com proteção contra chamadas múltiplas
   const carregarDados = async () => {
+    // Prevenir múltiplas chamadas simultâneas
+    if (isLoadingRef.current) return;
+    
+    const now = Date.now();
+    // Evitar recarregar se foi carregado há menos de 500ms
+    if (now - lastLoadTimeRef.current < 500) return;
+    
+    isLoadingRef.current = true;
+    lastLoadTimeRef.current = now;
+    
     try {
       setLoading(true);
       const estoqueAtivoInfo = obterEstoqueAtivoInfo();
@@ -323,6 +339,7 @@ export const useEstoque = () => {
       });
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
   };
 
