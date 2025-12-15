@@ -43,6 +43,7 @@ export const SolicitarMaterial = () => {
   const [solicitantesCarregados, setSolicitantesCarregados] = useState<{id: string, nome: string, codigo_barras?: string, email?: string}[]>([]);
   const [popoverSolicitanteAberto, setPopoverSolicitanteAberto] = useState(false);
   const [popoverLocalAberto, setPopoverLocalAberto] = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
   const { obterEstoque } = useEstoque();
   const { criarSolicitacao, solicitacoes, loading, atualizarAceites } = useSolicitacoes();
@@ -153,6 +154,9 @@ export const SolicitarMaterial = () => {
   };
 
   const handleSubmit = async () => {
+    // Prevenir envio duplo
+    if (enviando) return;
+    
     // Validar com zod
     const dadosParaValidar = {
       localUtilizacao: localUtilizacao || '',
@@ -185,20 +189,25 @@ export const SolicitarMaterial = () => {
       return;
     }
 
-    const sucesso = await criarSolicitacao({
-      observacoes,
-      local_utilizacao_id: localUtilizacao,
-      responsavel_estoque: userProfile?.nome || '',
-      tipo_operacao: tipoOperacao,
-      tipo_operacao_id: '4008ee81-3d16-4c38-a65d-078a6347f462',
-      solicitante_id: solicitanteSelecionado!.id,
-      solicitante_nome: solicitanteSelecionado!.nome,
-      itens: itensSolicitados
-    });
+    setEnviando(true);
+    try {
+      const sucesso = await criarSolicitacao({
+        observacoes,
+        local_utilizacao_id: localUtilizacao,
+        responsavel_estoque: userProfile?.nome || '',
+        tipo_operacao: tipoOperacao,
+        tipo_operacao_id: '4008ee81-3d16-4c38-a65d-078a6347f462',
+        solicitante_id: solicitanteSelecionado!.id,
+        solicitante_nome: solicitanteSelecionado!.nome,
+        itens: itensSolicitados
+      });
 
-    if (sucesso) {
-      resetarFormulario();
-      setDialogoAberto(false);
+      if (sucesso) {
+        resetarFormulario();
+        setDialogoAberto(false);
+      }
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -607,13 +616,14 @@ export const SolicitarMaterial = () => {
                 <Button 
                   onClick={handleSubmit}
                   disabled={
+                    enviando ||
                     itensSolicitados.length === 0 || 
                     !solicitanteSelecionado || 
                     !localUtilizacao.trim() ||
                     !codigoAssinatura.trim()
                   }
                 >
-                  Enviar Solicitação
+                  {enviando ? 'Enviando...' : 'Enviar Solicitação'}
                 </Button>
               </div>
             </div>

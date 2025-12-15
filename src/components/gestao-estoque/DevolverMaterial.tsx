@@ -37,6 +37,7 @@ export const DevolverMaterial = () => {
   const [usuariosDisponiveis, setUsuariosDisponiveis] = useState<{id: string, nome: string, user_id: string, codigo_barras?: string}[]>([]);
   const [popoverSolicitanteAberto, setPopoverSolicitanteAberto] = useState(false);
   const [popoverLocalAberto, setPopoverLocalAberto] = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
   const { criarSolicitacao } = useSolicitacoes();
   const { userProfile } = usePermissions();
@@ -157,6 +158,9 @@ export const DevolverMaterial = () => {
   };
 
   const handleSubmit = async () => {
+    // Prevenir envio duplo
+    if (enviando) return;
+    
     // Validar com zod
     const resultado = materialReturnSchema.safeParse({
       localUtilizacao: localUtilizacao || '',
@@ -211,22 +215,27 @@ export const DevolverMaterial = () => {
     }
 
     setErroAssinatura('');
+    setEnviando(true);
 
-    const sucesso = await criarSolicitacao({
-      observacoes,
-      local_utilizacao_id: localUtilizacao,
-      responsavel_estoque: userProfile?.nome || '',
-      tipo_operacao: 'devolucao',
-      tipo_operacao_id: '8462f967-121e-4a0a-8d43-5e7131fc1981',
-      solicitante_id: solicitanteSelecionado.id,
-      solicitante_nome: solicitanteSelecionado.nome,
-      itens: itensDevolucao
-    });
+    try {
+      const sucesso = await criarSolicitacao({
+        observacoes,
+        local_utilizacao_id: localUtilizacao,
+        responsavel_estoque: userProfile?.nome || '',
+        tipo_operacao: 'devolucao',
+        tipo_operacao_id: '8462f967-121e-4a0a-8d43-5e7131fc1981',
+        solicitante_id: solicitanteSelecionado.id,
+        solicitante_nome: solicitanteSelecionado.nome,
+        itens: itensDevolucao
+      });
 
-    if (sucesso) {
-      toast.success('Devolução registrada com sucesso!');
-      resetarFormulario();
-      setDialogoAberto(false);
+      if (sucesso) {
+        toast.success('Devolução registrada com sucesso!');
+        resetarFormulario();
+        setDialogoAberto(false);
+      }
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -515,9 +524,9 @@ export const DevolverMaterial = () => {
             <Button
               type="button"
               onClick={handleSubmit}
-              disabled={itensDevolucao.length === 0 || !localUtilizacao || !codigoAssinatura}
+              disabled={enviando || itensDevolucao.length === 0 || !localUtilizacao || !codigoAssinatura}
             >
-              Registrar Devolução
+              {enviando ? 'Enviando...' : 'Registrar Devolução'}
             </Button>
           </div>
         </div>
