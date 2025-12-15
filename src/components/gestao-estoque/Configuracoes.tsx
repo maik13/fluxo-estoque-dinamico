@@ -19,6 +19,7 @@ import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { GuiaImportacaoExcel } from './GuiaImportacaoExcel';
 import { UsuariosList } from './UsuariosList';
 import { RelatoriosComFiltros } from './RelatoriosComFiltros';
+import { PermissoesPanel } from './PermissoesPanel';
 
 interface ConfiguracoesProps {
   onConfigChange?: () => void;
@@ -556,8 +557,9 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
         </DialogHeader>
         
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="grid w-full grid-cols-10 gap-1">
+          <TabsList className="grid w-full grid-cols-11 gap-1">
             <TabsTrigger value="usuarios" className="text-xs">Usuários</TabsTrigger>
+            <TabsTrigger value="permissoes" className="text-xs">Permissões</TabsTrigger>
             <TabsTrigger value="solicitantes" className="text-xs">Solicitantes</TabsTrigger>
             <TabsTrigger value="locais" className="text-xs">Locais</TabsTrigger>
             <TabsTrigger value="estoques" className="text-xs">Estoques</TabsTrigger>
@@ -651,6 +653,11 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                 <UsuariosList />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Aba Permissões */}
+          <TabsContent value="permissoes" className="space-y-4">
+            <PermissoesPanel />
           </TabsContent>
 
           {/* Aba Solicitantes */}

@@ -292,6 +292,45 @@ export type Database = {
           },
         ]
       }
+      permissoes_tipo_usuario: {
+        Row: {
+          created_at: string
+          id: string
+          pode_cadastrar_itens: boolean
+          pode_editar_itens: boolean
+          pode_excluir_itens: boolean
+          pode_gerenciar_configuracoes: boolean
+          pode_gerenciar_usuarios: boolean
+          pode_registrar_movimentacoes: boolean
+          tipo_usuario: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pode_cadastrar_itens?: boolean
+          pode_editar_itens?: boolean
+          pode_excluir_itens?: boolean
+          pode_gerenciar_configuracoes?: boolean
+          pode_gerenciar_usuarios?: boolean
+          pode_registrar_movimentacoes?: boolean
+          tipo_usuario: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pode_cadastrar_itens?: boolean
+          pode_editar_itens?: boolean
+          pode_excluir_itens?: boolean
+          pode_gerenciar_configuracoes?: boolean
+          pode_gerenciar_usuarios?: boolean
+          pode_registrar_movimentacoes?: boolean
+          tipo_usuario?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ativo: boolean
