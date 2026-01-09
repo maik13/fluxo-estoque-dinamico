@@ -29,17 +29,19 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
   const [formItem, setFormItem] = useState<Item | null>(null);
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<string>('');
 
+  // Atualizar formItem quando o diálogo é aberto com um novo item
   useEffect(() => {
+    if (!aberto) {
+      // Limpar quando fechar
+      setFormItem(null);
+      setCategoriaSelecionada('');
+      return;
+    }
+    
     if (!item) return;
 
-    // Mantém o estado local enquanto o usuário edita, evitando que
-    // atualizações externas do item sobrescrevam o que está sendo digitado
-    setFormItem((prev) => {
-      if (prev && prev.id === item.id) {
-        return prev;
-      }
-      return { ...item };
-    });
+    // Sempre carregar o item quando abrir o diálogo
+    setFormItem({ ...item });
 
     // Carregar categoria do item se houver subcategoria
     if (item.subcategoriaId) {
@@ -48,7 +50,7 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
     } else {
       setCategoriaSelecionada('');
     }
-  }, [item?.id, item?.subcategoriaId, obterPrimeiraCategoriaDeSubcategoria]);
+  }, [aberto, item, obterPrimeiraCategoriaDeSubcategoria]);
 
   // Obter categorias únicas
   const categoriasUnicas = obterCategoriasUnicas();
@@ -69,8 +71,6 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
   };
 
   const handleClose = () => {
-    setFormItem(null);
-    setCategoriaSelecionada('');
     onClose();
   };
 
