@@ -12,14 +12,50 @@ export const useAuth = () => {
   useEffect(() => {
     // Listen first
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      console.log('Auth state change:', event);
+      
+      // Se ocorrer TOKEN_REFRESHED com falha ou SIGNED_OUT, limpar estado
+      if (event === 'TOKEN_REFRESHED' && !newSession) {
+        console.log('Token refresh failed, cleaning up...');
+        cleanupAuthState();
+        setSession(null);
+        setUser(null);
+        window.location.href = '/auth';
+        return;
+      }
+      
+      // Se o token expirou sem conseguir renovar
+      if (event === 'SIGNED_OUT') {
+        cleanupAuthState();
+        setSession(null);
+        setUser(null);
+        return;
+      }
+      
       setSession(newSession);
       setUser(newSession?.user ?? null);
     });
 
     // Then get current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Error getting session:', error);
+        // Se erro ao obter sessão, limpar e redirecionar
+        cleanupAuthState();
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      
       setSession(session);
       setUser(session?.user ?? null);
+      setLoading(false);
+    }).catch((err) => {
+      console.error('Failed to get session:', err);
+      cleanupAuthState();
+      setSession(null);
+      setUser(null);
       setLoading(false);
     });
 

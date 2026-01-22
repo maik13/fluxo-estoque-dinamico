@@ -95,14 +95,33 @@ export const useSolicitacoes = () => {
 
       const { data: solicitacoesData, error: solicitacoesError } = await solicitacoesQuery;
 
-      if (solicitacoesError) throw solicitacoesError;
+      if (solicitacoesError) {
+        // Verificar se é erro de autenticação
+        if (solicitacoesError.message?.includes('JWT') || 
+            solicitacoesError.message?.includes('token') ||
+            solicitacoesError.code === 'PGRST301') {
+          console.error('Erro de autenticação ao carregar solicitações:', solicitacoesError);
+          // Não mostrar toast repetido, o sistema vai redirecionar automaticamente
+          return;
+        }
+        throw solicitacoesError;
+      }
 
       // Carregar itens das solicitações
       const { data: itensData, error: itensError } = await supabase
         .from('solicitacao_itens')
         .select('*');
 
-      if (itensError) throw itensError;
+      if (itensError) {
+        // Verificar se é erro de autenticação
+        if (itensError.message?.includes('JWT') || 
+            itensError.message?.includes('token') ||
+            itensError.code === 'PGRST301') {
+          console.error('Erro de autenticação ao carregar itens:', itensError);
+          return;
+        }
+        throw itensError;
+      }
 
       // Combinar dados
       const solicitacoesCompletas: SolicitacaoCompleta[] = (solicitacoesData || []).map(solicitacao => ({
@@ -114,9 +133,12 @@ export const useSolicitacoes = () => {
       }));
 
       setSolicitacoes(solicitacoesCompletas);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar solicitações:', error);
-      toast.error('Erro ao carregar solicitações');
+      // Só mostrar toast se não for erro de rede/autenticação
+      if (!error?.message?.includes('Failed to fetch')) {
+        toast.error('Erro ao carregar solicitações');
+      }
     } finally {
       setLoading(false);
       isLoadingRef.current = false;
