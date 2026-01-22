@@ -3,16 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { usePermissions } from './usePermissions';
 import { useConfiguracoes } from './useConfiguracoes';
-import { NovaSolicitacao, Solicitacao, SolicitacaoCompleta, SolicitacaoItem } from '@/types/solicitacao';
+import { NovaSolicitacao, SolicitacaoCompleta, SolicitacaoItem } from '@/types/solicitacao';
 import { Item } from '@/types/estoque';
 import { toast } from 'sonner';
 
 export const useSolicitacoes = () => {
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoCompleta[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
-  const { userProfile, canManageStock } = usePermissions();
-  const { obterEstoqueAtivoInfo } = useConfiguracoes();
+  const { user, loading: authLoading, forceReauth } = useAuth();
+  const { userProfile } = usePermissions();
+  const { obterEstoqueAtivoInfo, estoqueAtivo } = useConfiguracoes();
   
   // Refs para controle de debounce e prevenção de duplicatas
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -40,24 +40,36 @@ export const useSolicitacoes = () => {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      carregarSolicitacoes();
+    // Evita ficar preso em "Carregando..." quando ainda não há usuário (ex.: sessão inválida)
+    if (!authLoading && !user) {
+      setSolicitacoes([]);
+      setLoading(false);
+      isLoadingRef.current = false;
     }
-  }, [user]);
+
+    if (user) carregarSolicitacoes();
+  }, [authLoading, user]);
 
   // Realtime: atualiza automaticamente quando houver mudanças nas solicitações
   useEffect(() => {
     if (!user) return;
 
+    const solicitacoesFilter = estoqueAtivo ? `estoque_id=eq.${estoqueAtivo}` : undefined;
+
     const solicitacoesChannel = supabase
       .channel('solicitacoes-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitacoes' }, () => {
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'solicitacoes', filter: solicitacoesFilter },
+        () => {
         carregarSolicitacoesDebounced();
-      })
+        }
+      )
       .subscribe();
 
     const solicitacaoItensChannel = supabase
       .channel('solicitacao-itens-changes')
+      // Não dá pra filtrar por estoque_id aqui (não existe na tabela), então só debounced.
       .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitacao_itens' }, () => {
         carregarSolicitacoesDebounced();
       })
@@ -70,7 +82,28 @@ export const useSolicitacoes = () => {
       supabase.removeChannel(solicitacoesChannel);
       supabase.removeChannel(solicitacaoItensChannel);
     };
-  }, [user, carregarSolicitacoesDebounced]);
+  }, [user, estoqueAtivo, carregarSolicitacoesDebounced]);
+
+  const isAuthRelatedError = (err: any) => {
+    const msg = String(err?.message ?? '');
+    const code = err?.code;
+    const status = err?.status;
+    return (
+      code === 'PGRST301' ||
+      status === 401 ||
+      status === 403 ||
+      msg.toLowerCase().includes('jwt') ||
+      msg.toLowerCase().includes('token') ||
+      msg.toLowerCase().includes('unauthorized') ||
+      msg.toLowerCase().includes('invalid')
+    );
+  };
+
+  const chunk = <T,>(arr: T[], size: number) => {
+    const out: T[][] = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  };
 
   const carregarSolicitacoes = async () => {
     // Prevenir múltiplas chamadas simultâneas
@@ -80,6 +113,10 @@ export const useSolicitacoes = () => {
     
     try {
       setLoading(true);
+      if (!user) {
+        setSolicitacoes([]);
+        return;
+      }
       const estoqueAtivoInfo = obterEstoqueAtivoInfo();
       const estoqueId = estoqueAtivoInfo?.id;
 
@@ -96,35 +133,42 @@ export const useSolicitacoes = () => {
       const { data: solicitacoesData, error: solicitacoesError } = await solicitacoesQuery;
 
       if (solicitacoesError) {
-        // Verificar se é erro de autenticação
-        if (solicitacoesError.message?.includes('JWT') || 
-            solicitacoesError.message?.includes('token') ||
-            solicitacoesError.code === 'PGRST301') {
+        if (isAuthRelatedError(solicitacoesError)) {
           console.error('Erro de autenticação ao carregar solicitações:', solicitacoesError);
-          // Não mostrar toast repetido, o sistema vai redirecionar automaticamente
+          forceReauth('solicitacoes_auth_error');
           return;
         }
         throw solicitacoesError;
       }
 
-      // Carregar itens das solicitações
-      const { data: itensData, error: itensError } = await supabase
-        .from('solicitacao_itens')
-        .select('*');
+      const solicitacoesRows = solicitacoesData || [];
+      const solicitacaoIds = solicitacoesRows.map(s => s.id);
 
-      if (itensError) {
-        // Verificar se é erro de autenticação
-        if (itensError.message?.includes('JWT') || 
-            itensError.message?.includes('token') ||
-            itensError.code === 'PGRST301') {
-          console.error('Erro de autenticação ao carregar itens:', itensError);
-          return;
+      // Carregar itens apenas das solicitações retornadas (evita query gigante e reduz chance de travar)
+      let itensData: any[] = [];
+      if (solicitacaoIds.length > 0) {
+        const chunks = chunk(solicitacaoIds, 150);
+        for (const ids of chunks) {
+          const { data, error } = await supabase
+            .from('solicitacao_itens')
+            .select('*')
+            .in('solicitacao_id', ids);
+
+          if (error) {
+            if (isAuthRelatedError(error)) {
+              console.error('Erro de autenticação ao carregar itens:', error);
+              forceReauth('solicitacao_itens_auth_error');
+              return;
+            }
+            throw error;
+          }
+
+          if (data?.length) itensData = itensData.concat(data);
         }
-        throw itensError;
       }
 
       // Combinar dados
-      const solicitacoesCompletas: SolicitacaoCompleta[] = (solicitacoesData || []).map(solicitacao => ({
+      const solicitacoesCompletas: SolicitacaoCompleta[] = solicitacoesRows.map(solicitacao => ({
         ...solicitacao,
         itens: (itensData || []).filter(item => item.solicitacao_id === solicitacao.id).map(item => ({
           ...item,
@@ -135,10 +179,13 @@ export const useSolicitacoes = () => {
       setSolicitacoes(solicitacoesCompletas);
     } catch (error: any) {
       console.error('Erro ao carregar solicitações:', error);
-      // Só mostrar toast se não for erro de rede/autenticação
-      if (!error?.message?.includes('Failed to fetch')) {
-        toast.error('Erro ao carregar solicitações');
+      if (isAuthRelatedError(error)) {
+        forceReauth('solicitacoes_catch_auth');
+        return;
       }
+
+      // Só mostrar toast se não for erro de rede (senão vira spam)
+      if (!String(error?.message ?? '').includes('Failed to fetch')) toast.error('Erro ao carregar solicitações');
     } finally {
       setLoading(false);
       isLoadingRef.current = false;
@@ -202,7 +249,7 @@ export const useSolicitacoes = () => {
 
       for (const item of novaSolicitacao.itens) {
         // Obter item do estoque
-        const { data: itemEstoque, error: itemEstoqueError } = await supabase
+          const { error: itemEstoqueError } = await supabase
           .from('items')
           .select('*')
           .eq('id', item.item_id)
