@@ -9,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Database, Wrench, Tag, Pencil, X } from 'lucide-react';
+import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Database, Wrench, Tag, Pencil, X, CheckCircle, XCircle } from 'lucide-react';
+import { userCreationSchema } from '@/schemas/validation';
 import { supabase } from '@/integrations/supabase/client';
 import { gerarRelatorioPDF } from '@/utils/pdfExport';
 import { useEstoque } from '@/hooks/useEstoque';
@@ -140,11 +141,29 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     onConfigChange?.();
   };
 
+  // Validações em tempo real da senha
+  const senhaValidations = {
+    minLength: novoUsuario.senha.length >= 8,
+    hasUppercase: /[A-Z]/.test(novoUsuario.senha),
+    hasLowercase: /[a-z]/.test(novoUsuario.senha),
+    hasNumber: /[0-9]/.test(novoUsuario.senha),
+  };
+  const senhaValida = Object.values(senhaValidations).every(Boolean);
+
   const handleCadastroUsuario = async () => {
-    if (!novoUsuario.nome || !novoUsuario.email || !novoUsuario.senha) {
+    // Validar com Zod antes de enviar
+    const validationResult = userCreationSchema.safeParse({
+      email: novoUsuario.email,
+      password: novoUsuario.senha,
+      nome: novoUsuario.nome,
+      tipo: novoUsuario.tipo || 'estoquista',
+    });
+
+    if (!validationResult.success) {
+      const errorMessages = validationResult.error.errors.map(e => e.message).join(', ');
       toast({
-        title: "Campos obrigatórios",
-        description: "Preencha todos os campos para cadastrar o usuário.",
+        title: "Erro de validação",
+        description: errorMessages,
         variant: "destructive",
       });
       return;
@@ -177,7 +196,12 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Tentar extrair mensagem detalhada do erro
+        const errorBody = await error.context?.json?.() || {};
+        const errorMessage = errorBody?.errors?.join(', ') || errorBody?.message || error.message || 'Erro ao cadastrar';
+        throw new Error(errorMessage);
+      }
 
       if (data?.success) {
         toast({
@@ -186,9 +210,10 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
         });
         setNovoUsuario({ nome: '', email: '', senha: '', tipo: 'estoquista' });
       } else {
+        const errorMessage = data?.errors?.join(', ') || data?.message || 'Não foi possível cadastrar o usuário.';
         toast({
           title: "Falha no cadastro",
-          description: data?.message || 'Não foi possível cadastrar o usuário.',
+          description: errorMessage,
           variant: "destructive",
         });
       }
@@ -604,15 +629,38 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                       placeholder="email@exemplo.com"
                     />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="senhaUsuario">Senha</Label>
                     <Input
                       id="senhaUsuario"
                       type="password"
                       value={novoUsuario.senha}
                       onChange={(e) => setNovoUsuario(prev => ({ ...prev, senha: e.target.value }))}
-                      placeholder="Senha inicial"
+                      placeholder="Mínimo 8 caracteres"
                     />
+                    {novoUsuario.senha.length > 0 && (
+                      <div className="text-xs space-y-1 p-2 bg-muted rounded-md">
+                        <p className="font-medium text-muted-foreground">Requisitos da senha:</p>
+                        <div className="grid grid-cols-2 gap-1">
+                          <span className={`flex items-center gap-1 ${senhaValidations.minLength ? 'text-green-600' : 'text-destructive'}`}>
+                            {senhaValidations.minLength ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                            8+ caracteres
+                          </span>
+                          <span className={`flex items-center gap-1 ${senhaValidations.hasUppercase ? 'text-green-600' : 'text-destructive'}`}>
+                            {senhaValidations.hasUppercase ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                            Letra maiúscula
+                          </span>
+                          <span className={`flex items-center gap-1 ${senhaValidations.hasLowercase ? 'text-green-600' : 'text-destructive'}`}>
+                            {senhaValidations.hasLowercase ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                            Letra minúscula
+                          </span>
+                          <span className={`flex items-center gap-1 ${senhaValidations.hasNumber ? 'text-green-600' : 'text-destructive'}`}>
+                            {senhaValidations.hasNumber ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                            Número
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="tipoUsuario">Tipo de Usuário</Label>
@@ -630,7 +678,11 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                     </Select>
                   </div>
                 </div>
-                <Button onClick={handleCadastroUsuario} className="w-full">
+                <Button 
+                  onClick={handleCadastroUsuario} 
+                  className="w-full"
+                  disabled={!novoUsuario.nome || !novoUsuario.email || !senhaValida}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Cadastrar Usuário
                 </Button>
