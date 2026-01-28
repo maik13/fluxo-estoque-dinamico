@@ -39,6 +39,14 @@ export const DevolverMaterial = () => {
   const [popoverLocalAberto, setPopoverLocalAberto] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
+  const normalizarCodigoAssinatura = (codigo?: string | null) => {
+    const raw = String(codigo ?? '').trim();
+    if (!raw) return '';
+    const onlyDigits = raw.replace(/\D/g, '');
+    // Mantém pelo menos 1 dígito caso seja tudo zero
+    return onlyDigits.replace(/^0+(?=\d)/, '') || '0';
+  };
+
   const { criarSolicitacao } = useSolicitacoes();
   const { userProfile } = usePermissions();
   const { obterEstoque } = useEstoque();
@@ -179,12 +187,6 @@ export const DevolverMaterial = () => {
       return;
     }
 
-    if (codigoAssinatura !== solicitanteSelecionado!.codigo_barras) {
-      setErroAssinatura('Código de assinatura inválido');
-      toast.error('Código de assinatura inválido');
-      return;
-    }
-
     if (!localUtilizacao) {
       toast.error('Informe o local de origem da devolução');
       return;
@@ -208,7 +210,10 @@ export const DevolverMaterial = () => {
       return;
     }
 
-    if (codigoAssinatura !== solicitanteSelecionado.codigo_barras) {
+    const codigoDigitado = normalizarCodigoAssinatura(codigoAssinatura);
+    const codigoEsperado = normalizarCodigoAssinatura(solicitanteSelecionado.codigo_barras);
+
+    if (codigoDigitado !== codigoEsperado) {
       setErroAssinatura('Código de assinatura inválido');
       toast.error('Código de assinatura inválido');
       return;
@@ -524,7 +529,7 @@ export const DevolverMaterial = () => {
             <Button
               type="button"
               onClick={handleSubmit}
-              disabled={enviando || itensDevolucao.length === 0 || !localUtilizacao || !codigoAssinatura}
+              disabled={enviando || itensDevolucao.length === 0 || !localUtilizacao || !codigoAssinatura || !solicitanteSelecionado}
             >
               {enviando ? 'Enviando...' : 'Registrar Devolução'}
             </Button>

@@ -45,6 +45,13 @@ export const SolicitarMaterial = () => {
   const [popoverLocalAberto, setPopoverLocalAberto] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
+  const normalizarCodigoAssinatura = (codigo?: string | null) => {
+    const raw = String(codigo ?? '').trim();
+    if (!raw) return '';
+    const onlyDigits = raw.replace(/\D/g, '');
+    return onlyDigits.replace(/^0+(?=\d)/, '') || '0';
+  };
+
   const { obterEstoque } = useEstoque();
   const { criarSolicitacao, solicitacoes, loading, atualizarAceites } = useSolicitacoes();
   const { canManageStock, userProfile } = usePermissions();
@@ -183,7 +190,10 @@ export const SolicitarMaterial = () => {
     }
 
     // Validar assinatura específica do solicitante
-    if (codigoAssinatura !== solicitanteSelecionado!.codigo_barras) {
+    const codigoDigitado = normalizarCodigoAssinatura(codigoAssinatura);
+    const codigoEsperado = normalizarCodigoAssinatura(solicitanteSelecionado!.codigo_barras);
+
+    if (codigoDigitado !== codigoEsperado) {
       setErroAssinatura('Código de assinatura inválido para este solicitante');
       toast.error('Código de assinatura inválido');
       return;
