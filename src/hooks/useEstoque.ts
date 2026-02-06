@@ -402,9 +402,11 @@ export const useEstoque = () => {
       } else if (mov.tipo === 'SAIDA') {
         estoque -= mov.quantidade;
       }
+      // Impedir acúmulo de débito negativo a cada passo
+      estoque = Math.max(0, estoque);
     });
     
-    return Math.max(0, estoque); // Não pode ser negativo
+    return estoque;
   };
 
   // Cache do estoque calculado - usa useMemo para evitar recálculo a cada render
@@ -423,6 +425,8 @@ export const useEstoque = () => {
         } else if (mov.tipo === 'SAIDA') {
           estoqueAtual -= mov.quantidade;
         }
+        // Impedir acúmulo de débito negativo a cada passo
+        estoqueAtual = Math.max(0, estoqueAtual);
       });
       
       // Encontrar última movimentação
@@ -431,7 +435,7 @@ export const useEstoque = () => {
 
       return {
         ...item,
-        estoqueAtual: Math.max(0, estoqueAtual),
+        estoqueAtual,
         ultimaMovimentacao: ultimaMovimentacao || null
       };
     });
