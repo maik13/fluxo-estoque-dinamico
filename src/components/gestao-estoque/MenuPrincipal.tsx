@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X } from 'lucide-react';
-import { useEstoque } from '@/hooks/useEstoque';
+import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Item, EstoqueItem } from '@/types/estoque';
 import { Configuracoes } from './Configuracoes';
 import { SeletorEstoque } from './SeletorEstoque';
@@ -28,12 +28,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { itemRegistrationSchema, exitRegistrationSchema } from '@/schemas/validation';
 import { toast } from 'sonner';
 
-interface MenuPrincipalProps {
-  onMovimentacaoRealizada: () => void;
-}
-
-export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) => {
-  const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoque();
+export const MenuPrincipal = () => {
+  const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoqueContext();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
   const { canCreateItems, canManageStock } = usePermissions();
   
@@ -300,7 +296,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       resetarFormularios();
       setCodigoBarrasManual('');
       setErroCodigoBarras('');
-      onMovimentacaoRealizada();
+      // Dados atualizados automaticamente via contexto compartilhado
     }
   };
 
@@ -408,7 +404,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
       setDialogoSaida(false);
       setItensSaida([]);
       resetarFormularios();
-      onMovimentacaoRealizada();
+      // Dados atualizados automaticamente via contexto compartilhado
       toast.success(`Saída registrada com sucesso! ${itensSaida.length} item(ns) processado(s).`);
     }
   };
@@ -474,7 +470,7 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
           )}
         </div>
         <div className="flex items-center gap-4">
-          <Configuracoes onConfigChange={onMovimentacaoRealizada} />
+          <Configuracoes />
         </div>
       </div>
 
@@ -486,10 +482,10 @@ export const MenuPrincipal = ({ onMovimentacaoRealizada }: MenuPrincipalProps) =
         <DevolverMaterial />
         
         {/* Registrar Entrada */}
-        <RegistrarEntrada onEntradaRealizada={onMovimentacaoRealizada} />
+        <RegistrarEntrada />
         
         {/* Transferência */}
-        <Transferencia onTransferenciaRealizada={onMovimentacaoRealizada} />
+        <Transferencia />
         
         {/* BOTÃO CADASTRO */}
         <Dialog open={dialogoCadastro} onOpenChange={handleDialogoCadastroChange}>

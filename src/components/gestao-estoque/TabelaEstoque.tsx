@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingDown, Edit, FileText, FileSpreadsheet, Printer, ShoppingCart, Trash2 } from 'lucide-react';
-import { useEstoque } from '@/hooks/useEstoque';
+import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { EstoqueItem } from '@/types/estoque';
 import { DialogoEditarItem } from './DialogoEditarItem';
 import { EditarQuantidadeInline } from './EditarQuantidadeInline';
@@ -28,7 +28,7 @@ interface TabelaEstoqueProps {
 }
 
 export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
-  const { obterEstoque, loading, editarItem, registrarEntrada, registrarSaida } = useEstoque();
+  const { obterEstoque, loading, editarItem, registrarEntrada, registrarSaida } = useEstoqueContext();
   const { obterEstoqueAtivoInfo, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria } = useConfiguracoes();
   const { canEditItems, isAdmin } = usePermissions();
   const [filtroTexto, setFiltroTexto] = useState('');

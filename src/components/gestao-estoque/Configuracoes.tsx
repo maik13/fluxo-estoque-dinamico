@@ -13,7 +13,7 @@ import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Data
 import { userCreationSchema } from '@/schemas/validation';
 import { supabase } from '@/integrations/supabase/client';
 import { gerarRelatorioPDF } from '@/utils/pdfExport';
-import { useEstoque } from '@/hooks/useEstoque';
+import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
@@ -28,7 +28,7 @@ interface ConfiguracoesProps {
 
 export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   const { toast } = useToast();
-  const { obterEstoque } = useEstoque();
+  const { obterEstoque } = useEstoqueContext();
   const {
     estoques,
     subcategorias,

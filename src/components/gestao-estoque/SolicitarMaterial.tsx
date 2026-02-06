@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Trash2, Package, Plus, FileText, Printer, Eye, Check, X } from 'lucide-react';
-import { useEstoque } from '@/hooks/useEstoque';
+import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useSolicitacoes } from '@/hooks/useSolicitacoes';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
@@ -52,7 +52,7 @@ export const SolicitarMaterial = () => {
     return onlyDigits.replace(/^0+(?=\d)/, '') || '0';
   };
 
-  const { obterEstoque } = useEstoque();
+  const { obterEstoque } = useEstoqueContext();
   const { criarSolicitacao, solicitacoes, loading, atualizarAceites } = useSolicitacoes();
   const { canManageStock, userProfile } = usePermissions();
   const { obterTiposOperacaoAtivos, obterSolicitantesAtivos, obterLocaisUtilizacaoAtivos } = useConfiguracoes();
