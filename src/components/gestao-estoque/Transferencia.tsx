@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeftRight, Plus, Trash2 } from 'lucide-react';
-import { useEstoque } from '@/hooks/useEstoque';
+import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { useAuth } from '@/hooks/useAuth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,11 +22,7 @@ interface ItemTransferencia {
   quantidade: number;
 }
 
-interface TransferenciaProps {
-  onTransferenciaRealizada: () => void;
-}
-
-export const Transferencia = ({ onTransferenciaRealizada }: TransferenciaProps) => {
+export const Transferencia = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
   const [estoqueOrigemId, setEstoqueOrigemId] = useState('');
   const [estoqueDestinoId, setEstoqueDestinoId] = useState('');
@@ -36,7 +32,7 @@ export const Transferencia = ({ onTransferenciaRealizada }: TransferenciaProps) 
   const [busca, setBusca] = useState('');
   const [processando, setProcessando] = useState(false);
 
-  const { obterEstoque } = useEstoque();
+  const { obterEstoque } = useEstoqueContext();
   const { estoques } = useConfiguracoes();
   const { user } = useAuth();
   
@@ -207,7 +203,7 @@ export const Transferencia = ({ onTransferenciaRealizada }: TransferenciaProps) 
       toast.success(`Transferência realizada com sucesso! ${itensTransferencia.length} item(ns) transferido(s).`);
       resetarFormulario();
       setDialogoAberto(false);
-      onTransferenciaRealizada();
+      // Dados atualizados automaticamente via contexto compartilhado
     } catch (error: any) {
       console.error('Erro ao realizar transferência:', error);
       toast.error(`Erro ao realizar transferência: ${error.message}`);

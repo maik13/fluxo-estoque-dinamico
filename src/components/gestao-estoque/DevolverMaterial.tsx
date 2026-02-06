@@ -11,7 +11,7 @@ import { PackageCheck, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSolicitacoes } from '@/hooks/useSolicitacoes';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useEstoque } from '@/hooks/useEstoque';
+import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { supabase } from '@/integrations/supabase/client';
 import { NovoItemSolicitacao, SolicitacaoCompleta } from '@/types/solicitacao';
@@ -49,7 +49,7 @@ export const DevolverMaterial = () => {
 
   const { criarSolicitacao } = useSolicitacoes();
   const { userProfile } = usePermissions();
-  const { obterEstoque } = useEstoque();
+  const { obterEstoque } = useEstoqueContext();
   const { obterLocaisUtilizacaoAtivos } = useConfiguracoes();
 
   const itensEstoque = obterEstoque();

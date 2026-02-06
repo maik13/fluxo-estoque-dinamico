@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { FileBarChart, Filter, Download, X } from 'lucide-react';
-import { useEstoque } from '@/hooks/useEstoque';
+import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { EstoqueItem } from '@/types/estoque';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -41,7 +41,7 @@ const filtrosIniciais: FiltrosRelatorio = {
 export const RelatoriosComFiltros = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
   const [filtros, setFiltros] = useState<FiltrosRelatorio>(filtrosIniciais);
-  const { obterEstoque, movimentacoes } = useEstoque();
+  const { obterEstoque, movimentacoes } = useEstoqueContext();
 
   const itensEstoque = obterEstoque();
   

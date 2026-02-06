@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowUp, Plus, Trash2 } from 'lucide-react';
-import { useEstoque } from '@/hooks/useEstoque';
+import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -20,11 +20,7 @@ interface ItemEntrada {
   quantidade: number;
 }
 
-interface RegistrarEntradaProps {
-  onEntradaRealizada: () => void;
-}
-
-export const RegistrarEntrada = ({ onEntradaRealizada }: RegistrarEntradaProps) => {
+export const RegistrarEntrada = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
   const [itensEntrada, setItensEntrada] = useState<ItemEntrada[]>([]);
   const [observacoes, setObservacoes] = useState('');
@@ -32,7 +28,7 @@ export const RegistrarEntrada = ({ onEntradaRealizada }: RegistrarEntradaProps) 
   const [popoverAberto, setPopoverAberto] = useState(false);
   const [busca, setBusca] = useState('');
 
-  const { obterEstoque, registrarEntrada } = useEstoque();
+  const { obterEstoque, registrarEntrada } = useEstoqueContext();
   const { tiposOperacao } = useConfiguracoes();
   
   const itensDisponiveis = obterEstoque();
@@ -126,7 +122,7 @@ export const RegistrarEntrada = ({ onEntradaRealizada }: RegistrarEntradaProps) 
     if (sucesso) {
       resetarFormulario();
       setDialogoAberto(false);
-      onEntradaRealizada();
+      // Dados atualizados automaticamente via contexto compartilhado
       toast.success(`Entrada registrada com sucesso! ${itensEntrada.length} item(ns) processado(s).`);
     }
   };
