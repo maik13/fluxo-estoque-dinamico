@@ -292,6 +292,104 @@ export type Database = {
           },
         ]
       }
+      pedido_compra_itens: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          item_snapshot: Json
+          pedido_id: string
+          quantidade: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          item_snapshot: Json
+          pedido_id: string
+          quantidade: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_snapshot?: Json
+          pedido_id?: string
+          quantidade?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedido_compra_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_compra_itens_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_compra"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pedidos_compra: {
+        Row: {
+          created_at: string
+          criado_por_id: string | null
+          criado_por_nome: string
+          data_conclusao: string | null
+          data_pedido: string
+          estoque_id: string | null
+          id: string
+          numero: number
+          observacoes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          criado_por_id?: string | null
+          criado_por_nome: string
+          data_conclusao?: string | null
+          data_pedido?: string
+          estoque_id?: string | null
+          id?: string
+          numero?: number
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          criado_por_id?: string | null
+          criado_por_nome?: string
+          data_conclusao?: string | null
+          data_pedido?: string
+          estoque_id?: string | null
+          id?: string
+          numero?: number
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_compra_estoque_id_fkey"
+            columns: ["estoque_id"]
+            isOneToOne: false
+            referencedRelation: "estoques"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       permissoes_tipo_usuario: {
         Row: {
           created_at: string
