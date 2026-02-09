@@ -19,6 +19,7 @@ import { SolicitarMaterial } from './SolicitarMaterial';
 import { DevolverMaterial } from './DevolverMaterial';
 import { RegistrarEntrada } from './RegistrarEntrada';
 import { Transferencia } from './Transferencia';
+import { PedidoCompra } from './PedidoCompra';
 import { Badge } from '@/components/ui/badge';
 import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
@@ -1015,6 +1016,9 @@ export const MenuPrincipal = () => {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* BOTÃO PEDIDO DE COMPRA */}
+        <PedidoCompra />
 
       </div>
 
