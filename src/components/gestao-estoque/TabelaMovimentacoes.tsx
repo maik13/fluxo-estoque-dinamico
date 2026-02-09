@@ -255,7 +255,19 @@ export const TabelaMovimentacoes = () => {
   };
 
   // Função para imprimir movimentações
-  const imprimirMovimentacoes = () => {
+  const imprimirMovimentacoes = async () => {
+    // Buscar logo do branding
+    let logoHtml = '';
+    try {
+      const { data, error } = await supabase.storage.from('branding').list('', { limit: 1 });
+      if (!error && data && data.length > 0) {
+        const { data: publicUrlData } = supabase.storage.from('branding').getPublicUrl(data[0].name);
+        if (publicUrlData.publicUrl) {
+          logoHtml = `<img src="${publicUrlData.publicUrl}" alt="Logo" style="height:50px;object-fit:contain;" />`;
+        }
+      }
+    } catch (e) { console.error('Erro ao carregar logo:', e); }
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       toast({ title: "Erro", description: "Não foi possível abrir a janela de impressão. Verifique se pop-ups estão habilitados.", variant: "destructive" });
@@ -293,7 +305,8 @@ export const TabelaMovimentacoes = () => {
     printWindow.document.write(`<!DOCTYPE html><html><head><title>Movimentações</title>
       <style>
         body { font-family: Arial, sans-serif; font-size: 11px; margin: 20px; }
-        h1 { font-size: 16px; margin-bottom: 4px; }
+        .header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; border-bottom: 2px solid #2980b3; padding-bottom: 8px; }
+        .header h1 { font-size: 16px; margin: 0; }
         .info { color: #666; margin-bottom: 12px; font-size: 10px; }
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; }
@@ -301,7 +314,7 @@ export const TabelaMovimentacoes = () => {
         tr:nth-child(even) { background: #f8f8f8; }
         @media print { body { margin: 10px; } }
       </style></head><body>
-      <h1>Relatório de Movimentações</h1>
+      <div class="header">${logoHtml}<h1>Relatório de Movimentações</h1></div>
       <div class="info">Gerado em: ${new Date().toLocaleString('pt-BR')} | Total: ${movimentacoesFiltradas.length} registros${filtrosAtivos.length > 0 ? ' | Filtros: ' + filtrosAtivos.join(', ') : ''}</div>
       <table><thead><tr>
         <th>Tipo</th><th>Data/Hora</th><th>Item</th><th>Código</th><th>Qtd</th><th>Responsável</th><th>Destinatário</th><th>Estoque/Destino</th><th>Observações</th>
