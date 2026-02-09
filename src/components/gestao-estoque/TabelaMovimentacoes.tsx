@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar, User, Package, RotateCcw, FileSpreadsheet } from 'lucide-react';
+import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar, User, Package, RotateCcw, FileSpreadsheet, Printer } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Movimentacao, TipoMovimentacao } from '@/types/estoque';
 import * as XLSX from 'xlsx';
@@ -96,7 +96,7 @@ export const TabelaMovimentacoes = () => {
            mov.observacoes?.toLowerCase().includes('devolução');
   };
 
-  // Filtrar movimentações
+  // Filtrar movimentações - lógica unificada
   const movimentacoesFiltradas = useMemo(() => {
     return movimentacoesOrdenadas.filter(mov => {
       // Filtro por texto (busca em nome do item, observações)
@@ -106,21 +106,23 @@ export const TabelaMovimentacoes = () => {
         mov.itemSnapshot?.codigoBarras?.toString().includes(textoFiltro) ||
         mov.observacoes?.toLowerCase().includes(textoFiltro);
 
-      // Filtro por tipo
-      const matchTipo = filtroTipo === 'todas' || mov.tipo === filtroTipo;
+      // Filtro por tipo - combina aba e dropdown
+      let matchTipo = true;
+      if (tipoVisualizacao === 'saidas') {
+        // Aba Saídas: mostrar SOMENTE saídas
+        matchTipo = mov.tipo === 'SAIDA';
+      } else if (tipoVisualizacao === 'devolucoes') {
+        // Aba Devoluções: mostrar SOMENTE devoluções
+        matchTipo = isDevolucao(mov);
+      } else {
+        // Aba Todas: respeitar o dropdown de tipo
+        matchTipo = filtroTipo === 'todas' || mov.tipo === filtroTipo;
+      }
       
       // Filtro por local de utilização (Estoque/Destino)
       const matchDestino = filtroDestino === 'todos' || mov.localUtilizacaoNome === filtroDestino;
 
-      // Filtro por tipo de visualização
-      let matchVisualizacao = true;
-      if (tipoVisualizacao === 'saidas') {
-        matchVisualizacao = mov.tipo === 'SAIDA';
-      } else if (tipoVisualizacao === 'devolucoes') {
-        matchVisualizacao = isDevolucao(mov);
-      }
-
-      return matchTexto && matchTipo && matchDestino && matchVisualizacao;
+      return matchTexto && matchTipo && matchDestino;
     });
   }, [movimentacoesOrdenadas, filtroTexto, filtroTipo, filtroDestino, tipoVisualizacao]);
 
@@ -250,6 +252,63 @@ export const TabelaMovimentacoes = () => {
         variant: "destructive",
       });
     }
+  };
+
+  // Função para imprimir movimentações
+  const imprimirMovimentacoes = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast({ title: "Erro", description: "Não foi possível abrir a janela de impressão. Verifique se pop-ups estão habilitados.", variant: "destructive" });
+      return;
+    }
+
+    const linhas = movimentacoesFiltradas.map(mov => {
+      const eDevolucao = isDevolucao(mov);
+      let responsavel = '-';
+      if (mov.solicitacaoId && solicitantesMap[mov.solicitacaoId]) {
+        responsavel = solicitantesMap[mov.solicitacaoId];
+      } else if ((mov.tipo === 'ENTRADA' || mov.tipo === 'CADASTRO') && mov.userId && usuariosMap[mov.userId]) {
+        responsavel = usuariosMap[mov.userId];
+      }
+
+      return `<tr>
+        <td>${eDevolucao ? 'Devolução' : getTipoInfo(mov.tipo).label}</td>
+        <td>${new Date(mov.dataHora).toLocaleDateString('pt-BR')} ${new Date(mov.dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
+        <td>${mov.itemSnapshot?.nome || '-'}</td>
+        <td>${mov.itemSnapshot?.codigoBarras || '-'}</td>
+        <td>${mov.tipo === 'SAIDA' ? '-' : '+'}${mov.quantidade}</td>
+        <td>${responsavel}</td>
+        <td>${mov.destinatario || '-'}</td>
+        <td>${mov.localUtilizacaoNome || '-'}</td>
+        <td>${mov.observacoes && mov.tipo !== 'SAIDA' ? mov.observacoes : '-'}</td>
+      </tr>`;
+    }).join('');
+
+    const filtrosAtivos = [];
+    if (tipoVisualizacao !== 'todas') filtrosAtivos.push(`Tipo: ${tipoVisualizacao === 'saidas' ? 'Saídas' : 'Devoluções'}`);
+    if (filtroTipo !== 'todas' && tipoVisualizacao === 'todas') filtrosAtivos.push(`Tipo: ${getTipoInfo(filtroTipo as TipoMovimentacao).label}`);
+    if (filtroDestino !== 'todos') filtrosAtivos.push(`Estoque/Destino: ${filtroDestino}`);
+    if (filtroTexto) filtrosAtivos.push(`Busca: ${filtroTexto}`);
+
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Movimentações</title>
+      <style>
+        body { font-family: Arial, sans-serif; font-size: 11px; margin: 20px; }
+        h1 { font-size: 16px; margin-bottom: 4px; }
+        .info { color: #666; margin-bottom: 12px; font-size: 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; }
+        th { background: #2980b3; color: white; font-size: 10px; }
+        tr:nth-child(even) { background: #f8f8f8; }
+        @media print { body { margin: 10px; } }
+      </style></head><body>
+      <h1>Relatório de Movimentações</h1>
+      <div class="info">Gerado em: ${new Date().toLocaleString('pt-BR')} | Total: ${movimentacoesFiltradas.length} registros${filtrosAtivos.length > 0 ? ' | Filtros: ' + filtrosAtivos.join(', ') : ''}</div>
+      <table><thead><tr>
+        <th>Tipo</th><th>Data/Hora</th><th>Item</th><th>Código</th><th>Qtd</th><th>Responsável</th><th>Destinatário</th><th>Estoque/Destino</th><th>Observações</th>
+      </tr></thead><tbody>${linhas}</tbody></table>
+      <script>window.print();window.onafterprint=()=>window.close();</script>
+    </body></html>`);
+    printWindow.document.close();
   };
 
   // Função para obter ícone e cor do tipo de movimentação
@@ -426,7 +485,11 @@ export const TabelaMovimentacoes = () => {
               />
             </div>
             
-            <Select value={filtroTipo} onValueChange={(value) => setFiltroTipo(value as any)}>
+             <Select 
+               value={tipoVisualizacao !== 'todas' ? (tipoVisualizacao === 'saidas' ? 'SAIDA' : 'DEVOLUCAO') : filtroTipo} 
+               onValueChange={(value) => setFiltroTipo(value as any)}
+               disabled={tipoVisualizacao !== 'todas'}
+             >
               <SelectTrigger>
                 <SelectValue placeholder="Tipo de movimentação" />
               </SelectTrigger>
@@ -452,14 +515,24 @@ export const TabelaMovimentacoes = () => {
               </SelectContent>
             </Select>
 
-            <Button 
-              onClick={exportarParaExcel}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              Exportar Excel
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={exportarParaExcel}
+                variant="outline"
+                className="flex items-center gap-2 flex-1"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Exportar Excel
+              </Button>
+              <Button 
+                onClick={imprimirMovimentacoes}
+                variant="outline"
+                className="flex items-center gap-2 flex-1"
+              >
+                <Printer className="h-4 w-4" />
+                Imprimir
+              </Button>
+            </div>
           </div>
           
           <div className="mt-4">
