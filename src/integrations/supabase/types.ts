@@ -347,6 +347,9 @@ export type Database = {
           criado_por_nome: string
           data_conclusao: string | null
           data_pedido: string
+          editado: boolean
+          editado_em: string | null
+          editado_por: string | null
           estoque_id: string | null
           id: string
           numero: number
@@ -360,6 +363,9 @@ export type Database = {
           criado_por_nome: string
           data_conclusao?: string | null
           data_pedido?: string
+          editado?: boolean
+          editado_em?: string | null
+          editado_por?: string | null
           estoque_id?: string | null
           id?: string
           numero?: number
@@ -373,6 +379,9 @@ export type Database = {
           criado_por_nome?: string
           data_conclusao?: string | null
           data_pedido?: string
+          editado?: boolean
+          editado_em?: string | null
+          editado_por?: string | null
           estoque_id?: string | null
           id?: string
           numero?: number
