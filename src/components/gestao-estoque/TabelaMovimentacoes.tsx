@@ -8,12 +8,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar, User, Package, RotateCcw, FileSpreadsheet, Printer, AlertTriangle } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar as CalendarIcon, User, Package, RotateCcw, FileSpreadsheet, Printer, AlertTriangle, X } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Movimentacao, TipoMovimentacao } from '@/types/estoque';
 import * as XLSX from 'xlsx';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 export const TabelaMovimentacoes = () => {
   const { movimentacoes, loading } = useEstoqueContext();
@@ -22,6 +27,10 @@ export const TabelaMovimentacoes = () => {
   const [filtroDestino, setFiltroDestino] = useState('todos');
   const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes' | 'pendentes'>('todas');
   const [filtroPendentesDestino, setFiltroPendentesDestino] = useState('todos');
+  const [filtroDataInicio, setFiltroDataInicio] = useState<Date | undefined>(undefined);
+  const [filtroDataFim, setFiltroDataFim] = useState<Date | undefined>(undefined);
+  const [filtroDataPendentesInicio, setFiltroDataPendentesInicio] = useState<Date | undefined>(undefined);
+  const [filtroDataPendentesFim, setFiltroDataPendentesFim] = useState<Date | undefined>(undefined);
   const [solicitantesMap, setSolicitantesMap] = useState<Record<string, string>>({});
   const [usuariosMap, setUsuariosMap] = useState<Record<string, string>>({});
   const [paginaAtual, setPaginaAtual] = useState(1);
@@ -167,39 +176,58 @@ export const TabelaMovimentacoes = () => {
 
   // Filtrar pendentes por destino
   const pendentesFiltrados = useMemo(() => {
-    if (filtroPendentesDestino === 'todos') return itensPendentes;
-    return itensPendentes.filter(p => p.localUtilizacaoNome === filtroPendentesDestino);
-  }, [itensPendentes, filtroPendentesDestino]);
+    let resultado = itensPendentes;
+    if (filtroPendentesDestino !== 'todos') {
+      resultado = resultado.filter(p => p.localUtilizacaoNome === filtroPendentesDestino);
+    }
+    if (filtroDataPendentesInicio) {
+      const inicio = new Date(filtroDataPendentesInicio);
+      inicio.setHours(0, 0, 0, 0);
+      resultado = resultado.filter(p => new Date(p.ultimaSaida) >= inicio);
+    }
+    if (filtroDataPendentesFim) {
+      const fim = new Date(filtroDataPendentesFim);
+      fim.setHours(23, 59, 59, 999);
+      resultado = resultado.filter(p => new Date(p.ultimaSaida) <= fim);
+    }
+    return resultado;
+  }, [itensPendentes, filtroPendentesDestino, filtroDataPendentesInicio, filtroDataPendentesFim]);
 
   // Filtrar movimentações - lógica unificada
   const movimentacoesFiltradas = useMemo(() => {
     return movimentacoesOrdenadas.filter(mov => {
-      // Filtro por texto (busca em nome do item, observações)
       const textoFiltro = filtroTexto.toLowerCase();
       const matchTexto = !textoFiltro || 
         mov.itemSnapshot?.nome?.toLowerCase().includes(textoFiltro) ||
         mov.itemSnapshot?.codigoBarras?.toString().includes(textoFiltro) ||
         mov.observacoes?.toLowerCase().includes(textoFiltro);
 
-      // Filtro por tipo - combina aba e dropdown
       let matchTipo = true;
       if (tipoVisualizacao === 'saidas') {
-        // Aba Saídas: mostrar SOMENTE saídas
         matchTipo = mov.tipo === 'SAIDA';
       } else if (tipoVisualizacao === 'devolucoes') {
-        // Aba Devoluções: mostrar SOMENTE devoluções
         matchTipo = isDevolucao(mov);
       } else {
-        // Aba Todas: respeitar o dropdown de tipo
         matchTipo = filtroTipo === 'todas' || mov.tipo === filtroTipo;
       }
       
-      // Filtro por local de utilização (Estoque/Destino)
       const matchDestino = filtroDestino === 'todos' || mov.localUtilizacaoNome === filtroDestino;
 
-      return matchTexto && matchTipo && matchDestino;
+      let matchData = true;
+      if (filtroDataInicio) {
+        const inicio = new Date(filtroDataInicio);
+        inicio.setHours(0, 0, 0, 0);
+        matchData = new Date(mov.dataHora) >= inicio;
+      }
+      if (matchData && filtroDataFim) {
+        const fim = new Date(filtroDataFim);
+        fim.setHours(23, 59, 59, 999);
+        matchData = new Date(mov.dataHora) <= fim;
+      }
+
+      return matchTexto && matchTipo && matchDestino && matchData;
     });
-  }, [movimentacoesOrdenadas, filtroTexto, filtroTipo, filtroDestino, tipoVisualizacao]);
+  }, [movimentacoesOrdenadas, filtroTexto, filtroTipo, filtroDestino, tipoVisualizacao, filtroDataInicio, filtroDataFim]);
 
   // Resetar página quando filtros mudarem
   useEffect(() => {
@@ -566,7 +594,7 @@ export const TabelaMovimentacoes = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -606,6 +634,38 @@ export const TabelaMovimentacoes = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("justify-start text-left font-normal", !filtroDataInicio && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {filtroDataInicio ? format(filtroDataInicio, "dd/MM/yyyy", { locale: ptBR }) : "Data início"}
+                  {filtroDataInicio && (
+                    <X className="ml-auto h-4 w-4 hover:text-destructive" onClick={(e) => { e.stopPropagation(); setFiltroDataInicio(undefined); }} />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={filtroDataInicio} onSelect={setFiltroDataInicio} initialFocus locale={ptBR} className={cn("p-3 pointer-events-auto")} />
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("justify-start text-left font-normal", !filtroDataFim && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {filtroDataFim ? format(filtroDataFim, "dd/MM/yyyy", { locale: ptBR }) : "Data fim"}
+                  {filtroDataFim && (
+                    <X className="ml-auto h-4 w-4 hover:text-destructive" onClick={(e) => { e.stopPropagation(); setFiltroDataFim(undefined); }} />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={filtroDataFim} onSelect={setFiltroDataFim} initialFocus locale={ptBR} className={cn("p-3 pointer-events-auto")} />
+              </PopoverContent>
+            </Popover>
 
             <div className="flex gap-2">
               <Button 
@@ -857,9 +917,9 @@ export const TabelaMovimentacoes = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <Select value={filtroPendentesDestino} onValueChange={setFiltroPendentesDestino}>
-                  <SelectTrigger className="w-full md:w-72">
+                  <SelectTrigger>
                     <SelectValue placeholder="Filtrar por Estoque/Destino" />
                   </SelectTrigger>
                   <SelectContent>
@@ -871,6 +931,36 @@ export const TabelaMovimentacoes = () => {
                     ))}
                   </SelectContent>
                 </Select>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("justify-start text-left font-normal", !filtroDataPendentesInicio && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filtroDataPendentesInicio ? format(filtroDataPendentesInicio, "dd/MM/yyyy", { locale: ptBR }) : "Data início"}
+                      {filtroDataPendentesInicio && (
+                        <X className="ml-auto h-4 w-4 hover:text-destructive" onClick={(e) => { e.stopPropagation(); setFiltroDataPendentesInicio(undefined); }} />
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={filtroDataPendentesInicio} onSelect={setFiltroDataPendentesInicio} initialFocus locale={ptBR} className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("justify-start text-left font-normal", !filtroDataPendentesFim && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filtroDataPendentesFim ? format(filtroDataPendentesFim, "dd/MM/yyyy", { locale: ptBR }) : "Data fim"}
+                      {filtroDataPendentesFim && (
+                        <X className="ml-auto h-4 w-4 hover:text-destructive" onClick={(e) => { e.stopPropagation(); setFiltroDataPendentesFim(undefined); }} />
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={filtroDataPendentesFim} onSelect={setFiltroDataPendentesFim} initialFocus locale={ptBR} className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <p className="text-sm text-muted-foreground mb-4">
