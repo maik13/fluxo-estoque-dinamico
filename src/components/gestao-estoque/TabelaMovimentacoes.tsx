@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar, User, Package, RotateCcw, FileSpreadsheet, Printer } from 'lucide-react';
+import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar, User, Package, RotateCcw, FileSpreadsheet, Printer, AlertTriangle } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Movimentacao, TipoMovimentacao } from '@/types/estoque';
 import * as XLSX from 'xlsx';
@@ -20,7 +20,8 @@ export const TabelaMovimentacoes = () => {
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<TipoMovimentacao | 'todas'>('todas');
   const [filtroDestino, setFiltroDestino] = useState('todos');
-  const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes'>('todas');
+  const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes' | 'pendentes'>('todas');
+  const [filtroPendentesDestino, setFiltroPendentesDestino] = useState('todos');
   const [solicitantesMap, setSolicitantesMap] = useState<Record<string, string>>({});
   const [usuariosMap, setUsuariosMap] = useState<Record<string, string>>({});
   const [paginaAtual, setPaginaAtual] = useState(1);
@@ -95,6 +96,80 @@ export const TabelaMovimentacoes = () => {
     return mov.tipo === 'ENTRADA' && 
            mov.observacoes?.toLowerCase().includes('devolução');
   };
+
+  // Calcular itens pendentes de devolução (saíram e não voltaram)
+  const itensPendentes = useMemo(() => {
+    // Agrupar saídas por item + local
+    const saidasMap = new Map<string, { 
+      itemSnapshot: any; 
+      localUtilizacaoNome: string; 
+      totalSaida: number; 
+      totalDevolvido: number;
+      ultimaSaida: string;
+      destinatario?: string;
+      solicitacaoId?: string;
+    }>();
+
+    movimentacoes.forEach(mov => {
+      if (mov.tipo === 'SAIDA') {
+        const key = `${mov.itemSnapshot?.nome || mov.id}_${mov.localUtilizacaoNome || 'sem-local'}`;
+        const existing = saidasMap.get(key);
+        if (existing) {
+          existing.totalSaida += mov.quantidade;
+          if (new Date(mov.dataHora) > new Date(existing.ultimaSaida)) {
+            existing.ultimaSaida = mov.dataHora;
+            existing.destinatario = mov.destinatario;
+            existing.solicitacaoId = mov.solicitacaoId;
+          }
+        } else {
+          saidasMap.set(key, {
+            itemSnapshot: mov.itemSnapshot,
+            localUtilizacaoNome: mov.localUtilizacaoNome || 'Sem local',
+            totalSaida: mov.quantidade,
+            totalDevolvido: 0,
+            ultimaSaida: mov.dataHora,
+            destinatario: mov.destinatario,
+            solicitacaoId: mov.solicitacaoId,
+          });
+        }
+      }
+    });
+
+    // Subtrair devoluções
+    movimentacoes.forEach(mov => {
+      if (isDevolucao(mov)) {
+        const key = `${mov.itemSnapshot?.nome || mov.id}_${mov.localUtilizacaoNome || 'sem-local'}`;
+        const existing = saidasMap.get(key);
+        if (existing) {
+          existing.totalDevolvido += mov.quantidade;
+        }
+      }
+    });
+
+    // Filtrar apenas itens com saldo pendente > 0
+    const pendentes = Array.from(saidasMap.entries())
+      .filter(([_, v]) => (v.totalSaida - v.totalDevolvido) > 0)
+      .map(([key, v]) => ({
+        key,
+        ...v,
+        pendente: v.totalSaida - v.totalDevolvido,
+      }))
+      .sort((a, b) => new Date(b.ultimaSaida).getTime() - new Date(a.ultimaSaida).getTime());
+
+    return pendentes;
+  }, [movimentacoes]);
+
+  // Locais únicos dos pendentes para filtro
+  const locaisPendentes = useMemo(() => {
+    const locais = new Set(itensPendentes.map(p => p.localUtilizacaoNome));
+    return Array.from(locais).sort();
+  }, [itensPendentes]);
+
+  // Filtrar pendentes por destino
+  const pendentesFiltrados = useMemo(() => {
+    if (filtroPendentesDestino === 'todos') return itensPendentes;
+    return itensPendentes.filter(p => p.localUtilizacaoNome === filtroPendentesDestino);
+  }, [itensPendentes, filtroPendentesDestino]);
 
   // Filtrar movimentações - lógica unificada
   const movimentacoesFiltradas = useMemo(() => {
@@ -396,7 +471,7 @@ export const TabelaMovimentacoes = () => {
     <div className="space-y-6">
       {/* Tabs para tipo de visualização */}
       <Tabs value={tipoVisualizacao} onValueChange={(value) => setTipoVisualizacao(value as any)} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6">
+        <TabsList className="grid w-full grid-cols-4 mb-6">
           <TabsTrigger value="todas" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
             Todas
@@ -408,6 +483,10 @@ export const TabelaMovimentacoes = () => {
           <TabsTrigger value="devolucoes" className="flex items-center gap-2">
             <RotateCcw className="h-4 w-4" />
             Devoluções
+          </TabsTrigger>
+          <TabsTrigger value="pendentes" className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Pendentes ({itensPendentes.length})
           </TabsTrigger>
         </TabsList>
 
@@ -762,6 +841,120 @@ export const TabelaMovimentacoes = () => {
             </div>
           )}
         </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Aba Pendentes de Devolução */}
+        <TabsContent value="pendentes" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-warning" />
+                Itens Pendentes de Devolução
+              </CardTitle>
+              <CardDescription>
+                Itens que saíram do estoque e ainda não foram devolvidos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4">
+                <Select value={filtroPendentesDestino} onValueChange={setFiltroPendentesDestino}>
+                  <SelectTrigger className="w-full md:w-72">
+                    <SelectValue placeholder="Filtrar por Estoque/Destino" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os estoques/destinos</SelectItem>
+                    {locaisPendentes.map(local => (
+                      <SelectItem key={local} value={local}>
+                        {local}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <p className="text-sm text-muted-foreground mb-4">
+                {pendentesFiltrados.length} item(ns) pendente(s) de devolução
+              </p>
+
+              <div className="w-full" style={{ overflowX: 'scroll', overflowY: 'visible' }}>
+                <Table style={{ minWidth: '900px' }}>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Estoque/Destino</TableHead>
+                      <TableHead>Total Saída</TableHead>
+                      <TableHead>Devolvido</TableHead>
+                      <TableHead>Pendente</TableHead>
+                      <TableHead>Última Saída</TableHead>
+                      <TableHead>Destinatário</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendentesFiltrados.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8">
+                          <div className="flex flex-col items-center gap-2">
+                            <Package className="h-12 w-12 text-muted-foreground" />
+                            <p className="text-muted-foreground">
+                              Nenhum item pendente de devolução
+                            </p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      pendentesFiltrados.map((item) => (
+                        <TableRow key={item.key}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{item.itemSnapshot?.nome || 'Item não identificado'}</p>
+                              {item.itemSnapshot?.marca && (
+                                <p className="text-xs text-muted-foreground">{item.itemSnapshot.marca}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">
+                            {item.itemSnapshot?.codigoBarras || '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{item.localUtilizacaoNome}</Badge>
+                          </TableCell>
+                          <TableCell className="text-warning font-bold">
+                            {item.totalSaida.toLocaleString('pt-BR')}
+                          </TableCell>
+                          <TableCell className="text-info font-bold">
+                            {item.totalDevolvido.toLocaleString('pt-BR')}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="destructive" className="font-bold">
+                              {item.pendente.toLocaleString('pt-BR')} {item.itemSnapshot?.unidade || ''}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {new Date(item.ultimaSaida).toLocaleDateString('pt-BR', {
+                              day: '2-digit', month: '2-digit', year: 'numeric',
+                              hour: '2-digit', minute: '2-digit'
+                            })}
+                          </TableCell>
+                          <TableCell>
+                            {item.destinatario ? (
+                              <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                                {item.destinatario}
+                              </Badge>
+                            ) : item.solicitacaoId && solicitantesMap[item.solicitacaoId] ? (
+                              <Badge variant="outline">{solicitantesMap[item.solicitacaoId]}</Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
