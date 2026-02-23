@@ -8,9 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar as CalendarIcon, User, Package, RotateCcw, FileSpreadsheet, Printer, AlertTriangle, X } from 'lucide-react';
+import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar as CalendarIcon, User, Package, RotateCcw, FileSpreadsheet, Printer, AlertTriangle } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Movimentacao, TipoMovimentacao } from '@/types/estoque';
 import * as XLSX from 'xlsx';
@@ -18,7 +16,6 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
 
 export const TabelaMovimentacoes = () => {
   const { movimentacoes, loading } = useEstoqueContext();
@@ -540,7 +537,7 @@ export const TabelaMovimentacoes = () => {
                     <p className="text-sm text-muted-foreground">Hoje</p>
                     <p className="text-2xl font-bold text-primary">{estatisticas.hoje}</p>
                   </div>
-                  <Calendar className="h-8 w-8 text-primary" />
+                  <CalendarIcon className="h-8 w-8 text-primary" />
                 </div>
               </CardContent>
             </Card>
@@ -637,35 +634,27 @@ export const TabelaMovimentacoes = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("justify-start text-left font-normal", !filtroDataInicio && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {filtroDataInicio ? format(filtroDataInicio, "dd/MM/yyyy", { locale: ptBR }) : "Data início"}
-                  {filtroDataInicio && (
-                    <X className="ml-auto h-4 w-4 hover:text-destructive" onClick={(e) => { e.stopPropagation(); setFiltroDataInicio(undefined); }} />
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={filtroDataInicio} onSelect={setFiltroDataInicio} initialFocus locale={ptBR} className={cn("p-3 pointer-events-auto")} />
-              </PopoverContent>
-            </Popover>
+            <div className="relative">
+              <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="date"
+                value={filtroDataInicio ? format(filtroDataInicio, "yyyy-MM-dd") : ""}
+                onChange={(e) => setFiltroDataInicio(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
+                className="pl-10"
+                placeholder="Data início"
+              />
+            </div>
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("justify-start text-left font-normal", !filtroDataFim && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {filtroDataFim ? format(filtroDataFim, "dd/MM/yyyy", { locale: ptBR }) : "Data fim"}
-                  {filtroDataFim && (
-                    <X className="ml-auto h-4 w-4 hover:text-destructive" onClick={(e) => { e.stopPropagation(); setFiltroDataFim(undefined); }} />
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={filtroDataFim} onSelect={setFiltroDataFim} initialFocus locale={ptBR} className={cn("p-3 pointer-events-auto")} />
-              </PopoverContent>
-            </Popover>
+            <div className="relative">
+              <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="date"
+                value={filtroDataFim ? format(filtroDataFim, "yyyy-MM-dd") : ""}
+                onChange={(e) => setFiltroDataFim(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
+                className="pl-10"
+                placeholder="Data fim"
+              />
+            </div>
 
             <div className="flex gap-2">
               <Button 
@@ -932,35 +921,27 @@ export const TabelaMovimentacoes = () => {
                   </SelectContent>
                 </Select>
 
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("justify-start text-left font-normal", !filtroDataPendentesInicio && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {filtroDataPendentesInicio ? format(filtroDataPendentesInicio, "dd/MM/yyyy", { locale: ptBR }) : "Data início"}
-                      {filtroDataPendentesInicio && (
-                        <X className="ml-auto h-4 w-4 hover:text-destructive" onClick={(e) => { e.stopPropagation(); setFiltroDataPendentesInicio(undefined); }} />
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={filtroDataPendentesInicio} onSelect={setFiltroDataPendentesInicio} initialFocus locale={ptBR} className={cn("p-3 pointer-events-auto")} />
-                  </PopoverContent>
-                </Popover>
+                <div className="relative">
+                  <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    value={filtroDataPendentesInicio ? format(filtroDataPendentesInicio, "yyyy-MM-dd") : ""}
+                    onChange={(e) => setFiltroDataPendentesInicio(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
+                    className="pl-10"
+                    placeholder="Data início"
+                  />
+                </div>
 
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("justify-start text-left font-normal", !filtroDataPendentesFim && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {filtroDataPendentesFim ? format(filtroDataPendentesFim, "dd/MM/yyyy", { locale: ptBR }) : "Data fim"}
-                      {filtroDataPendentesFim && (
-                        <X className="ml-auto h-4 w-4 hover:text-destructive" onClick={(e) => { e.stopPropagation(); setFiltroDataPendentesFim(undefined); }} />
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={filtroDataPendentesFim} onSelect={setFiltroDataPendentesFim} initialFocus locale={ptBR} className={cn("p-3 pointer-events-auto")} />
-                  </PopoverContent>
-                </Popover>
+                <div className="relative">
+                  <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    value={filtroDataPendentesFim ? format(filtroDataPendentesFim, "yyyy-MM-dd") : ""}
+                    onChange={(e) => setFiltroDataPendentesFim(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
+                    className="pl-10"
+                    placeholder="Data fim"
+                  />
+                </div>
               </div>
 
               <p className="text-sm text-muted-foreground mb-4">
