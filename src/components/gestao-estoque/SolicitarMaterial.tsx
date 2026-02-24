@@ -379,6 +379,7 @@ export const SolicitarMaterial = () => {
                           .map(solicitante => (
                             <CommandItem
                               key={solicitante.id}
+                              value={`${solicitante.nome}-${solicitante.id}`}
                               onSelect={() => {
                                 setSolicitanteSelecionado({ 
                                   id: solicitante.id, 
