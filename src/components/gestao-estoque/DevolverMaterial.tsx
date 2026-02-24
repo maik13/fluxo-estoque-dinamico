@@ -288,7 +288,7 @@ export const DevolverMaterial = () => {
                 
                 <div className="space-y-2">
                   <Label htmlFor="solicitante">Solicitante *</Label>
-                  <Popover open={popoverSolicitanteAberto} onOpenChange={setPopoverSolicitanteAberto}>
+                  <Popover open={popoverSolicitanteAberto} onOpenChange={setPopoverSolicitanteAberto} modal={false}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -334,7 +334,7 @@ export const DevolverMaterial = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="localUtilizacao">Local de origem *</Label>
-                  <Popover open={popoverLocalAberto} onOpenChange={setPopoverLocalAberto}>
+                  <Popover open={popoverLocalAberto} onOpenChange={setPopoverLocalAberto} modal={false}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
