@@ -298,7 +298,7 @@ export const DevolverMaterial = () => {
                         {solicitanteSelecionado ? solicitanteSelecionado.nome : "Selecione o solicitante"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" align="start">
+                    <PopoverContent className="w-full p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
                       <Command>
                         <CommandInput placeholder="Buscar solicitante..." />
                         <CommandList>
@@ -317,6 +317,9 @@ export const DevolverMaterial = () => {
                                       codigo_barras: usuario.codigo_barras
                                     });
                                     setPopoverSolicitanteAberto(false);
+                                  }}
+                                  onPointerDown={(e) => {
+                                    e.preventDefault();
                                   }}
                                 >
                                   {usuario.nome}
