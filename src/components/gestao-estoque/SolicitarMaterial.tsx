@@ -358,7 +358,7 @@ export const SolicitarMaterial = () => {
             {/* Campo Solicitante */}
             <div className="space-y-2">
               <Label htmlFor="solicitante">Solicitante *</Label>
-              <Popover open={popoverSolicitanteAberto} onOpenChange={setPopoverSolicitanteAberto}>
+              <Popover open={popoverSolicitanteAberto} onOpenChange={setPopoverSolicitanteAberto} modal={false}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -407,7 +407,7 @@ export const SolicitarMaterial = () => {
             {/* Campo Local de Utilização */}
             <div className="space-y-2">
               <Label htmlFor="localUtilizacao">Local onde será utilizado *</Label>
-              <Popover open={popoverLocalAberto} onOpenChange={setPopoverLocalAberto}>
+              <Popover open={popoverLocalAberto} onOpenChange={setPopoverLocalAberto} modal={false}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
