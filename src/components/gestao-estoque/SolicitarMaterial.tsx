@@ -368,7 +368,7 @@ export const SolicitarMaterial = () => {
                     {solicitanteSelecionado ? solicitanteSelecionado.nome : "Selecione o solicitante"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[300px] p-0" align="start" sideOffset={4}>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[300px] p-0" align="start" sideOffset={4} onOpenAutoFocus={(e) => e.preventDefault()}>
                   <Command>
                     <CommandInput placeholder="Buscar solicitante..." />
                     <CommandList>
@@ -389,6 +389,9 @@ export const SolicitarMaterial = () => {
                                 setCodigoAssinatura('');
                                 setErroAssinatura('');
                                 setPopoverSolicitanteAberto(false);
+                              }}
+                              onPointerDown={(e) => {
+                                e.preventDefault();
                               }}
                             >
                               {solicitante.nome}
