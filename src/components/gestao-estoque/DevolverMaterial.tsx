@@ -309,6 +309,7 @@ export const DevolverMaterial = () => {
                               .map(usuario => (
                                 <CommandItem
                                   key={usuario.id}
+                                  value={`${usuario.nome}-${usuario.id}`}
                                   onSelect={() => {
                                     setSolicitanteSelecionado({ 
                                       id: usuario.id, 
