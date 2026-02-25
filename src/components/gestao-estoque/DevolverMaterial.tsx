@@ -35,8 +35,6 @@ export const DevolverMaterial = () => {
   const [mostrarCodigoUsuario, setMostrarCodigoUsuario] = useState(false);
   const [solicitanteSelecionado, setSolicitanteSelecionado] = useState<{id: string, nome: string, codigo_barras?: string} | null>(null);
   const [usuariosDisponiveis, setUsuariosDisponiveis] = useState<{id: string, nome: string, user_id: string, codigo_barras?: string}[]>([]);
-  const [popoverSolicitanteAberto, setPopoverSolicitanteAberto] = useState(false);
-  const [popoverLocalAberto, setPopoverLocalAberto] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
   const normalizarCodigoAssinatura = (codigo?: string | null) => {
@@ -288,86 +286,53 @@ export const DevolverMaterial = () => {
                 
                 <div className="space-y-2">
                   <Label htmlFor="solicitante">Solicitante *</Label>
-                  <Popover open={popoverSolicitanteAberto} onOpenChange={setPopoverSolicitanteAberto} modal={false}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className="w-full justify-between"
-                      >
-                        {solicitanteSelecionado ? solicitanteSelecionado.nome : "Selecione o solicitante"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-                      <Command>
-                        <CommandInput placeholder="Buscar solicitante..." />
-                        <CommandList>
-                          <CommandEmpty>Nenhum solicitante encontrado</CommandEmpty>
-                          <CommandGroup>
-                            {usuariosDisponiveis
-                              .sort((a, b) => a.nome.localeCompare(b.nome))
-                              .map(usuario => (
-                                <CommandItem
-                                  key={usuario.id}
-                                  value={`${usuario.nome}-${usuario.id}`}
-                                  onSelect={() => {
-                                    setSolicitanteSelecionado({ 
-                                      id: usuario.id, 
-                                      nome: usuario.nome,
-                                      codigo_barras: usuario.codigo_barras
-                                    });
-                                    setPopoverSolicitanteAberto(false);
-                                  }}
-                                  onPointerDown={(e) => {
-                                    e.preventDefault();
-                                  }}
-                                >
-                                  {usuario.nome}
-                                </CommandItem>
-                              ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <Select
+                    value={solicitanteSelecionado?.id || ""}
+                    onValueChange={(value) => {
+                      const usuario = usuariosDisponiveis.find(u => u.id === value);
+                      if (usuario) {
+                        setSolicitanteSelecionado({
+                          id: usuario.id,
+                          nome: usuario.nome,
+                          codigo_barras: usuario.codigo_barras
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione o solicitante" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {usuariosDisponiveis
+                        .sort((a, b) => a.nome.localeCompare(b.nome))
+                        .map(usuario => (
+                          <SelectItem key={usuario.id} value={usuario.id}>
+                            {usuario.nome}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="localUtilizacao">Local de origem *</Label>
-                  <Popover open={popoverLocalAberto} onOpenChange={setPopoverLocalAberto} modal={false}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className="w-full justify-between"
-                      >
-                        {localUtilizacao 
-                          ? locaisDisponiveis.find(l => l.id === localUtilizacao)?.nome 
-                          : "Selecione o local"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Buscar local..." />
-                        <CommandList>
-                          <CommandEmpty>Nenhum local encontrado</CommandEmpty>
-                          <CommandGroup>
-                            {locaisDisponiveis.map(local => (
-                              <CommandItem
-                                key={local.id}
-                                onSelect={() => {
-                                  setLocalUtilizacao(local.id);
-                                  setPopoverLocalAberto(false);
-                                }}
-                              >
-                                {local.nome}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <Select
+                    value={localUtilizacao || ""}
+                    onValueChange={(value) => setLocalUtilizacao(value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione o local" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {locaisDisponiveis
+                        .sort((a, b) => a.nome.localeCompare(b.nome))
+                        .map(local => (
+                          <SelectItem key={local.id} value={local.id}>
+                            {local.nome}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
