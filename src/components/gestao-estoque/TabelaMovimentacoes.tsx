@@ -693,7 +693,7 @@ export const TabelaMovimentacoes = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="w-full" style={{ overflowX: 'scroll', overflowY: 'visible' }}>
+          <div className="w-full overflow-x-auto">
             <Table style={{ minWidth: '1400px' }}>
               <TableHeader>
                 <TableRow>
