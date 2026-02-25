@@ -948,8 +948,8 @@ export const TabelaMovimentacoes = () => {
                 {pendentesFiltrados.length} item(ns) pendente(s) de devolução
               </p>
 
-              <div className="w-full" style={{ overflowX: 'scroll', overflowY: 'visible' }}>
-                <Table style={{ minWidth: '900px' }}>
+              <div className="w-full overflow-x-auto">
+                <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Item</TableHead>
