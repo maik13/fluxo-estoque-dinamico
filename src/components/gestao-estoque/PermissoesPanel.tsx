@@ -180,7 +180,7 @@ export const PermissoesPanel = () => {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Header com tipos de usuário */}
-        <div className="rounded-lg border border-border/50">
+        <div className="rounded-lg border border-border/50 overflow-hidden">
           <table className="w-full text-sm table-fixed">
             <thead>
               <tr className="border-b border-border/50 bg-muted/30">

@@ -576,7 +576,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
           Configurações
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>⚙️ Configurações do Sistema</DialogTitle>
         </DialogHeader>
