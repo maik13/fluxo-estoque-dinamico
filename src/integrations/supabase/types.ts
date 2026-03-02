@@ -296,8 +296,9 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          item_id: string
+          item_id: string | null
           item_snapshot: Json
+          nome_item: string | null
           pedido_id: string
           quantidade: number
           status: string
@@ -306,8 +307,9 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          item_id: string
+          item_id?: string | null
           item_snapshot: Json
+          nome_item?: string | null
           pedido_id: string
           quantidade: number
           status?: string
@@ -316,8 +318,9 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
-          item_id?: string
+          item_id?: string | null
           item_snapshot?: Json
+          nome_item?: string | null
           pedido_id?: string
           quantidade?: number
           status?: string
@@ -354,6 +357,8 @@ export type Database = {
           id: string
           numero: number
           observacoes: string | null
+          solicitacao_material_id: string | null
+          solicitacao_material_numero: number | null
           status: string
           updated_at: string
         }
@@ -370,6 +375,8 @@ export type Database = {
           id?: string
           numero?: number
           observacoes?: string | null
+          solicitacao_material_id?: string | null
+          solicitacao_material_numero?: number | null
           status?: string
           updated_at?: string
         }
@@ -386,6 +393,8 @@ export type Database = {
           id?: string
           numero?: number
           observacoes?: string | null
+          solicitacao_material_id?: string | null
+          solicitacao_material_numero?: number | null
           status?: string
           updated_at?: string
         }
@@ -395,6 +404,13 @@ export type Database = {
             columns: ["estoque_id"]
             isOneToOne: false
             referencedRelation: "estoques"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_solicitacao_material_id_fkey"
+            columns: ["solicitacao_material_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes_material"
             referencedColumns: ["id"]
           },
         ]
