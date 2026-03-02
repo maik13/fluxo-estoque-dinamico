@@ -491,7 +491,7 @@ export const MenuPrincipal = () => {
         {canTransferir() && <Transferencia />}
         
         {/* BOTÃO CADASTRO */}
-        <Dialog open={dialogoCadastro} onOpenChange={handleDialogoCadastroChange}>
+        {canCreateItems() && <Dialog open={dialogoCadastro} onOpenChange={handleDialogoCadastroChange}>
           <DialogTrigger asChild>
             <Card className={cn(
               "cursor-pointer hover:scale-105 transition-all duration-300",
@@ -512,9 +512,7 @@ export const MenuPrincipal = () => {
                 <CardDescription>
                   {podeUsarCadastro 
                     ? "Cadastrar novos materiais no estoque"
-                    : !canCreateItems
-                      ? "Sem permissão para cadastrar"
-                      : "Disponível apenas no Estoque Principal"
+                    : "Disponível apenas no Estoque Principal"
                   }
                 </CardDescription>
               </CardHeader>
@@ -802,7 +800,7 @@ export const MenuPrincipal = () => {
               </div>
             </form>
           </DialogContent>
-        </Dialog>
+        </Dialog>}
 
 
         {/* BOTÃO SAÍDA */}
