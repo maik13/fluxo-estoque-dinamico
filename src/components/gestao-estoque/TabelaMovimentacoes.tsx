@@ -31,35 +31,13 @@ export const TabelaMovimentacoes = () => {
   const [filtroDataFim, setFiltroDataFim] = useState<Date | undefined>(undefined);
   const [filtroDataPendentesInicio, setFiltroDataPendentesInicio] = useState<Date | undefined>(undefined);
   const [filtroDataPendentesFim, setFiltroDataPendentesFim] = useState<Date | undefined>(undefined);
-  const [solicitantesMap, setSolicitantesMap] = useState<Record<string, string>>({});
   const [usuariosMap, setUsuariosMap] = useState<Record<string, string>>({});
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 20;
 
-  // Buscar informações dos solicitantes e usuários
+  // Buscar informações dos usuários (para coluna Responsável)
   useEffect(() => {
     const buscarDados = async () => {
-      // Buscar solicitantes (para saídas/devoluções)
-      const solicitacaoIds = [...new Set(movimentacoes.map(m => m.solicitacaoId).filter(Boolean))];
-      
-      if (solicitacaoIds.length > 0) {
-        const { data, error } = await supabase
-          .from('solicitacoes')
-          .select('id, solicitante_nome')
-          .in('id', solicitacaoIds);
-
-        if (!error && data) {
-          const map: Record<string, string> = {};
-          data.forEach(solicitacao => {
-            if (solicitacao.id) {
-              map[solicitacao.id] = solicitacao.solicitante_nome;
-            }
-          });
-          setSolicitantesMap(map);
-        }
-      }
-
-      // Buscar usuários (para entradas/cadastros)
       const userIds = [...new Set(movimentacoes.map(m => m.userId).filter(Boolean))];
       
       if (userIds.length > 0) {
@@ -117,6 +95,7 @@ export const TabelaMovimentacoes = () => {
       ultimaSaida: string;
       destinatario?: string;
       solicitacaoId?: string;
+      solicitanteNome?: string;
     }>();
 
     movimentacoes.forEach(mov => {
@@ -129,6 +108,7 @@ export const TabelaMovimentacoes = () => {
             existing.ultimaSaida = mov.dataHora;
             existing.destinatario = mov.destinatario;
             existing.solicitacaoId = mov.solicitacaoId;
+            existing.solicitanteNome = mov.solicitanteNome;
           }
         } else {
           saidasMap.set(key, {
@@ -139,6 +119,7 @@ export const TabelaMovimentacoes = () => {
             ultimaSaida: mov.dataHora,
             destinatario: mov.destinatario,
             solicitacaoId: mov.solicitacaoId,
+            solicitanteNome: mov.solicitanteNome,
           });
         }
       }
@@ -275,18 +256,10 @@ export const TabelaMovimentacoes = () => {
       const dadosExportacao = movimentacoesFiltradas.map(mov => {
         const eDevolucao = isDevolucao(mov);
         let responsavel = '-';
-        
-        // Para SAÍDA e DEVOLUÇÃO: mostrar nome do solicitante
-        if (mov.solicitacaoId && solicitantesMap[mov.solicitacaoId]) {
-          responsavel = solicitantesMap[mov.solicitacaoId];
-        } 
+        const solicitante = mov.solicitanteNome || '-';
         // Para ENTRADA e CADASTRO: mostrar nome do usuário que fez a operação
-        else if ((mov.tipo === 'ENTRADA' || mov.tipo === 'CADASTRO') && mov.userId && usuariosMap[mov.userId]) {
+        if (mov.userId && usuariosMap[mov.userId]) {
           responsavel = usuariosMap[mov.userId];
-        } 
-        // Fallback para localização
-        else if (mov.itemSnapshot?.localizacao) {
-          responsavel = mov.itemSnapshot.localizacao;
         }
 
         return {
@@ -300,6 +273,7 @@ export const TabelaMovimentacoes = () => {
           'Unidade': mov.itemSnapshot?.unidade || '',
           'Qtd. Anterior': mov.quantidadeAnterior,
           'Qtd. Atual': mov.quantidadeAtual,
+          'Solicitante': solicitante,
           'Responsável': responsavel,
           'Destinatário': mov.destinatario || '-',
           'Estoque/Destino': mov.localUtilizacaoNome || '-',
@@ -380,9 +354,8 @@ export const TabelaMovimentacoes = () => {
     const linhas = movimentacoesFiltradas.map(mov => {
       const eDevolucao = isDevolucao(mov);
       let responsavel = '-';
-      if (mov.solicitacaoId && solicitantesMap[mov.solicitacaoId]) {
-        responsavel = solicitantesMap[mov.solicitacaoId];
-      } else if ((mov.tipo === 'ENTRADA' || mov.tipo === 'CADASTRO') && mov.userId && usuariosMap[mov.userId]) {
+      const solicitante = mov.solicitanteNome || '-';
+      if (mov.userId && usuariosMap[mov.userId]) {
         responsavel = usuariosMap[mov.userId];
       }
 
@@ -392,6 +365,7 @@ export const TabelaMovimentacoes = () => {
         <td>${mov.itemSnapshot?.nome || '-'}</td>
         <td>${mov.itemSnapshot?.codigoBarras || '-'}</td>
         <td>${mov.tipo === 'SAIDA' ? '-' : '+'}${mov.quantidade}</td>
+        <td>${solicitante}</td>
         <td>${responsavel}</td>
         <td>${mov.destinatario || '-'}</td>
         <td>${mov.localUtilizacaoNome || '-'}</td>
@@ -420,7 +394,7 @@ export const TabelaMovimentacoes = () => {
       <div class="header">${logoHtml}<h1>Relatório de Movimentações</h1></div>
       <div class="info">Gerado em: ${new Date().toLocaleString('pt-BR')} | Total: ${movimentacoesFiltradas.length} registros${filtrosAtivos.length > 0 ? ' | Filtros: ' + filtrosAtivos.join(', ') : ''}</div>
       <table><thead><tr>
-        <th>Tipo</th><th>Data/Hora</th><th>Item</th><th>Código</th><th>Qtd</th><th>Responsável</th><th>Destinatário</th><th>Estoque/Destino</th><th>Observações</th>
+        <th>Tipo</th><th>Data/Hora</th><th>Item</th><th>Código</th><th>Qtd</th><th>Solicitante</th><th>Responsável</th><th>Destinatário</th><th>Estoque/Destino</th><th>Observações</th>
       </tr></thead><tbody>${linhas}</tbody></table>
       <script>window.print();window.onafterprint=()=>window.close();</script>
     </body></html>`);
@@ -815,9 +789,9 @@ export const TabelaMovimentacoes = () => {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            {mov.solicitacaoId && solicitantesMap[mov.solicitacaoId] ? (
+                            {mov.solicitanteNome ? (
                               <Badge variant="outline" className={eDevolucao ? "bg-info/10 text-info border-info/20" : "bg-primary/10 text-primary border-primary/20"}>
-                                {solicitantesMap[mov.solicitacaoId]}
+                                {mov.solicitanteNome}
                               </Badge>
                             ) : (
                               <span className="text-xs text-muted-foreground">-</span>
@@ -1054,8 +1028,8 @@ export const TabelaMovimentacoes = () => {
                               <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
                                 {item.destinatario}
                               </Badge>
-                            ) : item.solicitacaoId && solicitantesMap[item.solicitacaoId] ? (
-                              <Badge variant="outline">{solicitantesMap[item.solicitacaoId]}</Badge>
+                            ) : item.solicitanteNome ? (
+                              <Badge variant="outline">{item.solicitanteNome}</Badge>
                             ) : (
                               <span className="text-xs text-muted-foreground">-</span>
                             )}
