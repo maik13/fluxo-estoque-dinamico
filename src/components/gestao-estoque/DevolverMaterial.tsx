@@ -21,7 +21,7 @@ import { ptBR } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { materialReturnSchema } from '@/schemas/validation';
-import { verificarSaidaExistente } from '@/utils/verificarPendencias';
+import { verificarSaidaExistente, verificarDevolucaoPendente } from '@/utils/verificarPendencias';
 
 export const DevolverMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
@@ -220,19 +220,26 @@ export const DevolverMaterial = () => {
 
     setErroAssinatura('');
 
-    // Verificar se existe saída para os itens sendo devolvidos
-    const alertasSemSaida: string[] = [];
+    // Verificar se os itens possuem saída E se já foram totalmente devolvidos
+    const alertas: string[] = [];
     for (const item of itensDevolucao) {
       const { possuiSaida } = await verificarSaidaExistente(item.item_id);
       if (!possuiSaida) {
         const nomeItem = item.item_snapshot.nome || 'Item desconhecido';
-        alertasSemSaida.push(`"${nomeItem}" não possui nenhuma saída registrada`);
+        alertas.push(`⛔ "${nomeItem}" não possui nenhuma saída registrada`);
+      } else {
+        // Verificar se já foi totalmente devolvido (saldo pendente = 0)
+        const { pendente, saldoPendente } = await verificarDevolucaoPendente(item.item_id);
+        if (!pendente) {
+          const nomeItem = item.item_snapshot.nome || 'Item desconhecido';
+          alertas.push(`⚠️ "${nomeItem}" já foi totalmente devolvido (sem saldo pendente)`);
+        }
       }
     }
 
-    if (alertasSemSaida.length > 0) {
+    if (alertas.length > 0) {
       const confirmar = window.confirm(
-        `⚠️ ATENÇÃO - Itens sem saída registrada:\n\n${alertasSemSaida.join('\n')}\n\nDeseja continuar com a devolução mesmo assim?`
+        `⚠️ ATENÇÃO:\n\n${alertas.join('\n')}\n\nDeseja continuar com a devolução mesmo assim?`
       );
       if (!confirmar) return;
     }
