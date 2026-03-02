@@ -10,7 +10,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Plus, Check, ChevronsUpDown, X, Printer, FileText, CheckCircle, Eye, Pencil, Lock } from 'lucide-react';
+import { ShoppingCart, Plus, Check, ChevronsUpDown, X, Printer, FileText, CheckCircle, Eye, Pencil, Lock, MessageCircle } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -513,6 +513,27 @@ export const PedidoCompra = () => {
     imprimirPedido();
   };
 
+  const enviarWhatsApp = () => {
+    if (!pedidoSelecionado) return;
+
+    const itensTexto = itensPedidoSelecionado.map((item, idx) => {
+      const snap = item.item_snapshot as any;
+      const status = item.status === 'comprado' ? '✅' : '⏳';
+      return `${idx + 1}. ${snap?.nome || '-'} | Cód: ${snap?.codigoBarras || '-'} | Qtd: ${item.quantidade} ${snap?.unidade || ''} | Marca: ${snap?.marca || '-'} ${status}`;
+    }).join('\n');
+
+    const mensagem = `*📋 Pedido de Compra #${pedidoSelecionado.numero}*\n\n` +
+      `👤 Criado por: ${pedidoSelecionado.criado_por_nome}\n` +
+      `📅 Data: ${new Date(pedidoSelecionado.data_pedido).toLocaleString('pt-BR')}\n` +
+      `📊 Status: ${pedidoSelecionado.status === 'concluido' ? 'CONCLUÍDO' : 'ABERTO'}\n` +
+      `📦 Total de itens: ${itensPedidoSelecionado.length}\n\n` +
+      `*Itens:*\n${itensTexto}` +
+      (pedidoSelecionado.observacoes ? `\n\n📝 *Obs:* ${pedidoSelecionado.observacoes}` : '');
+
+    const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
+    window.open(url, '_blank');
+  };
+
   const podeMovimentar = canManageStock;
 
   return (
@@ -946,6 +967,9 @@ export const PedidoCompra = () => {
                   </Button>
                   <Button variant="outline" onClick={salvarPDF}>
                     <FileText className="h-4 w-4 mr-2" /> Salvar PDF
+                  </Button>
+                  <Button variant="outline" onClick={enviarWhatsApp} className="text-green-600 border-green-600/50 hover:bg-green-50">
+                    <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp
                   </Button>
                 </>
               )}
