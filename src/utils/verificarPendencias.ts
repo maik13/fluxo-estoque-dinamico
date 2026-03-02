@@ -2,18 +2,19 @@ import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Verifica se um item possui devoluções pendentes (saídas sem devolução correspondente).
- * Retorna o saldo pendente (saídas - devoluções com "devolução" nas observações).
+ * Calcula o saldo cronologicamente, nunca permitindo que fique negativo,
+ * para evitar que devoluções históricas "extras" mascarem pendências atuais.
  */
 export const verificarDevolucaoPendente = async (
   itemId: string,
   estoqueId?: string | null
 ): Promise<{ pendente: boolean; saldoPendente: number }> => {
   try {
-    // Buscar todas as movimentações do item
     let query = supabase
       .from('movements')
-      .select('tipo, quantidade, observacoes')
-      .eq('item_id', itemId);
+      .select('tipo, quantidade, observacoes, created_at')
+      .eq('item_id', itemId)
+      .order('created_at', { ascending: true });
 
     if (estoqueId) {
       query = query.or(`estoque_id.eq.${estoqueId},estoque_id.is.null`);
@@ -23,20 +24,18 @@ export const verificarDevolucaoPendente = async (
 
     if (error || !data) return { pendente: false, saldoPendente: 0 };
 
-    let totalSaidas = 0;
-    let totalDevolucoes = 0;
-
+    // Calcular saldo cronologicamente, nunca permitindo negativo
+    let saldo = 0;
     data.forEach((mov) => {
       if (mov.tipo === 'SAIDA') {
-        totalSaidas += Number(mov.quantidade);
+        saldo += Number(mov.quantidade);
       }
       if (mov.tipo === 'ENTRADA' && mov.observacoes?.toLowerCase().includes('devolução')) {
-        totalDevolucoes += Number(mov.quantidade);
+        saldo = Math.max(0, saldo - Number(mov.quantidade));
       }
     });
 
-    const saldoPendente = totalSaidas - totalDevolucoes;
-    return { pendente: saldoPendente > 0, saldoPendente: Math.max(0, saldoPendente) };
+    return { pendente: saldo > 0, saldoPendente: saldo };
   } catch {
     return { pendente: false, saldoPendente: 0 };
   }
