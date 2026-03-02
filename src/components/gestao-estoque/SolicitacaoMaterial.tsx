@@ -262,25 +262,89 @@ export const SolicitacaoMaterial = () => {
   };
 
   const aprovarSolicitacao = async (id: string) => {
-    if (!userProfile) return;
+    if (!userProfile || !user) return;
     try {
+      // Buscar a solicitação completa para verificar itens avulsos
+      const solicitacao = solicitacoes.find(s => s.id === id);
+      
       const { error } = await supabase
         .from('solicitacoes_material')
         .update({
           status: 'aprovada',
-          aprovado_por_id: user?.id,
+          aprovado_por_id: user.id,
           aprovado_por_nome: userProfile.nome,
           data_aprovacao: new Date().toISOString()
         })
         .eq('id', id);
       if (error) throw error;
       toast.success('Solicitação aprovada!');
+
+      // Verificar se há itens avulsos (sem item_id) para gerar pedido de compra automático
+      if (solicitacao) {
+        const itensAvulsos = solicitacao.itens.filter(i => !i.item_id);
+        if (itensAvulsos.length > 0) {
+          await criarPedidoCompraAutomatico(solicitacao, itensAvulsos);
+        }
+      }
+
       carregarSolicitacoes();
       if (solicitacaoSelecionada?.id === id) {
         setSolicitacaoSelecionada(prev => prev ? { ...prev, status: 'aprovada', aprovado_por_nome: userProfile.nome } : null);
       }
     } catch (error) {
+      console.error('Erro ao aprovar solicitação:', error);
       toast.error('Erro ao aprovar solicitação');
+    }
+  };
+
+  const criarPedidoCompraAutomatico = async (
+    solicitacao: SolicitacaoMaterialCompleta,
+    itensAvulsos: SolicitacaoMaterialCompleta['itens']
+  ) => {
+    if (!user || !userProfile) return;
+    try {
+      const estoqueInfo = obterEstoqueAtivoInfo();
+
+      // Criar pedido de compra
+      const { data: pedidoData, error: pedidoError } = await supabase
+        .from('pedidos_compra')
+        .insert({
+          criado_por_id: user.id,
+          criado_por_nome: userProfile.nome,
+          observacoes: `Gerado automaticamente a partir da Solicitação de Material #${solicitacao.numero}`,
+          estoque_id: estoqueInfo?.id || null,
+          status: 'aberto',
+          solicitacao_material_id: solicitacao.id,
+          solicitacao_material_numero: solicitacao.numero
+        })
+        .select()
+        .single();
+
+      if (pedidoError) throw pedidoError;
+
+      // Inserir itens avulsos no pedido de compra
+      const itensInsert = itensAvulsos.map(item => ({
+        pedido_id: pedidoData.id,
+        item_id: null,
+        nome_item: item.nome_item,
+        quantidade: item.quantidade,
+        item_snapshot: item.item_snapshot || { nome: item.nome_item, unidade: item.unidade },
+        status: 'pendente'
+      }));
+
+      const { error: itensError } = await supabase
+        .from('pedido_compra_itens')
+        .insert(itensInsert);
+
+      if (itensError) throw itensError;
+
+      toast.success(
+        `📦 Pedido de Compra #${pedidoData.numero} criado automaticamente com ${itensAvulsos.length} item(ns) avulso(s) da Solicitação #${solicitacao.numero}`,
+        { duration: 6000 }
+      );
+    } catch (error) {
+      console.error('Erro ao criar pedido de compra automático:', error);
+      toast.error('Solicitação aprovada, mas houve erro ao gerar o Pedido de Compra automático');
     }
   };
 
