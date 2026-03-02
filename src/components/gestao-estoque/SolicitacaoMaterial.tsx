@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ClipboardList, Plus, Trash2, Eye, Printer, FileText, Check, X, ChevronsUpDown, Send } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -75,7 +76,7 @@ export const SolicitacaoMaterial = () => {
 
   const { obterEstoque } = useEstoqueContext();
   const { user } = useAuth();
-  const { userProfile, canManageStock } = usePermissions();
+  const { userProfile, canManageStock, isAdmin } = usePermissions();
   const { obterEstoqueAtivoInfo } = useConfiguracoes();
 
   const itensEstoque = obterEstoque();
@@ -300,6 +301,25 @@ export const SolicitacaoMaterial = () => {
     }
   };
 
+  const excluirSolicitacao = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('solicitacoes_material')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      toast.success('Solicitação excluída');
+      carregarSolicitacoes();
+      if (solicitacaoSelecionada?.id === id) {
+        setSolicitacaoSelecionada(null);
+        setDialogoDetalhes(false);
+      }
+    } catch (error) {
+      console.error('Erro ao excluir:', error);
+      toast.error('Erro ao excluir solicitação');
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pendente': return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Pendente</Badge>;
@@ -503,6 +523,25 @@ export const SolicitacaoMaterial = () => {
                             </Button>
                           </>
                         )}
+                        {isAdmin() && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir solicitação #{sol.numero}?</AlertDialogTitle>
+                                <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => excluirSolicitacao(sol.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -576,16 +615,37 @@ export const SolicitacaoMaterial = () => {
                     <FileText className="h-4 w-4" /> Baixar PDF
                   </Button>
                 </div>
-                {canManageStock && solicitacaoSelecionada.status === 'pendente' && (
-                  <div className="flex gap-2">
-                    <Button variant="outline" className="text-red-400 border-red-400/30" onClick={() => rejeitarSolicitacao(solicitacaoSelecionada.id)}>
-                      <X className="h-4 w-4 mr-1" /> Rejeitar
-                    </Button>
-                    <Button className="bg-green-600 hover:bg-green-700" onClick={() => aprovarSolicitacao(solicitacaoSelecionada.id)}>
-                      <Check className="h-4 w-4 mr-1" /> Aprovar
-                    </Button>
-                  </div>
-                )}
+                <div className="flex gap-2">
+                  {canManageStock && solicitacaoSelecionada.status === 'pendente' && (
+                    <>
+                      <Button variant="outline" className="text-red-400 border-red-400/30" onClick={() => rejeitarSolicitacao(solicitacaoSelecionada.id)}>
+                        <X className="h-4 w-4 mr-1" /> Rejeitar
+                      </Button>
+                      <Button className="bg-green-600 hover:bg-green-700" onClick={() => aprovarSolicitacao(solicitacaoSelecionada.id)}>
+                        <Check className="h-4 w-4 mr-1" /> Aprovar
+                      </Button>
+                    </>
+                  )}
+                  {isAdmin() && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="gap-1">
+                          <Trash2 className="h-4 w-4" /> Excluir
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir solicitação #{solicitacaoSelecionada.numero}?</AlertDialogTitle>
+                          <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => excluirSolicitacao(solicitacaoSelecionada.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
               </div>
             </>
           )}
