@@ -708,9 +708,10 @@ export const TabelaMovimentacoes = () => {
         </CardHeader>
         <CardContent>
           <div className="w-full overflow-x-auto">
-            <Table style={{ minWidth: '1400px' }}>
+            <Table style={{ minWidth: isAdmin() ? '1500px' : '1400px' }}>
               <TableHeader>
                 <TableRow>
+                  {isAdmin() && <TableHead className="w-[50px]"></TableHead>}
                   <TableHead>Tipo</TableHead>
                   <TableHead>Data/Hora</TableHead>
                   <TableHead>Item</TableHead>
@@ -722,7 +723,6 @@ export const TabelaMovimentacoes = () => {
                   <TableHead>Destinatário</TableHead>
                   <TableHead>Estoque/Destino</TableHead>
                   <TableHead>Observações</TableHead>
-                  {isAdmin() && <TableHead className="w-[60px]">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -747,6 +747,31 @@ export const TabelaMovimentacoes = () => {
                     
                     return (
                       <TableRow key={mov.id} className="hover:bg-muted/50">
+                        {isAdmin() && (
+                          <TableCell>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir movimentação?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Deseja excluir o registro de {eDevolucao ? 'devolução' : tipoInfo.label.toLowerCase()} do item "{mov.itemSnapshot?.nome}" ({mov.quantidade} {mov.itemSnapshot?.unidade})? Esta ação não pode ser desfeita.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => excluirMovimentacao(mov.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
+                        )}
                         <TableCell>
                           <div className={`flex items-center gap-2 ${eDevolucao ? 'text-info' : tipoInfo.color}`}>
                             <div className={`p-1.5 rounded-full ${eDevolucao ? 'bg-info/10' : tipoInfo.bgColor}`}>
@@ -832,31 +857,6 @@ export const TabelaMovimentacoes = () => {
                             <span className="text-xs text-muted-foreground">-</span>
                           )}
                         </TableCell>
-                        {isAdmin() && (
-                          <TableCell>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Excluir movimentação?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Deseja excluir o registro de {eDevolucao ? 'devolução' : tipoInfo.label.toLowerCase()} do item "{mov.itemSnapshot?.nome}" ({mov.quantidade} {mov.itemSnapshot?.unidade})? Esta ação não pode ser desfeita.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => excluirMovimentacao(mov.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                    Excluir
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </TableCell>
-                        )}
                       </TableRow>
                     );
                   })
