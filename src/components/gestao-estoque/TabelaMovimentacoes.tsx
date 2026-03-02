@@ -708,7 +708,7 @@ export const TabelaMovimentacoes = () => {
         </CardHeader>
         <CardContent>
           <div className="w-full overflow-x-auto">
-            <Table style={{ minWidth: isAdmin() ? '1500px' : '1400px' }}>
+            <Table style={{ minWidth: isAdmin() ? '1650px' : '1550px' }}>
               <TableHeader>
                 <TableRow>
                   {isAdmin() && <TableHead className="w-[50px]"></TableHead>}
@@ -719,6 +719,7 @@ export const TabelaMovimentacoes = () => {
                   <TableHead>Quantidade</TableHead>
                   <TableHead>Anterior</TableHead>
                   <TableHead>Atual</TableHead>
+                  <TableHead>Solicitante</TableHead>
                   <TableHead>Responsável</TableHead>
                   <TableHead>Destinatário</TableHead>
                   <TableHead>Estoque/Destino</TableHead>
@@ -728,7 +729,7 @@ export const TabelaMovimentacoes = () => {
               <TableBody>
                 {movimentacoesFiltradas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin() ? 12 : 11} className="text-center py-8">
+                    <TableCell colSpan={isAdmin() ? 13 : 12} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-muted-foreground">
@@ -814,21 +815,21 @@ export const TabelaMovimentacoes = () => {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            {/* Para SAÍDA e DEVOLUÇÃO: mostrar solicitante */}
                             {mov.solicitacaoId && solicitantesMap[mov.solicitacaoId] ? (
-                              <Badge variant="outline" className={eDevolucao ? "bg-info/10 text-info border-info/20" : ""}>
+                              <Badge variant="outline" className={eDevolucao ? "bg-info/10 text-info border-info/20" : "bg-primary/10 text-primary border-primary/20"}>
                                 {solicitantesMap[mov.solicitacaoId]}
                               </Badge>
-                            ) 
-                            /* Para ENTRADA e CADASTRO: mostrar usuário que fez a operação */
-                            : (mov.tipo === 'ENTRADA' || mov.tipo === 'CADASTRO') && mov.userId && usuariosMap[mov.userId] ? (
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {mov.userId && usuariosMap[mov.userId] ? (
                               <Badge variant="outline" className="bg-success/10 text-success border-success/20">
                                 {usuariosMap[mov.userId]}
                               </Badge>
-                            ) 
-                            /* Fallback */
-                            : mov.itemSnapshot?.localizacao ? (
-                              <span className="text-muted-foreground">{mov.itemSnapshot.localizacao}</span>
                             ) : (
                               <span className="text-xs text-muted-foreground">-</span>
                             )}
