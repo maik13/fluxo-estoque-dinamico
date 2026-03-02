@@ -121,8 +121,8 @@ export const MenuPrincipal = () => {
 
   // Obter informações do estoque ativo
   const estoqueAtivoInfo = obterEstoqueAtivoInfo();
-  const podeUsarCadastro = canCreateItems;
-  const podeMovimentar = canManageStock;
+  const podeUsarCadastro = canCreateItems();
+  const podeMovimentar = canManageStock();
 
   // Buscar próximo código disponível quando o dialog de cadastro abrir
   useEffect(() => {

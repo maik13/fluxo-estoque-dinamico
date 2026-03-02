@@ -610,7 +610,7 @@ export const SolicitacaoMaterial = () => {
           </div>
           <CardTitle className="text-amber-400">Solicitação de Material</CardTitle>
           <CardDescription>Solicite materiais para aprovação do almoxarife</CardDescription>
-          {pendentesCount > 0 && canManageStock && (
+          {pendentesCount > 0 && canManageStock() && (
             <Badge className="absolute top-2 right-2 bg-red-500 text-white border-none animate-pulse">
               {pendentesCount}
             </Badge>
@@ -672,7 +672,7 @@ export const SolicitacaoMaterial = () => {
                         <Button variant="ghost" size="icon" onClick={() => gerarPDF(sol)}>
                           <FileText className="h-4 w-4" />
                         </Button>
-                        {canManageStock && sol.status === 'pendente' && (
+                        {canManageStock() && sol.status === 'pendente' && (
                           <>
                             <Button variant="ghost" size="icon" className="text-green-400 hover:text-green-300" onClick={() => aprovarSolicitacao(sol.id)}>
                               <Check className="h-4 w-4" />
@@ -682,7 +682,7 @@ export const SolicitacaoMaterial = () => {
                             </Button>
                           </>
                         )}
-                        {canManageStock && sol.status === 'aprovada' && (
+                        {canManageStock() && sol.status === 'aprovada' && (
                           <Button variant="ghost" size="icon" className="text-primary hover:text-primary/80" title="Converter em Retirada" onClick={() => converterEmRetirada(sol)}>
                             <ArrowRight className="h-4 w-4" />
                           </Button>
@@ -785,7 +785,7 @@ export const SolicitacaoMaterial = () => {
                   </Button>
                 </div>
                 <div className="flex gap-2">
-                  {canManageStock && solicitacaoSelecionada.status === 'pendente' && (
+                  {canManageStock() && solicitacaoSelecionada.status === 'pendente' && (
                     <>
                       <Button variant="outline" className="text-red-400 border-red-400/30" onClick={() => rejeitarSolicitacao(solicitacaoSelecionada.id)}>
                         <X className="h-4 w-4 mr-1" /> Rejeitar
@@ -795,7 +795,7 @@ export const SolicitacaoMaterial = () => {
                       </Button>
                     </>
                   )}
-                  {canManageStock && solicitacaoSelecionada.status === 'aprovada' && (
+                  {canManageStock() && solicitacaoSelecionada.status === 'aprovada' && (
                     <Button className="gap-1 bg-primary hover:bg-primary/90" onClick={() => converterEmRetirada(solicitacaoSelecionada)}>
                       <ArrowRight className="h-4 w-4" /> Converter em Retirada
                     </Button>
