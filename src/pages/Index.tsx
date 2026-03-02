@@ -10,11 +10,13 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { SeletorEstoque } from '@/components/gestao-estoque/SeletorEstoque';
 import { EstoqueProvider } from '@/contexts/EstoqueContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const Index = () => {
   const [tabAtiva, setTabAtiva] = useState('menu');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const { session, loading, signOut } = useAuth();
+  const { canManageStock, canViewReports } = usePermissions();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -80,36 +82,51 @@ const Index = () => {
         </div>
         
         <div className="w-full px-4 py-4">
-          <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
-              <TabsTrigger value="menu" className="flex items-center gap-2">
-                <Menu className="h-4 w-4" />
-                Menu Principal
-              </TabsTrigger>
-              <TabsTrigger value="estoque" className="flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                Estoque
-              </TabsTrigger>
-              <TabsTrigger value="movimentacoes" className="flex items-center gap-2">
-                <History className="h-4 w-4" />
-                Movimentações
-              </TabsTrigger>
-            </TabsList>
+          {(() => {
+            const showEstoque = canManageStock();
+            const showMovimentacoes = canViewReports() || canManageStock();
+            const tabCount = 1 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
+            return (
+              <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
+                <TabsList className={`grid w-full mb-6`} style={{ gridTemplateColumns: `repeat(${tabCount}, 1fr)` }}>
+                  <TabsTrigger value="menu" className="flex items-center gap-2">
+                    <Menu className="h-4 w-4" />
+                    Menu Principal
+                  </TabsTrigger>
+                  {showEstoque && (
+                    <TabsTrigger value="estoque" className="flex items-center gap-2">
+                      <Package className="h-4 w-4" />
+                      Estoque
+                    </TabsTrigger>
+                  )}
+                  {showMovimentacoes && (
+                    <TabsTrigger value="movimentacoes" className="flex items-center gap-2">
+                      <History className="h-4 w-4" />
+                      Movimentações
+                    </TabsTrigger>
+                  )}
+                </TabsList>
 
-            <TabsContent value="menu" className="space-y-6">
-              <MenuPrincipal />
-            </TabsContent>
+                <TabsContent value="menu" className="space-y-6">
+                  <MenuPrincipal />
+                </TabsContent>
 
-            <TabsContent value="estoque" className="space-y-6">
-              <TabelaEstoque 
-                onAbrirRetirada={() => setTabAtiva('menu')}
-              />
-            </TabsContent>
+                {showEstoque && (
+                  <TabsContent value="estoque" className="space-y-6">
+                    <TabelaEstoque 
+                      onAbrirRetirada={() => setTabAtiva('menu')}
+                    />
+                  </TabsContent>
+                )}
 
-            <TabsContent value="movimentacoes" className="space-y-6">
-              <TabelaMovimentacoes />
-            </TabsContent>
-          </Tabs>
+                {showMovimentacoes && (
+                  <TabsContent value="movimentacoes" className="space-y-6">
+                    <TabelaMovimentacoes />
+                  </TabsContent>
+                )}
+              </Tabs>
+            );
+          })()}
         </div>
       </div>
     </EstoqueProvider>
