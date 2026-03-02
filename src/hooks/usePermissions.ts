@@ -61,7 +61,7 @@ export const usePermissions = () => {
   const canCreateUsers = () => isAdmin();
   const canEditUsers = () => isAdmin() || isGestor();
   const canCreateItems = () => isAdmin() || isGestor() || isEngenharia();
-  const canEditItems = () => isAdmin() || isGestor() || isEngenharia();
+  const canEditItems = () => isAdmin() || isGestor() || isEngenharia() || isMestre() || isEstoquista();
   const canDeleteItems = () => isAdmin() || isGestor();
   const canManageStock = () => isAdmin() || isGestor() || isEstoquista() || isMestre();
   const canViewReports = () => true; // Todos podem ver relatórios
