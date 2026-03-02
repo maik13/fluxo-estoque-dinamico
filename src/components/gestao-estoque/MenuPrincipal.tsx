@@ -21,6 +21,7 @@ import { DevolverMaterial } from './DevolverMaterial';
 import { RegistrarEntrada } from './RegistrarEntrada';
 import { Transferencia } from './Transferencia';
 import { PedidoCompra } from './PedidoCompra';
+import { SolicitacaoMaterial } from './SolicitacaoMaterial';
 import { Badge } from '@/components/ui/badge';
 import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
@@ -1047,6 +1048,9 @@ export const MenuPrincipal = () => {
 
         {/* BOTÃO PEDIDO DE COMPRA */}
         <PedidoCompra />
+
+        {/* BOTÃO SOLICITAÇÃO DE MATERIAL */}
+        <SolicitacaoMaterial />
 
       </div>
 

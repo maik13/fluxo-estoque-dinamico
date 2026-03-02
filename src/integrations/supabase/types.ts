@@ -516,6 +516,57 @@ export type Database = {
           },
         ]
       }
+      solicitacao_material_itens: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string | null
+          item_snapshot: Json | null
+          nome_item: string
+          observacoes: string | null
+          quantidade: number
+          solicitacao_material_id: string
+          unidade: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          item_snapshot?: Json | null
+          nome_item: string
+          observacoes?: string | null
+          quantidade?: number
+          solicitacao_material_id: string
+          unidade?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          item_snapshot?: Json | null
+          nome_item?: string
+          observacoes?: string | null
+          quantidade?: number
+          solicitacao_material_id?: string
+          unidade?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacao_material_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacao_material_itens_solicitacao_material_id_fkey"
+            columns: ["solicitacao_material_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes_material"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solicitacoes: {
         Row: {
           aceite_separador: boolean | null
@@ -607,6 +658,69 @@ export type Database = {
             columns: ["tipo_operacao_id"]
             isOneToOne: false
             referencedRelation: "tipos_operacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitacoes_material: {
+        Row: {
+          aprovado_por_id: string | null
+          aprovado_por_nome: string | null
+          created_at: string
+          data_aprovacao: string | null
+          estoque_id: string | null
+          id: string
+          numero: number
+          observacoes: string | null
+          solicitacao_retirada_id: string | null
+          solicitante_id: string
+          solicitante_nome: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          aprovado_por_id?: string | null
+          aprovado_por_nome?: string | null
+          created_at?: string
+          data_aprovacao?: string | null
+          estoque_id?: string | null
+          id?: string
+          numero?: number
+          observacoes?: string | null
+          solicitacao_retirada_id?: string | null
+          solicitante_id: string
+          solicitante_nome: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          aprovado_por_id?: string | null
+          aprovado_por_nome?: string | null
+          created_at?: string
+          data_aprovacao?: string | null
+          estoque_id?: string | null
+          id?: string
+          numero?: number
+          observacoes?: string | null
+          solicitacao_retirada_id?: string | null
+          solicitante_id?: string
+          solicitante_nome?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_material_estoque_id_fkey"
+            columns: ["estoque_id"]
+            isOneToOne: false
+            referencedRelation: "estoques"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_material_solicitacao_retirada_id_fkey"
+            columns: ["solicitacao_retirada_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes"
             referencedColumns: ["id"]
           },
         ]
