@@ -221,15 +221,15 @@ export const UsuariosList = () => {
 
       {/* Tabela de usuários */}
       <div className="border rounded-md overflow-hidden">
-        <table className="w-full text-sm table-fixed">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="px-3 py-3 text-left font-medium text-muted-foreground w-[20%]">Nome</th>
-              <th className="px-3 py-3 text-left font-medium text-muted-foreground w-[30%]">Email</th>
-              <th className="px-3 py-3 text-left font-medium text-muted-foreground w-[10%]">Tipo</th>
-              <th className="px-3 py-3 text-left font-medium text-muted-foreground w-[8%]">Status</th>
-              <th className="px-3 py-3 text-left font-medium text-muted-foreground w-[12%]">Cadastrado em</th>
-              <th className="px-3 py-3 text-right font-medium text-muted-foreground w-[10%]">Ações</th>
+              <th className="px-3 py-3 text-left font-medium text-muted-foreground">Nome</th>
+              <th className="px-3 py-3 text-left font-medium text-muted-foreground">Email</th>
+              <th className="px-3 py-3 text-left font-medium text-muted-foreground">Tipo</th>
+              <th className="px-3 py-3 text-left font-medium text-muted-foreground">Status</th>
+              <th className="px-3 py-3 text-left font-medium text-muted-foreground">Cadastrado em</th>
+              <th className="px-3 py-3 text-right font-medium text-muted-foreground">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -242,8 +242,8 @@ export const UsuariosList = () => {
             ) : (
               usuariosFiltrados.map((usuario) => (
                 <tr key={usuario.id} className="border-b transition-colors hover:bg-muted/50">
-                  <td className="px-3 py-2.5 font-medium truncate">{usuario.nome}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground break-all text-xs">{usuario.email}</td>
+                  <td className="px-3 py-2.5 font-medium whitespace-nowrap">{usuario.nome}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{usuario.email}</td>
                   <td className="px-3 py-2.5">
                     <Badge variant={getTipoUsuarioBadge(usuario.tipo_usuario) as any} className="text-xs">
                       {usuario.tipo_usuario}
