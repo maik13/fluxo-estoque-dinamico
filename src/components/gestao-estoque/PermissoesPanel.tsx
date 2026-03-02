@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Shield, Save, Loader2 } from 'lucide-react';
+import { Shield, Save, Loader2, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
+import { cn } from '@/lib/utils';
 
 interface PermissaoTipoUsuario {
   id: string;
@@ -36,22 +36,55 @@ const TIPOS_USUARIO_LABELS: Record<string, string> = {
   estoquista: 'Estoquista',
 };
 
-const PERMISSOES_LABELS: Record<string, string> = {
-  pode_cadastrar_itens: 'Cadastrar Itens',
-  pode_editar_itens: 'Editar Itens',
-  pode_excluir_itens: 'Excluir Itens',
-  pode_registrar_movimentacoes: 'Registrar Movimentações',
-  pode_gerenciar_configuracoes: 'Gerenciar Configurações',
-  pode_gerenciar_usuarios: 'Gerenciar Usuários',
-  pode_solicitar_material: 'Solicitar Material (Retirada)',
-  pode_devolver_material: 'Devolver Material',
-  pode_registrar_entrada: 'Registrar Entrada',
-  pode_transferir: 'Transferência entre Estoques',
-  pode_registrar_saida: 'Registrar Saída',
-  pode_pedido_compra: 'Pedido de Compra',
-  pode_solicitacao_material: 'Solicitação de Material',
-  pode_ver_relatorios: 'Ver Relatórios',
+const TIPOS_USUARIO_COLORS: Record<string, string> = {
+  administrador: 'bg-red-500/10 text-red-400 border-red-500/30',
+  gestor: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+  engenharia: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+  mestre: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+  estoquista: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
 };
+
+interface PermissaoGrupo {
+  titulo: string;
+  campos: { key: keyof PermissaoTipoUsuario; label: string }[];
+}
+
+const PERMISSOES_GRUPOS: PermissaoGrupo[] = [
+  {
+    titulo: '📦 Gestão de Itens',
+    campos: [
+      { key: 'pode_cadastrar_itens', label: 'Cadastrar Itens' },
+      { key: 'pode_editar_itens', label: 'Editar Itens' },
+      { key: 'pode_excluir_itens', label: 'Excluir Itens' },
+    ],
+  },
+  {
+    titulo: '🔄 Movimentações',
+    campos: [
+      { key: 'pode_registrar_movimentacoes', label: 'Registrar Movimentações' },
+      { key: 'pode_solicitar_material', label: 'Solicitar Material (Retirada)' },
+      { key: 'pode_devolver_material', label: 'Devolver Material' },
+      { key: 'pode_registrar_entrada', label: 'Registrar Entrada' },
+      { key: 'pode_registrar_saida', label: 'Registrar Saída' },
+      { key: 'pode_transferir', label: 'Transferência entre Estoques' },
+    ],
+  },
+  {
+    titulo: '📋 Solicitações e Compras',
+    campos: [
+      { key: 'pode_solicitacao_material', label: 'Solicitação de Material' },
+      { key: 'pode_pedido_compra', label: 'Pedido de Compra' },
+    ],
+  },
+  {
+    titulo: '⚙️ Administração',
+    campos: [
+      { key: 'pode_gerenciar_configuracoes', label: 'Gerenciar Configurações' },
+      { key: 'pode_gerenciar_usuarios', label: 'Gerenciar Usuários' },
+      { key: 'pode_ver_relatorios', label: 'Ver Relatórios' },
+    ],
+  },
+];
 
 export const PermissoesPanel = () => {
   const { toast } = useToast();
@@ -64,25 +97,14 @@ export const PermissoesPanel = () => {
   useEffect(() => {
     carregarPermissoes();
 
-    // Configurar realtime
     const channel = supabase
       .channel('permissoes-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'permissoes_tipo_usuario',
-        },
-        () => {
-          carregarPermissoes();
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'permissoes_tipo_usuario' }, () => {
+        carregarPermissoes();
+      })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const carregarPermissoes = async () => {
@@ -96,11 +118,7 @@ export const PermissoesPanel = () => {
       setPermissoes(data || []);
     } catch (error) {
       console.error('Erro ao carregar permissões:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível carregar as permissões.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: 'Não foi possível carregar as permissões.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -108,62 +126,32 @@ export const PermissoesPanel = () => {
 
   const handleTogglePermissao = (tipoUsuario: string, campo: keyof PermissaoTipoUsuario) => {
     if (!isAdmin()) {
-      toast({
-        title: 'Acesso negado',
-        description: 'Apenas administradores podem alterar permissões.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Acesso negado', description: 'Apenas administradores podem alterar permissões.', variant: 'destructive' });
       return;
     }
 
     setPermissoes((prev) =>
-      prev.map((p) =>
-        p.tipo_usuario === tipoUsuario
-          ? { ...p, [campo]: !p[campo] }
-          : p
-      )
+      prev.map((p) => p.tipo_usuario === tipoUsuario ? { ...p, [campo]: !p[campo] } : p)
     );
     setHasChanges(true);
   };
 
   const handleSalvar = async () => {
-    if (!isAdmin()) {
-      toast({
-        title: 'Acesso negado',
-        description: 'Apenas administradores podem alterar permissões.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+    if (!isAdmin()) return;
     setSaving(true);
     try {
+      const allCampos = PERMISSOES_GRUPOS.flatMap(g => g.campos.map(c => c.key));
       for (const permissao of permissoes) {
         const updateData: any = {};
-        Object.keys(PERMISSOES_LABELS).forEach(campo => {
-          updateData[campo] = (permissao as any)[campo];
-        });
-        
-        const { error } = await supabase
-          .from('permissoes_tipo_usuario')
-          .update(updateData)
-          .eq('id', permissao.id);
-
+        allCampos.forEach(campo => { updateData[campo] = (permissao as any)[campo]; });
+        const { error } = await supabase.from('permissoes_tipo_usuario').update(updateData).eq('id', permissao.id);
         if (error) throw error;
       }
-
-      toast({
-        title: 'Permissões salvas!',
-        description: 'As permissões foram atualizadas com sucesso.',
-      });
+      toast({ title: 'Permissões salvas!', description: 'As permissões foram atualizadas com sucesso.' });
       setHasChanges(false);
     } catch (error) {
       console.error('Erro ao salvar permissões:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível salvar as permissões.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: 'Não foi possível salvar as permissões.', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -172,73 +160,117 @@ export const PermissoesPanel = () => {
   if (loading) {
     return (
       <Card>
-        <CardContent className="flex items-center justify-center p-8">
+        <CardContent className="flex items-center justify-center p-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </CardContent>
       </Card>
     );
   }
 
-  const permissoesCampos = Object.keys(PERMISSOES_LABELS) as (keyof PermissaoTipoUsuario)[];
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shield className="h-5 w-5" />
+    <Card className="border-border/50">
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Shield className="h-5 w-5 text-primary" />
           Permissões por Tipo de Usuário
         </CardTitle>
         <CardDescription>
           Configure quais ações cada tipo de usuário pode realizar no sistema
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[200px]">Permissão</TableHead>
+      <CardContent className="space-y-6">
+        {/* Header com tipos de usuário */}
+        <div className="overflow-x-auto rounded-lg border border-border/50">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/50 bg-muted/30">
+                <th className="sticky left-0 z-10 bg-muted/30 px-4 py-3 text-left font-medium text-muted-foreground min-w-[200px]">
+                  Permissão
+                </th>
                 {permissoes.map((p) => (
-                  <TableHead key={p.tipo_usuario} className="text-center">
-                    <Badge variant="outline">{TIPOS_USUARIO_LABELS[p.tipo_usuario] || p.tipo_usuario}</Badge>
-                  </TableHead>
+                  <th key={p.tipo_usuario} className="px-3 py-3 text-center min-w-[100px]">
+                    <Badge variant="outline" className={cn('text-xs font-medium', TIPOS_USUARIO_COLORS[p.tipo_usuario])}>
+                      {TIPOS_USUARIO_LABELS[p.tipo_usuario] || p.tipo_usuario}
+                    </Badge>
+                  </th>
                 ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {permissoesCampos.map((campo) => (
-                <TableRow key={campo}>
-                  <TableCell className="font-medium">{PERMISSOES_LABELS[campo]}</TableCell>
-                  {permissoes.map((p) => (
-                    <TableCell key={`${p.tipo_usuario}-${campo}`} className="text-center">
-                      <Checkbox
-                        checked={p[campo] as boolean}
-                        onCheckedChange={() => handleTogglePermissao(p.tipo_usuario, campo)}
-                        disabled={!isAdmin()}
-                      />
-                    </TableCell>
+              </tr>
+            </thead>
+            <tbody>
+              {PERMISSOES_GRUPOS.map((grupo, gIdx) => (
+                <>
+                  {/* Separador de grupo */}
+                  <tr key={`grupo-${gIdx}`} className="bg-muted/20">
+                    <td colSpan={permissoes.length + 1} className="px-4 py-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        {grupo.titulo}
+                      </span>
+                    </td>
+                  </tr>
+                  {grupo.campos.map((campo, cIdx) => (
+                    <tr
+                      key={campo.key}
+                      className={cn(
+                        'border-b border-border/30 transition-colors hover:bg-muted/20',
+                        cIdx === grupo.campos.length - 1 && 'border-b-0'
+                      )}
+                    >
+                      <td className="sticky left-0 z-10 bg-card px-4 py-2.5 font-medium text-foreground">
+                        {campo.label}
+                      </td>
+                      {permissoes.map((p) => {
+                        const isChecked = p[campo.key] as boolean;
+                        return (
+                          <td key={`${p.tipo_usuario}-${campo.key}`} className="px-3 py-2.5 text-center">
+                            <div className="flex items-center justify-center">
+                              {isAdmin() ? (
+                                <Checkbox
+                                  checked={isChecked}
+                                  onCheckedChange={() => handleTogglePermissao(p.tipo_usuario, campo.key)}
+                                  className={cn(
+                                    'h-5 w-5 rounded transition-all',
+                                    isChecked
+                                      ? 'border-emerald-500 bg-emerald-500 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500'
+                                      : 'border-muted-foreground/30'
+                                  )}
+                                />
+                              ) : (
+                                <div className={cn(
+                                  'flex h-6 w-6 items-center justify-center rounded-full',
+                                  isChecked
+                                    ? 'bg-emerald-500/15 text-emerald-500'
+                                    : 'bg-muted text-muted-foreground/40'
+                                )}>
+                                  {isChecked ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
                   ))}
-                </TableRow>
+                </>
               ))}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
 
+        {/* Ações */}
         {isAdmin() && (
-          <div className="flex justify-end">
-            <Button onClick={handleSalvar} disabled={!hasChanges || saving}>
-              {saving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
+          <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/20 px-4 py-3">
+            <p className="text-xs text-muted-foreground">
+              {hasChanges ? '⚠️ Você tem alterações não salvas' : '✅ Todas as permissões estão salvas'}
+            </p>
+            <Button onClick={handleSalvar} disabled={!hasChanges || saving} size="sm">
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Salvar Alterações
             </Button>
           </div>
         )}
 
         {!isAdmin() && (
-          <p className="text-sm text-muted-foreground text-center">
+          <p className="text-sm text-muted-foreground text-center py-2">
             Apenas administradores podem alterar as permissões.
           </p>
         )}
