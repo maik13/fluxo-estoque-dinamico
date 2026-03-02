@@ -79,7 +79,7 @@ const Index = () => {
           </div>
         </div>
         
-        <div className="container mx-auto p-4">
+        <div className="max-w-[1600px] mx-auto px-4 py-4">
           <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-6">
               <TabsTrigger value="menu" className="flex items-center gap-2">
