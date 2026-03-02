@@ -34,7 +34,7 @@ import { toast } from 'sonner';
 export const MenuPrincipal = () => {
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoqueContext();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
-  const { canCreateItems, canManageStock } = usePermissions();
+  const { canCreateItems, canManageStock, canSolicitarMaterial, canDevolverMaterial, canRegistrarEntrada, canTransferir, canRegistrarSaida, canPedidoCompra, canSolicitacaoMaterial } = usePermissions();
   
   // Estados para controlar os diálogos
   const [dialogoCadastro, setDialogoCadastro] = useState(false);
@@ -479,16 +479,16 @@ export const MenuPrincipal = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         {/* Solicitar Material */}
-        <SolicitarMaterial />
+        {canSolicitarMaterial() && <SolicitarMaterial />}
         
         {/* Devolução de Material */}
-        <DevolverMaterial />
+        {canDevolverMaterial() && <DevolverMaterial />}
         
         {/* Registrar Entrada */}
-        <RegistrarEntrada />
+        {canRegistrarEntrada() && <RegistrarEntrada />}
         
         {/* Transferência */}
-        <Transferencia />
+        {canTransferir() && <Transferencia />}
         
         {/* BOTÃO CADASTRO */}
         <Dialog open={dialogoCadastro} onOpenChange={handleDialogoCadastroChange}>
@@ -806,7 +806,7 @@ export const MenuPrincipal = () => {
 
 
         {/* BOTÃO SAÍDA */}
-        <Dialog open={dialogoSaida} onOpenChange={(aberto) => {
+        {canRegistrarSaida() && <Dialog open={dialogoSaida} onOpenChange={(aberto) => {
           if (!aberto) {
             fecharDialogoSaida();
           } else {
@@ -1044,13 +1044,13 @@ export const MenuPrincipal = () => {
               </div>
             </form>
           </DialogContent>
-        </Dialog>
+        </Dialog>}
 
         {/* BOTÃO PEDIDO DE COMPRA */}
-        <PedidoCompra />
+        {canPedidoCompra() && <PedidoCompra />}
 
         {/* BOTÃO SOLICITAÇÃO DE MATERIAL */}
-        <SolicitacaoMaterial />
+        {canSolicitacaoMaterial() && <SolicitacaoMaterial />}
 
       </div>
 

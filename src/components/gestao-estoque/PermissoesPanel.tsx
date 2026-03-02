@@ -18,6 +18,14 @@ interface PermissaoTipoUsuario {
   pode_registrar_movimentacoes: boolean;
   pode_gerenciar_configuracoes: boolean;
   pode_gerenciar_usuarios: boolean;
+  pode_solicitar_material: boolean;
+  pode_devolver_material: boolean;
+  pode_registrar_entrada: boolean;
+  pode_transferir: boolean;
+  pode_registrar_saida: boolean;
+  pode_pedido_compra: boolean;
+  pode_solicitacao_material: boolean;
+  pode_ver_relatorios: boolean;
 }
 
 const TIPOS_USUARIO_LABELS: Record<string, string> = {
@@ -35,6 +43,14 @@ const PERMISSOES_LABELS: Record<string, string> = {
   pode_registrar_movimentacoes: 'Registrar Movimentações',
   pode_gerenciar_configuracoes: 'Gerenciar Configurações',
   pode_gerenciar_usuarios: 'Gerenciar Usuários',
+  pode_solicitar_material: 'Solicitar Material (Retirada)',
+  pode_devolver_material: 'Devolver Material',
+  pode_registrar_entrada: 'Registrar Entrada',
+  pode_transferir: 'Transferência entre Estoques',
+  pode_registrar_saida: 'Registrar Saída',
+  pode_pedido_compra: 'Pedido de Compra',
+  pode_solicitacao_material: 'Solicitação de Material',
+  pode_ver_relatorios: 'Ver Relatórios',
 };
 
 export const PermissoesPanel = () => {
@@ -123,16 +139,14 @@ export const PermissoesPanel = () => {
     setSaving(true);
     try {
       for (const permissao of permissoes) {
+        const updateData: any = {};
+        Object.keys(PERMISSOES_LABELS).forEach(campo => {
+          updateData[campo] = (permissao as any)[campo];
+        });
+        
         const { error } = await supabase
           .from('permissoes_tipo_usuario')
-          .update({
-            pode_cadastrar_itens: permissao.pode_cadastrar_itens,
-            pode_editar_itens: permissao.pode_editar_itens,
-            pode_excluir_itens: permissao.pode_excluir_itens,
-            pode_registrar_movimentacoes: permissao.pode_registrar_movimentacoes,
-            pode_gerenciar_configuracoes: permissao.pode_gerenciar_configuracoes,
-            pode_gerenciar_usuarios: permissao.pode_gerenciar_usuarios,
-          })
+          .update(updateData)
           .eq('id', permissao.id);
 
         if (error) throw error;

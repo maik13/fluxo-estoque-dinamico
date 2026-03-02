@@ -420,11 +420,19 @@ export type Database = {
           created_at: string
           id: string
           pode_cadastrar_itens: boolean
+          pode_devolver_material: boolean
           pode_editar_itens: boolean
           pode_excluir_itens: boolean
           pode_gerenciar_configuracoes: boolean
           pode_gerenciar_usuarios: boolean
+          pode_pedido_compra: boolean
+          pode_registrar_entrada: boolean
           pode_registrar_movimentacoes: boolean
+          pode_registrar_saida: boolean
+          pode_solicitacao_material: boolean
+          pode_solicitar_material: boolean
+          pode_transferir: boolean
+          pode_ver_relatorios: boolean
           tipo_usuario: string
           updated_at: string
         }
@@ -432,11 +440,19 @@ export type Database = {
           created_at?: string
           id?: string
           pode_cadastrar_itens?: boolean
+          pode_devolver_material?: boolean
           pode_editar_itens?: boolean
           pode_excluir_itens?: boolean
           pode_gerenciar_configuracoes?: boolean
           pode_gerenciar_usuarios?: boolean
+          pode_pedido_compra?: boolean
+          pode_registrar_entrada?: boolean
           pode_registrar_movimentacoes?: boolean
+          pode_registrar_saida?: boolean
+          pode_solicitacao_material?: boolean
+          pode_solicitar_material?: boolean
+          pode_transferir?: boolean
+          pode_ver_relatorios?: boolean
           tipo_usuario: string
           updated_at?: string
         }
@@ -444,11 +460,19 @@ export type Database = {
           created_at?: string
           id?: string
           pode_cadastrar_itens?: boolean
+          pode_devolver_material?: boolean
           pode_editar_itens?: boolean
           pode_excluir_itens?: boolean
           pode_gerenciar_configuracoes?: boolean
           pode_gerenciar_usuarios?: boolean
+          pode_pedido_compra?: boolean
+          pode_registrar_entrada?: boolean
           pode_registrar_movimentacoes?: boolean
+          pode_registrar_saida?: boolean
+          pode_solicitacao_material?: boolean
+          pode_solicitar_material?: boolean
+          pode_transferir?: boolean
+          pode_ver_relatorios?: boolean
           tipo_usuario?: string
           updated_at?: string
         }
