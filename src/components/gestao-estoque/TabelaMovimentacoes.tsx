@@ -8,7 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar as CalendarIcon, User, Package, RotateCcw, FileSpreadsheet, Printer, AlertTriangle } from 'lucide-react';
+import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar as CalendarIcon, User, Package, RotateCcw, FileSpreadsheet, Printer, AlertTriangle, Trash2 } from 'lucide-react';
+import { usePermissions } from '@/hooks/usePermissions';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Movimentacao, TipoMovimentacao } from '@/types/estoque';
 import * as XLSX from 'xlsx';
@@ -19,6 +21,7 @@ import { ptBR } from 'date-fns/locale';
 
 export const TabelaMovimentacoes = () => {
   const { movimentacoes, loading } = useEstoqueContext();
+  const { isAdmin } = usePermissions();
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<TipoMovimentacao | 'todas'>('todas');
   const [filtroDestino, setFiltroDestino] = useState('todos');
@@ -481,6 +484,17 @@ export const TabelaMovimentacoes = () => {
     });
   };
 
+  const excluirMovimentacao = async (movId: string) => {
+    try {
+      const { error } = await supabase.from('movements').delete().eq('id', movId);
+      if (error) throw error;
+      toast({ title: "Movimentação excluída", description: "O registro foi removido com sucesso." });
+    } catch (error: any) {
+      console.error('Erro ao excluir movimentação:', error);
+      toast({ title: "Erro ao excluir", description: error.message || "Não foi possível excluir a movimentação.", variant: "destructive" });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -708,12 +722,13 @@ export const TabelaMovimentacoes = () => {
                   <TableHead>Destinatário</TableHead>
                   <TableHead>Estoque/Destino</TableHead>
                   <TableHead>Observações</TableHead>
+                  {isAdmin() && <TableHead className="w-[60px]">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {movimentacoesFiltradas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8">
+                    <TableCell colSpan={isAdmin() ? 12 : 11} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-muted-foreground">
@@ -817,6 +832,31 @@ export const TabelaMovimentacoes = () => {
                             <span className="text-xs text-muted-foreground">-</span>
                           )}
                         </TableCell>
+                        {isAdmin() && (
+                          <TableCell>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir movimentação?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Deseja excluir o registro de {eDevolucao ? 'devolução' : tipoInfo.label.toLowerCase()} do item "{mov.itemSnapshot?.nome}" ({mov.quantidade} {mov.itemSnapshot?.unidade})? Esta ação não pode ser desfeita.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => excluirMovimentacao(mov.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })
