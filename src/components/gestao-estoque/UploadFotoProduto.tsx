@@ -68,6 +68,18 @@ export const UploadFotoProduto = ({ fotoUrl, onFotoChange, itemId }: UploadFotoP
         .from('product-photos')
         .getPublicUrl(fileName);
 
+      // Salvar foto_url diretamente no banco se itemId existir
+      if (itemId) {
+        const { error: dbError } = await supabase
+          .from('items')
+          .update({ foto_url: publicUrl })
+          .eq('id', itemId);
+        
+        if (dbError) {
+          console.error('Erro ao salvar foto_url no banco:', dbError);
+        }
+      }
+
       setPreviewUrl(publicUrl);
       onFotoChange(publicUrl);
       toast.success('Foto enviada com sucesso!');

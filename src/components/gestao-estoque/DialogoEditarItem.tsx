@@ -40,8 +40,11 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
     
     if (!item) return;
 
-    // Sempre carregar o item quando abrir o diálogo
-    setFormItem({ ...item });
+    // Só carregar o item quando abrir o diálogo (não resetar se já tiver formItem)
+    setFormItem(prev => {
+      if (prev && prev.id === item.id) return prev; // Não resetar se já está editando o mesmo item
+      return { ...item };
+    });
 
     // Carregar categoria do item se houver subcategoria
     if (item.subcategoriaId) {
