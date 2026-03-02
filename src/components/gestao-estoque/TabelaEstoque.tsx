@@ -30,7 +30,7 @@ interface TabelaEstoqueProps {
 export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   const { obterEstoque, loading, editarItem, registrarEntrada, registrarSaida } = useEstoqueContext();
   const { obterEstoqueAtivoInfo, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria } = useConfiguracoes();
-  const { canEditItems, isAdmin } = usePermissions();
+  const { canEditItems, canDeleteItems, isAdmin, canManageStock } = usePermissions();
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroSubcategoria, setFiltroSubcategoria] = useState('todas');
@@ -567,7 +567,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
       </Card>
 
       {/* Barra de ações para seleção múltipla - apenas para admins */}
-      {isAdmin && itensSelecionados.size > 0 && (
+      {isAdmin() && itensSelecionados.size > 0 && (
         <Card className="bg-primary/10 border-primary">
           <CardContent className="py-4">
             <div className="flex items-center justify-between">
@@ -611,7 +611,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  {isAdmin && (
+                  {isAdmin() && (
                     <TableHead className="w-[50px]">
                       <Checkbox
                         checked={itensPaginados.length > 0 && itensSelecionados.size === itensPaginados.length}
@@ -637,7 +637,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
               <TableBody>
                 {itensFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 14 : 13} className="text-center py-8">
+                    <TableCell colSpan={isAdmin() ? 14 : 13} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-muted-foreground">
@@ -652,7 +652,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                 ) : (
                   itensPaginados.map((item) => (
                     <TableRow key={item.id} className="hover:bg-muted/50 cursor-pointer" onDoubleClick={() => handleEditarItem(item)}>
-                      {isAdmin && (
+                      {isAdmin() && (
                         <TableCell>
                           <Checkbox
                             checked={itensSelecionados.has(item.id)}
@@ -752,8 +752,8 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                             onClick={() => handleEditarItem(item)}
                             variant="ghost"
                             size="sm"
-                            disabled={!canEditItems}
-                            title={!canEditItems ? "Sem permissão para editar itens" : "Editar item"}
+                            disabled={!canEditItems()}
+                            title={!canEditItems() ? "Sem permissão para editar itens" : "Editar item"}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -761,8 +761,8 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                             onClick={() => handleAbrirExclusao(item)}
                             variant="ghost"
                             size="sm"
-                            disabled={!canEditItems}
-                            title={!canEditItems ? "Sem permissão para excluir itens" : "Excluir item"}
+                            disabled={!canDeleteItems()}
+                            title={!canDeleteItems() ? "Sem permissão para excluir itens" : "Excluir item"}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>

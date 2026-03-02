@@ -534,7 +534,7 @@ export const PedidoCompra = () => {
     window.open(url, '_blank');
   };
 
-  const podeMovimentar = canManageStock;
+  const podeMovimentar = canManageStock();
 
   return (
     <>
