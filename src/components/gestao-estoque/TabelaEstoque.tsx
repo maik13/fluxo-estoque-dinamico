@@ -626,6 +626,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                   <TableHead>Marca</TableHead>
                   <TableHead>Localização</TableHead>
                   <TableHead>Estoque</TableHead>
+                  <TableHead>Est. Mínimo</TableHead>
                   <TableHead>Unidade</TableHead>
                   <TableHead>Condição</TableHead>
                   <TableHead>Status</TableHead>
@@ -636,7 +637,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
               <TableBody>
                 {itensFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 13 : 12} className="text-center py-8">
+                    <TableCell colSpan={isAdmin ? 14 : 13} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-muted-foreground">
@@ -706,6 +707,15 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                           onSalvar={handleEditarQuantidade}
                           disabled={false}
                         />
+                      </TableCell>
+                      <TableCell>
+                        {item.quantidadeMinima ? (
+                          <Badge variant="outline" className="font-mono">
+                            {item.quantidadeMinima}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">-</span>
+                        )}
                       </TableCell>
                       <TableCell>{item.unidade}</TableCell>
                       <TableCell>
