@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Item, EstoqueItem } from '@/types/estoque';
 import { Configuracoes } from './Configuracoes';
@@ -745,6 +746,33 @@ export const MenuPrincipal = () => {
                     placeholder="0,00"
                   />
                 </div>
+              </div>
+
+              <div className="flex items-center gap-4 p-3 border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="possuiEstoqueMinimo"
+                    checked={!!formCadastro.quantidadeMinima && formCadastro.quantidadeMinima > 0}
+                    onCheckedChange={(checked) => {
+                      handleFormCadastroChange('quantidadeMinima', checked ? 1 : undefined);
+                    }}
+                  />
+                  <Label htmlFor="possuiEstoqueMinimo" className="cursor-pointer">
+                    Possui estoque mínimo
+                  </Label>
+                </div>
+                {formCadastro.quantidadeMinima !== undefined && formCadastro.quantidadeMinima > 0 && (
+                  <div className="flex-1 max-w-[200px]">
+                    <Input
+                      id="quantidadeMinima"
+                      type="number"
+                      min="1"
+                      value={formCadastro.quantidadeMinima}
+                      onChange={(e) => handleFormCadastroChange('quantidadeMinima', Number(e.target.value) || 1)}
+                      placeholder="Qtd mínima"
+                    />
+                  </div>
+                )}
               </div>
               
               <div>

@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { Item } from '@/types/estoque';
+import { Switch } from '@/components/ui/switch';
 import { UploadFotoProduto } from './UploadFotoProduto';
 
 interface DialogoEditarItemProps {
@@ -271,6 +272,33 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
                 placeholder="0,00"
               />
             </div>
+          </div>
+
+          <div className="flex items-center gap-4 p-3 border rounded-lg bg-muted/30">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="possuiEstoqueMinimoEdit"
+                checked={!!formItem.quantidadeMinima && formItem.quantidadeMinima > 0}
+                onCheckedChange={(checked) => {
+                  setFormItem(prev => prev ? {...prev, quantidadeMinima: checked ? 1 : undefined} : null);
+                }}
+              />
+              <Label htmlFor="possuiEstoqueMinimoEdit" className="cursor-pointer">
+                Possui estoque mínimo
+              </Label>
+            </div>
+            {formItem.quantidadeMinima !== undefined && formItem.quantidadeMinima > 0 && (
+              <div className="flex-1 max-w-[200px]">
+                <Input
+                  id="quantidadeMinimaEdit"
+                  type="number"
+                  min="1"
+                  value={formItem.quantidadeMinima}
+                  onChange={(e) => setFormItem(prev => prev ? {...prev, quantidadeMinima: Number(e.target.value) || 1} : null)}
+                  placeholder="Qtd mínima"
+                />
+              </div>
+            )}
           </div>
           
           <div>
