@@ -128,6 +128,7 @@ export const useEstoque = () => {
           if (!estoqueAtivoInfo?.id || payload.new.estoque_id === estoqueAtivoInfo.id) {
             // Buscar nome do local se houver local_utilizacao_id
             let localNome: string | undefined;
+            let solicitanteNome: string | undefined;
             if (payload.new.local_utilizacao_id) {
               const { data } = await supabase
                 .from('locais_utilizacao')
@@ -135,6 +136,14 @@ export const useEstoque = () => {
                 .eq('id', payload.new.local_utilizacao_id)
                 .single();
               localNome = data?.nome;
+            }
+            if (payload.new.solicitacao_id) {
+              const { data } = await supabase
+                .from('solicitacoes')
+                .select('solicitante_nome')
+                .eq('id', payload.new.solicitacao_id)
+                .single();
+              solicitanteNome = data?.solicitante_nome;
             }
 
             const novaMovimentacao: Movimentacao = {
@@ -150,6 +159,7 @@ export const useEstoque = () => {
               localUtilizacaoId: payload.new.local_utilizacao_id ?? undefined,
               localUtilizacaoNome: localNome,
               solicitacaoId: payload.new.solicitacao_id ?? undefined,
+              solicitanteNome: solicitanteNome,
               destinatario: payload.new.destinatario ?? undefined,
               estoqueId: payload.new.estoque_id ?? undefined,
               itemSnapshot: payload.new.item_snapshot as Partial<Item>,
@@ -179,6 +189,7 @@ export const useEstoque = () => {
           }
 
           let localNome = '';
+          let solicitanteNome: string | undefined;
           if (payload.new.local_utilizacao_id) {
             const { data: localData } = await supabase
               .from('locais_utilizacao')
@@ -188,6 +199,14 @@ export const useEstoque = () => {
             if (localData) {
               localNome = localData.nome;
             }
+          }
+          if (payload.new.solicitacao_id) {
+            const { data } = await supabase
+              .from('solicitacoes')
+              .select('solicitante_nome')
+              .eq('id', payload.new.solicitacao_id)
+              .single();
+            solicitanteNome = data?.solicitante_nome;
           }
 
           const movimentacaoAtualizada: Movimentacao = {
@@ -203,6 +222,7 @@ export const useEstoque = () => {
             localUtilizacaoId: payload.new.local_utilizacao_id ?? undefined,
             localUtilizacaoNome: localNome,
             solicitacaoId: payload.new.solicitacao_id ?? undefined,
+            solicitanteNome: solicitanteNome,
             destinatario: payload.new.destinatario ?? undefined,
             estoqueId: payload.new.estoque_id ?? undefined,
             itemSnapshot: payload.new.item_snapshot as Partial<Item>,
@@ -270,6 +290,9 @@ export const useEstoque = () => {
           *,
           locais_utilizacao:local_utilizacao_id (
             nome
+          ),
+          solicitacoes:solicitacao_id (
+            solicitante_nome
           )
         `)
         .order('data_hora', { ascending: true });
@@ -323,6 +346,7 @@ export const useEstoque = () => {
         localUtilizacaoId: row.local_utilizacao_id ?? undefined,
         localUtilizacaoNome: row.locais_utilizacao?.nome ?? undefined,
         solicitacaoId: row.solicitacao_id ?? undefined,
+        solicitanteNome: row.solicitacoes?.solicitante_nome ?? undefined,
         destinatario: row.destinatario ?? undefined,
         estoqueId: row.estoque_id ?? undefined,
         itemSnapshot: row.item_snapshot as Partial<Item>,
