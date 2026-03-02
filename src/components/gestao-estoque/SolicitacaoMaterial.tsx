@@ -468,7 +468,7 @@ export const SolicitacaoMaterial = () => {
             ${sol.itens.map((item, i) => `
               <tr>
                 <td>${i + 1}</td>
-                <td>${item.nome_item}</td>
+                <td>${item.nome_item}${item.item_id && item.item_snapshot?.codigoBarras ? '<br><small style="color:#888">Cód: ' + item.item_snapshot.codigoBarras + '</small>' : ''}</td>
                 <td>${item.quantidade}</td>
                 <td>${item.unidade}</td>
                 <td>${item.item_id ? 'Estoque' : 'Avulso'}</td>
@@ -509,7 +509,7 @@ export const SolicitacaoMaterial = () => {
         const startY = sol.observacoes ? 64 : 58;
         const tableData = sol.itens.map((item, i) => [
           i + 1,
-          item.nome_item,
+          item.item_id && item.item_snapshot?.codigoBarras ? `${item.nome_item}\nCód: ${item.item_snapshot.codigoBarras}` : item.nome_item,
           item.quantidade,
           item.unidade,
           item.item_id ? 'Estoque' : 'Avulso',
@@ -692,7 +692,12 @@ export const SolicitacaoMaterial = () => {
                   {solicitacaoSelecionada.itens.map((item, i) => (
                     <TableRow key={item.id}>
                       <TableCell>{i + 1}</TableCell>
-                      <TableCell className="font-medium">{item.nome_item}</TableCell>
+                      <TableCell className="font-medium">
+                        {item.nome_item}
+                        {item.item_id && item.item_snapshot?.codigoBarras && (
+                          <span className="block text-xs text-muted-foreground">Cód: {item.item_snapshot.codigoBarras}</span>
+                        )}
+                      </TableCell>
                       <TableCell>{item.quantidade}</TableCell>
                       <TableCell>{item.unidade}</TableCell>
                       <TableCell>
@@ -854,7 +859,12 @@ export const SolicitacaoMaterial = () => {
                   <TableBody>
                     {itensLista.map((item, i) => (
                       <TableRow key={i}>
-                        <TableCell className="font-medium">{item.nome_item}</TableCell>
+                        <TableCell className="font-medium">
+                          {item.nome_item}
+                          {!item.isCustom && item.item_snapshot?.codigoBarras && (
+                            <span className="block text-xs text-muted-foreground">Cód: {item.item_snapshot.codigoBarras}</span>
+                          )}
+                        </TableCell>
                         <TableCell>{item.quantidade}</TableCell>
                         <TableCell>{item.unidade}</TableCell>
                         <TableCell>
