@@ -21,6 +21,7 @@ import { ptBR } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { materialReturnSchema } from '@/schemas/validation';
+import { verificarSaidaExistente } from '@/utils/verificarPendencias';
 
 export const DevolverMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
@@ -218,6 +219,24 @@ export const DevolverMaterial = () => {
     }
 
     setErroAssinatura('');
+
+    // Verificar se existe saída para os itens sendo devolvidos
+    const alertasSemSaida: string[] = [];
+    for (const item of itensDevolucao) {
+      const { possuiSaida } = await verificarSaidaExistente(item.item_id);
+      if (!possuiSaida) {
+        const nomeItem = item.item_snapshot.nome || 'Item desconhecido';
+        alertasSemSaida.push(`"${nomeItem}" não possui nenhuma saída registrada`);
+      }
+    }
+
+    if (alertasSemSaida.length > 0) {
+      const confirmar = window.confirm(
+        `⚠️ ATENÇÃO - Itens sem saída registrada:\n\n${alertasSemSaida.join('\n')}\n\nDeseja continuar com a devolução mesmo assim?`
+      );
+      if (!confirmar) return;
+    }
+
     setEnviando(true);
 
     try {
