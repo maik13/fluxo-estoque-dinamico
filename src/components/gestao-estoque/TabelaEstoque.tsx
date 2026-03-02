@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingDown, Edit, FileText, FileSpreadsheet, Printer, ShoppingCart, Trash2 } from 'lucide-react';
+import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingDown, Edit, FileText, FileSpreadsheet, Printer, ShoppingCart, Trash2, Image as ImageIcon } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { EstoqueItem } from '@/types/estoque';
 import { DialogoEditarItem } from './DialogoEditarItem';
@@ -60,6 +60,9 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   // Estados para seleção múltipla
   const [itensSelecionados, setItensSelecionados] = useState<Set<string>>(new Set());
   const [dialogoExclusaoMultipla, setDialogoExclusaoMultipla] = useState(false);
+
+  // Estado para visualização de foto ampliada
+  const [fotoAmpliada, setFotoAmpliada] = useState<{ url: string; nome: string } | null>(null);
 
   // Obter dados do estoque apenas quando deveBuscar for true
   const estoque = useMemo(() => {
@@ -617,6 +620,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                     </TableHead>
                   )}
                   <TableHead>Código</TableHead>
+                  <TableHead>Foto</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Marca</TableHead>
@@ -632,7 +636,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
               <TableBody>
                 {itensFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 12 : 11} className="text-center py-8">
+                    <TableCell colSpan={isAdmin ? 13 : 12} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-muted-foreground">
@@ -657,6 +661,20 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                       )}
                       <TableCell className="font-mono text-sm">
                         {item.codigoBarras}
+                      </TableCell>
+                      <TableCell>
+                        {item.fotoUrl ? (
+                          <img
+                            src={item.fotoUrl}
+                            alt={item.nome}
+                            className="h-10 w-10 object-cover rounded cursor-pointer border hover:opacity-80 transition-opacity"
+                            onClick={() => setFotoAmpliada({ url: item.fotoUrl!, nome: item.nome })}
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded border border-dashed border-muted-foreground/30 flex items-center justify-center">
+                            <ImageIcon className="h-4 w-4 text-muted-foreground/40" />
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div>
@@ -942,6 +960,24 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal de foto ampliada */}
+      <Dialog open={!!fotoAmpliada} onOpenChange={() => setFotoAmpliada(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{fotoAmpliada?.nome}</DialogTitle>
+          </DialogHeader>
+          {fotoAmpliada && (
+            <div className="flex justify-center">
+              <img
+                src={fotoAmpliada.url}
+                alt={fotoAmpliada.nome}
+                className="max-h-[70vh] w-auto object-contain rounded"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
