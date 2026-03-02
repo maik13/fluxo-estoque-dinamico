@@ -530,7 +530,9 @@ export const PedidoCompra = () => {
       `*Itens:*\n${itensTexto}` +
       (pedidoSelecionado.observacoes ? `\n\n📝 *Obs:* ${pedidoSelecionado.observacoes}` : '');
 
-    const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
+    const textoEncoded = encodeURIComponent(mensagem);
+    // Tenta abrir pelo WhatsApp Web diretamente (evita redirecionamento via api.whatsapp.com)
+    const url = `https://web.whatsapp.com/send?text=${textoEncoded}`;
     window.open(url, '_blank');
   };
 
