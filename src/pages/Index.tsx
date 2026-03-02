@@ -52,7 +52,7 @@ const Index = () => {
       <div className="min-h-screen bg-background">
         {/* Header */}
         <div className="bg-card border-b">
-          <div className="container mx-auto p-4 flex items-center justify-between">
+          <div className="px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
               {logoUrl && (
                 <img 
