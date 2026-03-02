@@ -220,45 +220,45 @@ export const UsuariosList = () => {
       </div>
 
       {/* Tabela de usuários */}
-      <div className="border rounded-md">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Cadastrado em</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <div className="border rounded-md overflow-hidden">
+        <table className="w-full text-sm table-fixed">
+          <thead>
+            <tr className="border-b bg-muted/50">
+              <th className="px-3 py-3 text-left font-medium text-muted-foreground w-[25%]">Nome</th>
+              <th className="px-3 py-3 text-left font-medium text-muted-foreground w-[25%]">Email</th>
+              <th className="px-3 py-3 text-left font-medium text-muted-foreground w-[12%]">Tipo</th>
+              <th className="px-3 py-3 text-left font-medium text-muted-foreground w-[10%]">Status</th>
+              <th className="px-3 py-3 text-left font-medium text-muted-foreground w-[14%]">Cadastrado em</th>
+              <th className="px-3 py-3 text-right font-medium text-muted-foreground w-[14%]">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
             {usuariosFiltrados.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+              <tr>
+                <td colSpan={6} className="text-center py-8 text-muted-foreground">
                   {searchTerm ? 'Nenhum usuário encontrado com os critérios de pesquisa.' : 'Nenhum usuário cadastrado.'}
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             ) : (
               usuariosFiltrados.map((usuario) => (
-                <TableRow key={usuario.id}>
-                  <TableCell className="font-medium">{usuario.nome}</TableCell>
-                  <TableCell>{usuario.email}</TableCell>
-                  <TableCell>
-                    <Badge variant={getTipoUsuarioBadge(usuario.tipo_usuario) as any}>
+                <tr key={usuario.id} className="border-b transition-colors hover:bg-muted/50">
+                  <td className="px-3 py-2.5 font-medium truncate">{usuario.nome}</td>
+                  <td className="px-3 py-2.5 truncate text-muted-foreground">{usuario.email}</td>
+                  <td className="px-3 py-2.5">
+                    <Badge variant={getTipoUsuarioBadge(usuario.tipo_usuario) as any} className="text-xs">
                       {usuario.tipo_usuario}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={usuario.ativo ? 'default' : 'secondary'}>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <Badge variant={usuario.ativo ? 'default' : 'secondary'} className="text-xs">
                       {usuario.ativo ? 'Ativo' : 'Inativo'}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="px-3 py-2.5 text-muted-foreground">
                     {new Date(usuario.created_at).toLocaleDateString('pt-BR')}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
+                    <div className="flex justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -280,12 +280,12 @@ export const UsuariosList = () => {
                         <Edit className="h-4 w-4" />
                       </Button>
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ))
             )}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </div>
 
       {/* Dialog de Edição */}
