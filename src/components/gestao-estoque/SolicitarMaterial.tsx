@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { materialRequestSchema } from '@/schemas/validation';
+import { verificarDevolucaoPendente } from '@/utils/verificarPendencias';
 
 export const SolicitarMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
@@ -195,6 +196,23 @@ export const SolicitarMaterial = () => {
       setErroAssinatura('Código de assinatura inválido para este solicitante');
       toast.error('Código de assinatura inválido');
       return;
+    }
+
+    // Verificar se algum item possui devolução pendente
+    const alertasPendentes: string[] = [];
+    for (const item of itensSolicitados) {
+      const { pendente, saldoPendente } = await verificarDevolucaoPendente(item.item_id);
+      if (pendente) {
+        const nomeItem = item.item_snapshot.nome || 'Item desconhecido';
+        alertasPendentes.push(`"${nomeItem}" possui ${saldoPendente} unidade(s) com devolução pendente`);
+      }
+    }
+
+    if (alertasPendentes.length > 0) {
+      const confirmar = window.confirm(
+        `⚠️ ATENÇÃO - Itens com devolução pendente:\n\n${alertasPendentes.join('\n')}\n\nDeseja continuar com a retirada mesmo assim?`
+      );
+      if (!confirmar) return;
     }
 
     setEnviando(true);
