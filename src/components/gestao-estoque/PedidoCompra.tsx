@@ -513,7 +513,7 @@ export const PedidoCompra = () => {
     imprimirPedido();
   };
 
-  const enviarWhatsApp = () => {
+  const enviarWhatsApp = async () => {
     if (!pedidoSelecionado) return;
 
     const itensTexto = itensPedidoSelecionado.map((item, idx) => {
@@ -522,7 +522,7 @@ export const PedidoCompra = () => {
       return `${idx + 1}. ${snap?.nome || '-'} | Cód: ${snap?.codigoBarras || '-'} | Qtd: ${item.quantidade} ${snap?.unidade || ''} | Marca: ${snap?.marca || '-'} ${status}`;
     }).join('\n');
 
-    const mensagem = `*📋 Pedido de Compra #${pedidoSelecionado.numero}*\n\n` +
+    const mensagem = `📋 *Pedido de Compra #${pedidoSelecionado.numero}*\n\n` +
       `👤 Criado por: ${pedidoSelecionado.criado_por_nome}\n` +
       `📅 Data: ${new Date(pedidoSelecionado.data_pedido).toLocaleString('pt-BR')}\n` +
       `📊 Status: ${pedidoSelecionado.status === 'concluido' ? 'CONCLUÍDO' : 'ABERTO'}\n` +
@@ -530,10 +530,19 @@ export const PedidoCompra = () => {
       `*Itens:*\n${itensTexto}` +
       (pedidoSelecionado.observacoes ? `\n\n📝 *Obs:* ${pedidoSelecionado.observacoes}` : '');
 
-    const textoEncoded = encodeURIComponent(mensagem);
-    // Tenta abrir pelo WhatsApp Web diretamente (evita redirecionamento via api.whatsapp.com)
-    const url = `https://web.whatsapp.com/send?text=${textoEncoded}`;
-    window.open(url, '_blank');
+    try {
+      await navigator.clipboard.writeText(mensagem);
+      toast.success('Mensagem copiada! Cole no WhatsApp do celular.');
+    } catch {
+      // Fallback para navegadores que não suportam clipboard
+      const textarea = document.createElement('textarea');
+      textarea.value = mensagem;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      toast.success('Mensagem copiada! Cole no WhatsApp do celular.');
+    }
   };
 
   const podeMovimentar = canManageStock;
@@ -971,7 +980,7 @@ export const PedidoCompra = () => {
                     <FileText className="h-4 w-4 mr-2" /> Salvar PDF
                   </Button>
                   <Button variant="outline" onClick={enviarWhatsApp} className="text-green-600 border-green-600/50 hover:bg-green-50">
-                    <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp
+                    <MessageCircle className="h-4 w-4 mr-2" /> Copiar p/ WhatsApp
                   </Button>
                 </>
               )}
