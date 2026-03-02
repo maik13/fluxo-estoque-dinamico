@@ -650,7 +650,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                   </TableRow>
                 ) : (
                   itensPaginados.map((item) => (
-                    <TableRow key={item.id} className="hover:bg-muted/50">
+                    <TableRow key={item.id} className="hover:bg-muted/50 cursor-pointer" onDoubleClick={() => handleEditarItem(item)}>
                       {isAdmin && (
                         <TableCell>
                           <Checkbox
