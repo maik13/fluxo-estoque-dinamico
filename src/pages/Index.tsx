@@ -49,7 +49,7 @@ const Index = () => {
 
   return (
     <EstoqueProvider>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background overflow-x-hidden">
         {/* Header */}
         <div className="bg-card border-b">
           <div className="px-6 py-4 flex items-center justify-between">

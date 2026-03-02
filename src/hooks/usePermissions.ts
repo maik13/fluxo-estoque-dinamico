@@ -68,6 +68,22 @@ export const usePermissions = () => {
     }
   }, [userProfile?.tipo_usuario]);
 
+  // Atualizar permissões em tempo real
+  useEffect(() => {
+    if (!userProfile?.tipo_usuario) return;
+
+    const channel = supabase
+      .channel('permissoes-realtime-hook')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'permissoes_tipo_usuario' }, () => {
+        if (userProfile?.tipo_usuario) {
+          loadPermissoesDinamicas(userProfile.tipo_usuario);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [userProfile?.tipo_usuario]);
+
   const loadUserProfile = async () => {
     try {
       const { data, error } = await supabase
@@ -114,14 +130,14 @@ export const usePermissions = () => {
           pode_registrar_movimentacoes: data.pode_registrar_movimentacoes,
           pode_gerenciar_configuracoes: data.pode_gerenciar_configuracoes,
           pode_gerenciar_usuarios: data.pode_gerenciar_usuarios,
-          pode_solicitar_material: (data as any).pode_solicitar_material ?? true,
-          pode_devolver_material: (data as any).pode_devolver_material ?? true,
-          pode_registrar_entrada: (data as any).pode_registrar_entrada ?? true,
-          pode_transferir: (data as any).pode_transferir ?? false,
-          pode_registrar_saida: (data as any).pode_registrar_saida ?? true,
-          pode_pedido_compra: (data as any).pode_pedido_compra ?? false,
-          pode_solicitacao_material: (data as any).pode_solicitacao_material ?? true,
-          pode_ver_relatorios: (data as any).pode_ver_relatorios ?? true,
+          pode_solicitar_material: data.pode_solicitar_material,
+          pode_devolver_material: data.pode_devolver_material,
+          pode_registrar_entrada: data.pode_registrar_entrada,
+          pode_transferir: data.pode_transferir,
+          pode_registrar_saida: data.pode_registrar_saida,
+          pode_pedido_compra: data.pode_pedido_compra,
+          pode_solicitacao_material: data.pode_solicitacao_material,
+          pode_ver_relatorios: data.pode_ver_relatorios,
         });
       }
     } catch (error) {
