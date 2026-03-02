@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar as CalendarIcon, User, Package, RotateCcw, FileSpreadsheet, Printer, AlertTriangle, Trash2 } from 'lucide-react';
+import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar as CalendarIcon, User, Package, RotateCcw, FileSpreadsheet, Printer, AlertTriangle, Trash2, BarChart3 } from 'lucide-react';
+import { RelatorioMovimentacoesDialog } from './RelatorioMovimentacoesDialog';
 import { usePermissions } from '@/hooks/usePermissions';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
@@ -34,6 +35,7 @@ export const TabelaMovimentacoes = () => {
   const [usuariosMap, setUsuariosMap] = useState<Record<string, string>>({});
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 20;
+  const [relatorioAberto, setRelatorioAberto] = useState(false);
 
   // Buscar informações dos usuários (para coluna Responsável)
   useEffect(() => {
@@ -644,7 +646,15 @@ export const TabelaMovimentacoes = () => {
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 md:col-span-2">
+              <Button 
+                onClick={() => setRelatorioAberto(true)}
+                variant="default"
+                className="flex items-center gap-2 flex-1"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Relatórios
+              </Button>
               <Button 
                 onClick={exportarParaExcel}
                 variant="outline"
@@ -1044,6 +1054,11 @@ export const TabelaMovimentacoes = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      <RelatorioMovimentacoesDialog
+        aberto={relatorioAberto}
+        onClose={() => setRelatorioAberto(false)}
+        movimentacoes={movimentacoes}
+      />
     </div>
   );
 };
