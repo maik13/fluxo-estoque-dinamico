@@ -513,7 +513,7 @@ export const PedidoCompra = () => {
     imprimirPedido();
   };
 
-  const enviarWhatsApp = async () => {
+  const enviarWhatsApp = () => {
     if (!pedidoSelecionado) return;
 
     const itensTexto = itensPedidoSelecionado.map((item, idx) => {
@@ -530,19 +530,8 @@ export const PedidoCompra = () => {
       `*Itens:*\n${itensTexto}` +
       (pedidoSelecionado.observacoes ? `\n\n📝 *Obs:* ${pedidoSelecionado.observacoes}` : '');
 
-    try {
-      await navigator.clipboard.writeText(mensagem);
-      toast.success('Mensagem copiada! Cole no WhatsApp do celular.');
-    } catch {
-      // Fallback para navegadores que não suportam clipboard
-      const textarea = document.createElement('textarea');
-      textarea.value = mensagem;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      toast.success('Mensagem copiada! Cole no WhatsApp do celular.');
-    }
+    const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
+    window.open(url, '_blank');
   };
 
   const podeMovimentar = canManageStock;
@@ -980,7 +969,7 @@ export const PedidoCompra = () => {
                     <FileText className="h-4 w-4 mr-2" /> Salvar PDF
                   </Button>
                   <Button variant="outline" onClick={enviarWhatsApp} className="text-green-600 border-green-600/50 hover:bg-green-50">
-                    <MessageCircle className="h-4 w-4 mr-2" /> Copiar p/ WhatsApp
+                    <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp
                   </Button>
                 </>
               )}
