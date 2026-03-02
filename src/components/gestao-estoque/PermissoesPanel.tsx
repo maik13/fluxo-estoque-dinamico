@@ -180,15 +180,15 @@ export const PermissoesPanel = () => {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Header com tipos de usuário */}
-        <div className="overflow-x-auto rounded-lg border border-border/50">
-          <table className="w-full text-sm">
+        <div className="rounded-lg border border-border/50">
+          <table className="w-full text-sm table-fixed">
             <thead>
               <tr className="border-b border-border/50 bg-muted/30">
-                <th className="sticky left-0 z-10 bg-muted/30 px-4 py-3 text-left font-medium text-muted-foreground min-w-[200px]">
+                <th className="bg-muted/30 px-3 py-3 text-left font-medium text-muted-foreground w-[30%]">
                   Permissão
                 </th>
                 {permissoes.map((p) => (
-                  <th key={p.tipo_usuario} className="px-3 py-3 text-center min-w-[100px]">
+                  <th key={p.tipo_usuario} className="px-1 py-3 text-center">
                     <Badge variant="outline" className={cn('text-xs font-medium', TIPOS_USUARIO_COLORS[p.tipo_usuario])}>
                       {TIPOS_USUARIO_LABELS[p.tipo_usuario] || p.tipo_usuario}
                     </Badge>
@@ -215,7 +215,7 @@ export const PermissoesPanel = () => {
                         cIdx === grupo.campos.length - 1 && 'border-b-0'
                       )}
                     >
-                      <td className="sticky left-0 z-10 bg-card px-4 py-2.5 font-medium text-foreground">
+                      <td className="bg-card px-3 py-2.5 font-medium text-foreground text-xs">
                         {campo.label}
                       </td>
                       {permissoes.map((p) => {
