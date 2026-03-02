@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ClipboardList, Plus, Trash2, Eye, Printer, FileText, Check, X, ChevronsUpDown, Send } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Eye, Printer, FileText, Check, X, ChevronsUpDown, Send, ArrowRight } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -320,6 +320,101 @@ export const SolicitacaoMaterial = () => {
     }
   };
 
+  const converterEmRetirada = async (sol: SolicitacaoMaterialCompleta) => {
+    if (!user || !userProfile) {
+      toast.error('Usuário não autenticado');
+      return;
+    }
+
+    try {
+      const estoqueInfo = obterEstoqueAtivoInfo();
+
+      // Filtrar apenas itens que existem no estoque (com item_id)
+      const itensEstoqueOnly = sol.itens.filter(i => i.item_id);
+
+      if (itensEstoqueOnly.length === 0) {
+        toast.error('Nenhum item desta solicitação existe no estoque para retirada');
+        return;
+      }
+
+      // Criar solicitação de retirada
+      const { data: solicitacaoData, error: solicitacaoError } = await supabase
+        .from('solicitacoes')
+        .insert({
+          solicitante_id: sol.solicitante_id,
+          solicitante_nome: sol.solicitante_nome,
+          observacoes: `Convertida da Solicitação de Material #${sol.numero}${sol.observacoes ? ' - ' + sol.observacoes : ''}`,
+          tipo_operacao: 'retirada',
+          criado_por_id: user.id,
+          estoque_id: estoqueInfo?.id ?? null
+        })
+        .select()
+        .single();
+
+      if (solicitacaoError) throw solicitacaoError;
+
+      // Criar itens da solicitação
+      const itensParaInserir = itensEstoqueOnly.map(item => ({
+        solicitacao_id: solicitacaoData.id,
+        item_id: item.item_id!,
+        quantidade_solicitada: item.quantidade,
+        quantidade_aprovada: item.quantidade,
+        item_snapshot: item.item_snapshot || {}
+      }));
+
+      const { error: itensError } = await supabase
+        .from('solicitacao_itens')
+        .insert(itensParaInserir);
+
+      if (itensError) throw itensError;
+
+      // Criar movimentações de saída
+      for (const item of itensEstoqueOnly) {
+        const movimentacaoData = {
+          item_id: item.item_id!,
+          tipo: 'SAIDA' as const,
+          quantidade: item.quantidade,
+          quantidade_anterior: 0,
+          quantidade_atual: 0,
+          user_id: user.id,
+          observacoes: `Retirada - Solicitação Material #${sol.numero} → Retirada #${solicitacaoData.numero || solicitacaoData.id.slice(-8)}`,
+          item_snapshot: item.item_snapshot || {},
+          solicitacao_id: solicitacaoData.id,
+          estoque_id: estoqueInfo?.id ?? null
+        };
+
+        const { error: movError } = await supabase
+          .from('movements')
+          .insert(movimentacaoData);
+
+        if (movError) throw movError;
+      }
+
+      // Atualizar status da solicitação de material
+      await supabase
+        .from('solicitacoes_material')
+        .update({
+          status: 'convertida',
+          solicitacao_retirada_id: solicitacaoData.id
+        })
+        .eq('id', sol.id);
+
+      toast.success(`Retirada criada com sucesso! ${itensEstoqueOnly.length} item(ns) processado(s).`);
+      
+      if (sol.itens.length > itensEstoqueOnly.length) {
+        toast.info(`${sol.itens.length - itensEstoqueOnly.length} item(ns) avulso(s) não foram incluídos na retirada (não existem no estoque).`);
+      }
+
+      carregarSolicitacoes();
+      if (solicitacaoSelecionada?.id === sol.id) {
+        setSolicitacaoSelecionada(prev => prev ? { ...prev, status: 'convertida' } : null);
+      }
+    } catch (error) {
+      console.error('Erro ao converter em retirada:', error);
+      toast.error('Erro ao converter em retirada');
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pendente': return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Pendente</Badge>;
@@ -523,6 +618,11 @@ export const SolicitacaoMaterial = () => {
                             </Button>
                           </>
                         )}
+                        {canManageStock && sol.status === 'aprovada' && (
+                          <Button variant="ghost" size="icon" className="text-primary hover:text-primary/80" title="Converter em Retirada" onClick={() => converterEmRetirada(sol)}>
+                            <ArrowRight className="h-4 w-4" />
+                          </Button>
+                        )}
                         {isAdmin() && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -626,6 +726,11 @@ export const SolicitacaoMaterial = () => {
                       </Button>
                     </>
                   )}
+                  {canManageStock && solicitacaoSelecionada.status === 'aprovada' && (
+                    <Button className="gap-1 bg-primary hover:bg-primary/90" onClick={() => converterEmRetirada(solicitacaoSelecionada)}>
+                      <ArrowRight className="h-4 w-4" /> Converter em Retirada
+                    </Button>
+                  )}
                   {isAdmin() && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -719,8 +824,8 @@ export const SolicitacaoMaterial = () => {
                 <Label>Unidade</Label>
                 <Input value={unidadeCustom} onChange={(e) => setUnidadeCustom(e.target.value)} placeholder="un" />
               </div>
-              <Button type="button" onClick={adicionarItemCustom} variant="secondary">
-                <Plus className="h-4 w-4" />
+              <Button type="button" onClick={adicionarItemCustom} variant="secondary" className="gap-1 whitespace-nowrap">
+                <Plus className="h-4 w-4" /> Adicionar
               </Button>
             </div>
 
