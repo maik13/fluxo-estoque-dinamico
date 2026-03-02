@@ -38,6 +38,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      // Se for recuperação de senha, redirecionar para /reset-password sem interferir
+      if (event === "PASSWORD_RECOVERY") {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        setLoading(false);
+        if (window.location.pathname !== "/reset-password") {
+          window.location.href = "/reset-password";
+        }
+        return;
+      }
+
       // TOKEN_REFRESHED só ocorre em sucesso; em falha pode vir SIGNED_OUT ou erro no getSession
       if (event === "SIGNED_OUT") {
         cleanupAuthState();

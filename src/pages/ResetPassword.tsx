@@ -15,10 +15,20 @@ const ResetPassword = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Verificar se há token de recuperação na URL (hash ou query)
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    if (hashParams.get('type') === 'recovery') {
+    const queryParams = new URLSearchParams(window.location.search);
+    
+    if (hashParams.get('type') === 'recovery' || queryParams.get('type') === 'recovery') {
       setIsRecovery(true);
     }
+
+    // Verificar se já existe uma sessão ativa (usuário chegou via link de recovery)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setIsRecovery(true);
+      }
+    });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
@@ -48,8 +58,10 @@ const ResetPassword = () => {
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      setMessage('Senha redefinida com sucesso! Redirecionando...');
-      setTimeout(() => navigate('/'), 2000);
+      setMessage('Senha redefinida com sucesso! Redirecionando para o login...');
+      // Fazer logout para forçar login com nova senha
+      await supabase.auth.signOut();
+      setTimeout(() => navigate('/auth'), 2000);
     } catch (e: any) {
       setError(e?.message ?? 'Erro ao redefinir senha.');
     } finally {
