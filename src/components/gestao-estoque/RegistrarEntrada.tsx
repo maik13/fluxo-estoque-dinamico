@@ -31,7 +31,7 @@ export const RegistrarEntrada = () => {
   const { obterEstoque, registrarEntrada } = useEstoqueContext();
   const { tiposOperacao } = useConfiguracoes();
   
-  const itensDisponiveis = obterEstoque();
+  const itensDisponiveis = obterEstoque().filter(item => item.ativo !== false);
 
   // Filtrar apenas operações de entrada, excluindo "Devolução"
   const tiposOperacaoEntrada = tiposOperacao.filter(

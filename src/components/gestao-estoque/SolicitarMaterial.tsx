@@ -56,7 +56,7 @@ export const SolicitarMaterial = () => {
   const { canManageStock, userProfile } = usePermissions();
   const { obterTiposOperacaoAtivos, obterSolicitantesAtivos, obterLocaisUtilizacaoAtivos } = useConfiguracoes();
   
-  const itensDisponiveis = obterEstoque();
+  const itensDisponiveis = obterEstoque().filter(item => item.ativo !== false);
   const tiposOperacaoDisponiveis = obterTiposOperacaoAtivos();
   const solicitantesDisponiveis = obterSolicitantesAtivos();
   const locaisDisponiveis = obterLocaisUtilizacaoAtivos();

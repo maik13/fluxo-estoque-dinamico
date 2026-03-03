@@ -103,6 +103,7 @@ export type Database = {
       }
       items: {
         Row: {
+          ativo: boolean
           caixa_organizador: string | null
           codigo_antigo: string | null
           codigo_barras: number
@@ -124,6 +125,7 @@ export type Database = {
           valor: number | null
         }
         Insert: {
+          ativo?: boolean
           caixa_organizador?: string | null
           codigo_antigo?: string | null
           codigo_barras: number
@@ -145,6 +147,7 @@ export type Database = {
           valor?: number | null
         }
         Update: {
+          ativo?: boolean
           caixa_organizador?: string | null
           codigo_antigo?: string | null
           codigo_barras?: number

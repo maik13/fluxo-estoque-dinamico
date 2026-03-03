@@ -61,6 +61,7 @@ export const useEstoque = () => {
             ncm: payload.new.ncm ?? '',
             valor: payload.new.valor ?? undefined,
             fotoUrl: payload.new.foto_url ?? undefined,
+            ativo: payload.new.ativo ?? true,
           };
           setItens(prev => {
             // Evitar duplicatas
@@ -95,6 +96,7 @@ export const useEstoque = () => {
             ncm: payload.new.ncm ?? '',
             valor: payload.new.valor ?? undefined,
             fotoUrl: payload.new.foto_url ?? undefined,
+            ativo: payload.new.ativo ?? true,
           };
           setItens(prev => prev.map(i => i.id === itemAtualizado.id ? itemAtualizado : i));
         }
@@ -331,6 +333,7 @@ export const useEstoque = () => {
         ncm: row.ncm ?? '',
         valor: row.valor ?? undefined,
         fotoUrl: row.foto_url ?? undefined,
+        ativo: row.ativo ?? true,
       }));
 
       const movsMapped: Movimentacao[] = (movsData ?? []).map((row: any) => ({
@@ -569,6 +572,10 @@ const registrarEntrada = async (
       toast({ title: 'Item não encontrado', description: 'Não foi encontrado item com este código de barras.', variant: 'destructive' });
       return false;
     }
+    if (!item.ativo) {
+      toast({ title: 'Item inativo', description: 'Este item está inativo e não pode receber entradas.', variant: 'destructive' });
+      return false;
+    }
 
     const estoqueAnterior = calcularEstoqueAtual(item.id);
     const estoqueAtual = estoqueAnterior + quantidade;
@@ -625,6 +632,10 @@ const registrarSaida = async (
     const item = buscarItemPorCodigo(codigoBarras);
     if (!item) {
       toast({ title: 'Item não encontrado', description: 'Não foi encontrado item com este código de barras.', variant: 'destructive' });
+      return false;
+    }
+    if (!item.ativo) {
+      toast({ title: 'Item inativo', description: 'Este item está inativo e não pode ser retirado.', variant: 'destructive' });
       return false;
     }
 
@@ -699,6 +710,7 @@ const editarItem = async (itemEditado: Item) => {
       ncm: itemEditado.ncm ?? null,
       valor: itemEditado.valor ?? null,
       foto_url: itemEditado.fotoUrl ?? null,
+      ativo: itemEditado.ativo,
     };
 
     const { error } = await supabase.from('items').update(update).eq('id', itemEditado.id);

@@ -97,7 +97,8 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
       subcategoriaId: dados.subcategoriaId?.toString().trim() || undefined,
       quantidadeMinima: quantidadeMinima,
       ncm: dados.ncm?.toString().trim() || '',
-      valor: dados.valor ? parseFloat(dados.valor.toString().trim().replace(',', '.')) : undefined
+      valor: dados.valor ? parseFloat(dados.valor.toString().trim().replace(',', '.')) : undefined,
+      ativo: true,
     };
 
     return { item };
