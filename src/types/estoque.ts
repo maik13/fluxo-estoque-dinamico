@@ -19,6 +19,7 @@ export interface Item {
   ncm?: string; // NCM - Nomenclatura Comum do Mercosul
   valor?: number; // Valor unitário do item
   fotoUrl?: string; // URL da foto do produto
+  ativo: boolean; // Status do item (ativo/inativo)
 }
 
 export interface Movimentacao {

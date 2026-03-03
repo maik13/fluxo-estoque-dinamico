@@ -317,6 +317,26 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
             onFotoChange={(url) => setFormItem(prev => prev ? {...prev, fotoUrl: url} : null)}
             itemId={formItem.id}
           />
+
+          <div className="flex items-center gap-4 p-3 border rounded-lg bg-muted/30">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="ativoEdit"
+                checked={formItem.ativo}
+                onCheckedChange={(checked) => {
+                  setFormItem(prev => prev ? {...prev, ativo: checked} : null);
+                }}
+              />
+              <Label htmlFor="ativoEdit" className="cursor-pointer">
+                {formItem.ativo ? '✅ Item Ativo' : '❌ Item Inativo'}
+              </Label>
+            </div>
+            {!formItem.ativo && (
+              <p className="text-xs text-destructive">
+                Itens inativos não podem ser utilizados em operações (entrada, saída, devolução, transferência).
+              </p>
+            )}
+          </div>
           
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={handleClose}>

@@ -36,7 +36,7 @@ export const Transferencia = () => {
   const { estoques } = useConfiguracoes();
   const { user } = useAuth();
   
-  const itensDisponiveis = obterEstoque();
+  const itensDisponiveis = obterEstoque().filter(item => item.ativo !== false);
 
   const adicionarItem = (item: EstoqueItem, quantidade: number) => {
     const itemExistente = itensTransferencia.find(i => i.item.id === item.id);

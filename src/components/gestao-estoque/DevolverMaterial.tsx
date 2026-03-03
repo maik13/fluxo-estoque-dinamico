@@ -51,7 +51,7 @@ export const DevolverMaterial = () => {
   const { obterEstoque } = useEstoqueContext();
   const { obterLocaisUtilizacaoAtivos } = useConfiguracoes();
 
-  const itensEstoque = obterEstoque();
+  const itensEstoque = obterEstoque().filter(item => item.ativo !== false);
   const locaisDisponiveis = obterLocaisUtilizacaoAtivos();
 
   // Carregar todos os solicitantes disponíveis da tabela solicitantes

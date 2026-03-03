@@ -36,6 +36,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   const [filtroSubcategoria, setFiltroSubcategoria] = useState('todas');
   const [filtroCondicao, setFiltroCondicao] = useState('todas');
   const [filtroEstoque, setFiltroEstoque] = useState('todos'); // todos, baixo, zerado
+  const [filtroStatus, setFiltroStatus] = useState('ativos'); // ativos, inativos, todos
   
   // Estados para edição
   const [dialogoEdicao, setDialogoEdicao] = useState(false);
@@ -116,9 +117,17 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
         matchEstoque = item.estoqueAtual === 0;
       }
 
-      return matchTexto && matchSubcategoria && matchCondicao && matchEstoque;
+      // Filtro por status ativo/inativo
+      let matchStatus = true;
+      if (filtroStatus === 'ativos') {
+        matchStatus = item.ativo !== false;
+      } else if (filtroStatus === 'inativos') {
+        matchStatus = item.ativo === false;
+      }
+
+      return matchTexto && matchSubcategoria && matchCondicao && matchEstoque && matchStatus;
     });
-  }, [estoque, filtroTexto, filtroCategoria, filtroSubcategoria, filtroCondicao, filtroEstoque]);
+  }, [estoque, filtroTexto, filtroCategoria, filtroSubcategoria, filtroCondicao, filtroEstoque, filtroStatus]);
   
   // Resetar página quando filtros mudarem
   useEffect(() => {
@@ -540,6 +549,17 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                 <SelectItem value="zerado">Estoque zerado</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+              <SelectTrigger>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ativos">Ativos</SelectItem>
+                <SelectItem value="inativos">Inativos</SelectItem>
+                <SelectItem value="todos">Todos</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="flex justify-between items-center mt-4">
@@ -679,7 +699,12 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{item.nome}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{item.nome}</p>
+                            {item.ativo === false && (
+                              <Badge variant="secondary" className="text-xs">Inativo</Badge>
+                            )}
+                          </div>
                           {item.especificacao && (
                             <p className="text-xs text-muted-foreground truncate max-w-[200px]">
                               {item.especificacao}
