@@ -517,7 +517,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
             <Select 
               value={filtroSubcategoria} 
               onValueChange={setFiltroSubcategoria}
-              disabled={filtroCategoria === 'todas'}
+              >
             >
               <SelectTrigger>
                 <SelectValue placeholder="Subcategoria" />
