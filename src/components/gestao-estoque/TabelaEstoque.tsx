@@ -93,9 +93,14 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   }, [filtroCategoria]);
 
   // Filtrar itens baseado nos filtros ativos
+  // IDs de subcategorias válidas para a categoria selecionada
+  const subcategoriaIdsDaCategoria = useMemo(() => {
+    if (filtroCategoria === 'todas') return null;
+    return new Set(subcategoriasFiltradas.map(s => s.id));
+  }, [filtroCategoria, subcategoriasFiltradas]);
+
   const itensFiltrados = useMemo(() => {
     return estoque.filter(item => {
-      // Filtro por texto (busca em nome, código, marca, especificação)
       const textoFiltro = filtroTexto.toLowerCase();
       const matchTexto = !textoFiltro || 
         item.nome.toLowerCase().includes(textoFiltro) ||
@@ -103,13 +108,15 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
         item.marca.toLowerCase().includes(textoFiltro) ||
         item.especificacao.toLowerCase().includes(textoFiltro);
 
+      // Filtro por categoria (via subcategorias vinculadas)
+      const matchCategoria = !subcategoriaIdsDaCategoria || 
+        (item.subcategoriaId ? subcategoriaIdsDaCategoria.has(item.subcategoriaId) : false);
+
       // Filtro por subcategoria
       const matchSubcategoria = filtroSubcategoria === 'todas' || item.subcategoriaId === filtroSubcategoria;
       
-      // Filtro por condição
       const matchCondicao = filtroCondicao === 'todas' || item.condicao === filtroCondicao;
       
-      // Filtro por nível de estoque
       let matchEstoque = true;
       if (filtroEstoque === 'baixo') {
         matchEstoque = item.quantidadeMinima ? item.estoqueAtual <= item.quantidadeMinima : false;
@@ -117,7 +124,6 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
         matchEstoque = item.estoqueAtual === 0;
       }
 
-      // Filtro por status ativo/inativo
       let matchStatus = true;
       if (filtroStatus === 'ativos') {
         matchStatus = item.ativo !== false;
@@ -125,9 +131,9 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
         matchStatus = item.ativo === false;
       }
 
-      return matchTexto && matchSubcategoria && matchCondicao && matchEstoque && matchStatus;
+      return matchTexto && matchCategoria && matchSubcategoria && matchCondicao && matchEstoque && matchStatus;
     });
-  }, [estoque, filtroTexto, filtroCategoria, filtroSubcategoria, filtroCondicao, filtroEstoque, filtroStatus]);
+  }, [estoque, filtroTexto, subcategoriaIdsDaCategoria, filtroSubcategoria, filtroCondicao, filtroEstoque, filtroStatus]);
   
   // Resetar página quando filtros mudarem
   useEffect(() => {
