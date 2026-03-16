@@ -352,7 +352,7 @@ export const MenuPrincipal = () => {
   };
   
   // Função para lidar com saída (registrar todos os itens)
-  const handleSaida = (e: React.FormEvent) => {
+  const handleSaida = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Preparar dados para validação
@@ -385,10 +385,10 @@ export const MenuPrincipal = () => {
       return;
     }
     
-    // Registrar saída de todos os itens
+    // Registrar saída de todos os itens (sequencial com await para evitar duplicatas)
     let todosRegistrados = true;
     for (const itemSaida of itensSaida) {
-      const sucesso = registrarSaida(
+      const sucesso = await registrarSaida(
         itemSaida.item.codigoBarras,
         itemSaida.quantidade,
         '',

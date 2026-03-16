@@ -79,7 +79,7 @@ export const RegistrarEntrada = () => {
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Preparar dados para validação
@@ -102,10 +102,10 @@ export const RegistrarEntrada = () => {
       return;
     }
 
-    // Processar cada item
+    // Processar cada item (sequencial com await para evitar duplicatas)
     let sucesso = true;
     for (const itemEntrada of itensEntrada) {
-      const resultado = registrarEntrada(
+      const resultado = await registrarEntrada(
         itemEntrada.item.codigoBarras,
         itemEntrada.quantidade,
         '',
