@@ -102,10 +102,10 @@ export const RegistrarEntrada = () => {
       return;
     }
 
-    // Processar cada item
+    // Processar cada item (sequencial com await para evitar duplicatas)
     let sucesso = true;
     for (const itemEntrada of itensEntrada) {
-      const resultado = registrarEntrada(
+      const resultado = await registrarEntrada(
         itemEntrada.item.codigoBarras,
         itemEntrada.quantidade,
         '',

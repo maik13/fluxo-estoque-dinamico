@@ -385,10 +385,10 @@ export const MenuPrincipal = () => {
       return;
     }
     
-    // Registrar saída de todos os itens
+    // Registrar saída de todos os itens (sequencial com await para evitar duplicatas)
     let todosRegistrados = true;
     for (const itemSaida of itensSaida) {
-      const sucesso = registrarSaida(
+      const sucesso = await registrarSaida(
         itemSaida.item.codigoBarras,
         itemSaida.quantidade,
         '',
