@@ -79,7 +79,7 @@ export const RegistrarEntrada = () => {
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Preparar dados para validação
