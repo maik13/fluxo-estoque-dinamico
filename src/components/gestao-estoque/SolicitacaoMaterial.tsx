@@ -848,14 +848,23 @@ export const SolicitacaoMaterial = () => {
                       <ChevronsUpDown className="h-4 w-4 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[400px] p-0" align="start">
+                  <PopoverContent className="w-[400px] p-0" align="start" side="bottom" avoidCollisions={false} sideOffset={4}>
                     <Command>
                       <CommandInput placeholder="Buscar por nome, código..." value={busca} onValueChange={setBusca} />
-                      <CommandList>
+                      <CommandList className="max-h-[250px]">
                         <CommandEmpty>Nenhum item encontrado</CommandEmpty>
                         <CommandGroup>
                           {itensFiltrados.map(item => (
-                            <CommandItem key={item.id} value={`${item.nome} ${item.codigoBarras}`} onSelect={() => adicionarItemEstoque(item)}>
+                            <CommandItem
+                              key={item.id}
+                              value={`${item.nome} ${item.codigoBarras}`}
+                              onSelect={() => adicionarItemEstoque(item)}
+                              onPointerDown={(e) => {
+                                e.preventDefault();
+                                adicionarItemEstoque(item);
+                              }}
+                              className="cursor-pointer"
+                            >
                               <div className="flex justify-between w-full">
                                 <span>{item.nome}</span>
                                 <span className="text-xs text-muted-foreground">
