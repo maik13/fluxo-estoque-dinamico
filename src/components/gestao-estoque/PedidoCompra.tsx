@@ -467,11 +467,12 @@ export const PedidoCompra = () => {
 
     const rows = itensPedidoSelecionado.map((item, idx) => {
       const snap = item.item_snapshot as any;
+      const nomeItem = snap?.nome || item.nome_item || '-';
       const statusLabel = item.status === 'comprado' ? 'COMPRADO' : 'PENDENTE';
       const statusColor = item.status === 'comprado' ? '#27ae60' : '#e67e22';
       return `<tr>
         <td>${idx + 1}</td>
-        <td>${snap?.nome || '-'}</td>
+        <td>${nomeItem}</td>
         <td>${snap?.codigoBarras || '-'}</td>
         <td>${item.quantidade} ${snap?.unidade || ''}</td>
         <td>${snap?.marca || '-'}</td>
@@ -519,8 +520,9 @@ export const PedidoCompra = () => {
 
     const itensTexto = itensPedidoSelecionado.map((item, idx) => {
       const snap = item.item_snapshot as any;
+      const nomeItem = snap?.nome || item.nome_item || '-';
       const status = item.status === 'comprado' ? '✅' : '⏳';
-      return `${idx + 1}. ${snap?.nome || '-'} | Cód: ${snap?.codigoBarras || '-'} | Qtd: ${item.quantidade} ${snap?.unidade || ''} | Marca: ${snap?.marca || '-'} ${status}`;
+      return `${idx + 1}. ${nomeItem} | Cód: ${snap?.codigoBarras || '-'} | Qtd: ${item.quantidade} ${snap?.unidade || ''} | Marca: ${snap?.marca || '-'} ${status}`;
     }).join('\n');
 
     const mensagem = `📋 *Pedido de Compra #${pedidoSelecionado.numero}*\n\n` +
@@ -534,6 +536,65 @@ export const PedidoCompra = () => {
     const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
     window.open(url, '_blank');
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const abrirPedidoAutomaticamente = async (pedidoId?: string) => {
+      if (!pedidoId) return;
+
+      try {
+        const { data: pedido, error: pedidoError } = await supabase
+          .from('pedidos_compra')
+          .select('*')
+          .eq('id', pedidoId)
+          .maybeSingle();
+
+        if (pedidoError) throw pedidoError;
+        if (!pedido) return;
+
+        const { data: itens, error: itensError } = await supabase
+          .from('pedido_compra_itens')
+          .select('*')
+          .eq('pedido_id', pedidoId);
+
+        if (itensError) throw itensError;
+
+        setPedidoSelecionado(pedido as PedidoCompraDB);
+        setItensPedidoSelecionado((itens || []) as PedidoItemDB[]);
+        setModoEdicao(false);
+        setDialogoConsulta(false);
+        setDialogoDetalhe(true);
+      } catch (error) {
+        console.error('Erro ao abrir pedido automático:', error);
+        toast.error('Erro ao abrir o Pedido de Compra automaticamente');
+      }
+    };
+
+    const processarRedirecionamento = async (payload?: { pedidoId?: string }) => {
+      if (!payload?.pedidoId) return;
+      sessionStorage.removeItem('pedido_compra_redirect');
+      await abrirPedidoAutomaticamente(payload.pedidoId);
+    };
+
+    const pendente = sessionStorage.getItem('pedido_compra_redirect');
+    if (pendente) {
+      try {
+        const payload = JSON.parse(pendente) as { pedidoId?: string };
+        void processarRedirecionamento(payload);
+      } catch {
+        sessionStorage.removeItem('pedido_compra_redirect');
+      }
+    }
+
+    const handleAbrirPedido = (event: Event) => {
+      const customEvent = event as CustomEvent<{ pedidoId?: string }>;
+      void processarRedirecionamento(customEvent.detail);
+    };
+
+    window.addEventListener('pedido-compra:abrir', handleAbrirPedido as EventListener);
+    return () => window.removeEventListener('pedido-compra:abrir', handleAbrirPedido as EventListener);
+  }, []);
 
   const podeMovimentar = canManageStock();
 
