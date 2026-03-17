@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,7 +45,8 @@ interface PedidoCompraDB {
 interface PedidoItemDB {
   id: string;
   pedido_id: string;
-  item_id: string;
+  item_id: string | null;
+  nome_item?: string | null;
   quantidade: number;
   item_snapshot: any;
   status: string;
