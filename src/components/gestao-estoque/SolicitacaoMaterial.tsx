@@ -22,6 +22,7 @@ import { EstoqueItem } from '@/types/estoque';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { ItemFotoMiniatura } from './ItemFotoMiniatura';
 
 interface ItemSolicitacaoMaterial {
   item_id?: string;
@@ -30,7 +31,7 @@ interface ItemSolicitacaoMaterial {
   unidade: string;
   item_snapshot?: any;
   observacoes?: string;
-  isCustom: boolean; // true = item digitado manualmente
+  isCustom: boolean;
 }
 
 interface SolicitacaoMaterialCompleta {
@@ -80,8 +81,11 @@ export const SolicitacaoMaterial = () => {
   const { obterEstoqueAtivoInfo } = useConfiguracoes();
 
   const itensEstoque = obterEstoque();
+  const mapaEstoque = useMemo(
+    () => new Map(itensEstoque.map((item) => [item.id, item])),
+    [itensEstoque]
+  );
 
-  // Carregar contagem de pendentes para badge
   useEffect(() => {
     if (!user) return;
     carregarPendentes();
@@ -155,11 +159,25 @@ export const SolicitacaoMaterial = () => {
     ).slice(0, 50);
   }, [busca, itensEstoque]);
 
+  const itemVaiParaCompra = (item: { item_id?: string; quantidade: number; isCustom?: boolean }) => {
+    if (!item.item_id || item.isCustom) return true;
+
+    const itemEstoque = mapaEstoque.get(item.item_id);
+    if (!itemEstoque) return true;
+
+    return itemEstoque.estoqueAtual < item.quantidade;
+  };
+
+  const obterItensParaPedidoCompra = (itens: Array<{ item_id?: string; quantidade: number; isCustom?: boolean }>) => {
+    return itens.filter(itemVaiParaCompra);
+  };
+
   const adicionarItemEstoque = (item: EstoqueItem) => {
     if (itensLista.find(i => i.item_id === item.id)) {
       toast.error('Este item já foi adicionado');
       return;
     }
+
     setItensLista(prev => [...prev, {
       item_id: item.id,
       nome_item: item.nome,
@@ -172,16 +190,17 @@ export const SolicitacaoMaterial = () => {
         marca: item.marca,
         unidade: item.unidade,
         especificacao: item.especificacao,
-        fotoUrl: item.fotoUrl
+        fotoUrl: item.fotoUrl,
       },
       observacoes: obsItem || undefined,
       isCustom: false
     }]);
+
     setPopoverAberto(false);
     setBusca('');
     setQuantidadeItem(1);
     setObsItem('');
-    toast.success('Item adicionado');
+    toast.success(item.estoqueAtual < quantidadeItem ? 'Item sem saldo suficiente: será enviado para compra.' : 'Item adicionado');
   };
 
   const adicionarItemCustom = () => {
@@ -189,6 +208,7 @@ export const SolicitacaoMaterial = () => {
       toast.error('Digite o nome do item');
       return;
     }
+
     setItensLista(prev => [...prev, {
       nome_item: nomeItemCustom.trim(),
       quantidade: quantidadeItem,
@@ -196,11 +216,12 @@ export const SolicitacaoMaterial = () => {
       observacoes: obsItem || undefined,
       isCustom: true
     }]);
+
     setNomeItemCustom('');
     setQuantidadeItem(1);
     setUnidadeCustom('un');
     setObsItem('');
-    toast.success('Item personalizado adicionado');
+    toast.success('Item avulso adicionado ao Pedido de Compra');
   };
 
   const removerItem = (index: number) => {
