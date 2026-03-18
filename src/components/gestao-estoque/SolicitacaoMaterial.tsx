@@ -843,6 +843,15 @@ export const SolicitacaoMaterial = () => {
                   {solicitacaoSelecionada.itens.map((item, i) => (
                     <TableRow key={item.id}>
                       <TableCell>{i + 1}</TableCell>
+                      <TableCell>
+                        {item.item_snapshot?.fotoUrl ? (
+                          <img src={item.item_snapshot.fotoUrl} alt={item.nome_item} className="w-10 h-10 rounded object-cover" />
+                        ) : (
+                          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
+                            <span className="text-xs text-muted-foreground">—</span>
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell className="font-medium">
                         {item.nome_item}
                         {item.item_id && item.item_snapshot?.codigoBarras && (
