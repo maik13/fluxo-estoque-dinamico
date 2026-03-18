@@ -862,39 +862,37 @@ export const SolicitacaoMaterial = () => {
                     <TableHead>Item</TableHead>
                     <TableHead>Qtd</TableHead>
                     <TableHead>Unidade</TableHead>
-                    <TableHead>Tipo</TableHead>
+                    <TableHead>Destino</TableHead>
                     <TableHead>Obs</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {solicitacaoSelecionada.itens.map((item, i) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{i + 1}</TableCell>
-                      <TableCell>
-                        {item.item_snapshot?.fotoUrl ? (
-                          <img src={item.item_snapshot.fotoUrl} alt={item.nome_item} className="w-10 h-10 rounded object-cover" />
-                        ) : (
-                          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
-                            <span className="text-xs text-muted-foreground">—</span>
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {item.nome_item}
-                        {item.item_id && item.item_snapshot?.codigoBarras && (
-                          <span className="block text-xs text-muted-foreground">Cód: {item.item_snapshot.codigoBarras}</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{item.quantidade}</TableCell>
-                      <TableCell>{item.unidade}</TableCell>
-                      <TableCell>
-                        <Badge variant={item.item_id ? "default" : "secondary"}>
-                          {item.item_id ? 'Estoque' : 'Avulso'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{item.observacoes || '-'}</TableCell>
-                    </TableRow>
-                  ))}
+                  {solicitacaoSelecionada.itens.map((item, i) => {
+                    const vaiParaCompra = itemVaiParaCompra({ ...item, isCustom: !item.item_id });
+
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell>{i + 1}</TableCell>
+                        <TableCell>
+                          <ItemFotoMiniatura fotoUrl={item.item_snapshot?.fotoUrl} nome={item.nome_item} />
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {item.nome_item}
+                          {item.item_id && item.item_snapshot?.codigoBarras && (
+                            <span className="block text-xs text-muted-foreground">Cód: {item.item_snapshot.codigoBarras}</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{item.quantidade}</TableCell>
+                        <TableCell>{item.unidade}</TableCell>
+                        <TableCell>
+                          <Badge variant={vaiParaCompra ? 'secondary' : 'default'}>
+                            {vaiParaCompra ? 'Pedido de Compra' : 'Estoque'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{item.observacoes || '-'}</TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
 
@@ -950,61 +948,69 @@ export const SolicitacaoMaterial = () => {
       </Dialog>
 
       {/* Dialog Criar Nova Solicitação */}
-      <Dialog open={dialogoCriar} onOpenChange={(open) => { setDialogoCriar(open); if (!open) { setItensLista([]); setObservacoes(''); } }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()} onPointerDownOutside={(e) => e.preventDefault()}>
+      <Dialog open={dialogoCriar} onOpenChange={(open) => { if (open) setDialogoCriar(true); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()} onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5" /> Nova Solicitação de Material
             </DialogTitle>
           </DialogHeader>
 
-          {/* Adicionar item do estoque */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium">Adicionar item do estoque</h3>
             <div className="flex gap-2 items-end">
               <div className="flex-1">
                 <Label>Item</Label>
-                <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
+                <Popover modal={true} open={popoverAberto} onOpenChange={setPopoverAberto}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between">
                       Buscar item no estoque...
                       <ChevronsUpDown className="h-4 w-4 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[400px] p-0" align="start" side="bottom" avoidCollisions={false} sideOffset={4}>
+                  <PopoverContent className="w-[440px] p-0" align="start" side="bottom" avoidCollisions={false} sideOffset={4}>
                     <Command>
                       <CommandInput placeholder="Buscar por nome, código..." value={busca} onValueChange={setBusca} />
                       <CommandList className="max-h-[250px]">
                         <CommandEmpty>Nenhum item encontrado</CommandEmpty>
                         <CommandGroup>
-                          {itensFiltrados.map(item => (
-                            <CommandItem
-                              key={item.id}
-                              value={`${item.nome} ${item.codigoBarras}`}
-                              onSelect={() => adicionarItemEstoque(item)}
-                              onPointerDown={(e) => {
-                                e.preventDefault();
-                                adicionarItemEstoque(item);
-                              }}
-                              className="cursor-pointer"
-                            >
-                              <div className="flex items-center gap-2 w-full">
-                                {item.fotoUrl ? (
-                                  <img src={item.fotoUrl} alt={item.nome} className="w-8 h-8 rounded object-cover flex-shrink-0" />
-                                ) : (
-                                  <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                                    <span className="text-xs text-muted-foreground">—</span>
+                          {itensFiltrados.map(item => {
+                            const vaiParaCompra = item.estoqueAtual < quantidadeItem;
+
+                            return (
+                              <CommandItem
+                                key={item.id}
+                                value={`${item.nome} ${item.codigoBarras}`}
+                                onSelect={() => adicionarItemEstoque(item)}
+                                onPointerDown={(e) => {
+                                  e.preventDefault();
+                                  adicionarItemEstoque(item);
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <div className="flex items-center gap-3 w-full">
+                                  <ItemFotoMiniatura
+                                    fotoUrl={item.fotoUrl}
+                                    nome={item.nome}
+                                    className="h-10 w-10 flex-shrink-0"
+                                    placeholderClassName="h-10 w-10 flex-shrink-0"
+                                    disableZoom
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium truncate">{item.nome}</span>
+                                      {vaiParaCompra && (
+                                        <Badge variant="secondary" className="text-[10px]">Compra</Badge>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      Cód: {item.codigoBarras} • Estoque: {item.estoqueAtual} {item.unidade}
+                                    </div>
                                   </div>
-                                )}
-                                <div className="flex justify-between w-full">
-                                  <span>{item.nome}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    Cód: {item.codigoBarras} | Estoque: {item.estoqueAtual} {item.unidade}
-                                  </span>
                                 </div>
-                              </div>
-                            </CommandItem>
-                          ))}
+                              </CommandItem>
+                            );
+                          })}
                         </CommandGroup>
                       </CommandList>
                     </Command>
@@ -1019,7 +1025,6 @@ export const SolicitacaoMaterial = () => {
 
             <Separator />
 
-            {/* Adicionar item personalizado (não existe no estoque) */}
             <h3 className="text-sm font-medium">Ou adicionar item que não está no estoque</h3>
             <div className="flex gap-2 items-end">
               <div className="flex-1">
@@ -1046,7 +1051,6 @@ export const SolicitacaoMaterial = () => {
 
             <Separator />
 
-            {/* Lista de itens adicionados */}
             {itensLista.length > 0 && (
               <div>
                 <h3 className="text-sm font-medium mb-2">Itens da solicitação ({itensLista.length})</h3>
@@ -1057,44 +1061,42 @@ export const SolicitacaoMaterial = () => {
                       <TableHead>Item</TableHead>
                       <TableHead>Qtd</TableHead>
                       <TableHead>Unidade</TableHead>
-                      <TableHead>Tipo</TableHead>
+                      <TableHead>Destino</TableHead>
                       <TableHead>Obs</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {itensLista.map((item, i) => (
-                      <TableRow key={i}>
-                        <TableCell>
-                          {!item.isCustom && item.item_snapshot?.fotoUrl ? (
-                            <img src={item.item_snapshot.fotoUrl} alt={item.nome_item} className="w-10 h-10 rounded object-cover" />
-                          ) : (
-                            <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
-                              <span className="text-xs text-muted-foreground">—</span>
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {item.nome_item}
-                          {!item.isCustom && item.item_snapshot?.codigoBarras && (
-                            <span className="block text-xs text-muted-foreground">Cód: {item.item_snapshot.codigoBarras}</span>
-                          )}
-                        </TableCell>
-                        <TableCell>{item.quantidade}</TableCell>
-                        <TableCell>{item.unidade}</TableCell>
-                        <TableCell>
-                          <Badge variant={item.isCustom ? "secondary" : "default"} className="text-xs">
-                            {item.isCustom ? 'Avulso' : 'Estoque'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{item.observacoes || '-'}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" onClick={() => removerItem(i)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {itensLista.map((item, i) => {
+                      const vaiParaCompra = itemVaiParaCompra(item);
+
+                      return (
+                        <TableRow key={i}>
+                          <TableCell>
+                            <ItemFotoMiniatura fotoUrl={item.item_snapshot?.fotoUrl} nome={item.nome_item} />
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {item.nome_item}
+                            {!item.isCustom && item.item_snapshot?.codigoBarras && (
+                              <span className="block text-xs text-muted-foreground">Cód: {item.item_snapshot.codigoBarras}</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{item.quantidade}</TableCell>
+                          <TableCell>{item.unidade}</TableCell>
+                          <TableCell>
+                            <Badge variant={vaiParaCompra ? 'secondary' : 'default'} className="text-xs">
+                              {vaiParaCompra ? 'Pedido de Compra' : 'Estoque'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{item.observacoes || '-'}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => removerItem(i)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

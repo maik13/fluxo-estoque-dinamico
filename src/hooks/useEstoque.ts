@@ -387,49 +387,44 @@ export const useEstoque = () => {
   };
 
   const obterProximoCodigoDisponivel = async (): Promise<number> => {
-    // Códigos bloqueados/reservados que não devem ser sugeridos
     const codigosBloqueados = [1001];
-    
-    try {
-      // Buscar todos os códigos diretamente do banco para evitar dados stale
-      const { data, error } = await supabase
-        .from('items')
-        .select('codigo_barras');
-      
-      if (error) throw error;
-      
-      const codigos = (data || []).map(item => item.codigo_barras).sort((a, b) => a - b);
-      
-      if (codigos.length === 0) return 1;
-      
-      // Encontra o primeiro número inteiro positivo não utilizado
+
+    const encontrarPrimeiroCodigoLivre = (codigosExistentes: number[]) => {
+      const codigos = codigosExistentes
+        .map((codigo) => Number(codigo))
+        .filter((codigo) => Number.isInteger(codigo) && codigo > 0)
+        .sort((a, b) => a - b);
+
       let proximoCodigo = 1;
       for (const codigo of codigos) {
         if (codigo === proximoCodigo) {
           proximoCodigo++;
-        } else if (codigo > proximoCodigo) {
+          continue;
+        }
+
+        if (codigo > proximoCodigo) {
           break;
         }
       }
-      
-      // Verifica se o código sugerido está na lista de bloqueados
+
       while (codigosBloqueados.includes(proximoCodigo)) {
         proximoCodigo++;
       }
-      
+
       return proximoCodigo;
+    };
+
+    try {
+      const { data, error } = await supabase
+        .from('items')
+        .select('codigo_barras');
+
+      if (error) throw error;
+
+      return encontrarPrimeiroCodigoLivre((data || []).map((item) => Number(item.codigo_barras)));
     } catch (error) {
       console.error('Erro ao obter próximo código:', error);
-      // Fallback: usa dados locais
-      if (itens.length === 0) return 1;
-      const codigos = itens.map(item => item.codigoBarras).sort((a, b) => a - b);
-      let proximoCodigo = 1;
-      for (const codigo of codigos) {
-        if (codigo === proximoCodigo) proximoCodigo++;
-        else if (codigo > proximoCodigo) break;
-      }
-      while (codigosBloqueados.includes(proximoCodigo)) proximoCodigo++;
-      return proximoCodigo;
+      return encontrarPrimeiroCodigoLivre(itens.map((item) => Number(item.codigoBarras)));
     }
   };
 

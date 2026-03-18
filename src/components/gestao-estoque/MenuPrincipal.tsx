@@ -126,18 +126,20 @@ export const MenuPrincipal = () => {
 
   // Buscar próximo código disponível quando o dialog de cadastro abrir
   useEffect(() => {
-    if (dialogoCadastro) {
-      obterProximoCodigoDisponivel().then(codigo => {
-        setProximoCodigoDisponivel(codigo);
-      });
-    }
-  }, [dialogoCadastro]);
+    if (!dialogoCadastro) return;
+
+    obterProximoCodigoDisponivel().then((codigo) => {
+      setProximoCodigoDisponivel(codigo);
+      setCodigoBarrasManual(String(codigo));
+      setFormCadastro((prev) => ({ ...prev, codigoBarras: codigo }));
+      setErroCodigoBarras('');
+    });
+  }, [dialogoCadastro, obterProximoCodigoDisponivel]);
 
   // Função para lidar com abertura/fechamento do dialog de cadastro
   const handleDialogoCadastroChange = (aberto: boolean) => {
     setDialogoCadastro(aberto);
     
-    // Limpar campos ao fechar
     if (!aberto) {
       setFormCadastro({
         codigoBarras: 0,
@@ -215,7 +217,6 @@ export const MenuPrincipal = () => {
           ncm: data.ncm || '',
           valor: data.valor || 0
         });
-        // Limpar código de barras para forçar novo cadastro
         setCodigoBarrasManual('');
         setErroCodigoBarras('');
       }
@@ -226,14 +227,20 @@ export const MenuPrincipal = () => {
 
   // Função para validar código de barras ao sair do campo
   const validarCodigoBarras = async () => {
-    if (!codigoBarrasManual) {
+    const codigoNormalizado = codigoBarrasManual.trim();
+
+    if (!codigoNormalizado) {
       setErroCodigoBarras('O código de barras é obrigatório');
       return false;
     }
+
+    const codigo = Number(codigoNormalizado);
+
+    if (!Number.isInteger(codigo) || codigo <= 0) {
+      setErroCodigoBarras('Informe um código de barras válido');
+      return false;
+    }
     
-    const codigo = Number(codigoBarrasManual);
-    
-    // Validar diretamente no banco de dados
     const { data, error } = await supabase
       .from('items')
       .select('id')
@@ -249,11 +256,12 @@ export const MenuPrincipal = () => {
     if (data) {
       setErroCodigoBarras('Este código de barras já está sendo usado por outro item');
       return false;
-    } else {
-      setErroCodigoBarras('');
-      setFormCadastro(prev => ({ ...prev, codigoBarras: codigo }));
-      return true;
     }
+
+    setErroCodigoBarras('');
+    setCodigoBarrasManual(String(codigo));
+    setFormCadastro(prev => ({ ...prev, codigoBarras: codigo }));
+    return true;
   };
 
   // Função para lidar com cadastro
