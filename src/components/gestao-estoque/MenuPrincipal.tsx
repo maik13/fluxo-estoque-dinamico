@@ -127,10 +127,11 @@ export const MenuPrincipal = () => {
   // Buscar próximo código disponível quando o dialog de cadastro abrir
   useEffect(() => {
     if (dialogoCadastro) {
-      const proximoCodigo = obterProximoCodigoDisponivel();
-      setProximoCodigoDisponivel(proximoCodigo);
+      obterProximoCodigoDisponivel().then(codigo => {
+        setProximoCodigoDisponivel(codigo);
+      });
     }
-  }, [dialogoCadastro, obterProximoCodigoDisponivel]);
+  }, [dialogoCadastro]);
 
   // Função para lidar com abertura/fechamento do dialog de cadastro
   const handleDialogoCadastroChange = (aberto: boolean) => {

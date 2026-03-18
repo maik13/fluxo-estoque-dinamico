@@ -171,7 +171,8 @@ export const SolicitacaoMaterial = () => {
         codigoBarras: item.codigoBarras,
         marca: item.marca,
         unidade: item.unidade,
-        especificacao: item.especificacao
+        especificacao: item.especificacao,
+        fotoUrl: item.fotoUrl
       },
       observacoes: obsItem || undefined,
       isCustom: false
@@ -222,7 +223,10 @@ export const SolicitacaoMaterial = () => {
 
     const payload = { pedidoId, pedidoNumero, timestamp: Date.now() };
     sessionStorage.setItem('pedido_compra_redirect', JSON.stringify(payload));
-    window.dispatchEvent(new CustomEvent('pedido-compra:abrir', { detail: payload }));
+    // Delay to ensure dialog animations complete before firing the event
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('pedido-compra:abrir', { detail: payload }));
+    }, 500);
   };
 
   const criarPedidoCompraAutomatico = async (
@@ -830,6 +834,7 @@ export const SolicitacaoMaterial = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>#</TableHead>
+                    <TableHead>Foto</TableHead>
                     <TableHead>Item</TableHead>
                     <TableHead>Qtd</TableHead>
                     <TableHead>Unidade</TableHead>
@@ -841,6 +846,15 @@ export const SolicitacaoMaterial = () => {
                   {solicitacaoSelecionada.itens.map((item, i) => (
                     <TableRow key={item.id}>
                       <TableCell>{i + 1}</TableCell>
+                      <TableCell>
+                        {item.item_snapshot?.fotoUrl ? (
+                          <img src={item.item_snapshot.fotoUrl} alt={item.nome_item} className="w-10 h-10 rounded object-cover" />
+                        ) : (
+                          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
+                            <span className="text-xs text-muted-foreground">—</span>
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell className="font-medium">
                         {item.nome_item}
                         {item.item_id && item.item_snapshot?.codigoBarras && (
@@ -950,11 +964,20 @@ export const SolicitacaoMaterial = () => {
                               }}
                               className="cursor-pointer"
                             >
-                              <div className="flex justify-between w-full">
-                                <span>{item.nome}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  Cód: {item.codigoBarras} | Estoque: {item.estoqueAtual} {item.unidade}
-                                </span>
+                              <div className="flex items-center gap-2 w-full">
+                                {item.fotoUrl ? (
+                                  <img src={item.fotoUrl} alt={item.nome} className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between w-full">
+                                  <span>{item.nome}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Cód: {item.codigoBarras} | Estoque: {item.estoqueAtual} {item.unidade}
+                                  </span>
+                                </div>
                               </div>
                             </CommandItem>
                           ))}
@@ -1006,6 +1029,7 @@ export const SolicitacaoMaterial = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Foto</TableHead>
                       <TableHead>Item</TableHead>
                       <TableHead>Qtd</TableHead>
                       <TableHead>Unidade</TableHead>
@@ -1017,6 +1041,15 @@ export const SolicitacaoMaterial = () => {
                   <TableBody>
                     {itensLista.map((item, i) => (
                       <TableRow key={i}>
+                        <TableCell>
+                          {!item.isCustom && item.item_snapshot?.fotoUrl ? (
+                            <img src={item.item_snapshot.fotoUrl} alt={item.nome_item} className="w-10 h-10 rounded object-cover" />
+                          ) : (
+                            <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
+                              <span className="text-xs text-muted-foreground">—</span>
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium">
                           {item.nome_item}
                           {!item.isCustom && item.item_snapshot?.codigoBarras && (
