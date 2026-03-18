@@ -223,7 +223,10 @@ export const SolicitacaoMaterial = () => {
 
     const payload = { pedidoId, pedidoNumero, timestamp: Date.now() };
     sessionStorage.setItem('pedido_compra_redirect', JSON.stringify(payload));
-    window.dispatchEvent(new CustomEvent('pedido-compra:abrir', { detail: payload }));
+    // Delay to ensure dialog animations complete before firing the event
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('pedido-compra:abrir', { detail: payload }));
+    }, 500);
   };
 
   const criarPedidoCompraAutomatico = async (
