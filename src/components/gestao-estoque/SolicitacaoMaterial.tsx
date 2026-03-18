@@ -171,7 +171,8 @@ export const SolicitacaoMaterial = () => {
         codigoBarras: item.codigoBarras,
         marca: item.marca,
         unidade: item.unidade,
-        especificacao: item.especificacao
+        especificacao: item.especificacao,
+        fotoUrl: item.fotoUrl
       },
       observacoes: obsItem || undefined,
       isCustom: false
