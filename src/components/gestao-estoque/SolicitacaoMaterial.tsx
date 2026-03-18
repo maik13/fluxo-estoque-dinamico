@@ -1028,6 +1028,15 @@ export const SolicitacaoMaterial = () => {
                   <TableBody>
                     {itensLista.map((item, i) => (
                       <TableRow key={i}>
+                        <TableCell>
+                          {!item.isCustom && item.item_snapshot?.fotoUrl ? (
+                            <img src={item.item_snapshot.fotoUrl} alt={item.nome_item} className="w-10 h-10 rounded object-cover" />
+                          ) : (
+                            <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
+                              <span className="text-xs text-muted-foreground">—</span>
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium">
                           {item.nome_item}
                           {!item.isCustom && item.item_snapshot?.codigoBarras && (
