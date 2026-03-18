@@ -1016,6 +1016,7 @@ export const SolicitacaoMaterial = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Foto</TableHead>
                       <TableHead>Item</TableHead>
                       <TableHead>Qtd</TableHead>
                       <TableHead>Unidade</TableHead>
