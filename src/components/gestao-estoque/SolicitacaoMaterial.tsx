@@ -831,6 +831,7 @@ export const SolicitacaoMaterial = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>#</TableHead>
+                    <TableHead>Foto</TableHead>
                     <TableHead>Item</TableHead>
                     <TableHead>Qtd</TableHead>
                     <TableHead>Unidade</TableHead>
