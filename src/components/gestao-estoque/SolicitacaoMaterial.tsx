@@ -951,11 +951,20 @@ export const SolicitacaoMaterial = () => {
                               }}
                               className="cursor-pointer"
                             >
-                              <div className="flex justify-between w-full">
-                                <span>{item.nome}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  Cód: {item.codigoBarras} | Estoque: {item.estoqueAtual} {item.unidade}
-                                </span>
+                              <div className="flex items-center gap-2 w-full">
+                                {item.fotoUrl ? (
+                                  <img src={item.fotoUrl} alt={item.nome} className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between w-full">
+                                  <span>{item.nome}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Cód: {item.codigoBarras} | Estoque: {item.estoqueAtual} {item.unidade}
+                                  </span>
+                                </div>
                               </div>
                             </CommandItem>
                           ))}
