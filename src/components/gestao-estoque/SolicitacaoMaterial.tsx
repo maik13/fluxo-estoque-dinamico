@@ -244,7 +244,6 @@ export const SolicitacaoMaterial = () => {
 
     const payload = { pedidoId, pedidoNumero, timestamp: Date.now() };
     sessionStorage.setItem('pedido_compra_redirect', JSON.stringify(payload));
-    // Delay to ensure dialog animations complete before firing the event
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent('pedido-compra:abrir', { detail: payload }));
     }, 500);
@@ -252,10 +251,10 @@ export const SolicitacaoMaterial = () => {
 
   const criarPedidoCompraAutomatico = async (
     solicitacao: SolicitacaoMaterialCompleta,
-    itensAvulsos: SolicitacaoMaterialCompleta['itens'],
+    itensParaCompra: SolicitacaoMaterialCompleta['itens'],
     contextoErro: 'criacao' | 'aprovacao'
   ): Promise<{ id: string; numero: number; jaExistia: boolean } | null> => {
-    if (!user || !userProfile || itensAvulsos.length === 0) return null;
+    if (!user || !userProfile || itensParaCompra.length === 0) return null;
 
     try {
       const { data: pedidoExistente, error: pedidoExistenteError } = await supabase
@@ -291,9 +290,9 @@ export const SolicitacaoMaterial = () => {
 
       if (pedidoError) throw pedidoError;
 
-      const itensInsert = itensAvulsos.map(item => ({
+      const itensInsert = itensParaCompra.map(item => ({
         pedido_id: pedidoData.id,
-        item_id: null,
+        item_id: item.item_id || null,
         nome_item: item.nome_item,
         quantidade: item.quantidade,
         item_snapshot: item.item_snapshot || { nome: item.nome_item, unidade: item.unidade },
@@ -382,12 +381,14 @@ export const SolicitacaoMaterial = () => {
         })),
       };
 
-      const itensAvulsos = solicitacaoCriada.itens.filter(item => !item.item_id);
-      const podeGerarPedidoAutomatico = canManageStock() && itensAvulsos.length > 0;
+      const itensParaCompra = obterItensParaPedidoCompra(
+        solicitacaoCriada.itens.map((item) => ({ ...item, isCustom: !item.item_id }))
+      );
+      const podeGerarPedidoAutomatico = canManageStock() && itensParaCompra.length > 0;
 
       let pedidoCriado: { id: string; numero: number; jaExistia: boolean } | null = null;
       if (podeGerarPedidoAutomatico) {
-        pedidoCriado = await criarPedidoCompraAutomatico(solicitacaoCriada, itensAvulsos, 'criacao');
+        pedidoCriado = await criarPedidoCompraAutomatico(solicitacaoCriada, itensParaCompra, 'criacao');
       }
 
       if (pedidoCriado) {
@@ -401,8 +402,8 @@ export const SolicitacaoMaterial = () => {
         abrirPedidoCompra(pedidoCriado.id, pedidoCriado.numero);
       } else {
         toast.success(`Solicitação #${solData.numero} criada com sucesso!`);
-        if (itensAvulsos.length > 0 && !canManageStock()) {
-          toast.info('Os itens fora do estoque serão encaminhados ao Pedido de Compra quando a solicitação for aprovada.');
+        if (itensParaCompra.length > 0 && !canManageStock()) {
+          toast.info('Itens avulsos ou sem saldo serão enviados ao Pedido de Compra na aprovação.');
         }
       }
 
@@ -434,9 +435,11 @@ export const SolicitacaoMaterial = () => {
 
       let pedidoCriado: { id: string; numero: number; jaExistia: boolean } | null = null;
       if (solicitacao) {
-        const itensAvulsos = solicitacao.itens.filter(i => !i.item_id);
-        if (itensAvulsos.length > 0) {
-          pedidoCriado = await criarPedidoCompraAutomatico(solicitacao, itensAvulsos, 'aprovacao');
+        const itensParaCompra = obterItensParaPedidoCompra(
+          solicitacao.itens.map((item) => ({ ...item, isCustom: !item.item_id }))
+        );
+        if (itensParaCompra.length > 0) {
+          pedidoCriado = await criarPedidoCompraAutomatico(solicitacao, itensParaCompra, 'aprovacao');
         }
       }
 
