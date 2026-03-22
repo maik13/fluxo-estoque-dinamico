@@ -168,8 +168,8 @@ export const SolicitacaoMaterial = () => {
     return itemEstoque.estoqueAtual < item.quantidade;
   };
 
-  const obterItensParaPedidoCompra = (itens: Array<{ item_id?: string; quantidade: number; isCustom?: boolean }>) => {
-    return itens.filter(itemVaiParaCompra);
+  const obterItensParaPedidoCompra = (itens: SolicitacaoMaterialCompleta['itens']) => {
+    return itens.filter(item => itemVaiParaCompra({ item_id: item.item_id, quantidade: item.quantidade, isCustom: !item.item_id }));
   };
 
   const adicionarItemEstoque = (item: EstoqueItem) => {
@@ -382,7 +382,7 @@ export const SolicitacaoMaterial = () => {
       };
 
       const itensParaCompra = obterItensParaPedidoCompra(
-        solicitacaoCriada.itens.map((item) => ({ ...item, isCustom: !item.item_id }))
+        solicitacaoCriada.itens
       );
       const podeGerarPedidoAutomatico = canManageStock() && itensParaCompra.length > 0;
 
@@ -436,7 +436,7 @@ export const SolicitacaoMaterial = () => {
       let pedidoCriado: { id: string; numero: number; jaExistia: boolean } | null = null;
       if (solicitacao) {
         const itensParaCompra = obterItensParaPedidoCompra(
-          solicitacao.itens.map((item) => ({ ...item, isCustom: !item.item_id }))
+          solicitacao.itens
         );
         if (itensParaCompra.length > 0) {
           pedidoCriado = await criarPedidoCompraAutomatico(solicitacao, itensParaCompra, 'aprovacao');

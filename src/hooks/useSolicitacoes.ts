@@ -18,6 +18,7 @@ export const useSolicitacoes = () => {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLoadingRef = useRef(false);
   const lastLoadTimeRef = useRef<number>(0);
+  const isCreatingRef = useRef(false);
 
   // Função de carregamento com debounce para evitar chamadas múltiplas
   const carregarSolicitacoesDebounced = useCallback(() => {
@@ -198,6 +199,13 @@ export const useSolicitacoes = () => {
       return false;
     }
 
+    // Proteção anti-duplicata: impedir chamadas concorrentes
+    if (isCreatingRef.current) {
+      console.warn('criarSolicitacao já em andamento, ignorando chamada duplicada');
+      return false;
+    }
+    isCreatingRef.current = true;
+
     try {
       // Usar o solicitante selecionado na interface
       let solicitanteId = novaSolicitacao.solicitante_id || user.id;
@@ -304,6 +312,8 @@ export const useSolicitacoes = () => {
       console.error('Erro ao criar solicitação:', error);
       toast.error('Erro ao criar solicitação');
       return false;
+    } finally {
+      isCreatingRef.current = false;
     }
   };
 
