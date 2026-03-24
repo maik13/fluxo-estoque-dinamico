@@ -387,16 +387,24 @@ export const useEstoque = () => {
   };
 
   const obterProximoCodigoDisponivel = async (): Promise<number> => {
-    const codigosBloqueados = [1001];
+    const codigosBloqueados = new Set([1001]);
 
     const encontrarPrimeiroCodigoLivre = (codigosExistentes: number[]) => {
-      const codigos = codigosExistentes
-        .map((codigo) => Number(codigo))
-        .filter((codigo) => Number.isInteger(codigo) && codigo > 0)
-        .sort((a, b) => a - b);
+      const codigosOrdenados = Array.from(
+        new Set(
+          codigosExistentes
+            .map((codigo) => Number(codigo))
+            .filter((codigo) => Number.isInteger(codigo) && codigo > 0)
+        )
+      ).sort((a, b) => a - b);
 
       let proximoCodigo = 1;
-      for (const codigo of codigos) {
+
+      for (const codigo of codigosOrdenados) {
+        while (codigosBloqueados.has(proximoCodigo)) {
+          proximoCodigo++;
+        }
+
         if (codigo === proximoCodigo) {
           proximoCodigo++;
           continue;
@@ -407,21 +415,47 @@ export const useEstoque = () => {
         }
       }
 
-      while (codigosBloqueados.includes(proximoCodigo)) {
+      while (codigosBloqueados.has(proximoCodigo)) {
         proximoCodigo++;
       }
 
       return proximoCodigo;
     };
 
+    const buscarTodosOsCodigos = async () => {
+      const pageSize = 1000;
+      let from = 0;
+      const codigos: number[] = [];
+
+      while (true) {
+        const { data, error } = await supabase
+          .from('items')
+          .select('codigo_barras')
+          .order('codigo_barras', { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          break;
+        }
+
+        codigos.push(...data.map((item) => Number(item.codigo_barras)));
+
+        if (data.length < pageSize) {
+          break;
+        }
+
+        from += pageSize;
+      }
+
+      return codigos;
+    };
+
     try {
-      const { data, error } = await supabase
-        .from('items')
-        .select('codigo_barras');
-
-      if (error) throw error;
-
-      return encontrarPrimeiroCodigoLivre((data || []).map((item) => Number(item.codigo_barras)));
+      const codigosBanco = await buscarTodosOsCodigos();
+      const codigosLocais = itens.map((item) => Number(item.codigoBarras));
+      return encontrarPrimeiroCodigoLivre([...codigosBanco, ...codigosLocais]);
     } catch (error) {
       console.error('Erro ao obter próximo código:', error);
       return encontrarPrimeiroCodigoLivre(itens.map((item) => Number(item.codigoBarras)));
