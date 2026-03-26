@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClipboardList, Plus, Trash2, Eye, Printer, FileText, Check, X, ChevronsUpDown, Send, ArrowRight } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -44,6 +45,8 @@ interface SolicitacaoMaterialCompleta {
   estoque_id?: string;
   aprovado_por_nome?: string;
   data_aprovacao?: string;
+  local_origem?: string;
+  local_origem_id?: string;
   created_at: string;
   updated_at: string;
   itens: {
@@ -74,11 +77,13 @@ export const SolicitacaoMaterial = () => {
   const [loadingSolicitacoes, setLoadingSolicitacoes] = useState(false);
   const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState<SolicitacaoMaterialCompleta | null>(null);
   const [pendentesCount, setPendentesCount] = useState(0);
+  const [localOrigemId, setLocalOrigemId] = useState<string>('');
+  const [localOrigemNome, setLocalOrigemNome] = useState<string>('');
 
   const { obterEstoque } = useEstoqueContext();
   const { user } = useAuth();
   const { userProfile, canManageStock, isAdmin } = usePermissions();
-  const { obterEstoqueAtivoInfo } = useConfiguracoes();
+  const { obterEstoqueAtivoInfo, obterLocaisUtilizacaoAtivos } = useConfiguracoes();
 
   const itensEstoque = obterEstoque();
   const mapaEstoque = useMemo(
@@ -236,6 +241,8 @@ export const SolicitacaoMaterial = () => {
     setNomeItemCustom('');
     setUnidadeCustom('un');
     setObsItem('');
+    setLocalOrigemId('');
+    setLocalOrigemNome('');
     setPopoverAberto(false);
   };
 
@@ -341,6 +348,8 @@ export const SolicitacaoMaterial = () => {
           solicitante_nome: userProfile.nome,
           observacoes: observacoes || null,
           estoque_id: estoqueInfo?.id || null,
+          local_origem_id: localOrigemId || null,
+          local_origem: localOrigemNome || null,
           status: 'pendente'
         })
         .select()
@@ -370,6 +379,8 @@ export const SolicitacaoMaterial = () => {
         estoque_id: solData.estoque_id || undefined,
         aprovado_por_nome: solData.aprovado_por_nome || undefined,
         data_aprovacao: solData.data_aprovacao || undefined,
+        local_origem: solData.local_origem || undefined,
+        local_origem_id: solData.local_origem_id || undefined,
         itens: itensInsert.map((item, index) => ({
           id: `${index}`,
           item_id: item.item_id || undefined,
@@ -523,7 +534,9 @@ export const SolicitacaoMaterial = () => {
           observacoes: `Convertida da Solicitação de Material #${sol.numero}${sol.observacoes ? ' - ' + sol.observacoes : ''}`,
           tipo_operacao: 'retirada',
           criado_por_id: user.id,
-          estoque_id: estoqueInfo?.id ?? null
+          estoque_id: estoqueInfo?.id ?? null,
+          local_utilizacao_id: sol.local_origem_id ?? null,
+          local_utilizacao: sol.local_origem ?? null
         })
         .select()
         .single();
@@ -635,6 +648,7 @@ export const SolicitacaoMaterial = () => {
           <div class="info-item"><div class="info-label">Data</div>${format(new Date(sol.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</div>
           <div class="info-item"><div class="info-label">Status</div><span class="status status-${sol.status}">${sol.status.toUpperCase()}</span></div>
           <div class="info-item"><div class="info-label">Estoque</div>${estoqueInfo?.nome || '-'}</div>
+          ${sol.local_origem ? `<div class="info-item"><div class="info-label">Local de Origem</div>${sol.local_origem}</div>` : ''}
           ${sol.observacoes ? `<div class="info-item" style="grid-column: span 2"><div class="info-label">Observações</div>${sol.observacoes}</div>` : ''}
           ${sol.aprovado_por_nome ? `<div class="info-item"><div class="info-label">Aprovado por</div>${sol.aprovado_por_nome}</div>` : ''}
           ${sol.data_aprovacao ? `<div class="info-item"><div class="info-label">Data Aprovação</div>${format(new Date(sol.data_aprovacao), "dd/MM/yyyy HH:mm", { locale: ptBR })}</div>` : ''}
@@ -681,9 +695,10 @@ export const SolicitacaoMaterial = () => {
         doc.text(`Data: ${format(new Date(sol.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}`, 14, 38);
         doc.text(`Status: ${sol.status.toUpperCase()}`, 14, 44);
         doc.text(`Estoque: ${estoqueInfo?.nome || '-'}`, 14, 50);
-        if (sol.observacoes) doc.text(`Obs: ${sol.observacoes}`, 14, 56);
+        if (sol.local_origem) doc.text(`Local de Origem: ${sol.local_origem}`, 14, 56);
+        if (sol.observacoes) doc.text(`Obs: ${sol.observacoes}`, 14, sol.local_origem ? 62 : 56);
 
-        const startY = sol.observacoes ? 64 : 58;
+        const startY = sol.observacoes ? (sol.local_origem ? 70 : 64) : (sol.local_origem ? 64 : 58);
         const tableData = sol.itens.map((item, i) => [
           i + 1,
           item.item_id && item.item_snapshot?.codigoBarras ? `${item.nome_item}\nCód: ${item.item_snapshot.codigoBarras}` : item.nome_item,
@@ -761,6 +776,7 @@ export const SolicitacaoMaterial = () => {
                   <TableHead>Nº</TableHead>
                   <TableHead>Solicitante</TableHead>
                   <TableHead>Itens</TableHead>
+                  <TableHead>Local de Origem</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Ações</TableHead>
@@ -772,6 +788,7 @@ export const SolicitacaoMaterial = () => {
                     <TableCell className="font-mono">#{sol.numero}</TableCell>
                     <TableCell>{sol.solicitante_nome}</TableCell>
                     <TableCell>{sol.itens.length} item(ns)</TableCell>
+                    <TableCell>{sol.local_origem || '-'}</TableCell>
                     <TableCell>{format(new Date(sol.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</TableCell>
                     <TableCell>{getStatusBadge(sol.status)}</TableCell>
                     <TableCell>
@@ -849,6 +866,9 @@ export const SolicitacaoMaterial = () => {
                 )}
                 {solicitacaoSelecionada.aprovado_por_nome && (
                   <div><span className="text-muted-foreground">Aprovado por:</span> {solicitacaoSelecionada.aprovado_por_nome}</div>
+                )}
+                {solicitacaoSelecionada.local_origem && (
+                  <div><span className="text-muted-foreground">Local de Origem:</span> {solicitacaoSelecionada.local_origem}</div>
                 )}
               </div>
 
@@ -957,6 +977,29 @@ export const SolicitacaoMaterial = () => {
           </DialogHeader>
 
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="local_origem">Local de Origem *</Label>
+              <Select
+                value={localOrigemId}
+                onValueChange={(value) => {
+                  setLocalOrigemId(value);
+                  const nome = obterLocaisUtilizacaoAtivos().find(l => l.id === value)?.nome || '';
+                  setLocalOrigemNome(nome);
+                }}
+              >
+                <SelectTrigger id="local_origem">
+                  <SelectValue placeholder="Selecione o local de origem" />
+                </SelectTrigger>
+                <SelectContent>
+                  {obterLocaisUtilizacaoAtivos().map((local) => (
+                    <SelectItem key={local.id} value={local.id}>
+                      {local.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <h3 className="text-sm font-medium">Adicionar item do estoque</h3>
             <div className="flex gap-2 items-end">
               <div className="flex-1">
@@ -1109,7 +1152,11 @@ export const SolicitacaoMaterial = () => {
 
             <div className="flex justify-end gap-2 pt-4 border-t">
               <Button variant="outline" onClick={() => setDialogoCriar(false)}>Cancelar</Button>
-              <Button onClick={criarSolicitacao} disabled={enviando || itensLista.length === 0} className="gap-2">
+              <Button 
+                onClick={criarSolicitacao} 
+                disabled={enviando || itensLista.length === 0 || !localOrigemId} 
+                className="gap-2"
+              >
                 <Send className="h-4 w-4" />
                 {enviando ? 'Enviando...' : 'Criar Solicitação'}
               </Button>
