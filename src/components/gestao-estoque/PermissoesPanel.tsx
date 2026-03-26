@@ -26,6 +26,7 @@ interface PermissaoTipoUsuario {
   pode_pedido_compra: boolean;
   pode_solicitacao_material: boolean;
   pode_ver_relatorios: boolean;
+  pode_editar_movimentacoes: boolean;
 }
 
 const TIPOS_USUARIO_LABELS: Record<string, string> = {
@@ -67,6 +68,7 @@ const PERMISSOES_GRUPOS: PermissaoGrupo[] = [
       { key: 'pode_registrar_entrada', label: 'Registrar Entrada' },
       { key: 'pode_registrar_saida', label: 'Registrar Saída' },
       { key: 'pode_transferir', label: 'Transferência entre Estoques' },
+      { key: 'pode_editar_movimentacoes', label: 'Editar Movimentações' },
     ],
   },
   {

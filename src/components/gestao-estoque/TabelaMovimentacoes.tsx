@@ -25,7 +25,7 @@ import { ptBR } from 'date-fns/locale';
 
 export const TabelaMovimentacoes = () => {
   const { movimentacoes, loading } = useEstoqueContext();
-  const { isAdmin } = usePermissions();
+  const { isAdmin, canEditMovements } = usePermissions();
   const { user } = useAuth();
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<TipoMovimentacao | 'todas'>('todas');
@@ -757,7 +757,7 @@ export const TabelaMovimentacoes = () => {
             <Table style={{ minWidth: isAdmin() ? '1650px' : '1550px' }}>
               <TableHeader>
                 <TableRow>
-                  {isAdmin() && <TableHead className="w-[50px]"></TableHead>}
+                  {canEditMovements() && <TableHead className="w-[80px]">Ações</TableHead>}
                   <TableHead>Tipo</TableHead>
                   <TableHead>Data/Hora</TableHead>
                   <TableHead>Item</TableHead>
@@ -775,7 +775,7 @@ export const TabelaMovimentacoes = () => {
               <TableBody>
                 {movimentacoesFiltradas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin() ? 13 : 12} className="text-center py-8">
+                    <TableCell colSpan={canEditMovements() ? 13 : 12} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-muted-foreground">
@@ -794,7 +794,7 @@ export const TabelaMovimentacoes = () => {
                     
                     return (
                       <TableRow key={mov.id} className="hover:bg-muted/50">
-                        {isAdmin() && (
+                        {canEditMovements() && (
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Button 

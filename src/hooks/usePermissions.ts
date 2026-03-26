@@ -26,6 +26,7 @@ export interface PermissoesFuncionalidades {
   pode_pedido_compra: boolean;
   pode_solicitacao_material: boolean;
   pode_ver_relatorios: boolean;
+  pode_editar_movimentacoes: boolean;
 }
 
 const DEFAULT_PERMISSIONS: PermissoesFuncionalidades = {
@@ -43,6 +44,7 @@ const DEFAULT_PERMISSIONS: PermissoesFuncionalidades = {
   pode_pedido_compra: false,
   pode_solicitacao_material: false,
   pode_ver_relatorios: false,
+  pode_editar_movimentacoes: false,
 };
 
 export const usePermissions = () => {
@@ -138,6 +140,7 @@ export const usePermissions = () => {
           pode_pedido_compra: data.pode_pedido_compra,
           pode_solicitacao_material: data.pode_solicitacao_material,
           pode_ver_relatorios: data.pode_ver_relatorios,
+          pode_editar_movimentacoes: data.pode_editar_movimentacoes,
         });
       }
     } catch (error) {
@@ -170,6 +173,7 @@ export const usePermissions = () => {
   const canRegistrarSaida = () => isAdmin() || permissoesDinamicas.pode_registrar_saida;
   const canPedidoCompra = () => isAdmin() || permissoesDinamicas.pode_pedido_compra;
   const canSolicitacaoMaterial = () => isAdmin() || permissoesDinamicas.pode_solicitacao_material;
+  const canEditMovements = () => isAdmin() || permissoesDinamicas.pode_editar_movimentacoes;
 
   return {
     userProfile,
@@ -198,5 +202,6 @@ export const usePermissions = () => {
     canRegistrarSaida,
     canPedidoCompra,
     canSolicitacaoMaterial,
+    canEditMovements,
   };
 };
