@@ -8,10 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar as CalendarIcon, User, Package, RotateCcw, FileSpreadsheet, Printer, AlertTriangle, Trash2, BarChart3 } from 'lucide-react';
+import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar as CalendarIcon, User, Package, RotateCcw, FileSpreadsheet, Pencil, Printer, AlertTriangle, Trash2, BarChart3 } from 'lucide-react';
 import { RelatorioMovimentacoesDialog } from './RelatorioMovimentacoesDialog';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/hooks/useAuth';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Movimentacao, TipoMovimentacao } from '@/types/estoque';
 import * as XLSX from 'xlsx';
@@ -23,6 +26,7 @@ import { ptBR } from 'date-fns/locale';
 export const TabelaMovimentacoes = () => {
   const { movimentacoes, loading } = useEstoqueContext();
   const { isAdmin } = usePermissions();
+  const { user } = useAuth();
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<TipoMovimentacao | 'todas'>('todas');
   const [filtroDestino, setFiltroDestino] = useState('todos');
@@ -36,6 +40,11 @@ export const TabelaMovimentacoes = () => {
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 20;
   const [relatorioAberto, setRelatorioAberto] = useState(false);
+  const { obterLocaisUtilizacaoAtivos } = useConfiguracoes();
+  const [movimentoEditando, setMovimentoEditando] = useState<Movimentacao | null>(null);
+  const [novoLocalId, setNovoLocalId] = useState<string>('');
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  const [locaisAtivos, setLocaisAtivos] = useState<{id: string, nome: string}[]>([]);
 
   // Buscar informações dos usuários (para coluna Responsável)
   useEffect(() => {
@@ -62,6 +71,15 @@ export const TabelaMovimentacoes = () => {
 
     buscarDados();
   }, [movimentacoes]);
+
+  // Carregar locais ativos para edição
+  useEffect(() => {
+    const carregarLocais = async () => {
+      const locais = await obterLocaisUtilizacaoAtivos();
+      setLocaisAtivos(locais);
+    };
+    carregarLocais();
+  }, [obterLocaisUtilizacaoAtivos]);
 
   // Ordenar movimentações por data (mais recente primeiro)
   const movimentacoesOrdenadas = useMemo(() => {
@@ -460,6 +478,55 @@ export const TabelaMovimentacoes = () => {
     });
   };
 
+  const handleSalvarEdicaoDestino = async () => {
+    if (!movimentoEditando || !novoLocalId) return;
+    
+    setSalvandoEdicao(true);
+    try {
+      const localSelecionado = locaisAtivos.find(l => l.id === novoLocalId);
+      
+      const { error } = await supabase
+        .from('movements')
+        .update({ 
+          local_utilizacao_id: novoLocalId
+        })
+        .eq('id', movimentoEditando.id);
+        
+      if (error) throw error;
+      
+      // Registrar log de auditoria
+      await supabase.from('action_logs').insert({
+        user_id: user?.id,
+        action: 'EDICAO_DESTINO_MOVIMENTACAO',
+        entity_type: 'movements',
+        entity_id: movimentoEditando.id,
+        details: {
+          antigo_local_id: movimentoEditando.localUtilizacaoId,
+          antigo_local_nome: movimentoEditando.localUtilizacaoNome,
+          novo_local_id: novoLocalId,
+          novo_local_nome: localSelecionado?.nome,
+          item_nome: movimentoEditando.itemSnapshot?.nome
+        }
+      });
+      
+      toast({
+        title: "Destino atualizado",
+        description: "O local de destino da movimentação foi alterado com sucesso."
+      });
+      
+      setMovimentoEditando(null);
+    } catch (error: any) {
+      console.error('Erro ao atualizar destino:', error);
+      toast({
+        title: "Erro ao atualizar",
+        description: error.message || "Não foi possível alterar o destino.",
+        variant: "destructive"
+      });
+    } finally {
+      setSalvandoEdicao(false);
+    }
+  };
+
   const excluirMovimentacao = async (movId: string) => {
     try {
       const { error } = await supabase.from('movements').delete().eq('id', movId);
@@ -734,27 +801,40 @@ export const TabelaMovimentacoes = () => {
                       <TableRow key={mov.id} className="hover:bg-muted/50">
                         {isAdmin() && (
                           <TableCell>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Excluir movimentação?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Deseja excluir o registro de {eDevolucao ? 'devolução' : tipoInfo.label.toLowerCase()} do item "{mov.itemSnapshot?.nome}" ({mov.quantidade} {mov.itemSnapshot?.unidade})? Esta ação não pode ser desfeita.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => excluirMovimentacao(mov.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                    Excluir
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            <div className="flex items-center gap-1">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                                onClick={() => {
+                                  setMovimentoEditando(mov);
+                                  setNovoLocalId(mov.localUtilizacaoId || '');
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Excluir movimentação?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Deseja excluir o registro de {eDevolucao ? 'devolução' : tipoInfo.label.toLowerCase()} do item "{mov.itemSnapshot?.nome}" ({mov.quantidade} {mov.itemSnapshot?.unidade})? Esta ação não pode ser desfeita.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => excluirMovimentacao(mov.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                      Excluir
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                           </TableCell>
                         )}
                         <TableCell>
@@ -1054,6 +1134,50 @@ export const TabelaMovimentacoes = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      <Dialog open={!!movimentoEditando} onOpenChange={(open) => !open && setMovimentoEditando(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Destino da Movimentação</DialogTitle>
+            <DialogDescription>
+              Altere o local de utilização/destino para esta movimentação de "{movimentoEditando?.itemSnapshot?.nome}".
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Novo Local de Destino</label>
+              <Select value={novoLocalId} onValueChange={setNovoLocalId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um local" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locaisAtivos.map(local => (
+                    <SelectItem key={local.id} value={local.id}>
+                      {local.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="bg-muted p-3 rounded-md text-sm space-y-1">
+              <p><strong>Item:</strong> {movimentoEditando?.itemSnapshot?.nome}</p>
+              <p><strong>Quantidade:</strong> {movimentoEditando?.quantidade} {movimentoEditando?.itemSnapshot?.unidade}</p>
+              <p><strong>Local Atual:</strong> {movimentoEditando?.localUtilizacaoNome || 'Nenhum'}</p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMovimentoEditando(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSalvarEdicaoDestino} disabled={salvandoEdicao || !novoLocalId}>
+              {salvandoEdicao ? "Salvando..." : "Salvar Alteração"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <RelatorioMovimentacoesDialog
         aberto={relatorioAberto}
         onClose={() => setRelatorioAberto(false)}

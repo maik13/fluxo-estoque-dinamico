@@ -21,6 +21,7 @@ import { GuiaImportacaoExcel } from './GuiaImportacaoExcel';
 import { UsuariosList } from './UsuariosList';
 import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 import { PermissoesPanel } from './PermissoesPanel';
+import { AuditLogViewer } from './AuditLogViewer';
 
 interface ConfiguracoesProps {
   onConfigChange?: () => void;
@@ -582,7 +583,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
         </DialogHeader>
         
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="grid w-full grid-cols-10 gap-1">
+          <TabsList className="grid w-full grid-cols-11 gap-1">
             <TabsTrigger value="usuarios" className="text-xs">Usuários</TabsTrigger>
             <TabsTrigger value="solicitantes" className="text-xs">Solicitantes</TabsTrigger>
             <TabsTrigger value="locais" className="text-xs">Locais</TabsTrigger>
@@ -593,6 +594,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
             <TabsTrigger value="logo" className="text-xs">Logo</TabsTrigger>
             <TabsTrigger value="tema" className="text-xs">Tema</TabsTrigger>
             <TabsTrigger value="relatorios" className="text-xs">Relatórios</TabsTrigger>
+            <TabsTrigger value="auditoria" className="text-xs text-info">Auditoria</TabsTrigger>
           </TabsList>
 
           {/* Aba Usuários */}
@@ -1595,6 +1597,24 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                     </Button>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Aba Auditoria */}
+          <TabsContent value="auditoria" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  Log de Auditoria
+                </CardTitle>
+                <CardDescription>
+                  Histórico de ações importantes realizadas no sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AuditLogViewer />
               </CardContent>
             </Card>
           </TabsContent>
