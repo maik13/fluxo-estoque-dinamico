@@ -144,16 +144,33 @@ export const PermissoesPanel = () => {
     try {
       const allCampos = PERMISSOES_GRUPOS.flatMap(g => g.campos.map(c => c.key));
       for (const permissao of permissoes) {
-        const updateData: any = {};
-        allCampos.forEach(campo => { updateData[campo] = (permissao as any)[campo]; });
-        const { error } = await supabase.from('permissoes_tipo_usuario').update(updateData).eq('id', permissao.id);
-        if (error) throw error;
+        const upsertData: any = { id: permissao.id, tipo_usuario: permissao.tipo_usuario };
+        allCampos.forEach(campo => { upsertData[campo] = (permissao as any)[campo]; });
+
+        const { error } = await supabase
+          .from('permissoes_tipo_usuario')
+          .upsert(upsertData, { onConflict: 'id' });
+
+        if (error) {
+          console.error('Supabase error details:', {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint,
+            tipo_usuario: permissao.tipo_usuario,
+          });
+          throw error;
+        }
       }
       toast({ title: 'Permissões salvas!', description: 'As permissões foram atualizadas com sucesso.' });
       setHasChanges(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar permissões:', error);
-      toast({ title: 'Erro', description: 'Não foi possível salvar as permissões.', variant: 'destructive' });
+      toast({
+        title: 'Erro',
+        description: `Não foi possível salvar as permissões. ${error?.message || ''}`,
+        variant: 'destructive',
+      });
     } finally {
       setSaving(false);
     }
