@@ -76,7 +76,7 @@ export const AuditLogViewer = () => {
   const renderDetails = (details: any) => {
     if (!details) return '-';
     
-    if (typeof details === 'object') {
+    if (details && typeof details === 'object') {
       return (
         <div className="text-xs space-y-1">
           {details.item_nome && <p><strong>Item:</strong> {details.item_nome}</p>}

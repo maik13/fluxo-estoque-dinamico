@@ -40,11 +40,10 @@ export const TabelaMovimentacoes = () => {
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 20;
   const [relatorioAberto, setRelatorioAberto] = useState(false);
-  const { obterLocaisUtilizacaoAtivos } = useConfiguracoes();
+  const { locaisUtilizacao: locaisConfig } = useConfiguracoes();
   const [movimentoEditando, setMovimentoEditando] = useState<Movimentacao | null>(null);
   const [novoLocalId, setNovoLocalId] = useState<string>('');
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
-  const [locaisAtivos, setLocaisAtivos] = useState<{id: string, nome: string}[]>([]);
 
   // Buscar informações dos usuários (para coluna Responsável)
   useEffect(() => {
@@ -72,14 +71,10 @@ export const TabelaMovimentacoes = () => {
     buscarDados();
   }, [movimentacoes]);
 
-  // Carregar locais ativos para edição
-  useEffect(() => {
-    const carregarLocais = async () => {
-      const locais = await obterLocaisUtilizacaoAtivos();
-      setLocaisAtivos(locais);
-    };
-    carregarLocais();
-  }, [obterLocaisUtilizacaoAtivos]);
+  const locaisAtivos = useMemo(() => 
+    locaisConfig.filter(l => l.ativo).map(l => ({ id: l.id, nome: l.nome })),
+    [locaisConfig]
+  );
 
   // Ordenar movimentações por data (mais recente primeiro)
   const movimentacoesOrdenadas = useMemo(() => {

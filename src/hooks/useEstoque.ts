@@ -389,37 +389,19 @@ export const useEstoque = () => {
   const obterProximoCodigoDisponivel = async (): Promise<number> => {
     const codigosBloqueados = new Set([1001]);
 
-    const encontrarPrimeiroCodigoLivre = (codigosExistentes: number[]) => {
-      const codigosOrdenados = Array.from(
-        new Set(
-          codigosExistentes
-            .map((codigo) => Number(codigo))
-            .filter((codigo) => Number.isInteger(codigo) && codigo > 0)
-        )
-      ).sort((a, b) => a - b);
+    const encontrarProximoCodigo = (codigosExistentes: number[]) => {
+      const codigosValidos = codigosExistentes
+        .map((codigo) => Number(codigo))
+        .filter((codigo) => Number.isInteger(codigo) && codigo > 0);
+      
+      const maxCodigo = codigosValidos.length > 0 ? Math.max(...codigosValidos) : 0;
+      let proximo = maxCodigo + 1;
 
-      let proximoCodigo = 1;
-
-      for (const codigo of codigosOrdenados) {
-        while (codigosBloqueados.has(proximoCodigo)) {
-          proximoCodigo++;
-        }
-
-        if (codigo === proximoCodigo) {
-          proximoCodigo++;
-          continue;
-        }
-
-        if (codigo > proximoCodigo) {
-          break;
-        }
+      while (codigosBloqueados.has(proximo)) {
+        proximo++;
       }
 
-      while (codigosBloqueados.has(proximoCodigo)) {
-        proximoCodigo++;
-      }
-
-      return proximoCodigo;
+      return proximo;
     };
 
     const buscarTodosOsCodigos = async () => {
@@ -455,10 +437,10 @@ export const useEstoque = () => {
     try {
       const codigosBanco = await buscarTodosOsCodigos();
       const codigosLocais = itens.map((item) => Number(item.codigoBarras));
-      return encontrarPrimeiroCodigoLivre([...codigosBanco, ...codigosLocais]);
+      return encontrarProximoCodigo([...codigosBanco, ...codigosLocais]);
     } catch (error) {
       console.error('Erro ao obter próximo código:', error);
-      return encontrarPrimeiroCodigoLivre(itens.map((item) => Number(item.codigoBarras)));
+      return encontrarProximoCodigo(itens.map((item) => Number(item.codigoBarras)));
     }
   };
 
