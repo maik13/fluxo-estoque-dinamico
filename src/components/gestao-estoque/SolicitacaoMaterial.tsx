@@ -12,7 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ClipboardList, Plus, Trash2, Eye, Printer, FileText, Check, X, ChevronsUpDown, Send, ArrowRight } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Eye, Printer, FileText, Check, X, ChevronsUpDown, Send, ArrowRight, Pencil } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -79,6 +79,8 @@ export const SolicitacaoMaterial = () => {
   const [pendentesCount, setPendentesCount] = useState(0);
   const [localOrigemId, setLocalOrigemId] = useState<string>('');
   const [localOrigemNome, setLocalOrigemNome] = useState<string>('');
+  // itemId → quantidade editada pelo estoque (antes de converter em retirada)
+  const [quantidadesEditadas, setQuantidadesEditadas] = useState<Record<string, number>>({});
 
   const { obterEstoque } = useEstoqueContext();
   const { user } = useAuth();
@@ -508,6 +510,45 @@ export const SolicitacaoMaterial = () => {
     }
   };
 
+  const salvarQuantidadeItem = async (itemId: string, novaQuantidade: number) => {
+    if (novaQuantidade <= 0) {
+      toast.error('A quantidade deve ser maior que zero');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('solicitacao_material_itens')
+        .update({ quantidade: novaQuantidade })
+        .eq('id', itemId);
+      if (error) throw error;
+
+      // Atualiza o estado local da solicitação selecionada
+      setSolicitacaoSelecionada(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          itens: prev.itens.map(i =>
+            i.id === itemId ? { ...i, quantidade: novaQuantidade } : i
+          ),
+        };
+      });
+      setSolicitacoes(prev =>
+        prev.map(s => ({
+          ...s,
+          itens: s.itens.map(i =>
+            i.id === itemId ? { ...i, quantidade: novaQuantidade } : i
+          ),
+        }))
+      );
+
+      setQuantidadesEditadas(prev => ({ ...prev, [itemId]: novaQuantidade }));
+      toast.success('Quantidade atualizada!');
+    } catch (error) {
+      console.error('Erro ao salvar quantidade:', error);
+      toast.error('Não foi possível salvar a quantidade');
+    }
+  };
+
   const converterEmRetirada = async (sol: SolicitacaoMaterialCompleta) => {
     if (!user || !userProfile) {
       toast.error('Usuário não autenticado');
@@ -793,7 +834,7 @@ export const SolicitacaoMaterial = () => {
                     <TableCell>{getStatusBadge(sol.status)}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => { setSolicitacaoSelecionada(sol); setDialogoDetalhes(true); }}>
+                        <Button variant="ghost" size="icon" onClick={() => { setSolicitacaoSelecionada(sol); setQuantidadesEditadas({}); setDialogoDetalhes(true); }}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => imprimirSolicitacao(sol)}>
@@ -889,6 +930,11 @@ export const SolicitacaoMaterial = () => {
                 <TableBody>
                   {solicitacaoSelecionada.itens.map((item, i) => {
                     const vaiParaCompra = itemVaiParaCompra({ ...item, isCustom: !item.item_id });
+                    const foiEditado = quantidadesEditadas[item.id] !== undefined;
+                    // Pode editar se pode gerenciar estoque e a solicitação ainda não foi convertida
+                    const podeEditar = canManageStock() &&
+                      (solicitacaoSelecionada.status === 'aprovada' || solicitacaoSelecionada.status === 'pendente') &&
+                      !!item.item_id;
 
                     return (
                       <TableRow key={item.id}>
@@ -897,12 +943,45 @@ export const SolicitacaoMaterial = () => {
                           <ItemFotoMiniatura fotoUrl={item.item_snapshot?.fotoUrl} nome={item.nome_item} />
                         </TableCell>
                         <TableCell className="font-medium">
-                          {item.nome_item}
+                          <div className="flex items-center gap-1">
+                            {item.nome_item}
+                            {foiEditado && (
+                              <Pencil className="h-3 w-3 text-amber-400 flex-shrink-0" title="Quantidade editada pelo estoque" />
+                            )}
+                          </div>
                           {item.item_id && item.item_snapshot?.codigoBarras && (
                             <span className="block text-xs text-muted-foreground">Cód: {item.item_snapshot.codigoBarras}</span>
                           )}
                         </TableCell>
-                        <TableCell>{item.quantidade}</TableCell>
+                        <TableCell>
+                          {podeEditar ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                min={1}
+                                defaultValue={item.quantidade}
+                                className="w-20 h-7 text-sm px-2"
+                                onBlur={(e) => {
+                                  const nova = Number(e.target.value);
+                                  if (nova !== item.quantidade) {
+                                    salvarQuantidadeItem(item.id, nova);
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const nova = Number((e.target as HTMLInputElement).value);
+                                    if (nova !== item.quantidade) {
+                                      salvarQuantidadeItem(item.id, nova);
+                                    }
+                                    (e.target as HTMLInputElement).blur();
+                                  }
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <span>{item.quantidade}</span>
+                          )}
+                        </TableCell>
                         <TableCell>{item.unidade}</TableCell>
                         <TableCell>
                           <Badge variant={vaiParaCompra ? 'secondary' : 'default'}>
