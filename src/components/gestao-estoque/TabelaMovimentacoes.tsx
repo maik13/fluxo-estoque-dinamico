@@ -490,7 +490,7 @@ export const TabelaMovimentacoes = () => {
       if (error) throw error;
       
       // Registrar log de auditoria
-      await supabase.from('action_logs').insert({
+      await (supabase as any).from('action_logs').insert({
         user_id: user?.id,
         action: 'EDICAO_DESTINO_MOVIMENTACAO',
         entity_type: 'movements',
