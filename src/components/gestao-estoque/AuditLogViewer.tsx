@@ -29,7 +29,7 @@ export const AuditLogViewer = () => {
   const carregarLogs = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('action_logs')
         .select(`
           *,
@@ -41,7 +41,7 @@ export const AuditLogViewer = () => {
         .limit(100);
 
       if (error) throw error;
-      setLogs(data || []);
+      setLogs((data as LogEntry[]) || []);
     } catch (error) {
       console.error('Erro ao carregar logs:', error);
     } finally {

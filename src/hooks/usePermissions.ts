@@ -140,7 +140,7 @@ export const usePermissions = () => {
           pode_pedido_compra: data.pode_pedido_compra,
           pode_solicitacao_material: data.pode_solicitacao_material,
           pode_ver_relatorios: data.pode_ver_relatorios,
-          pode_editar_movimentacoes: data.pode_editar_movimentacoes,
+          pode_editar_movimentacoes: (data as any).pode_editar_movimentacoes ?? false,
         });
       }
     } catch (error) {
