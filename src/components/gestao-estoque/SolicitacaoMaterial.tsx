@@ -381,8 +381,8 @@ export const SolicitacaoMaterial = () => {
         estoque_id: solData.estoque_id || undefined,
         aprovado_por_nome: solData.aprovado_por_nome || undefined,
         data_aprovacao: solData.data_aprovacao || undefined,
-        local_origem: solData.local_origem || undefined,
-        local_origem_id: solData.local_origem_id || undefined,
+        local_origem: (solData as any).local_origem || undefined,
+        local_origem_id: (solData as any).local_origem_id || undefined,
         itens: itensInsert.map((item, index) => ({
           id: `${index}`,
           item_id: item.item_id || undefined,

@@ -117,7 +117,7 @@ export const PermissoesPanel = () => {
         .order('tipo_usuario');
 
       if (error) throw error;
-      setPermissoes(data || []);
+      setPermissoes((data || []).map((d: any) => ({ ...d, pode_editar_movimentacoes: d.pode_editar_movimentacoes ?? false })));
     } catch (error) {
       console.error('Erro ao carregar permissões:', error);
       toast({ title: 'Erro', description: 'Não foi possível carregar as permissões.', variant: 'destructive' });

@@ -425,6 +425,7 @@ export type Database = {
           pode_cadastrar_itens: boolean
           pode_devolver_material: boolean
           pode_editar_itens: boolean
+          pode_editar_movimentacoes: boolean
           pode_excluir_itens: boolean
           pode_gerenciar_configuracoes: boolean
           pode_gerenciar_usuarios: boolean
@@ -445,6 +446,7 @@ export type Database = {
           pode_cadastrar_itens?: boolean
           pode_devolver_material?: boolean
           pode_editar_itens?: boolean
+          pode_editar_movimentacoes?: boolean
           pode_excluir_itens?: boolean
           pode_gerenciar_configuracoes?: boolean
           pode_gerenciar_usuarios?: boolean
@@ -465,6 +467,7 @@ export type Database = {
           pode_cadastrar_itens?: boolean
           pode_devolver_material?: boolean
           pode_editar_itens?: boolean
+          pode_editar_movimentacoes?: boolean
           pode_excluir_itens?: boolean
           pode_gerenciar_configuracoes?: boolean
           pode_gerenciar_usuarios?: boolean
