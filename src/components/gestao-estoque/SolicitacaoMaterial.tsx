@@ -350,8 +350,6 @@ export const SolicitacaoMaterial = () => {
           solicitante_nome: userProfile.nome,
           observacoes: observacoes || null,
           estoque_id: estoqueInfo?.id || null,
-          local_origem_id: localOrigemId || null,
-          local_origem: localOrigemNome || null,
           status: 'pendente'
         })
         .select()
@@ -381,8 +379,8 @@ export const SolicitacaoMaterial = () => {
         estoque_id: solData.estoque_id || undefined,
         aprovado_por_nome: solData.aprovado_por_nome || undefined,
         data_aprovacao: solData.data_aprovacao || undefined,
-        local_origem: (solData as any).local_origem || undefined,
-        local_origem_id: (solData as any).local_origem_id || undefined,
+        local_origem: localOrigemNome || undefined,
+        local_origem_id: localOrigemId || undefined,
         itens: itensInsert.map((item, index) => ({
           id: `${index}`,
           item_id: item.item_id || undefined,
@@ -946,7 +944,9 @@ export const SolicitacaoMaterial = () => {
                           <div className="flex items-center gap-1">
                             {item.nome_item}
                             {foiEditado && (
-                              <Pencil className="h-3 w-3 text-amber-400 flex-shrink-0" title="Quantidade editada pelo estoque" />
+                              <span title="Quantidade editada pelo estoque">
+                                <Pencil className="h-3 w-3 text-amber-400 flex-shrink-0" aria-hidden="true" />
+                              </span>
                             )}
                           </div>
                           {item.item_id && item.item_snapshot?.codigoBarras && (
