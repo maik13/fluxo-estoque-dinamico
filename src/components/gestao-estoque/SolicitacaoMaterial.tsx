@@ -343,19 +343,28 @@ export const SolicitacaoMaterial = () => {
     setEnviando(true);
     try {
       const estoqueInfo = obterEstoqueAtivoInfo();
+      console.log('[SolicitacaoMaterial] Iniciando criação. User:', user.id, 'Estoque:', estoqueInfo?.id);
+      
+      const insertPayload = {
+        solicitante_id: user.id,
+        solicitante_nome: userProfile.nome,
+        observacoes: observacoes || null,
+        estoque_id: estoqueInfo?.id || null,
+        status: 'pendente'
+      };
+      console.log('[SolicitacaoMaterial] Insert payload:', insertPayload);
+      
       const { data: solData, error: solError } = await supabase
         .from('solicitacoes_material')
-        .insert({
-          solicitante_id: user.id,
-          solicitante_nome: userProfile.nome,
-          observacoes: observacoes || null,
-          estoque_id: estoqueInfo?.id || null,
-          status: 'pendente'
-        })
+        .insert(insertPayload)
         .select()
         .single();
 
-      if (solError) throw solError;
+      if (solError) {
+        console.error('[SolicitacaoMaterial] Erro ao inserir solicitação:', solError);
+        throw solError;
+      }
+      console.log('[SolicitacaoMaterial] Solicitação criada:', solData.id, '#', solData.numero);
 
       const itensInsert = itensLista.map(item => ({
         solicitacao_material_id: solData.id,
@@ -366,12 +375,17 @@ export const SolicitacaoMaterial = () => {
         item_snapshot: item.item_snapshot || null,
         observacoes: item.observacoes || null
       }));
+      console.log('[SolicitacaoMaterial] Inserindo', itensInsert.length, 'itens');
 
       const { error: itensError } = await supabase
         .from('solicitacao_material_itens')
         .insert(itensInsert);
 
-      if (itensError) throw itensError;
+      if (itensError) {
+        console.error('[SolicitacaoMaterial] Erro ao inserir itens:', itensError);
+        throw itensError;
+      }
+      console.log('[SolicitacaoMaterial] Itens inseridos com sucesso');
 
       const solicitacaoCriada: SolicitacaoMaterialCompleta = {
         ...solData,
