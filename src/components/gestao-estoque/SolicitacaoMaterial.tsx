@@ -83,9 +83,11 @@ export const SolicitacaoMaterial = () => {
   const [quantidadesEditadas, setQuantidadesEditadas] = useState<Record<string, number>>({});
 
   const { obterEstoque } = useEstoqueContext();
-  const { user } = useAuth();
-  const { userProfile, canManageStock, isAdmin } = usePermissions();
-  const { obterEstoqueAtivoInfo, obterLocaisUtilizacaoAtivos } = useConfiguracoes();
+  const { user, loading: authLoading } = useAuth();
+  const { userProfile, canManageStock, isAdmin, loading: permissionsLoading } = usePermissions();
+  const { obterEstoqueAtivoInfo, obterLocaisUtilizacaoAtivos, loading: configLoading } = useConfiguracoes();
+
+  const isInicializandoSolicitacao = authLoading || permissionsLoading || configLoading;
 
   const itensEstoque = obterEstoque();
   const mapaEstoque = useMemo(
@@ -331,10 +333,16 @@ export const SolicitacaoMaterial = () => {
   };
 
   const criarSolicitacao = async () => {
+    if (isInicializandoSolicitacao) {
+      toast.error('Aguarde o carregamento do seu acesso e das configurações');
+      return;
+    }
+
     if (!user || !userProfile) {
       toast.error('Usuário não autenticado');
       return;
     }
+
     if (itensLista.length === 0) {
       toast.error('Adicione pelo menos um item');
       return;
@@ -343,28 +351,21 @@ export const SolicitacaoMaterial = () => {
     setEnviando(true);
     try {
       const estoqueInfo = obterEstoqueAtivoInfo();
-      console.log('[SolicitacaoMaterial] Iniciando criação. User:', user.id, 'Estoque:', estoqueInfo?.id);
-      
-      const insertPayload = {
-        solicitante_id: user.id,
-        solicitante_nome: userProfile.nome,
-        observacoes: observacoes || null,
-        estoque_id: estoqueInfo?.id || null,
-        status: 'pendente'
-      };
-      console.log('[SolicitacaoMaterial] Insert payload:', insertPayload);
-      
       const { data: solData, error: solError } = await supabase
         .from('solicitacoes_material')
-        .insert(insertPayload)
+        .insert({
+          solicitante_id: user.id,
+          solicitante_nome: userProfile.nome,
+          observacoes: observacoes || null,
+          estoque_id: estoqueInfo?.id || null,
+          status: 'pendente'
+        })
         .select()
         .single();
 
-      if (solError) {
-        console.error('[SolicitacaoMaterial] Erro ao inserir solicitação:', solError);
-        throw solError;
+      if (solError || !solData) {
+        throw solError ?? new Error('Não foi possível criar a solicitação');
       }
-      console.log('[SolicitacaoMaterial] Solicitação criada:', solData.id, '#', solData.numero);
 
       const itensInsert = itensLista.map(item => ({
         solicitacao_material_id: solData.id,
@@ -375,17 +376,12 @@ export const SolicitacaoMaterial = () => {
         item_snapshot: item.item_snapshot || null,
         observacoes: item.observacoes || null
       }));
-      console.log('[SolicitacaoMaterial] Inserindo', itensInsert.length, 'itens');
 
       const { error: itensError } = await supabase
         .from('solicitacao_material_itens')
         .insert(itensInsert);
 
-      if (itensError) {
-        console.error('[SolicitacaoMaterial] Erro ao inserir itens:', itensError);
-        throw itensError;
-      }
-      console.log('[SolicitacaoMaterial] Itens inseridos com sucesso');
+      if (itensError) throw itensError;
 
       const solicitacaoCriada: SolicitacaoMaterialCompleta = {
         ...solData,
@@ -406,9 +402,7 @@ export const SolicitacaoMaterial = () => {
         })),
       };
 
-      const itensParaCompra = obterItensParaPedidoCompra(
-        solicitacaoCriada.itens
-      );
+      const itensParaCompra = obterItensParaPedidoCompra(solicitacaoCriada.itens);
       const podeGerarPedidoAutomatico = canManageStock() && itensParaCompra.length > 0;
 
       let pedidoCriado: { id: string; numero: number; jaExistia: boolean } | null = null;
@@ -1248,11 +1242,11 @@ export const SolicitacaoMaterial = () => {
               <Button variant="outline" onClick={() => setDialogoCriar(false)}>Cancelar</Button>
               <Button 
                 onClick={criarSolicitacao} 
-                disabled={enviando || itensLista.length === 0 || !localOrigemId} 
+                disabled={enviando || isInicializandoSolicitacao || itensLista.length === 0 || !localOrigemId} 
                 className="gap-2"
               >
                 <Send className="h-4 w-4" />
-                {enviando ? 'Enviando...' : 'Criar Solicitação'}
+                {enviando ? 'Enviando...' : isInicializandoSolicitacao ? 'Carregando...' : 'Criar Solicitação'}
               </Button>
             </div>
           </div>
