@@ -420,9 +420,10 @@ export const SolicitacaoMaterial = () => {
 
       setDialogoCriar(false);
       limparFormularioCriacao();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao criar solicitação:', error);
-      toast.error('Erro ao criar solicitação de material');
+      const msg = error?.message || error?.details || 'Erro desconhecido';
+      toast.error(`Erro ao criar solicitação de material: ${msg}`);
     } finally {
       setEnviando(false);
     }
