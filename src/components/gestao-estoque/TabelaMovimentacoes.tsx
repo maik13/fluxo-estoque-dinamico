@@ -51,6 +51,7 @@ export const TabelaMovimentacoes = () => {
   const [movimentoEditando, setMovimentoEditando] = useState<Movimentacao | null>(null);
   const [novoLocalId, setNovoLocalId] = useState<string>('');
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  const [tipoAgrupamentoProjetos, setTipoAgrupamentoProjetos] = useState<'projeto' | 'grupo'>('projeto');
 
   // Buscar informações dos usuários (para coluna Responsável)
   useEffect(() => {
@@ -128,8 +129,23 @@ export const TabelaMovimentacoes = () => {
     movimentacoes.forEach(mov => {
       if (mov.tipo === 'SAIDA') {
         const itemId = mov.itemId || 'sem-item';
-        const localId = mov.localUtilizacaoId || 'sem-local';
-        const key = `${itemId}_${localId}`;
+        
+        // Define o ID e Nome para agrupamento (Local ou Grupo)
+        let groupingId = '';
+        let groupingName = '';
+        
+        if (tipoAgrupamentoProjetos === 'projeto') {
+          groupingId = mov.localUtilizacaoId || 'sem-local';
+          groupingName = mov.localUtilizacaoNome || 'Sem local';
+        } else {
+          // Busca o grupo vinculado ao local
+          const local = locaisConfig.find(l => l.id === mov.localUtilizacaoId);
+          const grupo = local?.group_id ? gruposProjeto.find(g => g.id === local.group_id) : null;
+          groupingId = grupo?.id || 'sem-grupo';
+          groupingName = grupo?.nome || 'Sem Grupo';
+        }
+
+        const key = `${itemId}_${groupingId}`;
         
         const existing = saidasMap.get(key);
         if (existing) {
@@ -144,8 +160,8 @@ export const TabelaMovimentacoes = () => {
           saidasMap.set(key, {
             itemSnapshot: mov.itemSnapshot,
             itemId,
-            localUtilizacaoId: localId,
-            localUtilizacaoNome: mov.localUtilizacaoNome || 'Sem local',
+            localUtilizacaoId: groupingId, // Agora guarda ID do local ou ID do grupo
+            localUtilizacaoNome: groupingName, // Agora guarda Nome do local ou Nome do grupo
             totalSaida: mov.quantidade,
             totalDevolvido: 0,
             ultimaSaida: mov.dataHora,
@@ -161,8 +177,17 @@ export const TabelaMovimentacoes = () => {
     movimentacoes.forEach(mov => {
       if (isDevolucao(mov)) {
         const itemId = mov.itemId || 'sem-item';
-        const localId = mov.localUtilizacaoId || 'sem-local';
-        const key = `${itemId}_${localId}`;
+        
+        let groupingId = '';
+        if (tipoAgrupamentoProjetos === 'projeto') {
+          groupingId = mov.localUtilizacaoId || 'sem-local';
+        } else {
+          const local = locaisConfig.find(l => l.id === mov.localUtilizacaoId);
+          const grupo = local?.group_id ? gruposProjeto.find(g => g.id === local.group_id) : null;
+          groupingId = grupo?.id || 'sem-grupo';
+        }
+
+        const key = `${itemId}_${groupingId}`;
         
         const existing = saidasMap.get(key);
         if (existing) {
@@ -174,13 +199,21 @@ export const TabelaMovimentacoes = () => {
     // Mapear para o formato final e calcular saldo
     const pendentes = Array.from(saidasMap.entries())
       .map(([key, v]) => {
-        const local = locaisConfig.find(l => l.id === v.localUtilizacaoId);
-        const grupo = local?.group_id ? gruposProjeto.find(g => g.id === local.group_id) : null;
+        let projetoGrupoNome = '-';
+        
+        if (tipoAgrupamentoProjetos === 'projeto') {
+          const local = locaisConfig.find(l => l.id === v.localUtilizacaoId);
+          const grupo = local?.group_id ? gruposProjeto.find(g => g.id === local.group_id) : null;
+          projetoGrupoNome = grupo?.nome || '-';
+        } else {
+          // No modo grupo, o "localUtilizacaoNome" já é o nome do grupo
+          projetoGrupoNome = v.localUtilizacaoNome;
+        }
         
         return {
           key,
           ...v,
-          projetoGrupoNome: grupo?.nome || '-',
+          projetoGrupoNome,
           pendente: Math.max(0, v.totalSaida - v.totalDevolvido),
           statusItem: (v.totalSaida - v.totalDevolvido) <= 0 ? 'devolvido' : 
                       (v.totalDevolvido > 0 ? 'parcial' : 'pendente')
@@ -189,7 +222,7 @@ export const TabelaMovimentacoes = () => {
       .sort((a, b) => new Date(b.ultimaSaida).getTime() - new Date(a.ultimaSaida).getTime());
 
     return pendentes;
-  }, [movimentacoes, locaisConfig, gruposProjeto]);
+  }, [movimentacoes, locaisConfig, gruposProjeto, tipoAgrupamentoProjetos]);
 
   // Locais únicos dos pendentes para filtro
   const locaisPendentes = useMemo(() => {
@@ -491,25 +524,43 @@ export const TabelaMovimentacoes = () => {
         if (item.statusItem === 'parcial') statusTexto = 'Parcial';
         if (item.statusItem === 'devolvido') statusTexto = 'Devolvido';
 
-        return {
-          'Projeto/Local': item.localUtilizacaoNome,
-          'Grupo': item.projetoGrupoNome,
-          'Item': item.itemSnapshot?.nome || 'Item não identificado',
-          'Código': item.itemSnapshot?.codigoBarras || '-',
-          'Tipo': item.itemSnapshot?.tipoItem || '-',
-          'Status': statusTexto,
-          'Total Saída': item.totalSaida,
-          'Total Devolvido': item.totalDevolvido,
-          'Saldo Pendente': item.pendente,
-          'Última Saída': item.ultimaSaida ? new Date(item.ultimaSaida).toLocaleDateString('pt-BR') : '-',
-          'Responsável': item.destinatario || item.solicitanteNome || '-'
-        };
+        const row: any = {};
+        if (tipoAgrupamentoProjetos === 'grupo') {
+          row['Grupo'] = item.localUtilizacaoNome;
+        } else {
+          row['Projeto/Local'] = item.localUtilizacaoNome;
+          row['Grupo'] = item.projetoGrupoNome;
+        }
+        
+        row['Item'] = item.itemSnapshot?.nome || 'Item não identificado';
+        row['Código'] = item.itemSnapshot?.codigoBarras || '-';
+        row['Tipo'] = item.itemSnapshot?.tipoItem || '-';
+        row['Status'] = statusTexto;
+        row['Total Saída'] = item.totalSaida;
+        row['Total Devolvido'] = item.totalDevolvido;
+        row['Saldo Pendente'] = item.pendente;
+        
+        if (tipoAgrupamentoProjetos === 'projeto') {
+          row['Última Saída'] = item.ultimaSaida ? new Date(item.ultimaSaida).toLocaleDateString('pt-BR') : '-';
+          row['Responsável'] = item.destinatario || item.solicitanteNome || '-';
+        }
+        
+        return row;
       });
 
       const workbook = XLSX.utils.book_new();
       const worksheet = XLSX.utils.json_to_sheet(dadosExportacao);
 
-      const columnWidths = [
+      const columnWidths = tipoAgrupamentoProjetos === 'grupo' ? [
+        { wch: 20 }, // Grupo
+        { wch: 30 }, // Item
+        { wch: 15 }, // Código
+        { wch: 15 }, // Tipo
+        { wch: 15 }, // Status
+        { wch: 12 }, // Saída
+        { wch: 12 }, // Devolvido
+        { wch: 12 }  // Saldo
+      ] : [
         { wch: 25 }, // Projeto
         { wch: 20 }, // Grupo
         { wch: 30 }, // Item
@@ -526,7 +577,8 @@ export const TabelaMovimentacoes = () => {
 
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Resumo por Projeto');
       const dataAtual = new Date().toISOString().split('T')[0];
-      XLSX.writeFile(workbook, `resumo-projetos-${dataAtual}.xlsx`);
+      const prefixo = tipoAgrupamentoProjetos === 'grupo' ? 'consolidado-grupos' : 'resumo-projetos';
+      XLSX.writeFile(workbook, `${prefixo}-${dataAtual}.xlsx`);
 
       toast({
         title: "Exportação concluída!",
@@ -563,9 +615,18 @@ export const TabelaMovimentacoes = () => {
       if (item.statusItem === 'parcial') statusIcon = '🟡';
       if (item.statusItem === 'devolvido') statusIcon = '🟢';
 
-      return `<tr>
+      const colunasAdicionaisProjeto = tipoAgrupamentoProjetos === 'projeto' ? `
         <td>${item.localUtilizacaoNome}</td>
         <td>${item.projetoGrupoNome}</td>
+      ` : `<td>${item.localUtilizacaoNome}</td>`;
+
+      const colunasFinaisProjeto = tipoAgrupamentoProjetos === 'projeto' ? `
+        <td>${item.ultimaSaida ? new Date(item.ultimaSaida).toLocaleDateString('pt-BR') : '-'}</td>
+        <td>${item.destinatario || item.solicitanteNome || '-'}</td>
+      ` : '';
+
+      return `<tr>
+        ${colunasAdicionaisProjeto}
         <td>${item.itemSnapshot?.nome || '-'}</td>
         <td>${item.itemSnapshot?.codigoBarras || '-'}</td>
         <td>${item.itemSnapshot?.tipoItem || '-'}</td>
@@ -573,8 +634,7 @@ export const TabelaMovimentacoes = () => {
         <td style="text-align:right">${item.totalSaida}</td>
         <td style="text-align:right">${item.totalDevolvido}</td>
         <td style="text-align:right; font-weight:bold">${item.pendente}</td>
-        <td>${item.ultimaSaida ? new Date(item.ultimaSaida).toLocaleDateString('pt-BR') : '-'}</td>
-        <td>${item.destinatario || item.solicitanteNome || '-'}</td>
+        ${colunasFinaisProjeto}
       </tr>`;
     }).join('');
 
@@ -584,7 +644,11 @@ export const TabelaMovimentacoes = () => {
     if (filtroPendentesDestino !== 'todos') filtrosAtivos.push(`Local: ${filtroPendentesDestino}`);
     if (filtroPendentesTexto) filtrosAtivos.push(`Busca: ${filtroPendentesTexto}`);
 
-    printWindow.document.write(`<!DOCTYPE html><html><head><title>Resumo por Projeto</title>
+      const cabecalhoColunas = tipoAgrupamentoProjetos === 'grupo' 
+        ? '<th>Grupo</th><th>Item</th><th>Código</th><th>Tipo</th><th>Status</th><th>Total Saída</th><th>Total Devolvido</th><th>Saldo</th>'
+        : '<th>Projeto/Local</th><th>Grupo</th><th>Item</th><th>Código</th><th>Tipo</th><th>Status</th><th>Saída</th><th>Devolvido</th><th>Saldo</th><th>Última Saída</th><th>Responsável</th>';
+
+      printWindow.document.write(`<!DOCTYPE html><html><head><title>Resumo de Materiais</title>
       <style>
         body { font-family: Arial, sans-serif; font-size: 11px; margin: 20px; }
         .header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; border-bottom: 2px solid #f59e0b; padding-bottom: 8px; }
@@ -596,10 +660,10 @@ export const TabelaMovimentacoes = () => {
         tr:nth-child(even) { background: #fffbeb; }
         @media print { body { margin: 10px; } }
       </style></head><body>
-      <div class="header">${logoHtml}<h1>Resumo de Materiais por Projeto</h1></div>
+      <div class="header">${logoHtml}<h1>${tipoAgrupamentoProjetos === 'grupo' ? 'Consolidado por Grupo' : 'Resumo por Projeto'}</h1></div>
       <div class="info">Gerado em: ${new Date().toLocaleString('pt-BR')} | Itens: ${pendentesFiltrados.length}${filtrosAtivos.length > 0 ? ' | Filtros: ' + filtrosAtivos.join(', ') : ''}</div>
       <table><thead><tr>
-        <th>Projeto/Local</th><th>Grupo</th><th>Item</th><th>Código</th><th>Tipo</th><th>Status</th><th>Saída</th><th>Devolvido</th><th>Saldo</th><th>Última Saída</th><th>Responsável</th>
+        ${cabecalhoColunas}
       </tr></thead><tbody>${linhas}</tbody></table>
       <script>window.print();window.onafterprint=()=>window.close();</script>
     </body></html>`);
@@ -1240,15 +1304,35 @@ export const TabelaMovimentacoes = () => {
         {/* Aba Projetos (Visão Gerencial / Resumo por Projeto) */}
         <TabsContent value="projetos" className="space-y-6">
           <Card className="border-warning/20">
-            <CardHeader className="bg-warning/5 rounded-t-xl py-4">
-              <div className="flex items-center justify-between">
+            <CardHeader className="pb-2">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <CardTitle className="flex items-center gap-2 text-warning">
-                    <BarChart3 className="h-5 w-5" />
-                    Resumo por Projeto / Local
-                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xl font-bold text-warning">Resumo por Projeto</CardTitle>
+                    {/* Toggle de Agrupamento */}
+                    <div className="flex bg-muted p-1 rounded-md ml-4">
+                      <Button 
+                        variant={tipoAgrupamentoProjetos === 'projeto' ? 'secondary' : 'ghost'} 
+                        size="sm" 
+                        className="h-7 text-xs px-3"
+                        onClick={() => setTipoAgrupamentoProjetos('projeto')}
+                      >
+                        Por Projeto
+                      </Button>
+                      <Button 
+                        variant={tipoAgrupamentoProjetos === 'grupo' ? 'secondary' : 'ghost'} 
+                        size="sm" 
+                        className="h-7 text-xs px-3"
+                        onClick={() => setTipoAgrupamentoProjetos('grupo')}
+                      >
+                        Por Grupo
+                      </Button>
+                    </div>
+                  </div>
                   <CardDescription>
-                    Rastreamento de itens alocados por local de utilização
+                    {tipoAgrupamentoProjetos === 'projeto' 
+                      ? "Rastreamento de itens alocados por local de utilização individual" 
+                      : "Visão consolidada de itens por Grupos de Projeto"}
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1403,17 +1487,28 @@ export const TabelaMovimentacoes = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {tipoAgrupamentoProjetos === 'grupo' ? (
+                        <TableHead>Grupo</TableHead>
+                      ) : null}
                       <TableHead>Item</TableHead>
                       <TableHead>Código</TableHead>
                       <TableHead>Tipo</TableHead>
-                      <TableHead>Projeto/Local</TableHead>
-                      <TableHead>Grupo</TableHead>
+                      {tipoAgrupamentoProjetos === 'projeto' ? (
+                        <>
+                          <TableHead>Projeto/Local</TableHead>
+                          <TableHead>Grupo</TableHead>
+                        </>
+                      ) : null}
                       <TableHead>Status</TableHead>
-                      <TableHead>Saída</TableHead>
-                      <TableHead>Devolvido</TableHead>
+                      <TableHead>{tipoAgrupamentoProjetos === 'grupo' ? 'Total Saída' : 'Saída'}</TableHead>
+                      <TableHead>{tipoAgrupamentoProjetos === 'grupo' ? 'Total Devolvido' : 'Devolvido'}</TableHead>
                       <TableHead>Saldo</TableHead>
-                      <TableHead>Última Saída</TableHead>
-                      <TableHead>Responsável</TableHead>
+                      {tipoAgrupamentoProjetos === 'projeto' ? (
+                        <>
+                          <TableHead>Última Saída</TableHead>
+                          <TableHead>Responsável</TableHead>
+                        </>
+                      ) : null}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1431,6 +1526,13 @@ export const TabelaMovimentacoes = () => {
                     ) : (
                       pendentesFiltrados.map((item) => (
                         <TableRow key={item.key}>
+                          {tipoAgrupamentoProjetos === 'grupo' ? (
+                            <TableCell>
+                              <Badge variant={item.localUtilizacaoNome === 'Sem Grupo' ? 'outline' : 'default'} className={item.localUtilizacaoNome === 'Sem Grupo' ? '' : 'bg-blue-500 hover:bg-blue-600'}>
+                                📦 {item.localUtilizacaoNome}
+                              </Badge>
+                            </TableCell>
+                          ) : null}
                           <TableCell>
                             <div>
                               <p className="font-medium">{item.itemSnapshot?.nome || 'Item não identificado'}</p>
@@ -1449,20 +1551,24 @@ export const TabelaMovimentacoes = () => {
                               </Badge>
                             ) : '-'}
                           </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary" className="bg-muted text-foreground border-none">
-                              {item.localUtilizacaoNome}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {item.projetoGrupoNome !== '-' ? (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                📦 {item.projetoGrupoNome}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">{item.projetoGrupoNome}</span>
-                            )}
-                          </TableCell>
+                          {tipoAgrupamentoProjetos === 'projeto' ? (
+                            <>
+                              <TableCell>
+                                <Badge variant="secondary" className="bg-muted text-foreground border-none">
+                                  {item.localUtilizacaoNome}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {item.projetoGrupoNome !== '-' ? (
+                                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                    📦 {item.projetoGrupoNome}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">{item.projetoGrupoNome}</span>
+                                )}
+                              </TableCell>
+                            </>
+                          ) : null}
                           <TableCell>
                             {item.statusItem === 'pendente' && (
                               <Badge className="bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20">
@@ -1491,19 +1597,23 @@ export const TabelaMovimentacoes = () => {
                               {item.pendente.toLocaleString('pt-BR')} {item.itemSnapshot?.unidade || ''}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-xs">
-                            {item.ultimaSaida && !isNaN(new Date(item.ultimaSaida).getTime()) ? (
-                              new Date(item.ultimaSaida).toLocaleDateString('pt-BR', {
-                                day: '2-digit', month: '2-digit', year: 'numeric',
-                                hour: '2-digit', minute: '2-digit'
-                              })
-                            ) : (
-                              <span className="text-muted-foreground text-[10px]">Data não disponível</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {item.destinatario || item.solicitanteNome || '-'}
-                          </TableCell>
+                          {tipoAgrupamentoProjetos === 'projeto' ? (
+                            <>
+                              <TableCell className="text-xs">
+                                {item.ultimaSaida && !isNaN(new Date(item.ultimaSaida).getTime()) ? (
+                                  new Date(item.ultimaSaida).toLocaleDateString('pt-BR', {
+                                    day: '2-digit', month: '2-digit', year: 'numeric',
+                                    hour: '2-digit', minute: '2-digit'
+                                  })
+                                ) : (
+                                  <span className="text-muted-foreground text-[10px]">Data não disponível</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {item.destinatario || item.solicitanteNome || '-'}
+                              </TableCell>
+                            </>
+                          ) : null}
                         </TableRow>
                       ))
                     )}
