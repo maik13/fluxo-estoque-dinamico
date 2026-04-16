@@ -679,6 +679,7 @@ const registrarSaida = async (
     }
 
     const estoqueAnterior = calcularEstoqueAtual(item.id);
+    const estoqueAtivoInfo = obterEstoqueAtivoInfo();
     
     // Regra para ferramentas: bloqueio de duplicidade e quantidade
     if (item.tipoItem === 'Ferramenta') {
