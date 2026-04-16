@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar as CalendarIcon, User, Package, RotateCcw, FileSpreadsheet, Pencil, Printer, AlertTriangle, Trash2, BarChart3 } from 'lucide-react';
 import { RelatorioMovimentacoesDialog } from './RelatorioMovimentacoesDialog';
+import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/hooks/useAuth';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -1121,82 +1122,105 @@ export const TabelaMovimentacoes = () => {
             </CardHeader>
             <CardContent className="pt-6">
               <div className="space-y-4">
-                {/* Linha 1 de Filtros: Busca e Status */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="relative md:col-span-2">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar por nome do item ou código..."
-                      className="pl-10"
-                      value={filtroPendentesTexto}
-                      onChange={(e) => setFiltroPendentesTexto(e.target.value)}
-                    />
+                  {/* Busca */}
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label htmlFor="pendentes-busca" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Busca</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="pendentes-busca"
+                        placeholder="Buscar por nome ou código..."
+                        className="pl-10"
+                        value={filtroPendentesTexto}
+                        onChange={(e) => setFiltroPendentesTexto(e.target.value)}
+                      />
+                    </div>
                   </div>
                   
-                  <Select value={filtroPendentesStatus} onValueChange={setFiltroPendentesStatus}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ativos">Somente em Campo (Pendente/Parcial)</SelectItem>
-                      <SelectItem value="pendente">Não Iniciado (Pendente)</SelectItem>
-                      <SelectItem value="parcial">Retornado Parcialmente</SelectItem>
-                      <SelectItem value="devolvido">Totalmente Devolvido</SelectItem>
-                      <SelectItem value="todos">Todos (Histórico Completo)</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select value={filtroPendentesTipoItem} onValueChange={setFiltroPendentesTipoItem}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Tipo de Item" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos os tipos</SelectItem>
-                      <SelectItem value="Insumo">Insumo</SelectItem>
-                      <SelectItem value="Ferramenta">Ferramenta</SelectItem>
-                      <SelectItem value="Equipamento">Equipamento</SelectItem>
-                      <SelectItem value="EPI">EPI</SelectItem>
-                      <SelectItem value="Outros">Outros</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Linha 2 de Filtros: Local e Datas */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Select value={filtroPendentesDestino} onValueChange={setFiltroPendentesDestino}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Filtrar por Projeto/Local" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos os projetos/locais</SelectItem>
-                      {locaisPendentes.map(local => (
-                        <SelectItem key={local} value={local!}>
-                          {local}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <div className="relative">
-                    <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="date"
-                      value={filtroDataPendentesInicio ? format(filtroDataPendentesInicio, "yyyy-MM-dd") : ""}
-                      onChange={(e) => setFiltroDataPendentesInicio(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
-                      className="pl-10"
-                      placeholder="Data última saída (de)"
-                    />
+                  {/* Status */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pendentes-status" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</Label>
+                    <Select value={filtroPendentesStatus} onValueChange={setFiltroPendentesStatus}>
+                      <SelectTrigger id="pendentes-status">
+                        <SelectValue placeholder="Selecione o status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ativos">Somente em Campo (Pendente/Parcial)</SelectItem>
+                        <SelectItem value="pendente">Não Iniciado (Pendente)</SelectItem>
+                        <SelectItem value="parcial">Retornado Parcialmente</SelectItem>
+                        <SelectItem value="devolvido">Totalmente Devolvido</SelectItem>
+                        <SelectItem value="todos">Todos (Histórico Completo)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  <div className="relative">
-                    <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="date"
-                      value={filtroDataPendentesFim ? format(filtroDataPendentesFim, "yyyy-MM-dd") : ""}
-                      onChange={(e) => setFiltroDataPendentesFim(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
-                      className="pl-10"
-                      placeholder="Data última saída (até)"
-                    />
+                  {/* Tipo de Item */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pendentes-tipo" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo de Item</Label>
+                    <Select value={filtroPendentesTipoItem} onValueChange={setFiltroPendentesTipoItem}>
+                      <SelectTrigger id="pendentes-tipo">
+                        <SelectValue placeholder="Todos os tipos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos os tipos</SelectItem>
+                        <SelectItem value="Insumo">Insumo</SelectItem>
+                        <SelectItem value="Ferramenta">Ferramenta</SelectItem>
+                        <SelectItem value="Equipamento">Equipamento</SelectItem>
+                        <SelectItem value="EPI">EPI</SelectItem>
+                        <SelectItem value="Outros">Outros</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Projeto / Local */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pendentes-local" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Projeto / Local</Label>
+                    <Select value={filtroPendentesDestino} onValueChange={setFiltroPendentesDestino}>
+                      <SelectTrigger id="pendentes-local">
+                        <SelectValue placeholder="Todos os projetos/locais" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos os projetos/locais</SelectItem>
+                        {locaisPendentes.map(local => (
+                          <SelectItem key={local} value={local!}>
+                            {local}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Data Inicial */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pendentes-data-inicio" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data Inicial</Label>
+                    <div className="relative">
+                      <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="pendentes-data-inicio"
+                        type="date"
+                        value={filtroDataPendentesInicio ? format(filtroDataPendentesInicio, "yyyy-MM-dd") : ""}
+                        onChange={(e) => setFiltroDataPendentesInicio(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Data Final */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pendentes-data-fim" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data Final</Label>
+                    <div className="relative">
+                      <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="pendentes-data-fim"
+                        type="date"
+                        value={filtroDataPendentesFim ? format(filtroDataPendentesFim, "yyyy-MM-dd") : ""}
+                        onChange={(e) => setFiltroDataPendentesFim(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
+                        className="pl-10"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
