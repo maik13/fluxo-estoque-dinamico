@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { materialRequestSchema } from '@/schemas/validation';
-import { verificarDevolucaoPendente, verificarFerramentaAlocada } from '@/utils/verificarPendencias';
+import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';
 
 export const SolicitarMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
@@ -213,8 +213,7 @@ export const SolicitarMaterial = () => {
       return;
     }
 
-    // Verificar se algum item possui devolução pendente
-    const alertasPendentesInsumos: string[] = [];
+    // Validar ferramentas e insumos
     for (const item of itensSolicitados) {
       const itemFull = item.item_snapshot as any;
       if (itemFull?.tipoItem === 'Ferramenta') {
@@ -223,20 +222,7 @@ export const SolicitarMaterial = () => {
           toast.error(`A ferramenta "${itemFull.nome}" já está alocada e possui devolução pendente.${localAtual ? ` Local atual: ${localAtual}` : ''}. Faça a devolução antes de retirá-la novamente.`);
           return;
         }
-      } else {
-        const { pendente, saldoPendente } = await verificarDevolucaoPendente(item.item_id);
-        if (pendente) {
-          const nomeItem = itemFull.nome || 'Item desconhecido';
-          alertasPendentesInsumos.push(`"${nomeItem}" possui ${saldoPendente} unidade(s) com devolução pendente`);
-        }
       }
-    }
-
-    if (alertasPendentesInsumos.length > 0) {
-      const confirmar = window.confirm(
-        `⚠️ ATENÇÃO - Itens com devolução pendente:\n\n${alertasPendentesInsumos.join('\n')}\n\nDeseja continuar com a retirada mesmo assim?`
-      );
-      if (!confirmar) return;
     }
 
     setEnviando(true);

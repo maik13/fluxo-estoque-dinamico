@@ -21,7 +21,7 @@ import { ptBR } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { materialReturnSchema } from '@/schemas/validation';
-import { verificarSaidaExistente, verificarDevolucaoPendente, verificarFerramentaAlocada } from '@/utils/verificarPendencias';
+import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';
 
 export const DevolverMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
@@ -220,8 +220,7 @@ export const DevolverMaterial = () => {
 
     setErroAssinatura('');
 
-    // Verificar se os itens possuem saída E se já foram totalmente devolvidos
-    const alertas: string[] = [];
+    // Validar ferramentas e insumos
     for (const item of itensDevolucao) {
       const itemFull = item.item_snapshot as any;
       
@@ -239,26 +238,6 @@ export const DevolverMaterial = () => {
           }
         }
       }
-
-      const { possuiSaida } = await verificarSaidaExistente(item.item_id);
-      if (!possuiSaida) {
-        const nomeItem = item.item_snapshot.nome || 'Item desconhecido';
-        alertas.push(`⛔ "${nomeItem}" não possui nenhuma saída registrada`);
-      } else {
-        // Verificar se já foi totalmente devolvido (saldo pendente = 0)
-        const { pendente, saldoPendente } = await verificarDevolucaoPendente(item.item_id);
-        if (!pendente) {
-          const nomeItem = item.item_snapshot.nome || 'Item desconhecido';
-          alertas.push(`⚠️ "${nomeItem}" já foi totalmente devolvido (sem saldo pendente)`);
-        }
-      }
-    }
-
-    if (alertas.length > 0) {
-      const confirmar = window.confirm(
-        `⚠️ ATENÇÃO:\n\n${alertas.join('\n')}\n\nDeseja continuar com a devolução mesmo assim?`
-      );
-      if (!confirmar) return;
     }
 
     setEnviando(true);
