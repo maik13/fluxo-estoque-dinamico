@@ -34,6 +34,9 @@ export const TabelaMovimentacoes = () => {
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroTipoItem, setFiltroTipoItem] = useState('todos');
   const [filtroPendentesDestino, setFiltroPendentesDestino] = useState('todos');
+  const [filtroPendentesTexto, setFiltroPendentesTexto] = useState('');
+  const [filtroPendentesTipoItem, setFiltroPendentesTipoItem] = useState('todos');
+  const [filtroPendentesStatus, setFiltroPendentesStatus] = useState('ativos');
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | undefined>(undefined);
   const [filtroDataFim, setFiltroDataFim] = useState<Date | undefined>(undefined);
   const [filtroDataPendentesInicio, setFiltroDataPendentesInicio] = useState<Date | undefined>(undefined);
@@ -166,13 +169,15 @@ export const TabelaMovimentacoes = () => {
       }
     });
 
-    // Filtrar apenas itens com saldo pendente > 0
+    // Mapear para o formato final e calcular saldo
     const pendentes = Array.from(saidasMap.entries())
-      .filter(([_, v]) => (v.totalSaida - v.totalDevolvido) > 0)
       .map(([key, v]) => ({
         key,
         ...v,
-        pendente: v.totalSaida - v.totalDevolvido,
+        pendente: Math.max(0, v.totalSaida - v.totalDevolvido),
+        // Adicionar flag de status para facilitar filtragem posterior
+        statusItem: (v.totalSaida - v.totalDevolvido) <= 0 ? 'devolvido' : 
+                    (v.totalDevolvido > 0 ? 'parcial' : 'pendente')
       }))
       .sort((a, b) => new Date(b.ultimaSaida).getTime() - new Date(a.ultimaSaida).getTime());
 
@@ -185,12 +190,38 @@ export const TabelaMovimentacoes = () => {
     return Array.from(locais).filter(l => l && l.trim() !== '').sort();
   }, [itensPendentes]);
 
-  // Filtrar pendentes por destino
+  // Filtrar pendentes por diversos critérios
   const pendentesFiltrados = useMemo(() => {
     let resultado = itensPendentes;
+
+    // 1. Filtro de Texto (Nome ou Código)
+    if (filtroPendentesTexto) {
+      const busca = filtroPendentesTexto.toLowerCase();
+      resultado = resultado.filter(p => 
+        p.itemSnapshot?.nome?.toLowerCase().includes(busca) ||
+        p.itemSnapshot?.codigoBarras?.toLowerCase().includes(busca)
+      );
+    }
+
+    // 2. Filtro de Tipo de Item
+    if (filtroPendentesTipoItem !== 'todos') {
+      resultado = resultado.filter(p => p.itemSnapshot?.tipoItem === filtroPendentesTipoItem);
+    }
+
+    // 3. Filtro de Status
+    if (filtroPendentesStatus === 'ativos') {
+      // Padrão: Pendente + Parcial (saldo > 0)
+      resultado = resultado.filter(p => p.statusItem === 'pendente' || p.statusItem === 'parcial');
+    } else if (filtroPendentesStatus !== 'todos') {
+      resultado = resultado.filter(p => p.statusItem === filtroPendentesStatus);
+    }
+
+    // 4. Filtro de Destino/Local
     if (filtroPendentesDestino !== 'todos') {
       resultado = resultado.filter(p => p.localUtilizacaoNome === filtroPendentesDestino);
     }
+
+    // 5. Filtro de Datas
     if (filtroDataPendentesInicio) {
       const inicio = new Date(filtroDataPendentesInicio);
       inicio.setHours(0, 0, 0, 0);
@@ -201,8 +232,9 @@ export const TabelaMovimentacoes = () => {
       fim.setHours(23, 59, 59, 999);
       resultado = resultado.filter(p => new Date(p.ultimaSaida) <= fim);
     }
+
     return resultado;
-  }, [itensPendentes, filtroPendentesDestino, filtroDataPendentesInicio, filtroDataPendentesFim]);
+  }, [itensPendentes, filtroPendentesTexto, filtroPendentesTipoItem, filtroPendentesStatus, filtroPendentesDestino, filtroDataPendentesInicio, filtroDataPendentesFim]);
 
   // Filtrar movimentações - lógica unificada
   const movimentacoesFiltradas = useMemo(() => {
@@ -1060,59 +1092,102 @@ export const TabelaMovimentacoes = () => {
           </Card>
         </TabsContent>
 
-        {/* Aba Pendentes de Devolução */}
+        {/* Aba Pendentes de Devolução / Resumo por Projeto */}
         <TabsContent value="pendentes" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-warning" />
-                Itens Pendentes de Devolução
+          <Card className="border-warning/20">
+            <CardHeader className="bg-warning/5 rounded-t-xl">
+              <CardTitle className="flex items-center gap-2 text-warning">
+                <BarChart3 className="h-5 w-5" />
+                Resumo por Projeto / Local
               </CardTitle>
               <CardDescription>
-                Itens que saíram do estoque e ainda não foram devolvidos
+                Rastreamento de itens alocados por local de utilização e status de devolução
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <Select value={filtroPendentesDestino} onValueChange={setFiltroPendentesDestino}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filtrar por Estoque/Destino" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos os estoques/destinos</SelectItem>
-                    {locaisPendentes.filter(l => l && l.trim() !== '').map(local => (
-                      <SelectItem key={local} value={local!}>
-                        {local}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                {/* Linha 1 de Filtros: Busca e Status */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="relative md:col-span-2">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nome do item ou código..."
+                      className="pl-10"
+                      value={filtroPendentesTexto}
+                      onChange={(e) => setFiltroPendentesTexto(e.target.value)}
+                    />
+                  </div>
+                  
+                  <Select value={filtroPendentesStatus} onValueChange={setFiltroPendentesStatus}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ativos">Somente em Campo (Pendente/Parcial)</SelectItem>
+                      <SelectItem value="pendente">Não Iniciado (Pendente)</SelectItem>
+                      <SelectItem value="parcial">Retornado Parcialmente</SelectItem>
+                      <SelectItem value="devolvido">Totalmente Devolvido</SelectItem>
+                      <SelectItem value="todos">Todos (Histórico Completo)</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-                <div className="relative">
-                  <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="date"
-                    value={filtroDataPendentesInicio ? format(filtroDataPendentesInicio, "yyyy-MM-dd") : ""}
-                    onChange={(e) => setFiltroDataPendentesInicio(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
-                    className="pl-10"
-                    placeholder="Data início"
-                  />
+                  <Select value={filtroPendentesTipoItem} onValueChange={setFiltroPendentesTipoItem}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tipo de Item" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos os tipos</SelectItem>
+                      <SelectItem value="Insumo">Insumo</SelectItem>
+                      <SelectItem value="Ferramenta">Ferramenta</SelectItem>
+                      <SelectItem value="Equipamento">Equipamento</SelectItem>
+                      <SelectItem value="EPI">EPI</SelectItem>
+                      <SelectItem value="Outros">Outros</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div className="relative">
-                  <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="date"
-                    value={filtroDataPendentesFim ? format(filtroDataPendentesFim, "yyyy-MM-dd") : ""}
-                    onChange={(e) => setFiltroDataPendentesFim(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
-                    className="pl-10"
-                    placeholder="Data fim"
-                  />
+                {/* Linha 2 de Filtros: Local e Datas */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Select value={filtroPendentesDestino} onValueChange={setFiltroPendentesDestino}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filtrar por Projeto/Local" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos os projetos/locais</SelectItem>
+                      {locaisPendentes.map(local => (
+                        <SelectItem key={local} value={local!}>
+                          {local}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <div className="relative">
+                    <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="date"
+                      value={filtroDataPendentesInicio ? format(filtroDataPendentesInicio, "yyyy-MM-dd") : ""}
+                      onChange={(e) => setFiltroDataPendentesInicio(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
+                      className="pl-10"
+                      placeholder="Data última saída (de)"
+                    />
+                  </div>
+
+                  <div className="relative">
+                    <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="date"
+                      value={filtroDataPendentesFim ? format(filtroDataPendentesFim, "yyyy-MM-dd") : ""}
+                      onChange={(e) => setFiltroDataPendentesFim(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
+                      className="pl-10"
+                      placeholder="Data última saída (até)"
+                    />
+                  </div>
                 </div>
               </div>
 
               <p className="text-sm text-muted-foreground mb-4">
-                {pendentesFiltrados.length} item(ns) pendente(s) de devolução
+                Mostrando {pendentesFiltrados.length} resumo(s) por projeto/local
               </p>
 
               <div className="w-full overflow-x-auto">
@@ -1121,22 +1196,24 @@ export const TabelaMovimentacoes = () => {
                     <TableRow>
                       <TableHead>Item</TableHead>
                       <TableHead>Código</TableHead>
-                      <TableHead>Estoque/Destino</TableHead>
-                      <TableHead>Total Saída</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Projeto/Local</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Saída</TableHead>
                       <TableHead>Devolvido</TableHead>
-                      <TableHead>Pendente</TableHead>
+                      <TableHead>Saldo</TableHead>
                       <TableHead>Última Saída</TableHead>
-                      <TableHead>Destinatário</TableHead>
+                      <TableHead>Responsável</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {pendentesFiltrados.length === 0 ? (
                       <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                           <div className="flex flex-col items-center gap-2">
                             <Package className="h-12 w-12 text-muted-foreground" />
                             <p className="text-muted-foreground">
-                              Nenhum item pendente de devolução
+                              Nenhum registro encontrado com os filtros atuais
                             </p>
                           </div>
                         </TableCell>
@@ -1156,39 +1233,57 @@ export const TabelaMovimentacoes = () => {
                             {item.itemSnapshot?.codigoBarras || '-'}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline">{item.localUtilizacaoNome}</Badge>
+                            {item.itemSnapshot?.tipoItem ? (
+                              <Badge variant="outline" className="text-[10px] uppercase">
+                                {item.itemSnapshot.tipoItem}
+                              </Badge>
+                            ) : '-'}
                           </TableCell>
-                          <TableCell className="text-warning font-bold">
+                          <TableCell>
+                            <Badge variant="secondary" className="bg-muted text-foreground border-none">
+                              {item.localUtilizacaoNome}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {item.statusItem === 'pendente' && (
+                              <Badge className="bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20">
+                                🔴 Pendente
+                              </Badge>
+                            )}
+                            {item.statusItem === 'parcial' && (
+                              <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20">
+                                🟡 Parcial
+                              </Badge>
+                            )}
+                            {item.statusItem === 'devolvido' && (
+                              <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20">
+                                🟢 Devolvido
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-warning font-mono font-bold">
                             {item.totalSaida.toLocaleString('pt-BR')}
                           </TableCell>
-                          <TableCell className="text-info font-bold">
+                          <TableCell className="text-info font-mono font-bold">
                             {item.totalDevolvido.toLocaleString('pt-BR')}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="destructive" className="font-bold">
+                            <Badge variant={item.pendente > 0 ? "destructive" : "outline"} className="font-mono font-bold">
                               {item.pendente.toLocaleString('pt-BR')} {item.itemSnapshot?.unidade || ''}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm">
+                          <TableCell className="text-xs">
                             {item.ultimaSaida && !isNaN(new Date(item.ultimaSaida).getTime()) ? (
                               new Date(item.ultimaSaida).toLocaleDateString('pt-BR', {
                                 day: '2-digit', month: '2-digit', year: 'numeric',
                                 hour: '2-digit', minute: '2-digit'
                               })
                             ) : (
-                              <span className="text-muted-foreground text-xs">Data não disponível</span>
+                              <span className="text-muted-foreground text-[10px]">Data não disponível</span>
                             )}
                           </TableCell>
-                          <TableCell>
-                            {item.destinatario ? (
-                              <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                                {item.destinatario}
-                              </Badge>
-                            ) : item.solicitanteNome ? (
-                              <Badge variant="outline">{item.solicitanteNome}</Badge>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">-</span>
-                            )}
+                          <TableCell className="text-xs">
+                            {item.destinatario || item.solicitanteNome || '-'}
                           </TableCell>
                         </TableRow>
                       ))
