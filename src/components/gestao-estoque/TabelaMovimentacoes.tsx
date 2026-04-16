@@ -11,6 +11,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar as CalendarIcon, User, Package, RotateCcw, FileSpreadsheet, Pencil, Printer, AlertTriangle, Trash2, BarChart3 } from 'lucide-react';
 import { RelatorioMovimentacoesDialog } from './RelatorioMovimentacoesDialog';
 import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/hooks/useAuth';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -1231,14 +1232,55 @@ export const TabelaMovimentacoes = () => {
         {/* Aba Projetos (Visão Gerencial / Resumo por Projeto) */}
         <TabsContent value="projetos" className="space-y-6">
           <Card className="border-warning/20">
-            <CardHeader className="bg-warning/5 rounded-t-xl">
-              <CardTitle className="flex items-center gap-2 text-warning">
-                <BarChart3 className="h-5 w-5" />
-                Resumo por Projeto / Local
-              </CardTitle>
-              <CardDescription>
-                Rastreamento de itens alocados por local de utilização e status de devolução
-              </CardDescription>
+            <CardHeader className="bg-warning/5 rounded-t-xl py-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <CardTitle className="flex items-center gap-2 text-warning">
+                    <BarChart3 className="h-5 w-5" />
+                    Resumo por Projeto / Local
+                  </CardTitle>
+                  <CardDescription>
+                    Rastreamento de itens alocados por local de utilização
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          onClick={exportarPendentesParaExcel}
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-2 border-warning/20 bg-background text-warning hover:bg-warning/10 hover:text-warning"
+                        >
+                          <FileSpreadsheet className="h-4 w-4" />
+                          <span className="hidden sm:inline">Excel</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Exportar resumo para Excel</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          onClick={imprimirPendentes}
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-2 border-warning/20 bg-background text-warning hover:bg-warning/10 hover:text-warning"
+                        >
+                          <Printer className="h-4 w-4" />
+                          <span className="hidden sm:inline">Imprimir</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Imprimir resumo consolidado</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="space-y-4">
@@ -1296,7 +1338,7 @@ export const TabelaMovimentacoes = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                   {/* Projeto / Local */}
-                  <div className="space-y-1.5 md:col-span-2">
+                  <div className="space-y-1.5 md:col-span-4">
                     <Label htmlFor="pendentes-local" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Projeto / Local</Label>
                     <Select value={filtroPendentesDestino} onValueChange={setFiltroPendentesDestino}>
                       <SelectTrigger id="pendentes-local">
@@ -1311,26 +1353,6 @@ export const TabelaMovimentacoes = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  {/* Botões de Ação */}
-                  <div className="md:col-span-2 grid grid-cols-2 gap-2">
-                    <Button 
-                      onClick={exportarPendentesParaExcel}
-                      variant="outline"
-                      className="flex items-center gap-2 border-warning/30 hover:bg-warning/10 text-warning"
-                    >
-                      <FileSpreadsheet className="h-4 w-4" />
-                      Exportar Excel
-                    </Button>
-                    <Button 
-                      onClick={imprimirPendentes}
-                      variant="outline"
-                      className="flex items-center gap-2 border-warning/30 hover:bg-warning/10 text-warning"
-                    >
-                      <Printer className="h-4 w-4" />
-                      Imprimir Resumo
-                    </Button>
                   </div>
                 </div>
 
