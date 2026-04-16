@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 
 interface RelatorioMovimentacoesDialogProps {
   aberto: boolean;
@@ -27,6 +28,8 @@ interface ResumoItem {
   totalDevolucoes: number;
   saldoPendente: number;
   qtdMovSaida: number;
+   */
+  categoria: string;
   qtdMovDevolucao: number;
 }
 
@@ -36,6 +39,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
   const [filtroDestino, setFiltroDestino] = useState('todos');
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | undefined>(undefined);
   const [filtroDataFim, setFiltroDataFim] = useState<Date | undefined>(undefined);
+  const { obterPrimeiraCategoriaDeSubcategoria } = useConfiguracoes();
 
   const isDevolucao = (mov: Movimentacao) => {
     return mov.tipo === 'ENTRADA' && mov.observacoes?.toLowerCase().includes('devolução');
@@ -98,6 +102,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
           saldoPendente: 0,
           qtdMovSaida: 0,
           qtdMovDevolucao: 0,
+          categoria: mov.itemSnapshot?.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId) : '-',
         });
       }
 
@@ -140,6 +145,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
     try {
       const dados = resumoItens.map(item => ({
         'Item': item.itemNome,
+        'Categoria': item.categoria,
         'Código de Barras': item.codigoBarras,
         'Unidade': item.unidade,
         'Total Saídas': item.totalSaidas,
@@ -152,7 +158,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
       const workbook = XLSX.utils.book_new();
       const worksheet = XLSX.utils.json_to_sheet(dados);
       worksheet['!cols'] = [
-        { wch: 35 }, { wch: 18 }, { wch: 10 }, { wch: 14 },
+        { wch: 35 }, { wch: 20 }, { wch: 18 }, { wch: 10 }, { wch: 14 },
         { wch: 12 }, { wch: 16 }, { wch: 14 }, { wch: 16 },
       ];
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Relatório');
@@ -184,6 +190,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
 
     const linhas = resumoItens.map(item => `<tr>
       <td>${item.itemNome}</td>
+      <td>${item.categoria}</td>
       <td>${item.codigoBarras}</td>
       <td>${item.unidade}</td>
       <td style="text-align:center">${item.totalSaidas}</td>
@@ -223,10 +230,10 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
         <div>Saldo Pendente: <strong style="color:${totais.saldoPendente > 0 ? '#e74c3c' : '#27ae60'}">${totais.saldoPendente}</strong></div>
       </div>
       <table><thead><tr>
-        <th>Item</th><th>Código</th><th>Unidade</th><th>Total Saídas</th><th>Nº Saídas</th><th>Total Devoluções</th><th>Nº Devoluções</th><th>Saldo Pendente</th>
+        <th>Item</th><th>Categoria</th><th>Código</th><th>Unidade</th><th>Total Saídas</th><th>Nº Saídas</th><th>Total Devoluções</th><th>Nº Devoluções</th><th>Saldo Pendente</th>
       </tr></thead><tbody>${linhas}
       <tr class="total-row">
-        <td colspan="3">TOTAIS</td>
+        <td colspan="4">TOTAIS</td>
         <td style="text-align:center">${totais.totalSaidas}</td>
         <td></td>
         <td style="text-align:center">${totais.totalDevolucoes}</td>
@@ -362,6 +369,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
             <TableHeader>
               <TableRow>
                 <TableHead>Item</TableHead>
+                <TableHead>Categoria</TableHead>
                 <TableHead>Código</TableHead>
                 <TableHead>Unidade</TableHead>
                 <TableHead className="text-center">Total Saídas</TableHead>
@@ -383,6 +391,11 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
                   {resumoItens.map((item, idx) => (
                     <TableRow key={idx}>
                       <TableCell className="font-medium">{item.itemNome}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-muted">
+                          {item.categoria}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{item.codigoBarras}</TableCell>
                       <TableCell>{item.unidade}</TableCell>
                       <TableCell className="text-center">
@@ -406,7 +419,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
                   ))}
                   {/* Totals row */}
                   <TableRow className="bg-muted/50 font-bold">
-                    <TableCell colSpan={3}>TOTAIS</TableCell>
+                    <TableCell colSpan={4}>TOTAIS</TableCell>
                     <TableCell className="text-center">{totais.totalSaidas}</TableCell>
                     <TableCell></TableCell>
                     <TableCell className="text-center">{totais.totalDevolucoes}</TableCell>

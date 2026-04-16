@@ -40,7 +40,7 @@ export const TabelaMovimentacoes = () => {
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 20;
   const [relatorioAberto, setRelatorioAberto] = useState(false);
-  const { locaisUtilizacao: locaisConfig } = useConfiguracoes();
+  const { locaisUtilizacao: locaisConfig, obterPrimeiraCategoriaDeSubcategoria } = useConfiguracoes();
   const [movimentoEditando, setMovimentoEditando] = useState<Movimentacao | null>(null);
   const [novoLocalId, setNovoLocalId] = useState<string>('');
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
@@ -291,6 +291,7 @@ export const TabelaMovimentacoes = () => {
           'Solicitante': solicitante,
           'Responsável': responsavel,
           'Destinatário': mov.destinatario || '-',
+          'Categoria': mov.itemSnapshot?.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId) : '-',
           'Estoque/Destino': mov.localUtilizacaoNome || '-',
           'Observações': mov.observacoes && mov.tipo !== 'SAIDA' ? mov.observacoes : '-'
         };
@@ -314,6 +315,7 @@ export const TabelaMovimentacoes = () => {
         { wch: 12 },  // Qtd. Atual
         { wch: 20 },  // Responsável
         { wch: 20 },  // Destinatário
+        { wch: 20 },  // Categoria
         { wch: 20 },  // Estoque/Destino
         { wch: 30 }   // Observações
       ];
@@ -383,6 +385,7 @@ export const TabelaMovimentacoes = () => {
         <td>${solicitante}</td>
         <td>${responsavel}</td>
         <td>${mov.destinatario || '-'}</td>
+        <td>${mov.itemSnapshot?.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId) : '-'}</td>
         <td>${mov.localUtilizacaoNome || '-'}</td>
         <td>${mov.observacoes && mov.tipo !== 'SAIDA' ? mov.observacoes : '-'}</td>
       </tr>`;
@@ -409,7 +412,7 @@ export const TabelaMovimentacoes = () => {
       <div class="header">${logoHtml}<h1>Relatório de Movimentações</h1></div>
       <div class="info">Gerado em: ${new Date().toLocaleString('pt-BR')} | Total: ${movimentacoesFiltradas.length} registros${filtrosAtivos.length > 0 ? ' | Filtros: ' + filtrosAtivos.join(', ') : ''}</div>
       <table><thead><tr>
-        <th>Tipo</th><th>Data/Hora</th><th>Item</th><th>Código</th><th>Qtd</th><th>Solicitante</th><th>Responsável</th><th>Destinatário</th><th>Estoque/Destino</th><th>Observações</th>
+        <th>Tipo</th><th>Data/Hora</th><th>Item</th><th>Código</th><th>Qtd</th><th>Solicitante</th><th>Responsável</th><th>Destinatário</th><th>Categoria</th><th>Estoque/Destino</th><th>Observações</th>
       </tr></thead><tbody>${linhas}</tbody></table>
       <script>window.print();window.onafterprint=()=>window.close();</script>
     </body></html>`);
@@ -754,7 +757,7 @@ export const TabelaMovimentacoes = () => {
         </CardHeader>
         <CardContent>
           <div className="w-full overflow-x-auto">
-            <Table style={{ minWidth: isAdmin() ? '1650px' : '1550px' }}>
+            <Table style={{ minWidth: isAdmin() ? '1800px' : '1700px' }}>
               <TableHeader>
                 <TableRow>
                   {canEditMovements() && <TableHead className="w-[80px]">Ações</TableHead>}
@@ -768,6 +771,7 @@ export const TabelaMovimentacoes = () => {
                   <TableHead>Solicitante</TableHead>
                   <TableHead>Responsável</TableHead>
                   <TableHead>Destinatário</TableHead>
+                  <TableHead>Categoria</TableHead>
                   <TableHead>Estoque/Destino</TableHead>
                   <TableHead>Observações</TableHead>
                 </TableRow>
@@ -898,6 +902,15 @@ export const TabelaMovimentacoes = () => {
                           {mov.destinatario ? (
                             <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
                               {mov.destinatario}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {mov.itemSnapshot?.subcategoriaId ? (
+                            <Badge variant="outline" className="bg-muted text-foreground">
+                              {obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId)}
                             </Badge>
                           ) : (
                             <span className="text-xs text-muted-foreground">-</span>
