@@ -722,7 +722,6 @@ const registrarSaida = async (
       itemSnapshot: item,
     };
 
-    const estoqueAtivoInfo = obterEstoqueAtivoInfo();
     const { data, error } = await supabase.from('movements').insert({
       item_id: movimento.itemId,
       tipo: movimento.tipo,
