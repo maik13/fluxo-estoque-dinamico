@@ -63,6 +63,10 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     adicionarLocalUtilizacao,
     editarLocalUtilizacao,
     removerLocalUtilizacao,
+    gruposProjeto,
+    adicionarGrupoProjeto,
+    editarGrupoProjeto,
+    removerGrupoProjeto,
   } = useConfiguracoes();
 
   const [configuracao, setConfiguracao] = useState({
@@ -128,6 +132,16 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   });
 
   const [editandoLocal, setEditandoLocal] = useState<{
+    id: string;
+    nome: string;
+    groupId?: string;
+  } | null>(null);
+
+  const [novoGrupo, setNovoGrupo] = useState({
+    nome: '',
+  });
+
+  const [editandoGrupo, setEditandoGrupo] = useState<{
     id: string;
     nome: string;
   } | null>(null);
@@ -411,8 +425,8 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
       return;
     }
 
-    await adicionarLocalUtilizacao(novoLocal.nome);
-    setNovoLocal({ nome: '' });
+    await adicionarLocalUtilizacao(novoLocal.nome, novoLocal.groupId);
+    setNovoLocal({ nome: '', groupId: undefined } as any);
     onConfigChange?.();
   };
 
@@ -430,11 +444,50 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
 
     const sucesso = await editarLocalUtilizacao(
       editandoLocal.id,
-      editandoLocal.nome
+      editandoLocal.nome,
+      editandoLocal.groupId
     );
 
     if (sucesso) {
       setEditandoLocal(null);
+      onConfigChange?.();
+    }
+  };
+
+  const handleCadastroGrupo = async () => {
+    if (!novoGrupo.nome) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Digite o nome do grupo.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await adicionarGrupoProjeto(novoGrupo.nome);
+    setNovoGrupo({ nome: '' });
+    onConfigChange?.();
+  };
+
+  const handleEditarGrupo = async () => {
+    if (!editandoGrupo) return;
+
+    if (!editandoGrupo.nome) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Digite o nome do grupo.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const sucesso = await editarGrupoProjeto(
+      editandoGrupo.id,
+      editandoGrupo.nome
+    );
+
+    if (sucesso) {
+      setEditandoGrupo(null);
       onConfigChange?.();
     }
   };
@@ -583,9 +636,10 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
         </DialogHeader>
         
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="grid w-full grid-cols-11 gap-1">
+          <TabsList className="grid w-full grid-cols-12 gap-1">
             <TabsTrigger value="usuarios" className="text-xs">Usuários</TabsTrigger>
             <TabsTrigger value="solicitantes" className="text-xs">Solicitantes</TabsTrigger>
+            <TabsTrigger value="grupos" className="text-xs">Grupos</TabsTrigger>
             <TabsTrigger value="locais" className="text-xs">Locais</TabsTrigger>
             <TabsTrigger value="estoques" className="text-xs">Estoques</TabsTrigger>
             <TabsTrigger value="subcategorias" className="text-xs">Subcategorias</TabsTrigger>
@@ -846,6 +900,101 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
             </Dialog>
           </TabsContent>
 
+          {/* Aba Grupos de Projeto */}
+          <TabsContent value="grupos" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  Gerenciar Grupos de Projeto
+                </CardTitle>
+                <CardDescription>
+                  Agrupe múltiplos projetos/locais para rastreabilidade consolidada
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nomeGrupo">Nome do Grupo</Label>
+                  <Input
+                    id="nomeGrupo"
+                    value={novoGrupo.nome}
+                    onChange={(e) => setNovoGrupo(prev => ({ ...prev, nome: e.target.value }))}
+                    placeholder="Ex: PÁSCOA 2024, NATAL, OBRA X"
+                  />
+                </div>
+                <Button onClick={handleCadastroGrupo} className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Cadastrar Grupo
+                </Button>
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                  <h4 className="font-medium">Grupos Cadastrados</h4>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {gruposProjeto.length === 0 ? (
+                      <p className="text-center p-4 text-muted-foreground italic">Nenhum grupo cadastrado</p>
+                    ) : (
+                      gruposProjeto.map((grupo) => (
+                        <div key={grupo.id} className="flex items-center justify-between p-2 border rounded">
+                          <span className="font-medium">{grupo.nome}</span>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditandoGrupo({
+                                id: grupo.id,
+                                nome: grupo.nome
+                              })}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removerGrupoProjeto(grupo.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Dialog de Edição de Grupo */}
+            <Dialog open={!!editandoGrupo} onOpenChange={(open) => !open && setEditandoGrupo(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Editar Grupo de Projeto</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="editNomeGrupo">Nome do Grupo</Label>
+                    <Input
+                      id="editNomeGrupo"
+                      value={editandoGrupo?.nome || ''}
+                      onChange={(e) => setEditandoGrupo(prev => 
+                        prev ? { ...prev, nome: e.target.value } : null
+                      )}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setEditandoGrupo(null)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleEditarGrupo}>
+                      Salvar Alterações
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+
           {/* Aba Locais de Utilização */}
           <TabsContent value="locais" className="space-y-4">
             <Card>
@@ -859,14 +1008,33 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nomeLocal">Nome do Local</Label>
-                  <Input
-                    id="nomeLocal"
-                    value={novoLocal.nome}
-                    onChange={(e) => setNovoLocal(prev => ({ ...prev, nome: e.target.value }))}
-                    placeholder="Nome completo do local"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="nomeLocal">Nome do Local</Label>
+                    <Input
+                      id="nomeLocal"
+                      value={novoLocal.nome}
+                      onChange={(e) => setNovoLocal(prev => ({ ...prev, nome: e.target.value }))}
+                      placeholder="Nome completo do local"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="grupoLocal">Grupo do Projeto (Opcional)</Label>
+                    <Select 
+                      value={(novoLocal as any).groupId || 'nenhum'} 
+                      onValueChange={(value) => setNovoLocal(prev => ({ ...prev, groupId: value === 'nenhum' ? undefined : value } as any))}
+                    >
+                      <SelectTrigger id="grupoLocal">
+                        <SelectValue placeholder="Selecione um grupo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nenhum">Nenhum Grupo</SelectItem>
+                        {gruposProjeto.map(g => (
+                          <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <Button onClick={handleCadastroLocal} className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
@@ -882,6 +1050,11 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                       <div key={local.id} className="flex items-center justify-between p-2 border rounded">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{local.nome}</span>
+                          {local.group_id && (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              📦 {gruposProjeto.find(g => g.id === local.group_id)?.nome || 'Grupo carregando...'}
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex gap-2">
                           <Button
@@ -889,7 +1062,8 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                             size="sm"
                             onClick={() => setEditandoLocal({
                               id: local.id,
-                              nome: local.nome
+                              nome: local.nome,
+                              groupId: local.group_id
                             })}
                           >
                             <Pencil className="h-4 w-4" />
@@ -926,6 +1100,25 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
                       )}
                       placeholder="Nome completo do local"
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="editGrupoLocal">Grupo do Projeto</Label>
+                    <Select 
+                      value={editandoLocal?.groupId || 'nenhum'} 
+                      onValueChange={(value) => setEditandoLocal(prev => 
+                        prev ? { ...prev, groupId: value === 'nenhum' ? undefined : value } : null
+                      )}
+                    >
+                      <SelectTrigger id="editGrupoLocal">
+                        <SelectValue placeholder="Selecione um grupo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nenhum">Nenhum Grupo</SelectItem>
+                        {gruposProjeto.map(g => (
+                          <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setEditandoLocal(null)}>

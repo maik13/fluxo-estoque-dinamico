@@ -47,7 +47,7 @@ export const TabelaMovimentacoes = () => {
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 20;
   const [relatorioAberto, setRelatorioAberto] = useState(false);
-  const { locaisUtilizacao: locaisConfig, subcategorias: subcategoriasConfig, obterPrimeiraCategoriaDeSubcategoria } = useConfiguracoes();
+  const { locaisUtilizacao: locaisConfig, gruposProjeto, subcategorias: subcategoriasConfig, obterPrimeiraCategoriaDeSubcategoria } = useConfiguracoes();
   const [movimentoEditando, setMovimentoEditando] = useState<Movimentacao | null>(null);
   const [novoLocalId, setNovoLocalId] = useState<string>('');
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
@@ -173,18 +173,23 @@ export const TabelaMovimentacoes = () => {
 
     // Mapear para o formato final e calcular saldo
     const pendentes = Array.from(saidasMap.entries())
-      .map(([key, v]) => ({
-        key,
-        ...v,
-        pendente: Math.max(0, v.totalSaida - v.totalDevolvido),
-        // Adicionar flag de status para facilitar filtragem posterior
-        statusItem: (v.totalSaida - v.totalDevolvido) <= 0 ? 'devolvido' : 
-                    (v.totalDevolvido > 0 ? 'parcial' : 'pendente')
-      }))
+      .map(([key, v]) => {
+        const local = locaisConfig.find(l => l.id === v.localUtilizacaoId);
+        const grupo = local?.group_id ? gruposProjeto.find(g => g.id === local.group_id) : null;
+        
+        return {
+          key,
+          ...v,
+          projetoGrupoNome: grupo?.nome || '-',
+          pendente: Math.max(0, v.totalSaida - v.totalDevolvido),
+          statusItem: (v.totalSaida - v.totalDevolvido) <= 0 ? 'devolvido' : 
+                      (v.totalDevolvido > 0 ? 'parcial' : 'pendente')
+        };
+      })
       .sort((a, b) => new Date(b.ultimaSaida).getTime() - new Date(a.ultimaSaida).getTime());
 
     return pendentes;
-  }, [movimentacoes]);
+  }, [movimentacoes, locaisConfig, gruposProjeto]);
 
   // Locais únicos dos pendentes para filtro
   const locaisPendentes = useMemo(() => {
@@ -488,6 +493,7 @@ export const TabelaMovimentacoes = () => {
 
         return {
           'Projeto/Local': item.localUtilizacaoNome,
+          'Grupo': item.projetoGrupoNome,
           'Item': item.itemSnapshot?.nome || 'Item não identificado',
           'Código': item.itemSnapshot?.codigoBarras || '-',
           'Tipo': item.itemSnapshot?.tipoItem || '-',
@@ -505,6 +511,7 @@ export const TabelaMovimentacoes = () => {
 
       const columnWidths = [
         { wch: 25 }, // Projeto
+        { wch: 20 }, // Grupo
         { wch: 30 }, // Item
         { wch: 15 }, // Código
         { wch: 15 }, // Tipo
@@ -558,6 +565,7 @@ export const TabelaMovimentacoes = () => {
 
       return `<tr>
         <td>${item.localUtilizacaoNome}</td>
+        <td>${item.projetoGrupoNome}</td>
         <td>${item.itemSnapshot?.nome || '-'}</td>
         <td>${item.itemSnapshot?.codigoBarras || '-'}</td>
         <td>${item.itemSnapshot?.tipoItem || '-'}</td>
@@ -591,7 +599,7 @@ export const TabelaMovimentacoes = () => {
       <div class="header">${logoHtml}<h1>Resumo de Materiais por Projeto</h1></div>
       <div class="info">Gerado em: ${new Date().toLocaleString('pt-BR')} | Itens: ${pendentesFiltrados.length}${filtrosAtivos.length > 0 ? ' | Filtros: ' + filtrosAtivos.join(', ') : ''}</div>
       <table><thead><tr>
-        <th>Projeto/Local</th><th>Item</th><th>Código</th><th>Tipo</th><th>Status</th><th>Saída</th><th>Devolvido</th><th>Saldo</th><th>Última Saída</th><th>Responsável</th>
+        <th>Projeto/Local</th><th>Grupo</th><th>Item</th><th>Código</th><th>Tipo</th><th>Status</th><th>Saída</th><th>Devolvido</th><th>Saldo</th><th>Última Saída</th><th>Responsável</th>
       </tr></thead><tbody>${linhas}</tbody></table>
       <script>window.print();window.onafterprint=()=>window.close();</script>
     </body></html>`);
@@ -1399,6 +1407,7 @@ export const TabelaMovimentacoes = () => {
                       <TableHead>Código</TableHead>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Projeto/Local</TableHead>
+                      <TableHead>Grupo</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Saída</TableHead>
                       <TableHead>Devolvido</TableHead>
@@ -1444,6 +1453,15 @@ export const TabelaMovimentacoes = () => {
                             <Badge variant="secondary" className="bg-muted text-foreground border-none">
                               {item.localUtilizacaoNome}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {item.projetoGrupoNome !== '-' ? (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                📦 {item.projetoGrupoNome}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">{item.projetoGrupoNome}</span>
+                            )}
                           </TableCell>
                           <TableCell>
                             {item.statusItem === 'pendente' && (

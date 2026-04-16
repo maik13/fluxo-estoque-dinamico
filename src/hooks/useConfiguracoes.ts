@@ -20,10 +20,18 @@ export interface SolicitanteConfig {
   created_at: string;
 }
 
+export interface ProjectGroupConfig {
+  id: string;
+  nome: string;
+  ativo: boolean;
+  created_at: string;
+}
+
 export interface LocalUtilizacaoConfig {
   id: string;
   nome: string;
   ativo: boolean;
+  group_id?: string;
   created_at: string;
 }
 
@@ -50,6 +58,7 @@ export const useConfiguracoes = () => {
   const [tiposOperacao, setTiposOperacao] = useState<TipoOperacaoConfig[]>([]);
   const [solicitantes, setSolicitantes] = useState<SolicitanteConfig[]>([]);
   const [locaisUtilizacao, setLocaisUtilizacao] = useState<LocalUtilizacaoConfig[]>([]);
+  const [gruposProjeto, setGruposProjeto] = useState<ProjectGroupConfig[]>([]);
   const [estoqueAtivo, setEstoqueAtivo] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
@@ -142,6 +151,7 @@ export const useConfiguracoes = () => {
           id: l.id,
           nome: l.nome,
           ativo: l.ativo,
+          group_id: l.group_id || undefined,
           created_at: l.created_at,
         })));
       }
@@ -261,6 +271,35 @@ export const useConfiguracoes = () => {
     }
   };
 
+  // Carregar grupos de projeto do Supabase
+  const carregarGruposProjeto = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('project_groups')
+        .select('*')
+        .eq('ativo', true)
+        .order('nome', { ascending: true });
+
+      if (error) throw error;
+      
+      if (data) {
+        setGruposProjeto(data.map(g => ({
+          id: g.id,
+          nome: g.nome,
+          ativo: g.ativo,
+          created_at: g.created_at,
+        })));
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar grupos de projeto:', error);
+      toast({
+        title: "Erro ao carregar grupos",
+        description: error.message || "Não foi possível carregar os grupos de projeto.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Carregar dados do localStorage e Supabase
   useEffect(() => {
     const inicializarDados = async () => {
@@ -286,7 +325,10 @@ export const useConfiguracoes = () => {
         carregarSolicitantes();
 
         // Carregar locais de utilização do Supabase
-        carregarLocaisUtilizacao();
+        await carregarLocaisUtilizacao();
+
+        // Carregar grupos de projeto do Supabase
+        await carregarGruposProjeto();
       } catch (error) {
         console.error('Erro ao carregar configurações:', error);
         toast({
@@ -353,6 +395,13 @@ export const useConfiguracoes = () => {
       })
       .subscribe();
 
+    const gruposChannel = supabase
+      .channel('project-groups-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_groups' }, () => {
+        carregarGruposProjeto();
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(estoquesChannel);
       supabase.removeChannel(categoriasChannel);
@@ -361,6 +410,7 @@ export const useConfiguracoes = () => {
       supabase.removeChannel(tiposOperacaoChannel);
       supabase.removeChannel(solicitantesChannel);
       supabase.removeChannel(locaisChannel);
+      supabase.removeChannel(gruposChannel);
     };
   }, []);
 
@@ -960,12 +1010,13 @@ export const useConfiguracoes = () => {
   };
 
   // Funções para gerenciar locais de utilização no Supabase
-  const editarLocalUtilizacao = async (id: string, nome: string) => {
+  const editarLocalUtilizacao = async (id: string, nome: string, groupId?: string) => {
     try {
       const { data, error } = await supabase
         .from('locais_utilizacao')
         .update({
           nome,
+          group_id: groupId || null,
         })
         .eq('id', id)
         .select()
@@ -980,6 +1031,7 @@ export const useConfiguracoes = () => {
                 id: data.id,
                 nome: data.nome,
                 ativo: data.ativo,
+                group_id: data.group_id || undefined,
                 created_at: data.created_at,
               }
             : l
@@ -1003,13 +1055,14 @@ export const useConfiguracoes = () => {
     }
   };
 
-  const adicionarLocalUtilizacao = async (nome: string) => {
+  const adicionarLocalUtilizacao = async (nome: string, groupId?: string) => {
     try {
       const { data, error } = await supabase
         .from('locais_utilizacao')
         .insert({
           nome,
           ativo: true,
+          group_id: groupId || null,
         })
         .select()
         .single();
@@ -1021,6 +1074,7 @@ export const useConfiguracoes = () => {
           id: data.id,
           nome: data.nome,
           ativo: data.ativo,
+          group_id: data.group_id || undefined,
           created_at: data.created_at,
         };
 
@@ -1065,6 +1119,119 @@ export const useConfiguracoes = () => {
         description: error.message || "Não foi possível remover o local.",
         variant: "destructive",
       });
+    }
+  };
+
+  // Funções para gerenciar grupos de projeto no Supabase
+  const adicionarGrupoProjeto = async (nome: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('project_groups')
+        .insert({
+          nome,
+          ativo: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        const novoGrupo: ProjectGroupConfig = {
+          id: data.id,
+          nome: data.nome,
+          ativo: data.ativo,
+          created_at: data.created_at,
+        };
+
+        setGruposProjeto(prev => [...prev, novoGrupo]);
+        
+        toast({
+          title: "Grupo de projeto criado!",
+          description: `Grupo "${nome}" foi criado com sucesso.`,
+        });
+
+        return novoGrupo;
+      }
+    } catch (error: any) {
+      console.error('Erro ao cadastrar grupo:', error);
+      toast({
+        title: "Erro ao cadastrar",
+        description: error.message || "Não foi possível cadastrar o grupo.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const editarGrupoProjeto = async (id: string, nome: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('project_groups')
+        .update({ nome })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setGruposProjeto(prev => prev.map(g => 
+          g.id === id ? { ...g, nome: data.nome } : g
+        ));
+        
+        toast({
+          title: "Grupo atualizado!",
+          description: `Grupo "${nome}" foi atualizado com sucesso.`,
+        });
+
+        return true;
+      }
+    } catch (error: any) {
+      console.error('Erro ao editar grupo:', error);
+      toast({
+        title: "Erro ao editar",
+        description: error.message || "Não foi possível editar o grupo.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const removerGrupoProjeto = async (id: string) => {
+    // Verificar se há locais vinculados
+    const locaisVinculados = locaisUtilizacao.filter(l => l.group_id === id);
+    if (locaisVinculados.length > 0) {
+      toast({
+        title: "Erro ao remover",
+        description: `Não é possível remover um grupo que possui ${locaisVinculados.length} local(ais) vinculado(s).`,
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('project_groups')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setGruposProjeto(prev => prev.filter(g => g.id !== id));
+      
+      toast({
+        title: "Grupo removido!",
+        description: "Grupo de projeto foi removido com sucesso.",
+      });
+      return true;
+    } catch (error: any) {
+      console.error('Erro ao remover grupo:', error);
+      toast({
+        title: "Erro ao remover",
+        description: error.message || "Não foi possível remover o grupo.",
+        variant: "destructive",
+      });
+      return false;
     }
   };
 
@@ -1114,6 +1281,7 @@ export const useConfiguracoes = () => {
     tiposOperacao,
     solicitantes,
     locaisUtilizacao,
+    gruposProjeto,
     estoqueAtivo,
     loading,
     adicionarEstoque,
@@ -1136,6 +1304,9 @@ export const useConfiguracoes = () => {
     adicionarLocalUtilizacao,
     editarLocalUtilizacao,
     removerLocalUtilizacao,
+    adicionarGrupoProjeto,
+    editarGrupoProjeto,
+    removerGrupoProjeto,
     obterEstoquesAtivos,
     obterTiposServicoAtivos,
     obterSubcategoriasAtivas,
