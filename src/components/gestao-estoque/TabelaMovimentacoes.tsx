@@ -1338,7 +1338,7 @@ export const TabelaMovimentacoes = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                   {/* Projeto / Local */}
-                  <div className="space-y-1.5 md:col-span-4">
+                  <div className="space-y-1.5 md:col-span-2">
                     <Label htmlFor="pendentes-local" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Projeto / Local</Label>
                     <Select value={filtroPendentesDestino} onValueChange={setFiltroPendentesDestino}>
                       <SelectTrigger id="pendentes-local">
@@ -1354,11 +1354,9 @@ export const TabelaMovimentacoes = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Data Inicial */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 md:col-span-1">
                     <Label htmlFor="pendentes-data-inicio" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data Inicial</Label>
                     <div className="relative">
                       <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -1373,7 +1371,7 @@ export const TabelaMovimentacoes = () => {
                   </div>
 
                   {/* Data Final */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 md:col-span-1">
                     <Label htmlFor="pendentes-data-fim" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data Final</Label>
                     <div className="relative">
                       <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
