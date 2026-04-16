@@ -131,6 +131,7 @@ export const useEstoque = () => {
             // Buscar nome do local se houver local_utilizacao_id
             let localNome: string | undefined;
             let solicitanteNome: string | undefined;
+            let solicitacaoTipoOperacao: string | undefined;
             if (payload.new.local_utilizacao_id) {
               const { data } = await supabase
                 .from('locais_utilizacao')
@@ -194,6 +195,7 @@ export const useEstoque = () => {
 
           let localNome = '';
           let solicitanteNome: string | undefined;
+          let solicitacaoTipoOperacao: string | undefined;
           if (payload.new.local_utilizacao_id) {
             const { data: localData } = await supabase
               .from('locais_utilizacao')
