@@ -30,7 +30,7 @@ export const TabelaMovimentacoes = () => {
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<TipoMovimentacao | 'todas'>('todas');
   const [filtroDestino, setFiltroDestino] = useState('todos');
-  const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes' | 'pendentes'>('todas');
+  const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes' | 'pendentes' | 'projetos'>('todas');
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroTipoItem, setFiltroTipoItem] = useState('todos');
   const [filtroPendentesDestino, setFiltroPendentesDestino] = useState('todos');
@@ -250,6 +250,12 @@ export const TabelaMovimentacoes = () => {
         matchTipo = mov.tipo === 'SAIDA';
       } else if (tipoVisualizacao === 'devolucoes') {
         matchTipo = isDevolucao(mov);
+      } else if (tipoVisualizacao === 'pendentes') {
+        const itemPendente = itensPendentes.find(p => 
+          p.itemId === mov.itemId && 
+          p.localUtilizacaoId === (mov.localUtilizacaoId || 'sem-local')
+        );
+        matchTipo = mov.tipo === 'SAIDA' && (itemPendente?.pendente || 0) > 0;
       } else {
         matchTipo = filtroTipo === 'todas' || mov.tipo === filtroTipo;
       }
@@ -602,7 +608,7 @@ export const TabelaMovimentacoes = () => {
     <div className="space-y-6">
       {/* Tabs para tipo de visualização */}
       <Tabs value={tipoVisualizacao} onValueChange={(value) => setTipoVisualizacao(value as any)} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-6">
+        <TabsList className="grid w-full grid-cols-5 mb-6">
           <TabsTrigger value="todas" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
             Todas
@@ -617,11 +623,18 @@ export const TabelaMovimentacoes = () => {
           </TabsTrigger>
           <TabsTrigger value="pendentes" className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" />
-            Pendentes ({itensPendentes.length})
+            Pendentes ({itensPendentes.filter(i => i.statusItem !== 'devolvido').length})
+          </TabsTrigger>
+          <TabsTrigger value="projetos" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Projetos
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value={tipoVisualizacao} className="space-y-6">
+        {/* Visões Operacionais (Tabela de Movimentações Padrão) */}
+        {['todas', 'saidas', 'devolucoes', 'pendentes'].map((tab) => (
+          <TabsContent key={tab} value={tab} className="space-y-6">
+            <div className="space-y-6">
           {/* Estatísticas */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <Card>
@@ -1088,12 +1101,12 @@ export const TabelaMovimentacoes = () => {
               </Pagination>
             </div>
           )}
-        </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+          </TabsContent>
+        ))}
 
-        {/* Aba Pendentes de Devolução / Resumo por Projeto */}
-        <TabsContent value="pendentes" className="space-y-6">
+        {/* Aba Projetos (Visão Gerencial / Resumo por Projeto) */}
+        <TabsContent value="projetos" className="space-y-6">
           <Card className="border-warning/20">
             <CardHeader className="bg-warning/5 rounded-t-xl">
               <CardTitle className="flex items-center gap-2 text-warning">
