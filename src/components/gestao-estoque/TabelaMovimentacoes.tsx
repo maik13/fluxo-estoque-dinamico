@@ -711,7 +711,7 @@ export const TabelaMovimentacoes = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todas as categorias</SelectItem>
-                {Array.from(new Set(subcategoriasConfig.map(s => obterPrimeiraCategoriaDeSubcategoria(s.id)))).filter(c => c !== '-').sort().map(cat => (
+                {Array.from(new Set(subcategoriasConfig.map(s => obterPrimeiraCategoriaDeSubcategoria(s.id)))).filter(c => c && c !== '-' && c.trim() !== '').sort().map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
               </SelectContent>
