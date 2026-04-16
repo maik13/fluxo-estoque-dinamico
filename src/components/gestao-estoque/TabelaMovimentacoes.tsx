@@ -1102,6 +1102,9 @@ export const TabelaMovimentacoes = () => {
             </div>
           )}
             </div>
+          </CardContent>
+        </Card>
+            </div>
           </TabsContent>
         ))}
 
