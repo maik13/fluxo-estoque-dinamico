@@ -679,6 +679,7 @@ const registrarSaida = async (
     }
 
     const estoqueAnterior = calcularEstoqueAtual(item.id);
+    const estoqueAtivoInfo = obterEstoqueAtivoInfo();
     
     // Regra para ferramentas: bloqueio de duplicidade e quantidade
     if (item.tipoItem === 'Ferramenta') {
@@ -721,7 +722,6 @@ const registrarSaida = async (
       itemSnapshot: item,
     };
 
-    const estoqueAtivoInfo = obterEstoqueAtivoInfo();
     const { data, error } = await supabase.from('movements').insert({
       item_id: movimento.itemId,
       tipo: movimento.tipo,
