@@ -83,9 +83,11 @@ export const SolicitacaoMaterial = () => {
   const [quantidadesEditadas, setQuantidadesEditadas] = useState<Record<string, number>>({});
 
   const { obterEstoque } = useEstoqueContext();
-  const { user } = useAuth();
-  const { userProfile, canManageStock, isAdmin } = usePermissions();
-  const { obterEstoqueAtivoInfo, obterLocaisUtilizacaoAtivos } = useConfiguracoes();
+  const { user, loading: authLoading } = useAuth();
+  const { userProfile, canManageStock, isAdmin, loading: permissionsLoading } = usePermissions();
+  const { obterEstoqueAtivoInfo, obterLocaisUtilizacaoAtivos, loading: configLoading } = useConfiguracoes();
+
+  const isInicializandoSolicitacao = authLoading || permissionsLoading || configLoading;
 
   const itensEstoque = obterEstoque();
   const mapaEstoque = useMemo(
@@ -331,10 +333,16 @@ export const SolicitacaoMaterial = () => {
   };
 
   const criarSolicitacao = async () => {
+    if (isInicializandoSolicitacao) {
+      toast.error('Aguarde o carregamento do seu acesso e das configurações');
+      return;
+    }
+
     if (!user || !userProfile) {
       toast.error('Usuário não autenticado');
       return;
     }
+
     if (itensLista.length === 0) {
       toast.error('Adicione pelo menos um item');
       return;
@@ -350,14 +358,14 @@ export const SolicitacaoMaterial = () => {
           solicitante_nome: userProfile.nome,
           observacoes: observacoes || null,
           estoque_id: estoqueInfo?.id || null,
-          local_origem_id: localOrigemId || null,
-          local_origem: localOrigemNome || null,
           status: 'pendente'
         })
         .select()
         .single();
 
-      if (solError) throw solError;
+      if (solError || !solData) {
+        throw solError ?? new Error('Não foi possível criar a solicitação');
+      }
 
       const itensInsert = itensLista.map(item => ({
         solicitacao_material_id: solData.id,
@@ -381,8 +389,8 @@ export const SolicitacaoMaterial = () => {
         estoque_id: solData.estoque_id || undefined,
         aprovado_por_nome: solData.aprovado_por_nome || undefined,
         data_aprovacao: solData.data_aprovacao || undefined,
-        local_origem: (solData as any).local_origem || undefined,
-        local_origem_id: (solData as any).local_origem_id || undefined,
+        local_origem: localOrigemNome || undefined,
+        local_origem_id: localOrigemId || undefined,
         itens: itensInsert.map((item, index) => ({
           id: `${index}`,
           item_id: item.item_id || undefined,
@@ -394,9 +402,7 @@ export const SolicitacaoMaterial = () => {
         })),
       };
 
-      const itensParaCompra = obterItensParaPedidoCompra(
-        solicitacaoCriada.itens
-      );
+      const itensParaCompra = obterItensParaPedidoCompra(solicitacaoCriada.itens);
       const podeGerarPedidoAutomatico = canManageStock() && itensParaCompra.length > 0;
 
       let pedidoCriado: { id: string; numero: number; jaExistia: boolean } | null = null;
@@ -951,7 +957,9 @@ export const SolicitacaoMaterial = () => {
                           <div className="flex items-center gap-1">
                             {item.nome_item}
                             {foiEditado && (
-                              <Pencil className="h-3 w-3 text-amber-400 flex-shrink-0" title="Quantidade editada pelo estoque" />
+                              <span title="Quantidade editada pelo estoque">
+                                <Pencil className="h-3 w-3 text-amber-400 flex-shrink-0" aria-hidden="true" />
+                              </span>
                             )}
                           </div>
                           {item.item_id && item.item_snapshot?.codigoBarras && (
@@ -1238,11 +1246,11 @@ export const SolicitacaoMaterial = () => {
               <Button variant="outline" onClick={() => setDialogoCriar(false)}>Cancelar</Button>
               <Button 
                 onClick={criarSolicitacao} 
-                disabled={enviando || itensLista.length === 0 || !localOrigemId} 
+                disabled={enviando || isInicializandoSolicitacao || itensLista.length === 0 || !localOrigemId} 
                 className="gap-2"
               >
                 <Send className="h-4 w-4" />
-                {enviando ? 'Enviando...' : 'Criar Solicitação'}
+                {enviando ? 'Enviando...' : isInicializandoSolicitacao ? 'Carregando...' : 'Criar Solicitação'}
               </Button>
             </div>
           </div>

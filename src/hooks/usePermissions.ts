@@ -54,19 +54,24 @@ export const usePermissions = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (user) {
-      loadUserProfile();
+    if (user?.id) {
+      setLoading(true);
+      setUserProfile(null);
+      setPermissoesDinamicas(DEFAULT_PERMISSIONS);
+      loadUserProfile(user.id);
     } else {
       setUserProfile(null);
       setPermissoesDinamicas(DEFAULT_PERMISSIONS);
       setLoading(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
   // Carregar permissões dinâmicas quando o perfil mudar
   useEffect(() => {
     if (userProfile?.tipo_usuario) {
       loadPermissoesDinamicas(userProfile.tipo_usuario);
+    } else {
+      setPermissoesDinamicas(DEFAULT_PERMISSIONS);
     }
   }, [userProfile?.tipo_usuario]);
 
@@ -86,12 +91,12 @@ export const usePermissions = () => {
     return () => { supabase.removeChannel(channel); };
   }, [userProfile?.tipo_usuario]);
 
-  const loadUserProfile = async () => {
+  const loadUserProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', userId)
         .maybeSingle();
 
       if (error) {

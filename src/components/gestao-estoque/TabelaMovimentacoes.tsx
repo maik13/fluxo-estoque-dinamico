@@ -31,6 +31,8 @@ export const TabelaMovimentacoes = () => {
   const [filtroTipo, setFiltroTipo] = useState<TipoMovimentacao | 'todas'>('todas');
   const [filtroDestino, setFiltroDestino] = useState('todos');
   const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes' | 'pendentes'>('todas');
+  const [filtroCategoria, setFiltroCategoria] = useState('todas');
+  const [filtroTipoItem, setFiltroTipoItem] = useState('todos');
   const [filtroPendentesDestino, setFiltroPendentesDestino] = useState('todos');
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | undefined>(undefined);
   const [filtroDataFim, setFiltroDataFim] = useState<Date | undefined>(undefined);
@@ -40,7 +42,7 @@ export const TabelaMovimentacoes = () => {
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 20;
   const [relatorioAberto, setRelatorioAberto] = useState(false);
-  const { locaisUtilizacao: locaisConfig, obterPrimeiraCategoriaDeSubcategoria } = useConfiguracoes();
+  const { locaisUtilizacao: locaisConfig, subcategorias: subcategoriasConfig, obterPrimeiraCategoriaDeSubcategoria } = useConfiguracoes();
   const [movimentoEditando, setMovimentoEditando] = useState<Movimentacao | null>(null);
   const [novoLocalId, setNovoLocalId] = useState<string>('');
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
@@ -209,26 +211,23 @@ export const TabelaMovimentacoes = () => {
       
       const matchDestino = filtroDestino === 'todos' || mov.localUtilizacaoNome === filtroDestino;
 
-      let matchData = true;
-      if (filtroDataInicio) {
-        const inicio = new Date(filtroDataInicio);
-        inicio.setHours(0, 0, 0, 0);
-        matchData = new Date(mov.dataHora) >= inicio;
-      }
-      if (matchData && filtroDataFim) {
-        const fim = new Date(filtroDataFim);
-        fim.setHours(23, 59, 59, 999);
-        matchData = new Date(mov.dataHora) <= fim;
-      }
+      const matchData = !filtroDataInicio || new Date(mov.dataHora) >= new Date(filtroDataInicio.setHours(0, 0, 0, 0));
+      const matchDataFim = !filtroDataFim || new Date(mov.dataHora) <= new Date(filtroDataFim.setHours(23, 59, 59, 999));
 
-      return matchTexto && matchTipo && matchDestino && matchData;
+      const categoria = mov.itemSnapshot?.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId) : '-';
+      const matchCategoria = filtroCategoria === 'todas' || categoria === filtroCategoria;
+      
+      const tipoItem = mov.itemSnapshot?.tipoItem || '-';
+      const matchTipoItem = filtroTipoItem === 'todos' || tipoItem === filtroTipoItem;
+
+      return matchTexto && matchTipo && matchDestino && matchData && matchDataFim && matchCategoria && matchTipoItem;
     });
-  }, [movimentacoesOrdenadas, filtroTexto, filtroTipo, filtroDestino, tipoVisualizacao, filtroDataInicio, filtroDataFim]);
+  }, [movimentacoesOrdenadas, filtroTexto, filtroTipo, filtroDestino, tipoVisualizacao, filtroDataInicio, filtroDataFim, filtroCategoria, filtroTipoItem]);
 
   // Resetar página quando filtros mudarem
   useEffect(() => {
     setPaginaAtual(1);
-  }, [filtroTexto, filtroTipo, filtroDestino, tipoVisualizacao]);
+  }, [filtroTexto, filtroTipo, filtroDestino, tipoVisualizacao, filtroCategoria, filtroTipoItem]);
 
   // Calcular paginação
   const totalPaginas = Math.ceil(movimentacoesFiltradas.length / itensPorPagina);
@@ -291,6 +290,7 @@ export const TabelaMovimentacoes = () => {
           'Solicitante': solicitante,
           'Responsável': responsavel,
           'Destinatário': mov.destinatario || '-',
+          'Tipo de Item': mov.itemSnapshot?.tipoItem || '-',
           'Categoria': mov.itemSnapshot?.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId) : '-',
           'Estoque/Destino': mov.localUtilizacaoNome || '-',
           'Observações': mov.observacoes && mov.tipo !== 'SAIDA' ? mov.observacoes : '-'
@@ -315,6 +315,7 @@ export const TabelaMovimentacoes = () => {
         { wch: 12 },  // Qtd. Atual
         { wch: 20 },  // Responsável
         { wch: 20 },  // Destinatário
+        { wch: 15 },  // Tipo de Item
         { wch: 20 },  // Categoria
         { wch: 20 },  // Estoque/Destino
         { wch: 30 }   // Observações
@@ -385,6 +386,7 @@ export const TabelaMovimentacoes = () => {
         <td>${solicitante}</td>
         <td>${responsavel}</td>
         <td>${mov.destinatario || '-'}</td>
+        <td>${mov.itemSnapshot?.tipoItem || '-'}</td>
         <td>${mov.itemSnapshot?.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId) : '-'}</td>
         <td>${mov.localUtilizacaoNome || '-'}</td>
         <td>${mov.observacoes && mov.tipo !== 'SAIDA' ? mov.observacoes : '-'}</td>
@@ -412,7 +414,7 @@ export const TabelaMovimentacoes = () => {
       <div class="header">${logoHtml}<h1>Relatório de Movimentações</h1></div>
       <div class="info">Gerado em: ${new Date().toLocaleString('pt-BR')} | Total: ${movimentacoesFiltradas.length} registros${filtrosAtivos.length > 0 ? ' | Filtros: ' + filtrosAtivos.join(', ') : ''}</div>
       <table><thead><tr>
-        <th>Tipo</th><th>Data/Hora</th><th>Item</th><th>Código</th><th>Qtd</th><th>Solicitante</th><th>Responsável</th><th>Destinatário</th><th>Categoria</th><th>Estoque/Destino</th><th>Observações</th>
+        <th>Tipo</th><th>Data/Hora</th><th>Item</th><th>Código</th><th>Qtd</th><th>Solicitante</th><th>Responsável</th><th>Destinatário</th><th>Tipo Item</th><th>Categoria</th><th>Estoque/Destino</th><th>Observações</th>
       </tr></thead><tbody>${linhas}</tbody></table>
       <script>window.print();window.onafterprint=()=>window.close();</script>
     </body></html>`);
@@ -673,6 +675,33 @@ export const TabelaMovimentacoes = () => {
               </SelectContent>
             </Select>
             
+            </Select>
+
+            <Select value={filtroTipoItem} onValueChange={setFiltroTipoItem}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tipo de Item" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os tipos de item</SelectItem>
+                <SelectItem value="Insumo">Insumo</SelectItem>
+                <SelectItem value="Ferramenta">Ferramenta</SelectItem>
+                <SelectItem value="Produto Acabado">Produto Acabado</SelectItem>
+                <SelectItem value="Matéria Prima">Matéria Prima</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+              <SelectTrigger>
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas as categorias</SelectItem>
+                {Array.from(new Set(subcategoriasConfig.map(s => obterPrimeiraCategoriaDeSubcategoria(s.id)))).filter(c => c !== '-').sort().map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Select value={filtroDestino} onValueChange={setFiltroDestino}>
               <SelectTrigger>
                 <SelectValue placeholder="Estoque/Destino" />
@@ -771,6 +800,7 @@ export const TabelaMovimentacoes = () => {
                   <TableHead>Solicitante</TableHead>
                   <TableHead>Responsável</TableHead>
                   <TableHead>Destinatário</TableHead>
+                  <TableHead>Tipo de Item</TableHead>
                   <TableHead>Categoria</TableHead>
                   <TableHead>Estoque/Destino</TableHead>
                   <TableHead>Observações</TableHead>
@@ -902,6 +932,15 @@ export const TabelaMovimentacoes = () => {
                           {mov.destinatario ? (
                             <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
                               {mov.destinatario}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {mov.itemSnapshot?.tipoItem ? (
+                            <Badge variant="outline" className="bg-muted text-foreground">
+                              {mov.itemSnapshot.tipoItem}
                             </Badge>
                           ) : (
                             <span className="text-xs text-muted-foreground">-</span>

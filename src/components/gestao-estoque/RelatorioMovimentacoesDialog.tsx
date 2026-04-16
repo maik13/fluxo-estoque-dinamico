@@ -28,9 +28,9 @@ interface ResumoItem {
   totalDevolucoes: number;
   saldoPendente: number;
   qtdMovSaida: number;
-   */
-  categoria: string;
   qtdMovDevolucao: number;
+  categoria: string;
+  tipoItem: string;
 }
 
 export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }: RelatorioMovimentacoesDialogProps) => {
@@ -39,7 +39,9 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
   const [filtroDestino, setFiltroDestino] = useState('todos');
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | undefined>(undefined);
   const [filtroDataFim, setFiltroDataFim] = useState<Date | undefined>(undefined);
-  const { obterPrimeiraCategoriaDeSubcategoria } = useConfiguracoes();
+  const [filtroCategoria, setFiltroCategoria] = useState('todas');
+  const [filtroTipoItem, setFiltroTipoItem] = useState('todos');
+  const { obterPrimeiraCategoriaDeSubcategoria, subcategorias: subcategoriasConfig } = useConfiguracoes();
 
   const isDevolucao = (mov: Movimentacao) => {
     return mov.tipo === 'ENTRADA' && mov.observacoes?.toLowerCase().includes('devolução');
@@ -66,21 +68,18 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
 
       const matchDestino = filtroDestino === 'todos' || mov.localUtilizacaoNome === filtroDestino;
 
-      let matchData = true;
-      if (filtroDataInicio) {
-        const inicio = new Date(filtroDataInicio);
-        inicio.setHours(0, 0, 0, 0);
-        matchData = new Date(mov.dataHora) >= inicio;
-      }
-      if (matchData && filtroDataFim) {
-        const fim = new Date(filtroDataFim);
-        fim.setHours(23, 59, 59, 999);
-        matchData = new Date(mov.dataHora) <= fim;
-      }
+      const matchData = !filtroDataInicio || new Date(mov.dataHora) >= new Date(filtroDataInicio.setHours(0, 0, 0, 0));
+      const matchDataFim = !filtroDataFim || new Date(mov.dataHora) <= new Date(filtroDataFim.setHours(23, 59, 59, 999));
 
-      return matchTexto && matchTipo && matchDestino && matchData;
+      const categoria = mov.itemSnapshot?.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId) : '-';
+      const matchCategoria = filtroCategoria === 'todas' || categoria === filtroCategoria;
+      
+      const tipoItem = mov.itemSnapshot?.tipoItem || '-';
+      const matchTipoItem = filtroTipoItem === 'todos' || tipoItem === filtroTipoItem;
+
+      return matchTexto && matchTipo && matchDestino && matchData && matchDataFim && matchCategoria && matchTipoItem;
     });
-  }, [movimentacoes, filtroTexto, filtroTipo, filtroDestino, filtroDataInicio, filtroDataFim]);
+  }, [movimentacoes, filtroTexto, filtroTipo, filtroDestino, filtroDataInicio, filtroDataFim, filtroCategoria, filtroTipoItem]);
 
   // Group by item and sum exits/returns
   const resumoItens = useMemo(() => {
@@ -103,6 +102,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
           qtdMovSaida: 0,
           qtdMovDevolucao: 0,
           categoria: mov.itemSnapshot?.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId) : '-',
+          tipoItem: mov.itemSnapshot?.tipoItem || '-',
         });
       }
 
@@ -145,6 +145,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
     try {
       const dados = resumoItens.map(item => ({
         'Item': item.itemNome,
+        'Tipo de Item': item.tipoItem,
         'Categoria': item.categoria,
         'Código de Barras': item.codigoBarras,
         'Unidade': item.unidade,
@@ -158,7 +159,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
       const workbook = XLSX.utils.book_new();
       const worksheet = XLSX.utils.json_to_sheet(dados);
       worksheet['!cols'] = [
-        { wch: 35 }, { wch: 20 }, { wch: 18 }, { wch: 10 }, { wch: 14 },
+        { wch: 35 }, { wch: 15 }, { wch: 20 }, { wch: 18 }, { wch: 10 }, { wch: 14 },
         { wch: 12 }, { wch: 16 }, { wch: 14 }, { wch: 16 },
       ];
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Relatório');
@@ -190,6 +191,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
 
     const linhas = resumoItens.map(item => `<tr>
       <td>${item.itemNome}</td>
+      <td>${item.tipoItem}</td>
       <td>${item.categoria}</td>
       <td>${item.codigoBarras}</td>
       <td>${item.unidade}</td>
@@ -230,10 +232,10 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
         <div>Saldo Pendente: <strong style="color:${totais.saldoPendente > 0 ? '#e74c3c' : '#27ae60'}">${totais.saldoPendente}</strong></div>
       </div>
       <table><thead><tr>
-        <th>Item</th><th>Categoria</th><th>Código</th><th>Unidade</th><th>Total Saídas</th><th>Nº Saídas</th><th>Total Devoluções</th><th>Nº Devoluções</th><th>Saldo Pendente</th>
+        <th>Item</th><th>Tipo Item</th><th>Categoria</th><th>Código</th><th>Unidade</th><th>Total Saídas</th><th>Nº Saídas</th><th>Total Devoluções</th><th>Nº Devoluções</th><th>Saldo Pendente</th>
       </tr></thead><tbody>${linhas}
       <tr class="total-row">
-        <td colspan="4">TOTAIS</td>
+        <td colspan="5">TOTAIS</td>
         <td style="text-align:center">${totais.totalSaidas}</td>
         <td></td>
         <td style="text-align:center">${totais.totalDevolucoes}</td>
@@ -282,6 +284,31 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
                 <SelectItem value="DEVOLUCAO">Devoluções</SelectItem>
                 <SelectItem value="ENTRADA">Entradas</SelectItem>
                 <SelectItem value="CADASTRO">Cadastros</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filtroTipoItem} onValueChange={setFiltroTipoItem}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tipo de Item" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os tipos de item</SelectItem>
+                <SelectItem value="Insumo">Insumo</SelectItem>
+                <SelectItem value="Ferramenta">Ferramenta</SelectItem>
+                <SelectItem value="Produto Acabado">Produto Acabado</SelectItem>
+                <SelectItem value="Matéria Prima">Matéria Prima</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+              <SelectTrigger>
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas as categorias</SelectItem>
+                {Array.from(new Set(subcategoriasConfig.map(s => obterPrimeiraCategoriaDeSubcategoria(s.id)))).filter(c => c !== '-').sort().map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -369,6 +396,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
             <TableHeader>
               <TableRow>
                 <TableHead>Item</TableHead>
+                <TableHead>Tipo Item</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Código</TableHead>
                 <TableHead>Unidade</TableHead>
@@ -391,6 +419,11 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
                   {resumoItens.map((item, idx) => (
                     <TableRow key={idx}>
                       <TableCell className="font-medium">{item.itemNome}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-muted text-foreground">
+                          {item.tipoItem}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="bg-muted">
                           {item.categoria}
@@ -419,7 +452,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
                   ))}
                   {/* Totals row */}
                   <TableRow className="bg-muted/50 font-bold">
-                    <TableCell colSpan={4}>TOTAIS</TableCell>
+                    <TableCell colSpan={5}>TOTAIS</TableCell>
                     <TableCell className="text-center">{totais.totalSaidas}</TableCell>
                     <TableCell></TableCell>
                     <TableCell className="text-center">{totais.totalDevolucoes}</TableCell>
