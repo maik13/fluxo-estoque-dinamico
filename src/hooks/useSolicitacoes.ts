@@ -6,6 +6,7 @@ import { useConfiguracoes } from './useConfiguracoes';
 import { NovaSolicitacao, SolicitacaoCompleta, SolicitacaoItem } from '@/types/solicitacao';
 import { Item } from '@/types/estoque';
 import { toast } from 'sonner';
+import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';
 
 export const useSolicitacoes = () => {
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoCompleta[]>([]);
@@ -207,6 +208,32 @@ export const useSolicitacoes = () => {
     isCreatingRef.current = true;
 
     try {
+      // Validação de ferramentas antes de iniciar qualquer operação
+      const isRetiradaCheck = !novaSolicitacao.tipo_operacao || 
+                              novaSolicitacao.tipo_operacao === 'retirada' || 
+                              novaSolicitacao.tipo_operacao === 'saida_obra';
+                              
+      if (isRetiradaCheck) {
+        const estoqueAtivoInfo = obterEstoqueAtivoInfo();
+        for (const item of novaSolicitacao.itens) {
+          const itemFull = item.item_snapshot as any;
+          if (itemFull?.tipoItem === 'Ferramenta') {
+            if (item.quantidade_solicitada > 1) {
+              toast.error(`A ferramenta "${itemFull.nome}" deve ser retirada individualmente (máximo 1).`);
+              isCreatingRef.current = false;
+              return false;
+            }
+
+            const { alocada, localAtual } = await verificarFerramentaAlocada(item.item_id, estoqueAtivoInfo?.id);
+            if (alocada) {
+              toast.error(`A ferramenta "${itemFull.nome}" já está alocada e possui devolução pendente.${localAtual ? ` Local atual: ${localAtual}` : ''}. Faça a devolução antes de retirá-la novamente.`);
+              isCreatingRef.current = false;
+              return false;
+            }
+          }
+        }
+      }
+
       // Usar o solicitante selecionado na interface
       let solicitanteId = novaSolicitacao.solicitante_id || user.id;
       let solicitanteNome = novaSolicitacao.solicitante_nome || userProfile.nome;

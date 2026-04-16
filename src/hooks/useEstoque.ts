@@ -4,6 +4,7 @@ import { toast } from '@/hooks/use-toast';
 import { useConfiguracoes } from './useConfiguracoes';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';
 
 export const useEstoque = () => {
   const [itens, setItens] = useState<Item[]>([]);
@@ -676,6 +677,29 @@ const registrarSaida = async (
     }
 
     const estoqueAnterior = calcularEstoqueAtual(item.id);
+    
+    // Regra para ferramentas: bloqueio de duplicidade e quantidade
+    if (item.tipoItem === 'Ferramenta') {
+      if (quantidade > 1) {
+        toast({ 
+          title: 'Quantidade inválida', 
+          description: 'Ferramentas devem ser retiradas individualmente (máximo 1).', 
+          variant: 'destructive' 
+        });
+        return false;
+      }
+
+      const { alocada, localAtual } = await verificarFerramentaAlocada(item.id, estoqueAtivoInfo?.id);
+      if (alocada) {
+        toast({ 
+          title: 'Ferramenta já alocada', 
+          description: `A ferramenta "${item.nome}" possui devolução pendente.${localAtual ? ` Local atual: ${localAtual}` : ''}. Faça a devolução antes de retirar novamente.`, 
+          variant: 'destructive' 
+        });
+        return false;
+      }
+    }
+
     if (estoqueAnterior < quantidade) {
       toast({ title: 'Estoque insuficiente', description: `Estoque atual: ${estoqueAnterior} ${item.unidade}. Quantidade solicitada: ${quantidade} ${item.unidade}.`, variant: 'destructive' });
       return false;

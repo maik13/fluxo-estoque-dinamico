@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { materialRequestSchema } from '@/schemas/validation';
-import { verificarDevolucaoPendente } from '@/utils/verificarPendencias';
+import { verificarDevolucaoPendente, verificarFerramentaAlocada } from '@/utils/verificarPendencias';
 
 export const SolicitarMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
@@ -108,6 +108,20 @@ export const SolicitarMaterial = () => {
   }, []);
 
   const adicionarItem = (item: Item, quantidade: number) => {
+    // Regra para ferramentas: quantidade máxima 1 e não pode repetir na lista
+    if (item.tipoItem === 'Ferramenta') {
+      const toolAlreadyInList = itensSolicitados.find(i => i.item_id === item.id);
+      if (toolAlreadyInList) {
+        toast.warning(`A ferramenta "${item.nome}" já está na lista.`);
+        setPopoverAberto(false);
+        return;
+      }
+      if (quantidade > 1) {
+        toast.info('Ferramentas são tratadas como itens individuais. Quantidade ajustada para 1.');
+        quantidade = 1;
+      }
+    }
+
     const itemExistente = itensSolicitados.find(i => i.item_id === item.id);
     
     if (itemExistente) {
@@ -130,7 +144,8 @@ export const SolicitarMaterial = () => {
             codigoBarras: item.codigoBarras,
             unidade: item.unidade,
             marca: item.marca,
-            especificacao: item.especificacao
+            especificacao: item.especificacao,
+            tipoItem: item.tipoItem
           }
         }
       ]);
@@ -199,18 +214,27 @@ export const SolicitarMaterial = () => {
     }
 
     // Verificar se algum item possui devolução pendente
-    const alertasPendentes: string[] = [];
+    const alertasPendentesInsumos: string[] = [];
     for (const item of itensSolicitados) {
-      const { pendente, saldoPendente } = await verificarDevolucaoPendente(item.item_id);
-      if (pendente) {
-        const nomeItem = item.item_snapshot.nome || 'Item desconhecido';
-        alertasPendentes.push(`"${nomeItem}" possui ${saldoPendente} unidade(s) com devolução pendente`);
+      const itemFull = item.item_snapshot as any;
+      if (itemFull?.tipoItem === 'Ferramenta') {
+        const { alocada, localAtual } = await verificarFerramentaAlocada(item.item_id);
+        if (alocada) {
+          toast.error(`A ferramenta "${itemFull.nome}" já está alocada e possui devolução pendente.${localAtual ? ` Local atual: ${localAtual}` : ''}. Faça a devolução antes de retirá-la novamente.`);
+          return;
+        }
+      } else {
+        const { pendente, saldoPendente } = await verificarDevolucaoPendente(item.item_id);
+        if (pendente) {
+          const nomeItem = itemFull.nome || 'Item desconhecido';
+          alertasPendentesInsumos.push(`"${nomeItem}" possui ${saldoPendente} unidade(s) com devolução pendente`);
+        }
       }
     }
 
-    if (alertasPendentes.length > 0) {
+    if (alertasPendentesInsumos.length > 0) {
       const confirmar = window.confirm(
-        `⚠️ ATENÇÃO - Itens com devolução pendente:\n\n${alertasPendentes.join('\n')}\n\nDeseja continuar com a retirada mesmo assim?`
+        `⚠️ ATENÇÃO - Itens com devolução pendente:\n\n${alertasPendentesInsumos.join('\n')}\n\nDeseja continuar com a retirada mesmo assim?`
       );
       if (!confirmar) return;
     }
