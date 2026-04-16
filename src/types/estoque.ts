@@ -38,6 +38,7 @@ export interface Movimentacao {
   solicitanteNome?: string; // Nome do solicitante (vindo da solicitação)
   destinatario?: string; // Nome da pessoa para quem o item foi direcionado
   estoqueId?: string; // ID do estoque ao qual a movimentação pertence
+  solicitacaoTipoOperacao?: string; // Tipo de operação da solicitação vinculada
   // Dados do item no momento da movimentação (para histórico)
   itemSnapshot: Partial<Item>;
 }

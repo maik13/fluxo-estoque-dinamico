@@ -256,29 +256,42 @@ export const useSolicitacoes = () => {
                          novaSolicitacao.tipo_operacao === 'devolucao_estoque';
 
       for (const item of novaSolicitacao.itens) {
-        // Obter item do estoque
-          const { error: itemEstoqueError } = await supabase
-          .from('items')
-          .select('*')
-          .eq('id', item.item_id)
-          .single();
+        // Calcular o saldo real do item no estoque ativo antes de criar a movimentação
+        const estoqueId = estoqueAtivoInfo?.id;
+        let saldoAtual = 0;
+        
+        if (estoqueId) {
+          const { data: movsSaldo, error: errorSaldo } = await supabase
+            .from('movements')
+            .select('tipo, quantidade')
+            .eq('item_id', item.item_id)
+            .eq('estoque_id', estoqueId);
+            
+          if (!errorSaldo && movsSaldo) {
+            movsSaldo.forEach(m => {
+              if (m.tipo === 'ENTRADA' || m.tipo === 'CADASTRO') {
+                saldoAtual += m.quantidade;
+              } else if (m.tipo === 'SAIDA') {
+                saldoAtual -= m.quantidade;
+              }
+              saldoAtual = Math.max(0, saldoAtual);
+            });
+          }
+        }
 
-        if (itemEstoqueError) throw itemEstoqueError;
-
-        // Calcular quantidades para a movimentação
-        // O estoque real é calculado pelas movimentações, não pela coluna quantidade
-        const quantidadeAnterior = 0; // Será calculado pelas movimentações
-        let quantidadeAtual = 0;
+        const quantidadeAnterior = saldoAtual;
+        let quantidadeAtual = saldoAtual;
         let tipoMovimentacao: 'ENTRADA' | 'SAIDA' = 'SAIDA';
 
         if (isRetirada) {
           tipoMovimentacao = 'SAIDA';
+          quantidadeAtual = Math.max(0, saldoAtual - item.quantidade_solicitada);
         } else if (isDevolucao) {
           tipoMovimentacao = 'ENTRADA';
+          quantidadeAtual = saldoAtual + item.quantidade_solicitada;
         }
 
-        // Criar movimentação (não atualizar coluna quantidade pois ela foi removida)
-        const estoqueAtivoInfo = obterEstoqueAtivoInfo();
+        // Criar movimentação
         const movimentacaoData = {
           item_id: item.item_id,
           tipo: tipoMovimentacao,
@@ -290,7 +303,7 @@ export const useSolicitacoes = () => {
           local_utilizacao_id: novaSolicitacao.local_utilizacao_id,
           item_snapshot: item.item_snapshot,
           solicitacao_id: solicitacaoData.id,
-          estoque_id: estoqueAtivoInfo?.id ?? null
+          estoque_id: estoqueId ?? null
         };
 
         console.log('Criando movimentação com dados:', movimentacaoData);

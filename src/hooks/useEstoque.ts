@@ -142,10 +142,11 @@ export const useEstoque = () => {
             if (payload.new.solicitacao_id) {
               const { data } = await supabase
                 .from('solicitacoes')
-                .select('solicitante_nome')
+                .select('solicitante_nome, tipo_operacao')
                 .eq('id', payload.new.solicitacao_id)
                 .single();
               solicitanteNome = data?.solicitante_nome;
+              solicitacaoTipoOperacao = data?.tipo_operacao;
             }
 
             const novaMovimentacao: Movimentacao = {
@@ -162,6 +163,7 @@ export const useEstoque = () => {
               localUtilizacaoNome: localNome,
               solicitacaoId: payload.new.solicitacao_id ?? undefined,
               solicitanteNome: solicitanteNome,
+              solicitacaoTipoOperacao: solicitacaoTipoOperacao,
               destinatario: payload.new.destinatario ?? undefined,
               estoqueId: payload.new.estoque_id ?? undefined,
               itemSnapshot: payload.new.item_snapshot as Partial<Item>,
@@ -205,10 +207,11 @@ export const useEstoque = () => {
           if (payload.new.solicitacao_id) {
             const { data } = await supabase
               .from('solicitacoes')
-              .select('solicitante_nome')
+              .select('solicitante_nome, tipo_operacao')
               .eq('id', payload.new.solicitacao_id)
               .single();
             solicitanteNome = data?.solicitante_nome;
+            solicitacaoTipoOperacao = data?.tipo_operacao;
           }
 
           const movimentacaoAtualizada: Movimentacao = {
@@ -225,6 +228,7 @@ export const useEstoque = () => {
             localUtilizacaoNome: localNome,
             solicitacaoId: payload.new.solicitacao_id ?? undefined,
             solicitanteNome: solicitanteNome,
+            solicitacaoTipoOperacao: solicitacaoTipoOperacao,
             destinatario: payload.new.destinatario ?? undefined,
             estoqueId: payload.new.estoque_id ?? undefined,
             itemSnapshot: payload.new.item_snapshot as Partial<Item>,
@@ -294,7 +298,8 @@ export const useEstoque = () => {
             nome
           ),
           solicitacoes:solicitacao_id (
-            solicitante_nome
+            solicitante_nome,
+            tipo_operacao
           )
         `)
         .order('data_hora', { ascending: true });
@@ -350,6 +355,7 @@ export const useEstoque = () => {
         localUtilizacaoNome: row.locais_utilizacao?.nome ?? undefined,
         solicitacaoId: row.solicitacao_id ?? undefined,
         solicitanteNome: row.solicitacoes?.solicitante_nome ?? undefined,
+        solicitacaoTipoOperacao: row.solicitacoes?.tipo_operacao ?? undefined,
         destinatario: row.destinatario ?? undefined,
         estoqueId: row.estoque_id ?? undefined,
         itemSnapshot: row.item_snapshot as Partial<Item>,

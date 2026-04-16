@@ -97,8 +97,11 @@ export const TabelaMovimentacoes = () => {
 
   // Verificar se uma movimentação é devolução
   const isDevolucao = (mov: Movimentacao) => {
-    return mov.tipo === 'ENTRADA' && 
+    const porObservacao = mov.tipo === 'ENTRADA' && 
            mov.observacoes?.toLowerCase().includes('devolução');
+    const porTipoOperacao = mov.tipo === 'ENTRADA' && 
+           (mov.solicitacaoTipoOperacao === 'devolucao' || mov.solicitacaoTipoOperacao === 'devolucao_estoque');
+    return porObservacao || porTipoOperacao;
   };
 
   // Calcular itens pendentes de devolução (saíram e não voltaram)
@@ -106,6 +109,8 @@ export const TabelaMovimentacoes = () => {
     // Agrupar saídas por item + local
     const saidasMap = new Map<string, { 
       itemSnapshot: any; 
+      itemId: string;
+      localUtilizacaoId: string;
       localUtilizacaoNome: string; 
       totalSaida: number; 
       totalDevolvido: number;
@@ -117,7 +122,10 @@ export const TabelaMovimentacoes = () => {
 
     movimentacoes.forEach(mov => {
       if (mov.tipo === 'SAIDA') {
-        const key = `${mov.itemSnapshot?.nome || mov.id}_${mov.localUtilizacaoNome || 'sem-local'}`;
+        const itemId = mov.itemId || 'sem-item';
+        const localId = mov.localUtilizacaoId || 'sem-local';
+        const key = `${itemId}_${localId}`;
+        
         const existing = saidasMap.get(key);
         if (existing) {
           existing.totalSaida += mov.quantidade;
@@ -130,6 +138,8 @@ export const TabelaMovimentacoes = () => {
         } else {
           saidasMap.set(key, {
             itemSnapshot: mov.itemSnapshot,
+            itemId,
+            localUtilizacaoId: localId,
             localUtilizacaoNome: mov.localUtilizacaoNome || 'Sem local',
             totalSaida: mov.quantidade,
             totalDevolvido: 0,
@@ -145,7 +155,10 @@ export const TabelaMovimentacoes = () => {
     // Subtrair devoluções
     movimentacoes.forEach(mov => {
       if (isDevolucao(mov)) {
-        const key = `${mov.itemSnapshot?.nome || mov.id}_${mov.localUtilizacaoNome || 'sem-local'}`;
+        const itemId = mov.itemId || 'sem-item';
+        const localId = mov.localUtilizacaoId || 'sem-local';
+        const key = `${itemId}_${localId}`;
+        
         const existing = saidasMap.get(key);
         if (existing) {
           existing.totalDevolvido += mov.quantidade;
