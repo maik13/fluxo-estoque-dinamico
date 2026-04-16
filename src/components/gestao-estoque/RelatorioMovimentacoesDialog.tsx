@@ -68,8 +68,12 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
 
       const matchDestino = filtroDestino === 'todos' || mov.localUtilizacaoNome === filtroDestino;
 
-      const matchData = !filtroDataInicio || new Date(mov.dataHora) >= new Date(filtroDataInicio.setHours(0, 0, 0, 0));
-      const matchDataFim = !filtroDataFim || new Date(mov.dataHora) <= new Date(filtroDataFim.setHours(23, 59, 59, 999));
+      const dInicio = filtroDataInicio ? new Date(new Date(filtroDataInicio).setHours(0, 0, 0, 0)) : null;
+      const dFim = filtroDataFim ? new Date(new Date(filtroDataFim).setHours(23, 59, 59, 999)) : null;
+      const movData = new Date(mov.dataHora);
+
+      const matchData = !dInicio || movData >= dInicio;
+      const matchDataFim = !dFim || movData <= dFim;
 
       const categoria = mov.itemSnapshot?.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId) : '-';
       const matchCategoria = filtroCategoria === 'todas' || categoria === filtroCategoria;
@@ -410,7 +414,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
             <TableBody>
               {resumoItens.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     Nenhuma movimentação encontrada com os filtros aplicados
                   </TableCell>
                 </TableRow>

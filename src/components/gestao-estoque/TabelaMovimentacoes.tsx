@@ -211,8 +211,12 @@ export const TabelaMovimentacoes = () => {
       
       const matchDestino = filtroDestino === 'todos' || mov.localUtilizacaoNome === filtroDestino;
 
-      const matchData = !filtroDataInicio || new Date(mov.dataHora) >= new Date(filtroDataInicio.setHours(0, 0, 0, 0));
-      const matchDataFim = !filtroDataFim || new Date(mov.dataHora) <= new Date(filtroDataFim.setHours(23, 59, 59, 999));
+      const dInicio = filtroDataInicio ? new Date(new Date(filtroDataInicio).setHours(0, 0, 0, 0)) : null;
+      const dFim = filtroDataFim ? new Date(new Date(filtroDataFim).setHours(23, 59, 59, 999)) : null;
+      const movData = new Date(mov.dataHora);
+
+      const matchData = !dInicio || movData >= dInicio;
+      const matchDataFim = !dFim || movData <= dFim;
 
       const categoria = mov.itemSnapshot?.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId) : '-';
       const matchCategoria = filtroCategoria === 'todas' || categoria === filtroCategoria;
@@ -674,8 +678,6 @@ export const TabelaMovimentacoes = () => {
                 <SelectItem value="CADASTRO">Cadastros</SelectItem>
               </SelectContent>
             </Select>
-            
-            </Select>
 
             <Select value={filtroTipoItem} onValueChange={setFiltroTipoItem}>
               <SelectTrigger>
@@ -809,7 +811,7 @@ export const TabelaMovimentacoes = () => {
               <TableBody>
                 {movimentacoesFiltradas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={canEditMovements() ? 13 : 12} className="text-center py-8">
+                    <TableCell colSpan={canEditMovements() ? 15 : 14} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-muted-foreground">
@@ -1117,7 +1119,7 @@ export const TabelaMovimentacoes = () => {
                   <TableBody>
                     {pendentesFiltrados.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           <div className="flex flex-col items-center gap-2">
                             <Package className="h-12 w-12 text-muted-foreground" />
                             <p className="text-muted-foreground">
