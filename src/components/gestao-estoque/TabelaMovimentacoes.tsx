@@ -477,6 +477,126 @@ export const TabelaMovimentacoes = () => {
     printWindow.document.close();
   };
 
+  // Função para exportar resumo por projeto para Excel
+  const exportarPendentesParaExcel = () => {
+    try {
+      const dadosExportacao = pendentesFiltrados.map(item => {
+        let statusTexto = 'Pendente';
+        if (item.statusItem === 'parcial') statusTexto = 'Parcial';
+        if (item.statusItem === 'devolvido') statusTexto = 'Devolvido';
+
+        return {
+          'Projeto/Local': item.localUtilizacaoNome,
+          'Item': item.itemSnapshot?.nome || 'Item não identificado',
+          'Código': item.itemSnapshot?.codigoBarras || '-',
+          'Tipo': item.itemSnapshot?.tipoItem || '-',
+          'Status': statusTexto,
+          'Total Saída': item.totalSaida,
+          'Total Devolvido': item.totalDevolvido,
+          'Saldo Pendente': item.pendente,
+          'Última Saída': item.ultimaSaida ? new Date(item.ultimaSaida).toLocaleDateString('pt-BR') : '-',
+          'Responsável': item.destinatario || item.solicitanteNome || '-'
+        };
+      });
+
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(dadosExportacao);
+
+      const columnWidths = [
+        { wch: 25 }, // Projeto
+        { wch: 30 }, // Item
+        { wch: 15 }, // Código
+        { wch: 15 }, // Tipo
+        { wch: 15 }, // Status
+        { wch: 12 }, // Saída
+        { wch: 12 }, // Devolvido
+        { wch: 12 }, // Saldo
+        { wch: 15 }, // Última Saída
+        { wch: 20 }  // Responsável
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Resumo por Projeto');
+      const dataAtual = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(workbook, `resumo-projetos-${dataAtual}.xlsx`);
+
+      toast({
+        title: "Exportação concluída!",
+        description: `${pendentesFiltrados.length} registros exportados com sucesso.`,
+      });
+    } catch (error) {
+      console.error('Erro ao exportar resumo:', error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar o resumo por projeto.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Função para imprimir resumo por projeto
+  const imprimirPendentes = async () => {
+    let logoHtml = '';
+    try {
+      const { data } = await supabase.storage.from('branding').list('', { limit: 1 });
+      if (data && data.length > 0) {
+        const { data: publicUrlData } = supabase.storage.from('branding').getPublicUrl(data[0].name);
+        if (publicUrlData.publicUrl) {
+          logoHtml = `<img src="${publicUrlData.publicUrl}" alt="Logo" style="height:50px;object-fit:contain;" />`;
+        }
+      }
+    } catch (e) { console.error('Erro ao carregar logo:', e); }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const linhas = pendentesFiltrados.map(item => {
+      let statusIcon = '🔴';
+      if (item.statusItem === 'parcial') statusIcon = '🟡';
+      if (item.statusItem === 'devolvido') statusIcon = '🟢';
+
+      return `<tr>
+        <td>${item.localUtilizacaoNome}</td>
+        <td>${item.itemSnapshot?.nome || '-'}</td>
+        <td>${item.itemSnapshot?.codigoBarras || '-'}</td>
+        <td>${item.itemSnapshot?.tipoItem || '-'}</td>
+        <td>${statusIcon} ${item.statusItem.toUpperCase()}</td>
+        <td style="text-align:right">${item.totalSaida}</td>
+        <td style="text-align:right">${item.totalDevolvido}</td>
+        <td style="text-align:right; font-weight:bold">${item.pendente}</td>
+        <td>${item.ultimaSaida ? new Date(item.ultimaSaida).toLocaleDateString('pt-BR') : '-'}</td>
+        <td>${item.destinatario || item.solicitanteNome || '-'}</td>
+      </tr>`;
+    }).join('');
+
+    const filtrosAtivos = [];
+    if (filtroPendentesStatus !== 'ativos') filtrosAtivos.push(`Status: ${filtroPendentesStatus}`);
+    if (filtroPendentesTipoItem !== 'todos') filtrosAtivos.push(`Tipo: ${filtroPendentesTipoItem}`);
+    if (filtroPendentesDestino !== 'todos') filtrosAtivos.push(`Local: ${filtroPendentesDestino}`);
+    if (filtroPendentesTexto) filtrosAtivos.push(`Busca: ${filtroPendentesTexto}`);
+
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Resumo por Projeto</title>
+      <style>
+        body { font-family: Arial, sans-serif; font-size: 11px; margin: 20px; }
+        .header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; border-bottom: 2px solid #f59e0b; padding-bottom: 8px; }
+        .header h1 { font-size: 16px; margin: 0; color: #b45309; }
+        .info { color: #666; margin-bottom: 12px; font-size: 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; }
+        th { background: #fef3c7; color: #b45309; font-size: 10px; }
+        tr:nth-child(even) { background: #fffbeb; }
+        @media print { body { margin: 10px; } }
+      </style></head><body>
+      <div class="header">${logoHtml}<h1>Resumo de Materiais por Projeto</h1></div>
+      <div class="info">Gerado em: ${new Date().toLocaleString('pt-BR')} | Itens: ${pendentesFiltrados.length}${filtrosAtivos.length > 0 ? ' | Filtros: ' + filtrosAtivos.join(', ') : ''}</div>
+      <table><thead><tr>
+        <th>Projeto/Local</th><th>Item</th><th>Código</th><th>Tipo</th><th>Status</th><th>Saída</th><th>Devolvido</th><th>Saldo</th><th>Última Saída</th><th>Responsável</th>
+      </tr></thead><tbody>${linhas}</tbody></table>
+      <script>window.print();window.onafterprint=()=>window.close();</script>
+    </body></html>`);
+    printWindow.document.close();
+  };
+
   // Função para obter ícone e cor do tipo de movimentação
   const getTipoInfo = (tipo: TipoMovimentacao) => {
     switch (tipo) {
@@ -1174,9 +1294,9 @@ export const TabelaMovimentacoes = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                   {/* Projeto / Local */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 md:col-span-2">
                     <Label htmlFor="pendentes-local" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Projeto / Local</Label>
                     <Select value={filtroPendentesDestino} onValueChange={setFiltroPendentesDestino}>
                       <SelectTrigger id="pendentes-local">
@@ -1193,6 +1313,28 @@ export const TabelaMovimentacoes = () => {
                     </Select>
                   </div>
 
+                  {/* Botões de Ação */}
+                  <div className="md:col-span-2 grid grid-cols-2 gap-2">
+                    <Button 
+                      onClick={exportarPendentesParaExcel}
+                      variant="outline"
+                      className="flex items-center gap-2 border-warning/30 hover:bg-warning/10 text-warning"
+                    >
+                      <FileSpreadsheet className="h-4 w-4" />
+                      Exportar Excel
+                    </Button>
+                    <Button 
+                      onClick={imprimirPendentes}
+                      variant="outline"
+                      className="flex items-center gap-2 border-warning/30 hover:bg-warning/10 text-warning"
+                    >
+                      <Printer className="h-4 w-4" />
+                      Imprimir Resumo
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Data Inicial */}
                   <div className="space-y-1.5">
                     <Label htmlFor="pendentes-data-inicio" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data Inicial</Label>
