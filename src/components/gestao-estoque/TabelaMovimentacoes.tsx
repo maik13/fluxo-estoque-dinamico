@@ -1101,7 +1101,6 @@ export const TabelaMovimentacoes = () => {
               </Pagination>
             </div>
           )}
-            </div>
           </CardContent>
         </Card>
             </div>
