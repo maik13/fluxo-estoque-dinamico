@@ -1170,10 +1170,14 @@ export const TabelaMovimentacoes = () => {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm">
-                            {new Date(item.ultimaSaida).toLocaleDateString('pt-BR', {
-                              day: '2-digit', month: '2-digit', year: 'numeric',
-                              hour: '2-digit', minute: '2-digit'
-                            })}
+                            {item.ultimaSaida && !isNaN(new Date(item.ultimaSaida).getTime()) ? (
+                              new Date(item.ultimaSaida).toLocaleDateString('pt-BR', {
+                                day: '2-digit', month: '2-digit', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit'
+                              })
+                            ) : (
+                              <span className="text-muted-foreground text-xs">Data não disponível</span>
+                            )}
                           </TableCell>
                           <TableCell>
                             {item.destinatario ? (

@@ -21,7 +21,7 @@ import { ptBR } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { materialReturnSchema } from '@/schemas/validation';
-import { verificarSaidaExistente, verificarDevolucaoPendente } from '@/utils/verificarPendencias';
+import { verificarSaidaExistente, verificarDevolucaoPendente, verificarFerramentaAlocada } from '@/utils/verificarPendencias';
 
 export const DevolverMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
@@ -223,6 +223,23 @@ export const DevolverMaterial = () => {
     // Verificar se os itens possuem saída E se já foram totalmente devolvidos
     const alertas: string[] = [];
     for (const item of itensDevolucao) {
+      const itemFull = item.item_snapshot as any;
+      
+      // Regra específica para Ferramentas (Prospectiva)
+      if (itemFull?.tipoItem === 'Ferramenta') {
+        const { alocada, localAtual, localAtualId } = await verificarFerramentaAlocada(item.item_id);
+        
+        // Se a ferramenta está alocada (tem saída ativa pós-marco)
+        if (alocada && localAtualId) {
+          // Validar se o local de devolução é o mesmo da saída
+          if (localUtilizacao !== localAtualId) {
+            toast.error(`A devolução da ferramenta "${itemFull.nome}" deve ser vinculada ao mesmo projeto/local da saída ativa. Local esperado: "${localAtual}".`);
+            setEnviando(false);
+            return;
+          }
+        }
+      }
+
       const { possuiSaida } = await verificarSaidaExistente(item.item_id);
       if (!possuiSaida) {
         const nomeItem = item.item_snapshot.nome || 'Item desconhecido';

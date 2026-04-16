@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { REGRA_FERRAMENTA_UNICA_ATIVA_DESDE } from '@/config/regra-ferramenta';
 
 /**
  * Verifica se um item possui devoluções pendentes (saídas sem devolução correspondente).
@@ -70,9 +71,11 @@ export const verificarSaidaExistente = async (
     return { possuiSaida: false, totalSaidas: 0 };
   }
 };
+
 /**
  * Verifica especificamente se uma ferramenta (item unitário) está alocada.
  * Retorna detalhes do local atual se estiver alocada.
+ * ESTA LOGICA É PROSPECTIVA: Considera apenas movimentações a partir do MARCO DE IMPLANTAÇÃO.
  */
 export const verificarFerramentaAlocada = async (
   itemId: string,
@@ -81,6 +84,7 @@ export const verificarFerramentaAlocada = async (
   alocada: boolean; 
   saldoPendente: number; 
   localAtual?: string; 
+  localAtualId?: string; // ID para validação na devolução
   ultimaSaidaEm?: string 
 }> => {
   try {
@@ -91,9 +95,12 @@ export const verificarFerramentaAlocada = async (
         quantidade, 
         observacoes, 
         data_hora,
+        created_at,
+        local_utilizacao_id,
         locais_utilizacao:local_utilizacao_id (nome)
       `)
       .eq('item_id', itemId)
+      .gte('created_at', REGRA_FERRAMENTA_UNICA_ATIVA_DESDE) // FILTRO PROSPECTIVO
       .order('data_hora', { ascending: true });
 
     if (estoqueId) {
@@ -106,17 +113,19 @@ export const verificarFerramentaAlocada = async (
 
     let saldo = 0;
     let lastLocal = '';
+    let lastLocalId = '';
     let lastData = '';
 
     data.forEach((mov) => {
       if (mov.tipo === 'SAIDA') {
         saldo += Number(mov.quantidade);
-        // Pegar o nome do local se disponível no join
         const localNome = (mov.locais_utilizacao as any)?.nome || 'Local não identificado';
         lastLocal = localNome;
+        lastLocalId = mov.local_utilizacao_id || '';
         lastData = mov.data_hora;
       }
       if (mov.tipo === 'ENTRADA' && mov.observacoes?.toLowerCase().includes('devolução')) {
+        // Para ferramentas, a devolução "zera" a pendência mais recente
         saldo = Math.max(0, saldo - Number(mov.quantidade));
       }
     });
@@ -125,10 +134,11 @@ export const verificarFerramentaAlocada = async (
       alocada: saldo > 0,
       saldoPendente: saldo,
       localAtual: saldo > 0 ? lastLocal : undefined,
+      localAtualId: saldo > 0 ? lastLocalId : undefined,
       ultimaSaidaEm: saldo > 0 ? lastData : undefined
     };
   } catch (err) {
-    console.error('Erro ao verificar alocação de ferramenta:', err);
+    console.error('Erro ao verificar alocação prospectiva de ferramenta:', err);
     return { alocada: false, saldoPendente: 0 };
   }
 };
