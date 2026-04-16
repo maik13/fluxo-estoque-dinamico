@@ -422,9 +422,14 @@ export const SolicitacaoMaterial = () => {
 
       setDialogoCriar(false);
       limparFormularioCriacao();
-    } catch (error) {
-      console.error('Erro ao criar solicitação:', error);
-      toast.error('Erro ao criar solicitação de material');
+    } catch (error: any) {
+      console.error('Erro ao criar solicitação:', {
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint,
+      });
+      toast.error(`Erro ao criar solicitação: ${error?.message || 'verifique o console'}`);
     } finally {
       setEnviando(false);
     }
