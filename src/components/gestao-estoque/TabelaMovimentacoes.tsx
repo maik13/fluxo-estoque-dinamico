@@ -181,8 +181,8 @@ export const TabelaMovimentacoes = () => {
 
   // Locais únicos dos pendentes para filtro
   const locaisPendentes = useMemo(() => {
-    const locais = new Set(itensPendentes.map(p => p.localUtilizacaoNome));
-    return Array.from(locais).sort();
+    const locais = new Set(itensPendentes.map(p => p.localUtilizacaoNome).filter(Boolean));
+    return Array.from(locais).filter(l => l && l.trim() !== '').sort();
   }, [itensPendentes]);
 
   // Filtrar pendentes por destino
@@ -723,7 +723,7 @@ export const TabelaMovimentacoes = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos os estoques/destinos</SelectItem>
-                {locaisUtilizacao.map(local => (
+                {locaisUtilizacao.filter(l => l && l.trim() !== '').map(local => (
                   <SelectItem key={local} value={local!}>
                     {local}
                   </SelectItem>
@@ -1080,8 +1080,8 @@ export const TabelaMovimentacoes = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todos os estoques/destinos</SelectItem>
-                    {locaisPendentes.map(local => (
-                      <SelectItem key={local} value={local}>
+                    {locaisPendentes.filter(l => l && l.trim() !== '').map(local => (
+                      <SelectItem key={local} value={local!}>
                         {local}
                       </SelectItem>
                     ))}
