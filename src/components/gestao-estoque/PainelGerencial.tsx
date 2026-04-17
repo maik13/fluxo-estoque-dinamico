@@ -44,12 +44,53 @@ export const PainelGerencial = () => {
     filtros
   );
 
-  // Filtragem adicional local para a busca de texto na tabela
+  // Obter a lista completa de grupos para exibição (Cadastro + Calculados)
   const gruposFiltrados = useMemo(() => {
-    if (!buscaGrupo) return gruposAgrupados;
-    const termo = buscaGrupo.toLowerCase();
-    return gruposAgrupados.filter(g => g.nome.toLowerCase().includes(termo));
-  }, [gruposAgrupados, buscaGrupo]);
+    // 1. Criar base com todos os grupos cadastrados + Sem Grupo
+    const base = [
+      ...gruposProjeto.map(g => ({
+        id: g.id,
+        nome: g.nome,
+        totalSaida: 0,
+        totalDevolvido: 0,
+        saldo: 0,
+        status: 'Devolvido' as const, // Status inicial zerado
+        quantidadeItens: 0
+      })),
+      {
+        id: 'sem-grupo',
+        nome: 'Sem Grupo',
+        totalSaida: 0,
+        totalDevolvido: 0,
+        saldo: 0,
+        status: 'Devolvido' as const,
+        quantidadeItens: 0
+      }
+    ];
+
+    // 2. Mapa dos dados calculados pelo hook para mesclagem rápida
+    const statsMap = new Map(gruposAgrupados.map(g => [g.id, g]));
+
+    // 3. Mesclar e Aplicar Filtros (Seletor de Grupo e Busca Textual)
+    let listaFinal = base.map(itemBase => statsMap.get(itemBase.id) || itemBase);
+
+    // Filtro de Grupo Específico (do seletor superior)
+    if (grupoId !== 'todos') {
+      listaFinal = listaFinal.filter(g => g.id === grupoId);
+    }
+
+    // Filtro de Busca (busca por texto na tabela)
+    if (buscaGrupo) {
+      const termo = buscaGrupo.toLowerCase();
+      listaFinal = listaFinal.filter(g => g.nome.toLowerCase().includes(termo));
+    }
+
+    // 4. Ordenação (Saldo descendente, em seguida por Nome)
+    return listaFinal.sort((a, b) => {
+      if (b.saldo !== a.saldo) return b.saldo - a.saldo;
+      return a.nome.localeCompare(b.nome);
+    });
+  }, [gruposProjeto, gruposAgrupados, grupoId, buscaGrupo]);
 
   const toggleGroup = (id: string) => {
     const newExpanded = new Set(expandedGroups);
@@ -283,14 +324,20 @@ export const PainelGerencial = () => {
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          {grupo.status === 'Pendente' && (
-                            <Badge variant="destructive" className="bg-red-500 hover:bg-red-600">Pendente</Badge>
-                          )}
-                          {grupo.status === 'Parcial' && (
-                            <Badge variant="secondary" className="bg-amber-500 hover:bg-amber-600 text-white">Parcial</Badge>
-                          )}
-                          {grupo.status === 'Devolvido' && (
-                            <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">Devolvido</Badge>
+                          {grupo.totalSaida === 0 ? (
+                            <Badge variant="outline" className="text-muted-foreground border-muted bg-muted/20">Sem movimentação</Badge>
+                          ) : (
+                            <>
+                              {grupo.status === 'Pendente' && (
+                                <Badge variant="destructive" className="bg-red-500 hover:bg-red-600">Pendente</Badge>
+                              )}
+                              {grupo.status === 'Parcial' && (
+                                <Badge variant="secondary" className="bg-amber-500 hover:bg-amber-600 text-white">Parcial</Badge>
+                              )}
+                              {grupo.status === 'Devolvido' && (
+                                <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">Devolvido</Badge>
+                              )}
+                            </>
                           )}
                         </TableCell>
                       </TableRow>
