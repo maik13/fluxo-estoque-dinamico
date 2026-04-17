@@ -1,5 +1,8 @@
 import { useMemo } from 'react';
-import { Movimentacao, LocalUtilizacaoConfig, ProjectGroupConfig } from '@/types/estoque';
+import { Movimentacao } from '@/types/estoque';
+
+type LocalUtilizacaoConfig = { id: string; nome: string; group_id?: string | null };
+type ProjectGroupConfig = { id: string; nome: string };
 
 export interface ItemAgrupado {
   key: string;

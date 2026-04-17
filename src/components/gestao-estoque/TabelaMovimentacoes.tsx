@@ -162,6 +162,14 @@ export const TabelaMovimentacoes = () => {
     return resultado;
   }, [itensPendentes, filtroPendentesTexto, filtroPendentesTipoItem, filtroPendentesStatus, filtroPendentesDestino, filtroDataPendentesInicio, filtroDataPendentesFim]);
 
+  // Helper: verificar se uma movimentação é devolução
+  const isDevolucao = (mov: any) => {
+    if (mov.tipo !== 'ENTRADA') return false;
+    if (mov.solicitacaoTipoOperacao === 'devolucao' || mov.solicitacaoTipoOperacao === 'devolucao_estoque') return true;
+    if (mov.observacoes?.toLowerCase().includes('devolução')) return true;
+    return false;
+  };
+
   // Filtrar movimentações - lógica unificada
   const movimentacoesFiltradas = useMemo(() => {
     return movimentacoesOrdenadas.filter(mov => {
