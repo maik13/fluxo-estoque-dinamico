@@ -48,6 +48,7 @@ export interface ConsolidacaoFiltros {
 }
 
 export const useConsolidacao = (
+  movimentacoes: Movimentacao[],
   locaisConfig: LocalUtilizacaoConfig[],
   gruposProjeto: ProjectGroupConfig[],
   tipoAgrupamento: 'projeto' | 'grupo',
