@@ -24,6 +24,7 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useConsolidacao } from '@/hooks/useConsolidacao';
 
 export const TabelaMovimentacoes = () => {
   const { movimentacoes, loading } = useEstoqueContext();
@@ -101,123 +102,13 @@ export const TabelaMovimentacoes = () => {
     return Array.from(locais).sort();
   }, [movimentacoes]);
 
-  // Verificar se uma movimentação é devolução
-  const isDevolucao = (mov: Movimentacao) => {
-    const porObservacao = mov.tipo === 'ENTRADA' && 
-           mov.observacoes?.toLowerCase().includes('devolução');
-    const porTipoOperacao = mov.tipo === 'ENTRADA' && 
-           (mov.solicitacaoTipoOperacao === 'devolucao' || mov.solicitacaoTipoOperacao === 'devolucao_estoque');
-    return porObservacao || porTipoOperacao;
-  };
-
-  // Calcular itens pendentes de devolução (saíram e não voltaram)
-  const itensPendentes = useMemo(() => {
-    // 1. Criar mapas de busca para performance O(1)
-    const locaisMapLookup = new Map(locaisConfig.map(l => [l.id, l]));
-    const gruposMapLookup = new Map(gruposProjeto.map(g => [g.id, g]));
-
-    // 2. Mapa para agregação de saídas
-    const saidasMap = new Map<string, { 
-      itemSnapshot: any; 
-      itemId: string;
-      localUtilizacaoId: string;
-      localUtilizacaoNome: string; 
-      totalSaida: number; 
-      totalDevolvido: number;
-      ultimaSaida: string;
-      destinatario?: string;
-      solicitacaoId?: string;
-      solicitanteNome?: string;
-    }>();
-
-    // 3. Helper para extrair IDs e Nomes de agrupamento baseados no modo ativo
-    const getGroupingData = (localId: string | null, localNome: string | null) => {
-      if (tipoAgrupamentoProjetos === 'projeto') {
-        return {
-          id: localId || 'sem-local',
-          name: localNome || 'Sem local'
-        };
-      } else {
-        const local = localId ? locaisMapLookup.get(localId) : null;
-        const grupo = local?.group_id ? gruposMapLookup.get(local.group_id) : null;
-        return {
-          id: grupo?.id || 'sem-grupo',
-          name: grupo?.nome || 'Sem Grupo'
-        };
-      }
-    };
-
-    // 4. Processar Saídas
-    movimentacoes.forEach(mov => {
-      if (mov.tipo === 'SAIDA') {
-        const itemId = mov.itemId || 'sem-item';
-        const { id: groupingId, name: groupingName } = getGroupingData(mov.localUtilizacaoId, mov.localUtilizacaoNome);
-        const key = `${itemId}_${groupingId}`;
-        
-        const existing = saidasMap.get(key);
-        if (existing) {
-          existing.totalSaida += mov.quantidade;
-          if (new Date(mov.dataHora) > new Date(existing.ultimaSaida)) {
-            existing.ultimaSaida = mov.dataHora;
-            existing.destinatario = mov.destinatario;
-            existing.solicitacaoId = mov.solicitacaoId;
-            existing.solicitanteNome = mov.solicitanteNome;
-          }
-        } else {
-          saidasMap.set(key, {
-            itemSnapshot: mov.itemSnapshot,
-            itemId,
-            localUtilizacaoId: groupingId,
-            localUtilizacaoNome: groupingName,
-            totalSaida: mov.quantidade,
-            totalDevolvido: 0,
-            ultimaSaida: mov.dataHora,
-            destinatario: mov.destinatario,
-            solicitacaoId: mov.solicitacaoId,
-            solicitanteNome: mov.solicitanteNome,
-          });
-        }
-      }
-    });
-
-    // 5. Processar Devoluções (Compensação)
-    movimentacoes.forEach(mov => {
-      if (isDevolucao(mov)) {
-        const itemId = mov.itemId || 'sem-item';
-        const { id: groupingId } = getGroupingData(mov.localUtilizacaoId, mov.localUtilizacaoNome);
-        const key = `${itemId}_${groupingId}`;
-        
-        const existing = saidasMap.get(key);
-        if (existing) {
-          existing.totalDevolvido += mov.quantidade;
-        }
-      }
-    });
-
-    // 6. Formatação final e cálculo de saldo compensado
-    return Array.from(saidasMap.values())
-      .map(v => {
-        let projetoGrupoNome = '-';
-        
-        if (tipoAgrupamentoProjetos === 'projeto') {
-          const local = v.localUtilizacaoId !== 'sem-local' ? locaisMapLookup.get(v.localUtilizacaoId) : null;
-          const grupo = local?.group_id ? gruposMapLookup.get(local.group_id) : null;
-          projetoGrupoNome = grupo?.nome || '-';
-        } else {
-          projetoGrupoNome = v.localUtilizacaoNome;
-        }
-        
-        return {
-          key: `${v.itemId}_${v.localUtilizacaoId}`,
-          ...v,
-          projetoGrupoNome,
-          pendente: Math.max(0, v.totalSaida - v.totalDevolvido),
-          statusItem: (v.totalSaida - v.totalDevolvido) <= 0 ? 'devolvido' : 
-                      (v.totalDevolvido > 0 ? 'parcial' : 'pendente')
-        };
-      })
-      .sort((a, b) => new Date(b.ultimaSaida).getTime() - new Date(a.ultimaSaida).getTime());
-  }, [movimentacoes, locaisConfig, gruposProjeto, tipoAgrupamentoProjetos]);
+  // Usar o novo hook compartilhado para cálculo de pendências e consolidado
+  const { itensAgrupados: itensPendentes } = useConsolidacao(
+    movimentacoes,
+    locaisConfig,
+    gruposProjeto,
+    tipoAgrupamentoProjetos
+  );
 
   // Locais únicos dos pendentes para filtro
   const locaisPendentes = useMemo(() => {

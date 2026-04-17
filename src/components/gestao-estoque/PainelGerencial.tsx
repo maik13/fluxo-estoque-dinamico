@@ -1,0 +1,249 @@
+import { useState, useMemo } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useEstoqueContext } from '@/contexts/EstoqueContext';
+import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConsolidacao, ConsolidacaoFiltros } from '@/hooks/useConsolidacao';
+import { BarChart3, Package, Truck, RotateCcw, Search, Filter } from 'lucide-react';
+
+export const PainelGerencial = () => {
+  const { movimentacoes } = useEstoqueContext();
+  const { locaisUtilizacao: locaisConfig, gruposProjeto } = useConfiguracoes();
+  
+  // Estados para filtros
+  const [dataInicio, setDataInicio] = useState<string>('');
+  const [dataFim, setDataFim] = useState<string>('');
+  const [tipoItem, setTipoItem] = useState<string>('todos');
+  const [grupoId, setGrupoId] = useState<string>('todos');
+  const [buscaGrupo, setBuscaGrupo] = useState<string>('');
+
+  // Preparar filtros para o hook
+  const filtros: ConsolidacaoFiltros = useMemo(() => ({
+    dataInicio: dataInicio ? new Date(dataInicio) : undefined,
+    dataFim: dataFim ? new Date(dataFim) : undefined,
+    tipoItem,
+    grupoId
+  }), [dataInicio, dataFim, tipoItem, grupoId]);
+
+  // Obter dados consolidados usando o hook compartilhado
+  const { gruposAgrupados, kpis } = useConsolidacao(
+    movimentacoes,
+    locaisConfig,
+    gruposProjeto,
+    'grupo',
+    filtros
+  );
+
+  // Filtragem adicional local para a busca de texto na tabela
+  const gruposFiltrados = useMemo(() => {
+    if (!buscaGrupo) return gruposAgrupados;
+    const termo = buscaGrupo.toLowerCase();
+    return gruposAgrupados.filter(g => g.nome.toLowerCase().includes(termo));
+  }, [gruposAgrupados, buscaGrupo]);
+
+  return (
+    <div className="space-y-6">
+      {/* Filtros Superiores */}
+      <Card className="border-muted">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Filter className="h-5 w-5 text-primary" />
+            <CardTitle className="text-lg">Filtros Gerenciais</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="data-inicio">Data Inicial</Label>
+              <Input 
+                id="data-inicio" 
+                type="date" 
+                value={dataInicio} 
+                onChange={(e) => setDataInicio(e.target.value)} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="data-fim">Data Final</Label>
+              <Input 
+                id="data-fim" 
+                type="date" 
+                value={dataFim} 
+                onChange={(e) => setDataFim(e.target.value)} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo de Item</Label>
+              <Select value={tipoItem} onValueChange={setTipoItem}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os tipos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os tipos</SelectItem>
+                  <SelectItem value="Ferramenta">Ferramenta</SelectItem>
+                  <SelectItem value="Insumo">Insumo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Grupo Específico</Label>
+              <Select value={grupoId} onValueChange={setGrupoId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os grupos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os grupos</SelectItem>
+                  {gruposProjeto.map(g => (
+                    <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>
+                  ))}
+                  <SelectItem value="sem-grupo">Sem Grupo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="busca-grupo">Buscar na Tabela</Label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="busca-grupo"
+                  placeholder="Nome do grupo..."
+                  className="pl-9"
+                  value={buscaGrupo}
+                  onChange={(e) => setBuscaGrupo(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Cards de KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/20">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-amber-600">Total Pendente</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-700">{kpis.totalPendente.toLocaleString('pt-BR')}</div>
+            <p className="text-xs text-amber-600/70 mt-1">Soma de todos os saldos em campo</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-blue-600">Grupos com Pendência</CardTitle>
+            <BarChart3 className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-700">{kpis.gruposComPendencia}</div>
+            <p className="text-xs text-blue-600/70 mt-1">Quantidade de eventos ativos</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-500/20">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-orange-600">Total em Campo</CardTitle>
+            <Truck className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-700">{kpis.totalEmCampo.toLocaleString('pt-BR')}</div>
+            <p className="text-xs text-orange-600/70 mt-1">Acumulado de saídas brutas</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border-emerald-500/20">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-emerald-600">Total Devolvido</CardTitle>
+            <RotateCcw className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-700">{kpis.totalDevolvido.toLocaleString('pt-BR')}</div>
+            <p className="text-xs text-emerald-600/70 mt-1">Retornos registrados no período</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tabela de Grupos */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Grupos com maior pendência</CardTitle>
+          <CardDescription>
+            Resumo consolidado por Grupo de Projeto ordenado por saldo de material em campo
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Grupo</TableHead>
+                <TableHead className="text-right">Total Saída</TableHead>
+                <TableHead className="text-right">Total Devolvido</TableHead>
+                <TableHead className="text-right">Saldo</TableHead>
+                <TableHead className="text-center">Aproveitamento</TableHead>
+                <TableHead className="text-center">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {gruposFiltrados.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    Nenhum dado encontrado para os filtros selecionados.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                gruposFiltrados.map((grupo) => {
+                  const aproveitamento = grupo.totalSaida > 0 
+                    ? Math.round((grupo.totalDevolvido / grupo.totalSaida) * 100) 
+                    : 100;
+                  
+                  return (
+                    <TableRow key={grupo.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                          {grupo.nome}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-mono">{grupo.totalSaida.toLocaleString('pt-BR')}</TableCell>
+                      <TableCell className="text-right font-mono text-emerald-600">{grupo.totalDevolvido.toLocaleString('pt-BR')}</TableCell>
+                      <TableCell className="text-right font-mono font-bold text-orange-600">{grupo.saldo.toLocaleString('pt-BR')}</TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full ${aproveitamento === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} 
+                              style={{ width: `${aproveitamento}%` }} 
+                            />
+                          </div>
+                          <span className="text-xs min-w-[30px]">{aproveitamento}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {grupo.status === 'Pendente' && (
+                          <Badge variant="destructive" className="bg-red-500 hover:bg-red-600">Pendente</Badge>
+                        )}
+                        {grupo.status === 'Parcial' && (
+                          <Badge variant="secondary" className="bg-amber-500 hover:bg-amber-600 text-white">Parcial</Badge>
+                        )}
+                        {grupo.status === 'Devolvido' && (
+                          <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">Devolvido</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Importações adicionais necessárias para os ícones
+import { AlertTriangle } from 'lucide-react';
