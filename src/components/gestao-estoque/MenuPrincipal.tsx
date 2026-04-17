@@ -40,7 +40,8 @@ export const MenuPrincipal = ({
 }) => {
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoqueContext();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
-  const { 
+    isAdmin,
+    isGestor,
     canCreateItems, 
     canManageStock, 
     canSolicitarMaterial, 
@@ -499,7 +500,7 @@ export const MenuPrincipal = ({
           )}
         </div>
         <div className="flex items-center gap-4">
-          <Configuracoes />
+          {(isAdmin() || isGestor()) && <Configuracoes />}
         </div>
       </div>
 
