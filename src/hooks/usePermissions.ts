@@ -153,6 +153,7 @@ export const usePermissions = () => {
           pode_acessar_gerencial: (data as any).pode_acessar_gerencial ?? false,
           pode_acessar_projetos: (data as any).pode_acessar_projetos ?? false,
         });
+        console.log(`[Permissions Debug] Perfil: ${tipoUsuario} | Projetos: ${(data as any).pode_acessar_projetos}`);
       }
     } catch (error) {
       console.error('Erro ao carregar permissões:', error);

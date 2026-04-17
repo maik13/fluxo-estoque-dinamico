@@ -423,7 +423,6 @@ export const MenuPrincipal = ({
         formMovimentacao.tipoOperacaoId || undefined,
         formMovimentacao.destinatario || undefined
       );
-      
       if (!sucesso) {
         todosRegistrados = false;
         break;
@@ -534,7 +533,7 @@ export const MenuPrincipal = ({
           >
             <CardHeader className="text-center">
               <div className="mx-auto w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center mb-4">
-                <FileBarChart className="h-8 w-8 text-warning" />
+                <BarChart3 className="h-8 w-8 text-warning" />
               </div>
               <CardTitle className="text-warning">Projetos</CardTitle>
               <CardDescription>
