@@ -40,6 +40,7 @@ export interface ConsolidacaoFiltros {
   dataFim?: Date;
   tipoItem?: string;
   grupoId?: string;
+  localId?: string; // Novo filtro por Projeto/Local específico
 }
 
 export const useConsolidacao = (
@@ -70,7 +71,14 @@ export const useConsolidacao = (
       
       // Filtro de Tipo de Item (se fornecido)
       if (filtros?.tipoItem && filtros.tipoItem !== 'todos') {
-        if (mov.itemSnapshot?.tipoItem !== filtros.tipoItem) return false;
+        const tipoNoSnapshot = mov.itemSnapshot?.tipoItem;
+        // Verifica tanto tipoItem quanto categoria (se houver no snapshot)
+        if (tipoNoSnapshot !== filtros.tipoItem) return false;
+      }
+
+      // Filtro de Projeto/Local específico (se fornecido)
+      if (filtros?.localId && filtros.localId !== 'todos') {
+        if (mov.localUtilizacaoId !== filtros.localId) return false;
       }
 
       return true;

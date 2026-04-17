@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,7 @@ export const PainelGerencial = () => {
   const [dataFim, setDataFim] = useState<string>('');
   const [tipoItem, setTipoItem] = useState<string>('todos');
   const [grupoId, setGrupoId] = useState<string>('todos');
+  const [localId, setLocalId] = useState<string>('todos');
   const [buscaGrupo, setBuscaGrupo] = useState<string>('');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
@@ -32,8 +33,32 @@ export const PainelGerencial = () => {
     dataInicio: dataInicio ? new Date(dataInicio) : undefined,
     dataFim: dataFim ? new Date(dataFim) : undefined,
     tipoItem,
-    grupoId
-  }), [dataInicio, dataFim, tipoItem, grupoId]);
+    grupoId,
+    localId
+  }), [dataInicio, dataFim, tipoItem, grupoId, localId]);
+
+  // Extrair classificações reais presentes nas movimentações para o filtro dinâmico
+  const classificacoesDinamicas = useMemo(() => {
+    const classes = new Set<string>();
+    movimentacoes.forEach(mov => {
+      const tipo = mov.itemSnapshot?.tipoItem;
+      if (tipo) classes.add(tipo);
+    });
+    return Array.from(classes).sort();
+  }, [movimentacoes]);
+
+  // Locais filtrados para o seletor (respeita o grupo se selecionado)
+  const locaisParaSeletor = useMemo(() => {
+    let filtrados = locaisConfig;
+    if (grupoId !== 'todos') {
+      if (grupoId === 'sem-grupo') {
+        filtrados = locaisConfig.filter(l => !l.group_id);
+      } else {
+        filtrados = locaisConfig.filter(l => l.group_id === grupoId);
+      }
+    }
+    return filtrados.sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [locaisConfig, grupoId]);
 
   // Obter dados consolidados usando o hook compartilhado
   const { gruposAgrupados, kpis } = useConsolidacao(
@@ -106,7 +131,9 @@ export const PainelGerencial = () => {
     const partes = [];
     if (dataInicio) partes.push(`Início: ${new Date(dataInicio).toLocaleDateString('pt-BR')}`);
     if (dataFim) partes.push(`Fim: ${new Date(dataFim).toLocaleDateString('pt-BR')}`);
-    if (tipoItem !== 'todos') partes.push(`Tipo: ${tipoItem}`);
+    if (tipoItem !== 'todos') partes.push(`Classificação: ${tipoItem}`);
+    if (grupoId !== 'todos') partes.push(`Grupo: ${gruposProjeto.find(g => g.id === grupoId)?.nome || 'Sem Grupo'}`);
+    if (localId !== 'todos') partes.push(`Local: ${locaisConfig.find(l => l.id === localId)?.nome || 'Projeto'}`);
     if (partes.length === 0) return 'Todo o período';
     return partes.join(' | ');
   };
@@ -144,21 +171,25 @@ export const PainelGerencial = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label>Tipo de Item</Label>
+              <Label>Classificação do Item</Label>
               <Select value={tipoItem} onValueChange={setTipoItem}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Todos os tipos" />
+                  <SelectValue placeholder="Todas as classificações" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos">Todos os tipos</SelectItem>
-                  <SelectItem value="Ferramenta">Ferramenta</SelectItem>
-                  <SelectItem value="Insumo">Insumo</SelectItem>
+                  <SelectItem value="todos">Todas as classificações</SelectItem>
+                  {classificacoesDinamicas.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Grupo Específico</Label>
-              <Select value={grupoId} onValueChange={setGrupoId}>
+              <Label>Grupo do Projeto</Label>
+              <Select value={grupoId} onValueChange={(val) => {
+                setGrupoId(val);
+                setLocalId('todos'); // Reseta o local ao mudar o grupo
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todos os grupos" />
                 </SelectTrigger>
@@ -168,6 +199,20 @@ export const PainelGerencial = () => {
                     <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>
                   ))}
                   <SelectItem value="sem-grupo">Sem Grupo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Projeto / Local</Label>
+              <Select value={localId} onValueChange={setLocalId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os projetos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os projetos</SelectItem>
+                  {locaisParaSeletor.map(l => (
+                    <SelectItem key={l.id} value={l.id}>{l.nome}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -294,9 +339,8 @@ export const PainelGerencial = () => {
                     : 100;
                   
                   return (
-                    <>
+                    <Fragment key={grupo.id}>
                       <TableRow 
-                        key={grupo.id} 
                         className={`hover:bg-muted/50 cursor-pointer ${isExpanded ? 'bg-muted/30' : ''}`}
                         onClick={() => toggleGroup(grupo.id)}
                       >
@@ -358,7 +402,7 @@ export const PainelGerencial = () => {
                                     className="h-7 text-xs gap-1"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      exportarItensGrupoExcel(grupo.nome, itensDoGrupo, getFiltrosDescricao());
+                                      exportarItensGrupoExcel(grupo.nome, itensDoGrupo || [], getFiltrosDescricao());
                                     }}
                                   >
                                     <FileDown className="h-3.5 w-3.5" />
@@ -384,7 +428,7 @@ export const PainelGerencial = () => {
                                     <TableRow>
                                       <TableHead className="font-bold">Item</TableHead>
                                       <TableHead className="font-bold">Código</TableHead>
-                                      <TableHead className="font-bold">Tipo</TableHead>
+                                      <TableHead className="font-bold">Tipo / Classificação</TableHead>
                                       <TableHead className="text-right font-bold">Saída</TableHead>
                                       <TableHead className="text-right font-bold">Devolvido</TableHead>
                                       <TableHead className="text-right font-bold">Saldo</TableHead>
@@ -392,13 +436,13 @@ export const PainelGerencial = () => {
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
-                                    {itensDoGrupo.map((item) => (
+                                    {(itensDoGrupo || []).map((item) => (
                                       <TableRow key={item.key} className="hover:bg-muted/50">
-                                        <TableCell className="font-medium">{item.itemSnapshot?.nome || 'Item'}</TableCell>
+                                        <TableCell className="font-medium">{item.itemSnapshot?.nome || 'Item avulso'}</TableCell>
                                         <TableCell className="font-mono text-[10px]">{item.itemSnapshot?.codigoBarras || '-'}</TableCell>
                                         <TableCell>
                                           <Badge variant="outline" className="text-[9px] h-4">
-                                            {item.itemSnapshot?.tipoItem || '-'}
+                                            {item.itemSnapshot?.tipoItem || 'N/A'}
                                           </Badge>
                                         </TableCell>
                                         <TableCell className="text-right font-mono">{item.totalSaida}</TableCell>
@@ -406,16 +450,16 @@ export const PainelGerencial = () => {
                                         <TableCell className="text-right font-mono font-bold text-orange-600">{item.pendente}</TableCell>
                                         <TableCell className="text-center">
                                           <div className={`w-2 h-2 rounded-full mx-auto ${
-                                            item.statusItem === 'devolvido' ? 'bg-emerald-500' : 
-                                            (item.statusItem === 'parcial' ? 'bg-amber-500' : 'bg-red-500')
-                                          }`} />
+                                            (item.statusItem || 'pendente') === 'devolvido' ? 'bg-emerald-500' : 
+                                            ((item.statusItem || 'pendente') === 'parcial' ? 'bg-amber-500' : 'bg-red-500')
+                                          }`} title={item.statusItem} />
                                         </TableCell>
                                       </TableRow>
                                     ))}
-                                    {itensDoGrupo.length === 0 && (
+                                    {(!itensDoGrupo || itensDoGrupo.length === 0) && (
                                       <TableRow>
                                         <TableCell colSpan={7} className="text-center py-4 text-muted-foreground italic">
-                                          Nenhum item pendente ou devolvido neste grupo para o período selecionado.
+                                          Nenhum item pendente ou devolvido neste grupo para os filtros ativos.
                                         </TableCell>
                                       </TableRow>
                                     )}
@@ -426,7 +470,7 @@ export const PainelGerencial = () => {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })
               )}
