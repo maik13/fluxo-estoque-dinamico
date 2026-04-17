@@ -399,9 +399,9 @@ export const PainelGerencial = () => {
                       </TableRow>
                       
                       {isExpanded && (
-                        <TableRow className="bg-muted/10 border-b">
-                          <TableCell colSpan={7} className="p-0">
-                            <div className="p-4 bg-muted/5">
+                        <TableRow className="bg-zinc-950/90 border-b border-zinc-800">
+                          <TableCell colSpan={7} className="p-0 bg-zinc-950">
+                            <div className="p-4 bg-zinc-950 text-zinc-100">
                               <div className="flex items-center justify-between mb-3 px-2">
                                 <h4 className="text-sm font-semibold flex items-center gap-2">
                                   <Filter className="h-4 w-4 text-primary" />
@@ -434,35 +434,35 @@ export const PainelGerencial = () => {
                                   </Button>
                                 </div>
                               </div>
-                              <div className="rounded-md border border-muted/30 bg-black/20 overflow-hidden shadow-inner">
+                              <div className="rounded-md border border-zinc-800 bg-zinc-900/50 overflow-hidden shadow-2xl">
                                 <Table className="text-xs">
-                                  <TableHeader className="bg-muted/40">
-                                    <TableRow>
-                                      <TableHead className="font-bold">Item</TableHead>
-                                      <TableHead className="font-bold">Código</TableHead>
-                                      <TableHead className="font-bold">Tipo / Classificação</TableHead>
-                                      <TableHead className="text-right font-bold">Saída</TableHead>
-                                      <TableHead className="text-right font-bold">Devolvido</TableHead>
-                                      <TableHead className="text-right font-bold">Saldo</TableHead>
-                                      <TableHead className="text-center font-bold">Status</TableHead>
+                                  <TableHeader className="bg-zinc-900">
+                                    <TableRow className="hover:bg-transparent border-zinc-800">
+                                      <TableHead className="font-bold text-zinc-400">Item</TableHead>
+                                      <TableHead className="font-bold text-zinc-400">Código</TableHead>
+                                      <TableHead className="font-bold text-zinc-400">Tipo / Classificação</TableHead>
+                                      <TableHead className="text-right font-bold text-zinc-400">Saída</TableHead>
+                                      <TableHead className="text-right font-bold text-zinc-400">Devolvido</TableHead>
+                                      <TableHead className="text-right font-bold text-zinc-400">Saldo</TableHead>
+                                      <TableHead className="text-center font-bold text-zinc-400">Status</TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
                                     {(itensDoGrupo || []).map((item) => (
-                                      <TableRow key={item.key} className="hover:bg-muted/50 border-muted/20">
-                                        <TableCell className="font-medium text-foreground py-3">{item.itemSnapshot?.nome || '-'}</TableCell>
-                                        <TableCell className="font-mono text-[10px] text-muted-foreground/90">{item.itemSnapshot?.codigoBarras || '-'}</TableCell>
+                                      <TableRow key={item.key} className="hover:bg-zinc-800/50 border-zinc-800">
+                                        <TableCell className="font-medium text-white py-3">{item.itemSnapshot?.nome || '-'}</TableCell>
+                                        <TableCell className="font-mono text-[10px] text-zinc-400">{item.itemSnapshot?.codigoBarras || '-'}</TableCell>
                                         <TableCell>
                                           <Badge 
                                             variant="secondary" 
-                                            className="text-[10px] h-5 px-2 bg-muted-foreground/10 text-foreground border-muted-foreground/20"
+                                            className="text-[10px] h-5 px-2 bg-zinc-800 text-zinc-100 border-zinc-700"
                                           >
                                             {item.classificacao || '-'}
                                           </Badge>
                                         </TableCell>
-                                        <TableCell className="text-right font-mono text-foreground">{item.totalSaida}</TableCell>
-                                        <TableCell className="text-right font-mono text-emerald-500">{item.totalDevolvido}</TableCell>
-                                        <TableCell className="text-right font-mono font-bold text-orange-500">{item.pendente}</TableCell>
+                                        <TableCell className="text-right font-mono text-zinc-100">{item.totalSaida}</TableCell>
+                                        <TableCell className="text-right font-mono text-emerald-400">{item.totalDevolvido}</TableCell>
+                                        <TableCell className="text-right font-mono font-bold text-orange-400">{item.pendente}</TableCell>
                                         <TableCell className="text-center">
                                           <div className={`w-2 h-2 rounded-full mx-auto ${
                                             (item.statusItem || 'pendente') === 'devolvido' ? 'bg-emerald-500' : 
