@@ -434,9 +434,9 @@ export const PainelGerencial = () => {
                                   </Button>
                                 </div>
                               </div>
-                              <div className="rounded-md border bg-white overflow-hidden">
+                              <div className="rounded-md border border-muted/30 bg-black/20 overflow-hidden shadow-inner">
                                 <Table className="text-xs">
-                                  <TableHeader className="bg-muted/20">
+                                  <TableHeader className="bg-muted/40">
                                     <TableRow>
                                       <TableHead className="font-bold">Item</TableHead>
                                       <TableHead className="font-bold">Código</TableHead>
