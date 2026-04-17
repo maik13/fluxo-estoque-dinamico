@@ -449,17 +449,20 @@ export const PainelGerencial = () => {
                                   </TableHeader>
                                   <TableBody>
                                     {(itensDoGrupo || []).map((item) => (
-                                      <TableRow key={item.key} className="hover:bg-muted/50">
-                                        <TableCell className="font-medium">{item.itemSnapshot?.nome || 'Item avulso'}</TableCell>
-                                        <TableCell className="font-mono text-[10px]">{item.itemSnapshot?.codigoBarras || '-'}</TableCell>
+                                      <TableRow key={item.key} className="hover:bg-muted/50 border-muted/20">
+                                        <TableCell className="font-medium text-foreground py-3">{item.itemSnapshot?.nome || '-'}</TableCell>
+                                        <TableCell className="font-mono text-[10px] text-muted-foreground/90">{item.itemSnapshot?.codigoBarras || '-'}</TableCell>
                                         <TableCell>
-                                          <Badge variant="outline" className="text-[9px] h-4">
+                                          <Badge 
+                                            variant="secondary" 
+                                            className="text-[10px] h-5 px-2 bg-muted-foreground/10 text-foreground border-muted-foreground/20"
+                                          >
                                             {item.classificacao || '-'}
                                           </Badge>
                                         </TableCell>
-                                        <TableCell className="text-right font-mono">{item.totalSaida}</TableCell>
-                                        <TableCell className="text-right font-mono text-emerald-600">{item.totalDevolvido}</TableCell>
-                                        <TableCell className="text-right font-mono font-bold text-orange-600">{item.pendente}</TableCell>
+                                        <TableCell className="text-right font-mono text-foreground">{item.totalSaida}</TableCell>
+                                        <TableCell className="text-right font-mono text-emerald-500">{item.totalDevolvido}</TableCell>
+                                        <TableCell className="text-right font-mono font-bold text-orange-500">{item.pendente}</TableCell>
                                         <TableCell className="text-center">
                                           <div className={`w-2 h-2 rounded-full mx-auto ${
                                             (item.statusItem || 'pendente') === 'devolvido' ? 'bg-emerald-500' : 
