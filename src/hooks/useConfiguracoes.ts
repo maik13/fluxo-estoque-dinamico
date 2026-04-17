@@ -1201,21 +1201,36 @@ export const useConfiguracoes = () => {
     // Verificar se há locais vinculados
     const locaisVinculados = locaisUtilizacao.filter(l => l.group_id === id);
     if (locaisVinculados.length > 0) {
+      const nomesLocais = locaisVinculados.map(l => l.nome).slice(0, 3).join(', ');
+      const excesso = locaisVinculados.length > 3 ? ` e mais ${locaisVinculados.length - 3}` : '';
+      
       toast({
         title: "Erro ao remover",
-        description: `Não é possível remover um grupo que possui ${locaisVinculados.length} local(ais) vinculado(s).`,
+        description: `Não é possível remover este grupo porque ele possui ${locaisVinculados.length} local(ais) vinculado(s) (Ex: ${nomesLocais}${excesso}).`,
         variant: "destructive",
       });
       return false;
     }
 
     try {
-      const { error } = await supabase
+      // Usar .select() para confirmar que a linha foi de fato removida
+      const { data, error } = await supabase
         .from('project_groups')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
       if (error) throw error;
+
+      // Se data estiver vazio, significa que nenhuma linha foi removida (ex: RLS bloqueou)
+      if (!data || data.length === 0) {
+        toast({
+          title: "Erro ao excluir",
+          description: "O banco de dados recusou a operação de exclusão. Verifique se você aplicou a política de DELETE (SQL) ou se o registro já foi removido.",
+          variant: "destructive",
+        });
+        return false;
+      }
 
       setGruposProjeto(prev => prev.filter(g => g.id !== id));
       
