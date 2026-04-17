@@ -178,16 +178,17 @@ export const usePermissions = () => {
   const canManageSettings = () => isAdmin() || permissoesDinamicas.pode_gerenciar_configuracoes;
 
   // Permissões de funcionalidades do menu
-  const canSolicitarMaterial = () => isAdmin() || permissoesDinamicas.pode_solicitar_material;
-  const canDevolverMaterial = () => isAdmin() || permissoesDinamicas.pode_devolver_material;
-  const canRegistrarEntrada = () => isAdmin() || permissoesDinamicas.pode_registrar_entrada;
-  const canTransferir = () => isAdmin() || permissoesDinamicas.pode_transferir;
-  const canRegistrarSaida = () => isAdmin() || permissoesDinamicas.pode_registrar_saida;
-  const canPedidoCompra = () => isAdmin() || permissoesDinamicas.pode_pedido_compra;
-  const canSolicitacaoMaterial = () => isAdmin() || permissoesDinamicas.pode_solicitacao_material;
-  const canEditMovements = () => isAdmin() || permissoesDinamicas.pode_editar_movimentacoes;
-  const canAccessManagerial = () => isAdmin() || permissoesDinamicas.pode_acessar_gerencial;
-  const canAccessProjects = () => isAdmin() || permissoesDinamicas.pode_acessar_projetos;
+  // Permissões de funcionalidades do menu - Respeito estrito à Matriz
+  const canSolicitarMaterial = () => permissoesDinamicas.pode_solicitar_material;
+  const canDevolverMaterial = () => permissoesDinamicas.pode_devolver_material;
+  const canRegistrarEntrada = () => permissoesDinamicas.pode_registrar_entrada;
+  const canTransferir = () => permissoesDinamicas.pode_transferir;
+  const canRegistrarSaida = () => permissoesDinamicas.pode_registrar_saida;
+  const canPedidoCompra = () => permissoesDinamicas.pode_pedido_compra;
+  const canSolicitacaoMaterial = () => permissoesDinamicas.pode_solicitacao_material;
+  const canEditMovements = () => permissoesDinamicas.pode_editar_movimentacoes;
+  const canAccessManagerial = () => permissoesDinamicas.pode_acessar_gerencial;
+  const canAccessProjects = () => permissoesDinamicas.pode_acessar_projetos;
 
   return {
     userProfile,

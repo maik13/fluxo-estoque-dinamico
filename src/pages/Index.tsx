@@ -86,14 +86,20 @@ const Index = () => {
         <div className="w-full px-4 py-4">
           {(() => {
             const showEstoque = canManageStock();
-            const showMovimentacoes = canViewReports() || canManageStock();
+            const showMovimentacoes = canManageStock(); // A Engenharia agora acessa Relatórios e Projetos via Menu Principal
             const showGerencial = canAccessManagerial();
             const showProjetos = canAccessProjects();
+            
+            // Filtra as abas que serão mostradas no topo
             const tabCount = 1 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
+            
             return (
               <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
-                <TabsList className={`grid w-full mb-6`} style={{ gridTemplateColumns: `repeat(${tabCount}, 1fr)` }}>
-                    <TabsTrigger value="menu" className="flex items-center gap-2">
+                <TabsList 
+                  className="grid w-full mb-6" 
+                  style={{ gridTemplateColumns: `repeat(${tabCount}, 1fr)` }}
+                >
+                  <TabsTrigger value="menu" className="flex items-center gap-2">
                     <Menu className="h-4 w-4" />
                     Menu Principal
                   </TabsTrigger>

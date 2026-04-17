@@ -33,7 +33,7 @@ export const TabelaMovimentacoes = () => {
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<TipoMovimentacao | 'todas'>('todas');
   const [filtroDestino, setFiltroDestino] = useState('todos');
-  const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes' | 'pendentes' | 'projetos'>('todas');
+  const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes' | 'pendentes'>('todas');
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroTipoItem, setFiltroTipoItem] = useState('todos');
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | undefined>(undefined);
@@ -95,66 +95,6 @@ export const TabelaMovimentacoes = () => {
     return Array.from(locais).sort();
   }, [movimentacoes]);
 
-  // Usar o novo hook compartilhado para cálculo de pendências e consolidado
-  const { itensAgrupados: itensPendentes } = useConsolidacao(
-    movimentacoes,
-    locaisConfig,
-    gruposProjeto,
-    tipoAgrupamentoProjetos
-  );
-
-  // Locais únicos dos pendentes para filtro
-  const locaisPendentes = useMemo(() => {
-    const locais = new Set(itensPendentes.map(p => p.localUtilizacaoNome).filter(Boolean));
-    return Array.from(locais).filter(l => l && l.trim() !== '').sort();
-  }, [itensPendentes]);
-
-  // Filtrar pendentes por diversos critérios
-  const pendentesFiltrados = useMemo(() => {
-    let resultado = itensPendentes;
-
-    // 1. Filtro de Texto (Nome ou Código)
-    if (filtroPendentesTexto) {
-      const busca = filtroPendentesTexto.toLowerCase();
-      resultado = resultado.filter(p => 
-        p.itemSnapshot?.nome?.toLowerCase().includes(busca) ||
-        p.itemSnapshot?.codigoBarras?.toLowerCase().includes(busca)
-      );
-    }
-
-    // 2. Filtro de Tipo de Item
-    if (filtroPendentesTipoItem !== 'todos') {
-      resultado = resultado.filter(p => p.itemSnapshot?.tipoItem === filtroPendentesTipoItem);
-    }
-
-    // 3. Filtro de Status
-    if (filtroPendentesStatus === 'ativos') {
-      // Padrão: Pendente + Parcial (saldo > 0)
-      resultado = resultado.filter(p => p.statusItem === 'pendente' || p.statusItem === 'parcial');
-    } else if (filtroPendentesStatus !== 'todos') {
-      resultado = resultado.filter(p => p.statusItem === filtroPendentesStatus);
-    }
-
-    // 4. Filtro de Destino/Local
-    if (filtroPendentesDestino !== 'todos') {
-      resultado = resultado.filter(p => p.localUtilizacaoNome === filtroPendentesDestino);
-    }
-
-    // 5. Filtro de Datas
-    if (filtroDataPendentesInicio) {
-      const inicio = new Date(filtroDataPendentesInicio);
-      inicio.setHours(0, 0, 0, 0);
-      resultado = resultado.filter(p => new Date(p.ultimaSaida) >= inicio);
-    }
-    if (filtroDataPendentesFim) {
-      const fim = new Date(filtroDataPendentesFim);
-      fim.setHours(23, 59, 59, 999);
-      resultado = resultado.filter(p => new Date(p.ultimaSaida) <= fim);
-    }
-
-    return resultado;
-  }, [itensPendentes, filtroPendentesTexto, filtroPendentesTipoItem, filtroPendentesStatus, filtroPendentesDestino, filtroDataPendentesInicio, filtroDataPendentesFim]);
-
   // Helper: verificar se uma movimentação é devolução
   const isDevolucao = (mov: any) => {
     if (mov.tipo !== 'ENTRADA') return false;
@@ -177,12 +117,11 @@ export const TabelaMovimentacoes = () => {
         matchTipo = mov.tipo === 'SAIDA';
       } else if (tipoVisualizacao === 'devolucoes') {
         matchTipo = isDevolucao(mov);
+        matchTipo = mov.tipo === 'SAIDA';
+      } else if (tipoVisualizacao === 'devolucoes') {
+        matchTipo = isDevolucao(mov);
       } else if (tipoVisualizacao === 'pendentes') {
-        const itemPendente = itensPendentes.find(p => 
-          p.itemId === mov.itemId && 
-          p.localUtilizacaoId === (mov.localUtilizacaoId || 'sem-local')
-        );
-        matchTipo = mov.tipo === 'SAIDA' && (itemPendente?.pendente || 0) > 0;
+        matchTipo = mov.tipo === 'SAIDA'; // Simplificado para focar em saídas operacionais
       } else {
         matchTipo = filtroTipo === 'todas' || mov.tipo === filtroTipo;
       }
@@ -397,160 +336,6 @@ export const TabelaMovimentacoes = () => {
       <div class="info">Gerado em: ${new Date().toLocaleString('pt-BR')} | Total: ${movimentacoesFiltradas.length} registros${filtrosAtivos.length > 0 ? ' | Filtros: ' + filtrosAtivos.join(', ') : ''}</div>
       <table><thead><tr>
         <th>Tipo</th><th>Data/Hora</th><th>Item</th><th>Código</th><th>Qtd</th><th>Solicitante</th><th>Responsável</th><th>Destinatário</th><th>Tipo Item</th><th>Categoria</th><th>Estoque/Destino</th><th>Observações</th>
-      </tr></thead><tbody>${linhas}</tbody></table>
-      <script>window.print();window.onafterprint=()=>window.close();</script>
-    </body></html>`);
-    printWindow.document.close();
-  };
-
-  // Função para exportar resumo por projeto para Excel
-  const exportarPendentesParaExcel = () => {
-    try {
-      const dadosExportacao = pendentesFiltrados.map(item => {
-        let statusTexto = 'Pendente';
-        if (item.statusItem === 'parcial') statusTexto = 'Parcial';
-        if (item.statusItem === 'devolvido') statusTexto = 'Devolvido';
-
-        const row: any = {};
-        if (tipoAgrupamentoProjetos === 'grupo') {
-          row['Grupo'] = item.localUtilizacaoNome;
-        } else {
-          row['Projeto/Local'] = item.localUtilizacaoNome;
-          row['Grupo'] = item.projetoGrupoNome;
-        }
-        
-        row['Item'] = item.itemSnapshot?.nome || 'Item não identificado';
-        row['Código'] = item.itemSnapshot?.codigoBarras || '-';
-        row['Tipo'] = item.itemSnapshot?.tipoItem || '-';
-        row['Status'] = statusTexto;
-        row['Total Saída'] = item.totalSaida;
-        row['Total Devolvido'] = item.totalDevolvido;
-        row['Saldo Pendente'] = item.pendente;
-        
-        if (tipoAgrupamentoProjetos === 'projeto') {
-          row['Última Saída'] = item.ultimaSaida ? new Date(item.ultimaSaida).toLocaleDateString('pt-BR') : '-';
-          row['Responsável'] = item.destinatario || item.solicitanteNome || '-';
-        }
-        
-        return row;
-      });
-
-      const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.json_to_sheet(dadosExportacao);
-
-      const columnWidths = tipoAgrupamentoProjetos === 'grupo' ? [
-        { wch: 20 }, // Grupo
-        { wch: 30 }, // Item
-        { wch: 15 }, // Código
-        { wch: 15 }, // Tipo
-        { wch: 15 }, // Status
-        { wch: 12 }, // Saída
-        { wch: 12 }, // Devolvido
-        { wch: 12 }  // Saldo
-      ] : [
-        { wch: 25 }, // Projeto
-        { wch: 20 }, // Grupo
-        { wch: 30 }, // Item
-        { wch: 15 }, // Código
-        { wch: 15 }, // Tipo
-        { wch: 15 }, // Status
-        { wch: 12 }, // Saída
-        { wch: 12 }, // Devolvido
-        { wch: 12 }, // Saldo
-        { wch: 15 }, // Última Saída
-        { wch: 20 }  // Responsável
-      ];
-      worksheet['!cols'] = columnWidths;
-
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Resumo por Projeto');
-      const dataAtual = new Date().toISOString().split('T')[0];
-      const prefixo = tipoAgrupamentoProjetos === 'grupo' ? 'consolidado-grupos' : 'resumo-projetos';
-      XLSX.writeFile(workbook, `${prefixo}-${dataAtual}.xlsx`);
-
-      toast({
-        title: "Exportação concluída!",
-        description: `${pendentesFiltrados.length} registros exportados com sucesso.`,
-      });
-    } catch (error) {
-      console.error('Erro ao exportar resumo:', error);
-      toast({
-        title: "Erro na exportação",
-        description: "Não foi possível exportar o resumo por projeto.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Função para imprimir resumo por projeto
-  const imprimirPendentes = async () => {
-    let logoHtml = '';
-    try {
-      const { data } = await supabase.storage.from('branding').list('', { limit: 1 });
-      if (data && data.length > 0) {
-        const { data: publicUrlData } = supabase.storage.from('branding').getPublicUrl(data[0].name);
-        if (publicUrlData.publicUrl) {
-          logoHtml = `<img src="${publicUrlData.publicUrl}" alt="Logo" style="height:50px;object-fit:contain;" />`;
-        }
-      }
-    } catch (e) { console.error('Erro ao carregar logo:', e); }
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    const linhas = pendentesFiltrados.map(item => {
-      let statusIcon = '🔴';
-      if (item.statusItem === 'parcial') statusIcon = '🟡';
-      if (item.statusItem === 'devolvido') statusIcon = '🟢';
-
-      const colunasAdicionaisProjeto = tipoAgrupamentoProjetos === 'projeto' ? `
-        <td>${item.localUtilizacaoNome}</td>
-        <td>${item.projetoGrupoNome}</td>
-      ` : `<td>${item.localUtilizacaoNome}</td>`;
-
-      const colunasFinaisProjeto = tipoAgrupamentoProjetos === 'projeto' ? `
-        <td>${item.ultimaSaida ? new Date(item.ultimaSaida).toLocaleDateString('pt-BR') : '-'}</td>
-        <td>${item.destinatario || item.solicitanteNome || '-'}</td>
-      ` : '';
-
-      return `<tr>
-        ${colunasAdicionaisProjeto}
-        <td>${item.itemSnapshot?.nome || '-'}</td>
-        <td>${item.itemSnapshot?.codigoBarras || '-'}</td>
-        <td>${item.itemSnapshot?.tipoItem || '-'}</td>
-        <td>${statusIcon} ${item.statusItem.toUpperCase()}</td>
-        <td style="text-align:right">${item.totalSaida}</td>
-        <td style="text-align:right">${item.totalDevolvido}</td>
-        <td style="text-align:right; font-weight:bold">${item.pendente}</td>
-        ${colunasFinaisProjeto}
-      </tr>`;
-    }).join('');
-
-    const filtrosAtivos = [];
-    if (filtroPendentesStatus !== 'ativos') filtrosAtivos.push(`Status: ${filtroPendentesStatus}`);
-    if (filtroPendentesTipoItem !== 'todos') filtrosAtivos.push(`Tipo: ${filtroPendentesTipoItem}`);
-    if (filtroPendentesDestino !== 'todos') filtrosAtivos.push(`Local: ${filtroPendentesDestino}`);
-    if (filtroPendentesTexto) filtrosAtivos.push(`Busca: ${filtroPendentesTexto}`);
-
-      const cabecalhoColunas = tipoAgrupamentoProjetos === 'grupo' 
-        ? '<th>Grupo</th><th>Item</th><th>Código</th><th>Tipo</th><th>Status</th><th>Total Saída</th><th>Total Devolvido</th><th>Saldo</th>'
-        : '<th>Projeto/Local</th><th>Grupo</th><th>Item</th><th>Código</th><th>Tipo</th><th>Status</th><th>Saída</th><th>Devolvido</th><th>Saldo</th><th>Última Saída</th><th>Responsável</th>';
-
-      printWindow.document.write(`<!DOCTYPE html><html><head><title>Resumo de Materiais</title>
-      <style>
-        body { font-family: Arial, sans-serif; font-size: 11px; margin: 20px; }
-        .header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; border-bottom: 2px solid #f59e0b; padding-bottom: 8px; }
-        .header h1 { font-size: 16px; margin: 0; color: #b45309; }
-        .info { color: #666; margin-bottom: 12px; font-size: 10px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; }
-        th { background: #fef3c7; color: #b45309; font-size: 10px; }
-        tr:nth-child(even) { background: #fffbeb; }
-        @media print { body { margin: 10px; } }
-      </style></head><body>
-      <div class="header">${logoHtml}<h1>${tipoAgrupamentoProjetos === 'grupo' ? 'Consolidado por Grupo' : 'Resumo por Projeto'}</h1></div>
-      <div class="info">Gerado em: ${new Date().toLocaleString('pt-BR')} | Itens: ${pendentesFiltrados.length}${filtrosAtivos.length > 0 ? ' | Filtros: ' + filtrosAtivos.join(', ') : ''}</div>
-      <table><thead><tr>
-        ${cabecalhoColunas}
       </tr></thead><tbody>${linhas}</tbody></table>
       <script>window.print();window.onafterprint=()=>window.close();</script>
     </body></html>`);
