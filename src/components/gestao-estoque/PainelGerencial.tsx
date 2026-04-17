@@ -45,7 +45,12 @@ export const PainelGerencial = () => {
   }), [dataInicio, dataFim, tipoItem, grupoId, localId]);
 
   // Obter dados consolidados usando o hook compartilhado (chamado único para todo o componente)
-  const { gruposAgrupados, kpis, itensAgrupados } = useConsolidacao(
+  const { 
+    gruposAgrupados, 
+    kpis, 
+    itensAgrupados,
+    responsaveisAgrupados 
+  } = useConsolidacao(
     movimentacoes,
     locaisConfig,
     gruposProjeto,
@@ -557,24 +562,14 @@ export const PainelGerencial = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {/* @ts-ignore - responsaveisAgrupados injetado pelo hook atualizado */}
-                {(() => {
-                  const { responsaveisAgrupados } = useConsolidacao(
-                    movimentacoes, locaisConfig, gruposProjeto, 'grupo', filtros, 
-                    categorias, subcategorias, categoriasSubcategorias
-                  );
-                  
-                  if (!responsaveisAgrupados || responsaveisAgrupados.length === 0) {
-                    return (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                          Nenhuma pendência identificada por responsável.
-                        </TableCell>
-                      </TableRow>
-                    );
-                  }
-
-                  return responsaveisAgrupados.map((resp: any) => (
+                {!responsaveisAgrupados || responsaveisAgrupados.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      Nenhuma pendência identificada por responsável.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  responsaveisAgrupados.map((resp: any) => (
                     <TableRow key={resp.nome} className="hover:bg-muted/50">
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
@@ -583,14 +578,14 @@ export const PainelGerencial = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-center font-mono">
-                        {resp.totalItensPendentes.toLocaleString('pt-BR')}
+                        {(resp.totalItensPendentes || 0).toLocaleString('pt-BR')}
                       </TableCell>
                       <TableCell className="text-right font-mono font-bold text-orange-600">
-                        {resp.saldoTotalPendente.toLocaleString('pt-BR')}
+                        {(resp.saldoTotalPendente || 0).toLocaleString('pt-BR')}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          {resp.gruposEnvolvidos.map((g: string) => (
+                          {(resp.gruposEnvolvidos || []).map((g: string) => (
                             <Badge key={g} variant="outline" className="text-[10px] bg-muted/30">
                               {g}
                             </Badge>
@@ -598,8 +593,8 @@ export const PainelGerencial = () => {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ));
-                })()}
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
