@@ -33,6 +33,7 @@ export const PainelGerencial = () => {
   const [localId, setLocalId] = useState<string>('todos');
   const [buscaGrupo, setBuscaGrupo] = useState<string>('');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [isResponsaveisExpanded, setIsResponsaveisExpanded] = useState(false);
 
   // Preparar filtros para o hook
   const filtros: ConsolidacaoFiltros = useMemo(() => ({
@@ -523,77 +524,86 @@ export const PainelGerencial = () => {
 
       {/* Tabela de Responsáveis com maior pendência */}
       <Card className="border-muted">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-          <div>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Truck className="h-5 w-5 text-primary" />
-              Responsáveis com maior pendência
-            </CardTitle>
-            <CardDescription>
-              Ranking consolidado por destinatário/solicitante baseado no saldo total pendente
-            </CardDescription>
+        <CardHeader 
+          className="flex flex-row items-center justify-between space-y-0 pb-3 cursor-pointer hover:bg-muted/30 transition-colors"
+          onClick={() => setIsResponsaveisExpanded(!isResponsaveisExpanded)}
+        >
+          <div className="flex items-center gap-3">
+            {isResponsaveisExpanded ? <ChevronDown className="h-5 w-5 text-primary" /> : <ChevronRight className="h-5 w-5 text-primary" />}
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Truck className="h-5 w-5 text-primary" />
+                Responsáveis com maior pendência
+              </CardTitle>
+              <CardDescription>
+                Ranking consolidado por destinatário/solicitante baseado no saldo total pendente
+              </CardDescription>
+            </div>
           </div>
-          <div className="flex gap-2 print:hidden">
-            {/* O resumo de responsáveis pode ser impresso junto com o painel */}
+          <div className="flex gap-2 print:hidden items-center text-xs text-muted-foreground font-medium">
+            {isResponsaveisExpanded ? 'Recolher' : 'Expandir'}
           </div>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Responsável</TableHead>
-                <TableHead className="text-center">Total de Itens Pendentes</TableHead>
-                <TableHead className="text-right">Saldo Total Pendente</TableHead>
-                <TableHead>Grupos Envolvidos</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {/* @ts-ignore - responsaveisAgrupados injetado pelo hook atualizado */}
-              {(() => {
-                const { responsaveisAgrupados } = useConsolidacao(
-                  movimentacoes, locaisConfig, gruposProjeto, 'grupo', filtros, 
-                  categorias, subcategorias, categoriasSubcategorias
-                );
-                
-                if (!responsaveisAgrupados || responsaveisAgrupados.length === 0) {
-                  return (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                        Nenhuma pendência identificada por responsável.
+        
+        {isResponsaveisExpanded && (
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Responsável</TableHead>
+                  <TableHead className="text-center">Total de Itens Pendentes</TableHead>
+                  <TableHead className="text-right">Saldo Total Pendente</TableHead>
+                  <TableHead>Grupos Envolvidos</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* @ts-ignore - responsaveisAgrupados injetado pelo hook atualizado */}
+                {(() => {
+                  const { responsaveisAgrupados } = useConsolidacao(
+                    movimentacoes, locaisConfig, gruposProjeto, 'grupo', filtros, 
+                    categorias, subcategorias, categoriasSubcategorias
+                  );
+                  
+                  if (!responsaveisAgrupados || responsaveisAgrupados.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                          Nenhuma pendência identificada por responsável.
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+
+                  return responsaveisAgrupados.map((resp: any) => (
+                    <TableRow key={resp.nome} className="hover:bg-muted/50">
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <Truck className="h-4 w-4 text-muted-foreground" />
+                          {resp.nome}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center font-mono">
+                        {resp.totalItensPendentes.toLocaleString('pt-BR')}
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-bold text-orange-600">
+                        {resp.saldoTotalPendente.toLocaleString('pt-BR')}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {resp.gruposEnvolvidos.map((g: string) => (
+                            <Badge key={g} variant="outline" className="text-[10px] bg-muted/30">
+                              {g}
+                            </Badge>
+                          ))}
+                        </div>
                       </TableCell>
                     </TableRow>
-                  );
-                }
-
-                return responsaveisAgrupados.map((resp: any) => (
-                  <TableRow key={resp.nome} className="hover:bg-muted/50">
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <Truck className="h-4 w-4 text-muted-foreground" />
-                        {resp.nome}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center font-mono">
-                      {resp.totalItensPendentes.toLocaleString('pt-BR')}
-                    </TableCell>
-                    <TableCell className="text-right font-mono font-bold text-orange-600">
-                      {resp.saldoTotalPendente.toLocaleString('pt-BR')}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {resp.gruposEnvolvidos.map((g: string) => (
-                          <Badge key={g} variant="outline" className="text-[10px] bg-muted/30">
-                            {g}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ));
-              })()}
-            </TableBody>
-          </Table>
-        </CardContent>
+                  ));
+                })()}
+              </TableBody>
+            </Table>
+          </CardContent>
+        )}
       </Card>
     </div>
   );
