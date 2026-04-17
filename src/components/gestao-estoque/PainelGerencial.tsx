@@ -391,5 +391,3 @@ export const PainelGerencial = () => {
   );
 };
 
-// Importações adicionais necessárias para os ícones
-import { AlertTriangle } from 'lucide-react';
