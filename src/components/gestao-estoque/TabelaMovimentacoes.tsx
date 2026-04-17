@@ -35,7 +35,6 @@ export const TabelaMovimentacoes = () => {
   const [filtroDestino, setFiltroDestino] = useState('todos');
   const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes' | 'pendentes' | 'projetos'>('todas');
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
-  const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroTipoItem, setFiltroTipoItem] = useState('todos');
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | undefined>(undefined);
   const [filtroDataFim, setFiltroDataFim] = useState<Date | undefined>(undefined);
@@ -44,7 +43,9 @@ export const TabelaMovimentacoes = () => {
   const itensPorPagina = 20;
   const [relatorioAberto, setRelatorioAberto] = useState(false);
   const { locaisUtilizacao: locaisConfig, gruposProjeto, subcategorias: subcategoriasConfig, obterPrimeiraCategoriaDeSubcategoria } = useConfiguracoes();
-  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [movimentoEditando, setMovimentoEditando] = useState<Movimentacao | null>(null);
+  const [novoLocalId, setNovoLocalId] = useState<string>('');
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
   // Buscar informações dos usuários (para coluna Responsável)
   useEffect(() => {
@@ -1174,9 +1175,6 @@ export const TabelaMovimentacoes = () => {
             </div>
           </TabsContent>
         ))}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
       <Dialog open={!!movimentoEditando} onOpenChange={(open) => !open && setMovimentoEditando(null)}>
         <DialogContent>
