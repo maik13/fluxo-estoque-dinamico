@@ -43,12 +43,26 @@ export const PainelGerencial = () => {
     localId
   }), [dataInicio, dataFim, tipoItem, grupoId, localId]);
 
+  // Obter dados consolidados usando o hook compartilhado (chamado único para todo o componente)
+  const { gruposAgrupados, kpis, itensAgrupados } = useConsolidacao(
+    movimentacoes,
+    locaisConfig,
+    gruposProjeto,
+    'grupo',
+    filtros,
+    categorias,
+    subcategorias,
+    categoriasSubcategorias
+  );
+
   // Extrair classificações reais presentes nos itens consolidados (Categoria Nome)
   const classificacoesDinamicas = useMemo(() => {
     const classes = new Set<string>();
-    itensAgrupados.forEach(item => {
-      if (item.classificacao) classes.add(item.classificacao);
-    });
+    if (itensAgrupados) {
+      itensAgrupados.forEach(item => {
+        if (item.classificacao) classes.add(item.classificacao);
+      });
+    }
     return Array.from(classes).sort();
   }, [itensAgrupados]);
 
@@ -65,17 +79,6 @@ export const PainelGerencial = () => {
     return filtrados.sort((a, b) => a.nome.localeCompare(b.nome));
   }, [locaisConfig, grupoId]);
 
-  // Obter dados consolidados usando o hook compartilhado
-  const { gruposAgrupados, kpis } = useConsolidacao(
-    movimentacoes,
-    locaisConfig,
-    gruposProjeto,
-    'grupo',
-    filtros,
-    categorias,
-    subcategorias,
-    categoriasSubcategorias
-  );
 
   // Obter a lista completa de grupos para exibição (Cadastro + Calculados)
   const gruposFiltrados = useMemo(() => {
@@ -146,16 +149,6 @@ export const PainelGerencial = () => {
     return partes.join(' | ');
   };
 
-  const { itensAgrupados } = useConsolidacao(
-    movimentacoes, 
-    locaisConfig, 
-    gruposProjeto, 
-    'grupo', 
-    filtros,
-    categorias,
-    subcategorias,
-    categoriasSubcategorias
-  );
 
   return (
     <div className="space-y-6">
