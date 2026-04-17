@@ -123,3 +123,18 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Otimizações para Impressão */
+@media print {
+  nav, aside, header, .sidebar, .print-hidden, .print\:hidden, button, .filters-section, .lucide {
+    display: none !important;
+  }
+  .print-section {
+    position: absolute; left: 0; top: 0; width: 100% !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border: none !important;
+  }
+  .bg-muted, .bg-muted\/10, .bg-muted\/30, .bg-muted\/5, .bg-muted\/20 {
+    background-color: #f5f5f5 !important; -webkit-print-color-adjust: exact;
+  }
+  table { width: 100% !important; border-collapse: collapse !important; }
+  th, td { border: 1px solid #eee !important; padding: 6px !important; text-align: left !important; font-size: 9pt !important; color: black !important; }
+}

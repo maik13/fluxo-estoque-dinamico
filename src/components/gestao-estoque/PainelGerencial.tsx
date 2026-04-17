@@ -8,7 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { useConsolidacao, ConsolidacaoFiltros } from '@/hooks/useConsolidacao';
-import { BarChart3, Package, Truck, RotateCcw, Search, Filter } from 'lucide-react';
+import { 
+  BarChart3, Package, Truck, RotateCcw, Search, Filter, 
+  ChevronRight, ChevronDown, FileDown, Printer, AlertTriangle 
+} from 'lucide-react';
+import { exportarResumoGruposExcel, exportarItensGrupoExcel } from '@/utils/reportExport';
+import { Button } from '@/components/ui/button';
 
 export const PainelGerencial = () => {
   const { movimentacoes } = useEstoqueContext();
@@ -20,6 +25,7 @@ export const PainelGerencial = () => {
   const [tipoItem, setTipoItem] = useState<string>('todos');
   const [grupoId, setGrupoId] = useState<string>('todos');
   const [buscaGrupo, setBuscaGrupo] = useState<string>('');
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   // Preparar filtros para o hook
   const filtros: ConsolidacaoFiltros = useMemo(() => ({
@@ -44,6 +50,27 @@ export const PainelGerencial = () => {
     const termo = buscaGrupo.toLowerCase();
     return gruposAgrupados.filter(g => g.nome.toLowerCase().includes(termo));
   }, [gruposAgrupados, buscaGrupo]);
+
+  const toggleGroup = (id: string) => {
+    const newExpanded = new Set(expandedGroups);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedGroups(newExpanded);
+  };
+
+  const getFiltrosDescricao = () => {
+    const partes = [];
+    if (dataInicio) partes.push(`Início: ${new Date(dataInicio).toLocaleDateString('pt-BR')}`);
+    if (dataFim) partes.push(`Fim: ${new Date(dataFim).toLocaleDateString('pt-BR')}`);
+    if (tipoItem !== 'todos') partes.push(`Tipo: ${tipoItem}`);
+    if (partes.length === 0) return 'Todo o período';
+    return partes.join(' | ');
+  };
+
+  const { itensAgrupados } = useConsolidacao(movimentacoes, locaisConfig, gruposProjeto, 'grupo', filtros);
 
   return (
     <div className="space-y-6">
@@ -168,72 +195,191 @@ export const PainelGerencial = () => {
       </div>
 
       {/* Tabela de Grupos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Grupos com maior pendência</CardTitle>
-          <CardDescription>
-            Resumo consolidado por Grupo de Projeto ordenado por saldo de material em campo
-          </CardDescription>
+      <Card className="print-section">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <div>
+            <CardTitle>Grupos com maior pendência</CardTitle>
+            <CardDescription className="print:hidden">
+              Resumo consolidado por Grupo de Projeto ordenado por saldo de material em campo
+            </CardDescription>
+          </div>
+          <div className="flex gap-2 print:hidden">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 gap-1"
+              onClick={() => exportarResumoGruposExcel(gruposFiltrados, getFiltrosDescricao())}
+            >
+              <FileDown className="h-4 w-4" />
+              Excel
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 gap-1"
+              onClick={() => window.print()}
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px] print:hidden"></TableHead>
                 <TableHead>Grupo</TableHead>
                 <TableHead className="text-right">Total Saída</TableHead>
                 <TableHead className="text-right">Total Devolvido</TableHead>
                 <TableHead className="text-right">Saldo</TableHead>
-                <TableHead className="text-center">Aproveitamento</TableHead>
+                <TableHead className="text-center print:hidden">Aproveitamento</TableHead>
                 <TableHead className="text-center">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {gruposFiltrados.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Nenhum dado encontrado para os filtros selecionados.
                   </TableCell>
                 </TableRow>
               ) : (
                 gruposFiltrados.map((grupo) => {
+                  const isExpanded = expandedGroups.has(grupo.id);
+                  const itensDoGrupo = itensAgrupados.filter(i => i.localUtilizacaoId === grupo.id);
                   const aproveitamento = grupo.totalSaida > 0 
                     ? Math.round((grupo.totalDevolvido / grupo.totalSaida) * 100) 
                     : 100;
                   
                   return (
-                    <TableRow key={grupo.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <Package className="h-4 w-4 text-muted-foreground" />
-                          {grupo.nome}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-mono">{grupo.totalSaida.toLocaleString('pt-BR')}</TableCell>
-                      <TableCell className="text-right font-mono text-emerald-600">{grupo.totalDevolvido.toLocaleString('pt-BR')}</TableCell>
-                      <TableCell className="text-right font-mono font-bold text-orange-600">{grupo.saldo.toLocaleString('pt-BR')}</TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full ${aproveitamento === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} 
-                              style={{ width: `${aproveitamento}%` }} 
-                            />
+                    <>
+                      <TableRow 
+                        key={grupo.id} 
+                        className={`hover:bg-muted/50 cursor-pointer ${isExpanded ? 'bg-muted/30' : ''}`}
+                        onClick={() => toggleGroup(grupo.id)}
+                      >
+                        <TableCell className="print:hidden">
+                          {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                            {grupo.nome}
                           </div>
-                          <span className="text-xs min-w-[30px]">{aproveitamento}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {grupo.status === 'Pendente' && (
-                          <Badge variant="destructive" className="bg-red-500 hover:bg-red-600">Pendente</Badge>
-                        )}
-                        {grupo.status === 'Parcial' && (
-                          <Badge variant="secondary" className="bg-amber-500 hover:bg-amber-600 text-white">Parcial</Badge>
-                        )}
-                        {grupo.status === 'Devolvido' && (
-                          <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">Devolvido</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                        <TableCell className="text-right font-mono">{grupo.totalSaida.toLocaleString('pt-BR')}</TableCell>
+                        <TableCell className="text-right font-mono text-emerald-600">{grupo.totalDevolvido.toLocaleString('pt-BR')}</TableCell>
+                        <TableCell className="text-right font-mono font-bold text-orange-600">{grupo.saldo.toLocaleString('pt-BR')}</TableCell>
+                        <TableCell className="text-center print:hidden">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full ${aproveitamento === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} 
+                                style={{ width: `${aproveitamento}%` }} 
+                              />
+                            </div>
+                            <span className="text-xs min-w-[30px]">{aproveitamento}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {grupo.status === 'Pendente' && (
+                            <Badge variant="destructive" className="bg-red-500 hover:bg-red-600">Pendente</Badge>
+                          )}
+                          {grupo.status === 'Parcial' && (
+                            <Badge variant="secondary" className="bg-amber-500 hover:bg-amber-600 text-white">Parcial</Badge>
+                          )}
+                          {grupo.status === 'Devolvido' && (
+                            <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">Devolvido</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                      
+                      {isExpanded && (
+                        <TableRow className="bg-muted/10 border-b">
+                          <TableCell colSpan={7} className="p-0">
+                            <div className="p-4 bg-muted/5">
+                              <div className="flex items-center justify-between mb-3 px-2">
+                                <h4 className="text-sm font-semibold flex items-center gap-2">
+                                  <Filter className="h-4 w-4 text-primary" />
+                                  Itens detalhados do grupo: {grupo.nome}
+                                </h4>
+                                <div className="flex gap-2 print:hidden">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-7 text-xs gap-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      exportarItensGrupoExcel(grupo.nome, itensDoGrupo, getFiltrosDescricao());
+                                    }}
+                                  >
+                                    <FileDown className="h-3.5 w-3.5" />
+                                    Exportar Itens
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-7 text-xs gap-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.print();
+                                    }}
+                                  >
+                                    <Printer className="h-3.5 w-3.5" />
+                                    Imprimir Itens
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="rounded-md border bg-white overflow-hidden">
+                                <Table className="text-xs">
+                                  <TableHeader className="bg-muted/20">
+                                    <TableRow>
+                                      <TableHead className="font-bold">Item</TableHead>
+                                      <TableHead className="font-bold">Código</TableHead>
+                                      <TableHead className="font-bold">Tipo</TableHead>
+                                      <TableHead className="text-right font-bold">Saída</TableHead>
+                                      <TableHead className="text-right font-bold">Devolvido</TableHead>
+                                      <TableHead className="text-right font-bold">Saldo</TableHead>
+                                      <TableHead className="text-center font-bold">Status</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {itensDoGrupo.map((item) => (
+                                      <TableRow key={item.key} className="hover:bg-muted/50">
+                                        <TableCell className="font-medium">{item.itemSnapshot?.nome || 'Item'}</TableCell>
+                                        <TableCell className="font-mono text-[10px]">{item.itemSnapshot?.codigoBarras || '-'}</TableCell>
+                                        <TableCell>
+                                          <Badge variant="outline" className="text-[9px] h-4">
+                                            {item.itemSnapshot?.tipoItem || '-'}
+                                          </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono">{item.totalSaida}</TableCell>
+                                        <TableCell className="text-right font-mono text-emerald-600">{item.totalDevolvido}</TableCell>
+                                        <TableCell className="text-right font-mono font-bold text-orange-600">{item.pendente}</TableCell>
+                                        <TableCell className="text-center">
+                                          <div className={`w-2 h-2 rounded-full mx-auto ${
+                                            item.statusItem === 'devolvido' ? 'bg-emerald-500' : 
+                                            (item.statusItem === 'parcial' ? 'bg-amber-500' : 'bg-red-500')
+                                          }`} />
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                    {itensDoGrupo.length === 0 && (
+                                      <TableRow>
+                                        <TableCell colSpan={7} className="text-center py-4 text-muted-foreground italic">
+                                          Nenhum item pendente ou devolvido neste grupo para o período selecionado.
+                                        </TableCell>
+                                      </TableRow>
+                                    )}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
                   );
                 })
               )}
