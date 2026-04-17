@@ -127,7 +127,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     codigoBarras: string;
   } | null>(null);
 
-  const [novoLocal, setNovoLocal] = useState({
+  const [novoLocal, setNovoLocal] = useState<{ nome: string; groupId?: string }>({
     nome: '',
   });
 
