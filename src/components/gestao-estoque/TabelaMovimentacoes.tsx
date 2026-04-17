@@ -701,18 +701,6 @@ export const TabelaMovimentacoes = () => {
             <Package className="h-4 w-4" />
             Todas
           </TabsTrigger>
-          <TabsTrigger value="saidas" className="flex items-center gap-2">
-            <ArrowDownCircle className="h-4 w-4" />
-            Saídas
-          </TabsTrigger>
-          <TabsTrigger value="devolucoes" className="flex items-center gap-2">
-            <RotateCcw className="h-4 w-4" />
-            Devoluções
-          </TabsTrigger>
-          <TabsTrigger value="pendentes" className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            Pendentes ({itensPendentes.filter(i => i.statusItem !== 'devolvido').length})
-          </TabsTrigger>
           <TabsTrigger value="projetos" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Projetos
@@ -889,14 +877,6 @@ export const TabelaMovimentacoes = () => {
             </div>
 
             <div className="flex gap-2 md:col-span-2">
-              <Button 
-                onClick={() => setRelatorioAberto(true)}
-                variant="default"
-                className="flex items-center gap-2 flex-1"
-              >
-                <BarChart3 className="h-4 w-4" />
-                Relatórios
-              </Button>
               <Button 
                 onClick={exportarParaExcel}
                 variant="outline"
