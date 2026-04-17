@@ -31,10 +31,28 @@ import { supabase } from '@/integrations/supabase/client';
 import { itemRegistrationSchema, exitRegistrationSchema } from '@/schemas/validation';
 import { toast } from 'sonner';
 
-export const MenuPrincipal = ({ onAbrirGerencial }: { onAbrirGerencial?: () => void }) => {
+export const MenuPrincipal = ({ 
+  onAbrirGerencial, 
+  onAbrirProjetos 
+}: { 
+  onAbrirGerencial?: () => void;
+  onAbrirProjetos?: () => void;
+}) => {
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoqueContext();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
-  const { canCreateItems, canManageStock, canSolicitarMaterial, canDevolverMaterial, canRegistrarEntrada, canTransferir, canRegistrarSaida, canPedidoCompra, canSolicitacaoMaterial, canAccessManagerial } = usePermissions();
+  const { 
+    canCreateItems, 
+    canManageStock, 
+    canSolicitarMaterial, 
+    canDevolverMaterial, 
+    canRegistrarEntrada, 
+    canTransferir, 
+    canRegistrarSaida, 
+    canPedidoCompra, 
+    canSolicitacaoMaterial, 
+    canAccessManagerial,
+    canAccessProjects 
+  } = usePermissions();
   
   // Estados para controlar os diálogos
   const [dialogoCadastro, setDialogoCadastro] = useState(false);
@@ -490,19 +508,19 @@ export const MenuPrincipal = ({ onAbrirGerencial }: { onAbrirGerencial?: () => v
         {/* Solicitar Material */}
         {canSolicitarMaterial() && <SolicitarMaterial />}
 
-        {/* Painel Gerencial - Acesso via Card */}
-        {canAccessManagerial() && (
+        {/* Visão de Projetos - Acesso via Card */}
+        {canAccessProjects() && (
           <Card 
-            className="cursor-pointer hover:scale-105 transition-all duration-300 border-primary/20 hover:border-primary/40"
-            onClick={onAbrirGerencial}
+            className="cursor-pointer hover:scale-105 transition-all duration-300 border-warning/20 hover:border-warning/40"
+            onClick={onAbrirProjetos}
           >
             <CardHeader className="text-center">
-              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                <BarChart3 className="h-8 w-8 text-primary" />
+              <div className="mx-auto w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center mb-4">
+                <BarChart3 className="h-8 w-8 text-warning" />
               </div>
-              <CardTitle className="text-primary">Gerencial</CardTitle>
+              <CardTitle className="text-warning">Projetos</CardTitle>
               <CardDescription>
-                Indicadores e visão consolidada por grupo
+                Resumo e saldo de materiais por projeto/local
               </CardDescription>
             </CardHeader>
           </Card>

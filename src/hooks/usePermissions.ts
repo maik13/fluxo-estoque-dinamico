@@ -28,6 +28,7 @@ export interface PermissoesFuncionalidades {
   pode_ver_relatorios: boolean;
   pode_editar_movimentacoes: boolean;
   pode_acessar_gerencial: boolean;
+  pode_acessar_projetos: boolean;
 }
 
 const DEFAULT_PERMISSIONS: PermissoesFuncionalidades = {
@@ -47,6 +48,7 @@ const DEFAULT_PERMISSIONS: PermissoesFuncionalidades = {
   pode_ver_relatorios: false,
   pode_editar_movimentacoes: false,
   pode_acessar_gerencial: false,
+  pode_acessar_projetos: false,
 };
 
 export const usePermissions = () => {
@@ -149,6 +151,7 @@ export const usePermissions = () => {
           pode_ver_relatorios: data.pode_ver_relatorios,
           pode_editar_movimentacoes: (data as any).pode_editar_movimentacoes ?? false,
           pode_acessar_gerencial: (data as any).pode_acessar_gerencial ?? false,
+          pode_acessar_projetos: (data as any).pode_acessar_projetos ?? false,
         });
       }
     } catch (error) {
@@ -183,6 +186,7 @@ export const usePermissions = () => {
   const canSolicitacaoMaterial = () => isAdmin() || permissoesDinamicas.pode_solicitacao_material;
   const canEditMovements = () => isAdmin() || permissoesDinamicas.pode_editar_movimentacoes;
   const canAccessManagerial = () => isAdmin() || permissoesDinamicas.pode_acessar_gerencial;
+  const canAccessProjects = () => isAdmin() || permissoesDinamicas.pode_acessar_projetos;
 
   return {
     userProfile,
@@ -213,5 +217,6 @@ export const usePermissions = () => {
     canSolicitacaoMaterial,
     canEditMovements,
     canAccessManagerial,
+    canAccessProjects,
   };
 };

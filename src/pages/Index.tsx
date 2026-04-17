@@ -4,6 +4,7 @@ import { MenuPrincipal } from '@/components/gestao-estoque/MenuPrincipal';
 import { TabelaEstoque } from '@/components/gestao-estoque/TabelaEstoque';
 import { TabelaMovimentacoes } from '@/components/gestao-estoque/TabelaMovimentacoes';
 import { PainelGerencial } from '@/components/gestao-estoque/PainelGerencial';
+import { VisaoProjetos } from '@/components/gestao-estoque/VisaoProjetos';
 import { Package, Menu, History, LogOut, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -17,7 +18,7 @@ const Index = () => {
   const [tabAtiva, setTabAtiva] = useState('menu');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const { session, loading, signOut } = useAuth();
-  const { canManageStock, canViewReports, canAccessManagerial } = usePermissions();
+  const { canManageStock, canViewReports, canAccessManagerial, canAccessProjects } = usePermissions();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -86,7 +87,8 @@ const Index = () => {
           {(() => {
             const showEstoque = canManageStock();
             const showMovimentacoes = canViewReports() || canManageStock();
-            const showGerencial = canAccessManagerial(); // Protegido por nova permissão
+            const showGerencial = canAccessManagerial();
+            const showProjetos = canAccessProjects();
             const tabCount = 1 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
             return (
               <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
@@ -110,12 +112,21 @@ const Index = () => {
                 </TabsList>
 
                 <TabsContent value="menu" className="space-y-6">
-                  <MenuPrincipal onAbrirGerencial={() => setTabAtiva('gerencial')} />
+                  <MenuPrincipal 
+                    onAbrirGerencial={() => setTabAtiva('gerencial')} 
+                    onAbrirProjetos={() => setTabAtiva('projetos')}
+                  />
                 </TabsContent>
 
                 {showGerencial && (
                   <TabsContent value="gerencial" className="space-y-6">
                     <PainelGerencial />
+                  </TabsContent>
+                )}
+
+                {showProjetos && (
+                  <TabsContent value="projetos" className="space-y-6">
+                    <VisaoProjetos />
                   </TabsContent>
                 )}
 
