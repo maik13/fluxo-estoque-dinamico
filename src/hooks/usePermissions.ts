@@ -173,8 +173,8 @@ export const usePermissions = () => {
   const canCreateItems = () => isAdmin() || permissoesDinamicas.pode_cadastrar_itens;
   const canEditItems = () => isAdmin() || permissoesDinamicas.pode_editar_itens;
   const canDeleteItems = () => isAdmin() || permissoesDinamicas.pode_excluir_itens;
-  const canManageStock = () => isAdmin() || permissoesDinamicas.pode_registrar_movimentacoes;
-  const canViewReports = () => isAdmin() || permissoesDinamicas.pode_ver_relatorios;
+  const canManageStock = () => permissoesDinamicas.pode_registrar_movimentacoes;
+  const canViewReports = () => permissoesDinamicas.pode_ver_relatorios;
   const canManageSettings = () => isAdmin() || permissoesDinamicas.pode_gerenciar_configuracoes;
 
   // Permissões de funcionalidades do menu
