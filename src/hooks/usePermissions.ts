@@ -187,8 +187,8 @@ export const usePermissions = () => {
   const canPedidoCompra = () => permissoesDinamicas.pode_pedido_compra;
   const canSolicitacaoMaterial = () => permissoesDinamicas.pode_solicitacao_material;
   const canEditMovements = () => permissoesDinamicas.pode_editar_movimentacoes;
-  const canAccessManagerial = () => permissoesDinamicas.pode_acessar_gerencial;
-  const canAccessProjects = () => permissoesDinamicas.pode_acessar_projetos;
+  const canAccessManagerial = () => isAdmin() || permissoesDinamicas.pode_acessar_gerencial;
+  const canAccessProjects = () => isAdmin() || permissoesDinamicas.pode_acessar_projetos;
 
   return {
     userProfile,
