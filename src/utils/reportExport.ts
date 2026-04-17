@@ -55,12 +55,14 @@ export const exportarItensGrupoExcel = (grupoNome: string, itens: ItemAgrupado[]
     'Item': item.itemSnapshot?.nome || 'Item Desconhecido',
     'Código': item.itemSnapshot?.codigoBarras || '-',
     'Tipo': item.itemSnapshot?.tipoItem || '-',
+    'Responsável': item.destinatario || item.solicitanteNome || '-',
+    'Aging (Dias)': item.pendente > 0 ? item.agingDias : 0,
+    'Criticidade': item.pendente > 0 ? item.criticidade.toUpperCase() : '-',
     'Total Saída': item.totalSaida,
     'Total Devolvido': item.totalDevolvido,
     'Saldo': item.pendente,
     'Status': item.statusItem === 'devolvido' ? 'Devolvido' : (item.statusItem === 'parcial' ? 'Parcial' : 'Pendente'),
     'Última Saída': item.ultimaSaida ? new Date(item.ultimaSaida).toLocaleDateString('pt-BR') : '-',
-    'Último Destinatário': item.destinatario || '-'
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(dados);

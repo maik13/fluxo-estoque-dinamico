@@ -19,7 +19,16 @@ export interface ItemAgrupado {
   solicitanteNome?: string;
   solicitacaoId?: string;
   statusItem: 'pendente' | 'parcial' | 'devolvido';
-  classificacao: string; // Novo: Categoria real do item (EPI, Consumo, etc)
+  classificacao: string;
+  agingDias: number;
+  criticidade: 'normal' | 'atencao' | 'critico';
+}
+
+export interface ResponsavelAgrupado {
+  nome: string;
+  totalItensPendentes: number; // Quantidade física acumulada
+  saldoTotalPendente: number;  // Valor consolidado de pendências
+  gruposEnvolvidos: string[];
 }
 
 export interface GrupoAgrupado {
@@ -173,7 +182,9 @@ export const useConsolidacao = (
             solicitanteNome: mov.solicitanteNome,
             solicitacaoId: mov.solicitacaoId,
             statusItem: 'pendente',
-            classificacao: resolveClassificacao(mov.itemSnapshot)
+            classificacao: resolveClassificacao(mov.itemSnapshot),
+            agingDias: 0,
+            criticidade: 'normal'
           });
         }
       }
@@ -214,7 +225,21 @@ export const useConsolidacao = (
       const statusItem: 'pendente' | 'parcial' | 'devolvido' = 
         pendente <= 0 ? 'devolvido' : (item.totalDevolvido > 0 ? 'parcial' : 'pendente');
 
-      const itemFinal = { ...item, projetoGrupoNome, pendente, statusItem };
+      // Cálculo de Inteligência Operacional (Aging e Criticidade)
+      let agingDias = 0;
+      let criticidade: 'normal' | 'atencao' | 'critico' = 'normal';
+
+      if (pendente > 0) {
+        const dataReferencia = new Date(item.ultimaSaida);
+        const agora = new Date();
+        const diffTime = Math.abs(agora.getTime() - dataReferencia.getTime());
+        agingDias = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+        if (agingDias > 10) criticidade = 'critico';
+        else if (agingDias >= 4) criticidade = 'atencao';
+      }
+
+      const itemFinal = { ...item, projetoGrupoNome, pendente, statusItem, agingDias, criticidade };
 
       // Acumular para o resumo de grupos
       const gId = tipoAgrupamento === 'grupo' ? item.localUtilizacaoId : grupoIdFinal;
@@ -252,7 +277,34 @@ export const useConsolidacao = (
 
     const gruposFinal = Array.from(gruposStatsMap.values()).sort((a, b) => b.saldo - a.saldo);
 
-    // 5. KPIs
+    // 5. Agregação por Responsável
+    const responsaveisMap = new Map<string, ResponsavelAgrupado>();
+
+    itensFinal.forEach(item => {
+      if (item.pendente > 0) {
+        const responsavel = item.destinatario || item.solicitanteNome || 'Não identificado';
+        const respData = responsaveisMap.get(responsavel) || {
+          nome: responsavel,
+          totalItensPendentes: 0,
+          saldoTotalPendente: 0,
+          gruposEnvolvidos: []
+        };
+
+        respData.totalItensPendentes += item.pendente;
+        respData.saldoTotalPendente += item.pendente;
+        
+        if (!respData.gruposEnvolvidos.includes(item.projetoGrupoNome)) {
+          respData.gruposEnvolvidos.push(item.projetoGrupoNome);
+        }
+
+        responsaveisMap.set(responsavel, respData);
+      }
+    });
+
+    const responsaveisFinal = Array.from(responsaveisMap.values())
+      .sort((a, b) => b.saldoTotalPendente - a.saldoTotalPendente);
+
+    // 6. KPIs
     const kpis: PainelKPIs = {
       totalPendente: gruposFinal.reduce((sum, g) => sum + g.saldo, 0),
       totalEmCampo: gruposFinal.reduce((sum, g) => sum + g.totalSaida, 0),
@@ -263,6 +315,7 @@ export const useConsolidacao = (
     return {
       itensAgrupados: itensFinal,
       gruposAgrupados: gruposFinal,
+      responsaveisAgrupados: responsaveisFinal,
       kpis
     };
   }, [movimentacoes, locaisConfig, gruposProjeto, tipoAgrupamento, filtros, categorias, subcategorias, categoriasSubcategorias]);

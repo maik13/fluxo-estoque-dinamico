@@ -441,10 +441,14 @@ export const PainelGerencial = () => {
                                       <TableHead className="font-bold text-zinc-400">Item</TableHead>
                                       <TableHead className="font-bold text-zinc-400">Código</TableHead>
                                       <TableHead className="font-bold text-zinc-400">Tipo / Classificação</TableHead>
+                                      <TableHead className="font-bold text-zinc-400">Responsável</TableHead>
+                                      <TableHead className="font-bold text-zinc-400">Última Saída</TableHead>
+                                      <TableHead className="font-bold text-zinc-400">Tempo</TableHead>
                                       <TableHead className="text-right font-bold text-zinc-400">Saída</TableHead>
                                       <TableHead className="text-right font-bold text-zinc-400">Devolvido</TableHead>
                                       <TableHead className="text-right font-bold text-zinc-400">Saldo</TableHead>
                                       <TableHead className="text-center font-bold text-zinc-400">Status</TableHead>
+                                      <TableHead className="text-center font-bold text-zinc-400">Criticidade</TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
@@ -460,6 +464,15 @@ export const PainelGerencial = () => {
                                             {item.classificacao || '-'}
                                           </Badge>
                                         </TableCell>
+                                        <TableCell className="text-[10px] text-zinc-300">
+                                          {item.destinatario || item.solicitanteNome || '-'}
+                                        </TableCell>
+                                        <TableCell className="text-[10px] text-zinc-400">
+                                          {item.ultimaSaida ? new Date(item.ultimaSaida).toLocaleDateString('pt-BR') : '-'}
+                                        </TableCell>
+                                        <TableCell className="text-[10px] text-zinc-300">
+                                          {item.pendente > 0 ? `${item.agingDias}d` : '-'}
+                                        </TableCell>
                                         <TableCell className="text-right font-mono text-zinc-100">{item.totalSaida}</TableCell>
                                         <TableCell className="text-right font-mono text-emerald-400">{item.totalDevolvido}</TableCell>
                                         <TableCell className="text-right font-mono font-bold text-orange-400">{item.pendente}</TableCell>
@@ -469,15 +482,29 @@ export const PainelGerencial = () => {
                                             ((item.statusItem || 'pendente') === 'parcial' ? 'bg-amber-500' : 'bg-red-500')
                                           }`} title={item.statusItem} />
                                         </TableCell>
-                                      </TableRow>
-                                    ))}
-                                    {(!itensDoGrupo || itensDoGrupo.length === 0) && (
-                                      <TableRow>
-                                        <TableCell colSpan={7} className="text-center py-4 text-muted-foreground italic">
-                                          Nenhum item pendente ou devolvido neste grupo para os filtros ativos.
+                                        <TableCell className="text-center">
+                                          {item.pendente > 0 && (
+                                            <Badge 
+                                              variant="outline" 
+                                              className={`text-[9px] h-4 border-0 ${
+                                                item.criticidade === 'critico' ? 'bg-red-500/20 text-red-500' :
+                                                item.criticidade === 'atencao' ? 'bg-amber-500/20 text-amber-500' :
+                                                'bg-emerald-500/20 text-emerald-500'
+                                              }`}
+                                            >
+                                              {item.criticidade.toUpperCase()}
+                                            </Badge>
+                                          )}
                                         </TableCell>
                                       </TableRow>
-                                    )}
+                                    ))}
+                                      {(!itensDoGrupo || itensDoGrupo.length === 0) && (
+                                        <TableRow>
+                                          <TableCell colSpan={11} className="text-center py-4 text-muted-foreground italic">
+                                            Nenhum item pendente ou devolvido neste grupo para os filtros ativos.
+                                          </TableCell>
+                                        </TableRow>
+                                      )}
                                   </TableBody>
                                 </Table>
                               </div>
@@ -489,6 +516,81 @@ export const PainelGerencial = () => {
                   );
                 })
               )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Tabela de Responsáveis com maior pendência */}
+      <Card className="border-muted">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Truck className="h-5 w-5 text-primary" />
+              Responsáveis com maior pendência
+            </CardTitle>
+            <CardDescription>
+              Ranking consolidado por destinatário/solicitante baseado no saldo total pendente
+            </CardDescription>
+          </div>
+          <div className="flex gap-2 print:hidden">
+            {/* O resumo de responsáveis pode ser impresso junto com o painel */}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Responsável</TableHead>
+                <TableHead className="text-center">Total de Itens Pendentes</TableHead>
+                <TableHead className="text-right">Saldo Total Pendente</TableHead>
+                <TableHead>Grupos Envolvidos</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {/* @ts-ignore - responsaveisAgrupados injetado pelo hook atualizado */}
+              {(() => {
+                const { responsaveisAgrupados } = useConsolidacao(
+                  movimentacoes, locaisConfig, gruposProjeto, 'grupo', filtros, 
+                  categorias, subcategorias, categoriasSubcategorias
+                );
+                
+                if (!responsaveisAgrupados || responsaveisAgrupados.length === 0) {
+                  return (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        Nenhuma pendência identificada por responsável.
+                      </TableCell>
+                    </TableRow>
+                  );
+                }
+
+                return responsaveisAgrupados.map((resp: any) => (
+                  <TableRow key={resp.nome} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <Truck className="h-4 w-4 text-muted-foreground" />
+                        {resp.nome}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center font-mono">
+                      {resp.totalItensPendentes.toLocaleString('pt-BR')}
+                    </TableCell>
+                    <TableCell className="text-right font-mono font-bold text-orange-600">
+                      {resp.saldoTotalPendente.toLocaleString('pt-BR')}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {resp.gruposEnvolvidos.map((g: string) => (
+                          <Badge key={g} variant="outline" className="text-[10px] bg-muted/30">
+                            {g}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ));
+              })()}
             </TableBody>
           </Table>
         </CardContent>
