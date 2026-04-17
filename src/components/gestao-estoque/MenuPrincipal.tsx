@@ -40,6 +40,7 @@ export const MenuPrincipal = ({
 }) => {
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoqueContext();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
+  const { 
     isAdmin,
     isGestor,
     canCreateItems, 
