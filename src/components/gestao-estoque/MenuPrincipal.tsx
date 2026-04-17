@@ -508,6 +508,24 @@ export const MenuPrincipal = ({
         {/* Solicitar Material */}
         {canSolicitarMaterial() && <SolicitarMaterial />}
 
+        {/* Painel Gerencial - Acesso via Card */}
+        {canAccessManagerial() && (
+          <Card 
+            className="cursor-pointer hover:scale-105 transition-all duration-300 border-primary/20 hover:border-primary/40"
+            onClick={onAbrirGerencial}
+          >
+            <CardHeader className="text-center">
+              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                <BarChart3 className="h-8 w-8 text-primary" />
+              </div>
+              <CardTitle className="text-primary">Gerencial</CardTitle>
+              <CardDescription>
+                Indicadores e visão consolidada por grupo
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+
         {/* Visão de Projetos - Acesso via Card */}
         {canAccessProjects() && (
           <Card 
@@ -516,7 +534,7 @@ export const MenuPrincipal = ({
           >
             <CardHeader className="text-center">
               <div className="mx-auto w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center mb-4">
-                <BarChart3 className="h-8 w-8 text-warning" />
+                <FileBarChart className="h-8 w-8 text-warning" />
               </div>
               <CardTitle className="text-warning">Projetos</CardTitle>
               <CardDescription>
