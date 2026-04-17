@@ -78,11 +78,17 @@ export const useConsolidacao = (
 
     const catMap = new Map<string, string>(categorias.map(c => [c.id, c.nome]));
 
-    const resolveClassificacao = (subcatId?: string) => {
-      if (!subcatId) return 'Sem Classificação';
+    const resolveClassificacao = (snapshot?: any) => {
+      if (!snapshot) return '-';
+      // Suporta tanto camelCase quanto snake_case (comum em dados vindos do Supabase/Excel)
+      const subcatId = snapshot.subcategoriaId || snapshot.subcategoria_id;
+      
+      if (!subcatId) return '-';
       const catId = catSubMap.get(subcatId);
-      if (!catId) return 'Sem Classificação';
-      return catMap.get(catId) || 'Sem Classificação';
+      if (!catId) return '-';
+      
+      const nome = catMap.get(catId);
+      return (nome && nome.trim().length > 0) ? nome : '-';
     };
 
     // 1. Filtros de base (Data e Classificação)
@@ -96,7 +102,7 @@ export const useConsolidacao = (
       
       // Filtro de Classificação (usando a taxonomia real)
       if (filtros?.tipoItem && filtros.tipoItem !== 'todos') {
-        const itemClass = resolveClassificacao(mov.itemSnapshot?.subcategoriaId);
+        const itemClass = resolveClassificacao(mov.itemSnapshot);
         if (itemClass !== filtros.tipoItem) return false;
       }
 
@@ -167,7 +173,7 @@ export const useConsolidacao = (
             solicitanteNome: mov.solicitanteNome,
             solicitacaoId: mov.solicitacaoId,
             statusItem: 'pendente',
-            classificacao: resolveClassificacao(mov.itemSnapshot?.subcategoriaId)
+            classificacao: resolveClassificacao(mov.itemSnapshot)
           });
         }
       }

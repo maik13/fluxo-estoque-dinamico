@@ -60,7 +60,9 @@ export const PainelGerencial = () => {
     const classes = new Set<string>();
     if (itensAgrupados) {
       itensAgrupados.forEach(item => {
-        if (item.classificacao) classes.add(item.classificacao);
+        if (item.classificacao && item.classificacao !== '-') {
+          classes.add(item.classificacao);
+        }
       });
     }
     return Array.from(classes).sort();
@@ -452,7 +454,7 @@ export const PainelGerencial = () => {
                                         <TableCell className="font-mono text-[10px]">{item.itemSnapshot?.codigoBarras || '-'}</TableCell>
                                         <TableCell>
                                           <Badge variant="outline" className="text-[9px] h-4">
-                                            {item.classificacao || 'Sem Categoria'}
+                                            {item.classificacao || '-'}
                                           </Badge>
                                         </TableCell>
                                         <TableCell className="text-right font-mono">{item.totalSaida}</TableCell>
