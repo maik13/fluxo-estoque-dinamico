@@ -17,7 +17,7 @@ const Index = () => {
   const [tabAtiva, setTabAtiva] = useState('menu');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const { session, loading, signOut } = useAuth();
-  const { canManageStock, canViewReports } = usePermissions();
+  const { canManageStock, canViewReports, canAccessManagerial } = usePermissions();
   const navigate = useNavigate();
 
   useEffect(() => {
