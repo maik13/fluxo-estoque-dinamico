@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X } from 'lucide-react';
+import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X, BarChart3 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Item, EstoqueItem } from '@/types/estoque';
@@ -31,10 +31,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { itemRegistrationSchema, exitRegistrationSchema } from '@/schemas/validation';
 import { toast } from 'sonner';
 
-export const MenuPrincipal = () => {
+export const MenuPrincipal = ({ onAbrirGerencial }: { onAbrirGerencial?: () => void }) => {
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoqueContext();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
-  const { canCreateItems, canManageStock, canSolicitarMaterial, canDevolverMaterial, canRegistrarEntrada, canTransferir, canRegistrarSaida, canPedidoCompra, canSolicitacaoMaterial } = usePermissions();
+  const { canCreateItems, canManageStock, canSolicitarMaterial, canDevolverMaterial, canRegistrarEntrada, canTransferir, canRegistrarSaida, canPedidoCompra, canSolicitacaoMaterial, canAccessManagerial } = usePermissions();
   
   // Estados para controlar os diálogos
   const [dialogoCadastro, setDialogoCadastro] = useState(false);
@@ -489,6 +489,24 @@ export const MenuPrincipal = () => {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         {/* Solicitar Material */}
         {canSolicitarMaterial() && <SolicitarMaterial />}
+
+        {/* Painel Gerencial - Acesso via Card */}
+        {canAccessManagerial() && (
+          <Card 
+            className="cursor-pointer hover:scale-105 transition-all duration-300 border-primary/20 hover:border-primary/40"
+            onClick={onAbrirGerencial}
+          >
+            <CardHeader className="text-center">
+              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                <BarChart3 className="h-8 w-8 text-primary" />
+              </div>
+              <CardTitle className="text-primary">Gerencial</CardTitle>
+              <CardDescription>
+                Indicadores e visão consolidada por grupo
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
         
         {/* Devolução de Material */}
         {canDevolverMaterial() && <DevolverMaterial />}

@@ -86,8 +86,8 @@ const Index = () => {
           {(() => {
             const showEstoque = canManageStock();
             const showMovimentacoes = canViewReports() || canManageStock();
-            const showGerencial = canViewReports(); // Painel Gerencial para gestores
-            const tabCount = 1 + (showGerencial ? 1 : 0) + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
+            const showGerencial = canAccessManagerial(); // Protegido por nova permissão
+            const tabCount = 1 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
             return (
               <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
                 <TabsList className={`grid w-full mb-6`} style={{ gridTemplateColumns: `repeat(${tabCount}, 1fr)` }}>
@@ -95,12 +95,6 @@ const Index = () => {
                     <Menu className="h-4 w-4" />
                     Menu Principal
                   </TabsTrigger>
-                  {showGerencial && (
-                    <TabsTrigger value="gerencial" className="flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4" />
-                      Gerencial
-                    </TabsTrigger>
-                  )}
                   {showEstoque && (
                     <TabsTrigger value="estoque" className="flex items-center gap-2">
                       <Package className="h-4 w-4" />
@@ -116,7 +110,7 @@ const Index = () => {
                 </TabsList>
 
                 <TabsContent value="menu" className="space-y-6">
-                  <MenuPrincipal />
+                  <MenuPrincipal onAbrirGerencial={() => setTabAtiva('gerencial')} />
                 </TabsContent>
 
                 {showGerencial && (

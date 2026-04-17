@@ -27,6 +27,7 @@ interface PermissaoTipoUsuario {
   pode_solicitacao_material: boolean;
   pode_ver_relatorios: boolean;
   pode_editar_movimentacoes: boolean;
+  pode_acessar_gerencial: boolean;
 }
 
 const TIPOS_USUARIO_LABELS: Record<string, string> = {
@@ -84,6 +85,7 @@ const PERMISSOES_GRUPOS: PermissaoGrupo[] = [
       { key: 'pode_gerenciar_configuracoes', label: 'Gerenciar Configurações' },
       { key: 'pode_gerenciar_usuarios', label: 'Gerenciar Usuários' },
       { key: 'pode_ver_relatorios', label: 'Ver Relatórios' },
+      { key: 'pode_acessar_gerencial', label: 'Acessar Painel Gerencial' },
     ],
   },
 ];
@@ -117,7 +119,11 @@ export const PermissoesPanel = () => {
         .order('tipo_usuario');
 
       if (error) throw error;
-      setPermissoes((data || []).map((d: any) => ({ ...d, pode_editar_movimentacoes: d.pode_editar_movimentacoes ?? false })));
+      setPermissoes((data || []).map((d: any) => ({ 
+        ...d, 
+        pode_editar_movimentacoes: d.pode_editar_movimentacoes ?? false,
+        pode_acessar_gerencial: d.pode_acessar_gerencial ?? false
+      })));
     } catch (error) {
       console.error('Erro ao carregar permissões:', error);
       toast({ title: 'Erro', description: 'Não foi possível carregar as permissões.', variant: 'destructive' });
