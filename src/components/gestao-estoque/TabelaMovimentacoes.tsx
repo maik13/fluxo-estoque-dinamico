@@ -112,7 +112,11 @@ export const TabelaMovimentacoes = () => {
 
   // Calcular itens pendentes de devolução (saíram e não voltaram)
   const itensPendentes = useMemo(() => {
-    // Agrupar saídas por item + local
+    // 1. Criar mapas de busca para performance O(1)
+    const locaisMapLookup = new Map(locaisConfig.map(l => [l.id, l]));
+    const gruposMapLookup = new Map(gruposProjeto.map(g => [g.id, g]));
+
+    // 2. Mapa para agregação de saídas
     const saidasMap = new Map<string, { 
       itemSnapshot: any; 
       itemId: string;
@@ -126,25 +130,28 @@ export const TabelaMovimentacoes = () => {
       solicitanteNome?: string;
     }>();
 
+    // 3. Helper para extrair IDs e Nomes de agrupamento baseados no modo ativo
+    const getGroupingData = (localId: string | null, localNome: string | null) => {
+      if (tipoAgrupamentoProjetos === 'projeto') {
+        return {
+          id: localId || 'sem-local',
+          name: localNome || 'Sem local'
+        };
+      } else {
+        const local = localId ? locaisMapLookup.get(localId) : null;
+        const grupo = local?.group_id ? gruposMapLookup.get(local.group_id) : null;
+        return {
+          id: grupo?.id || 'sem-grupo',
+          name: grupo?.nome || 'Sem Grupo'
+        };
+      }
+    };
+
+    // 4. Processar Saídas
     movimentacoes.forEach(mov => {
       if (mov.tipo === 'SAIDA') {
         const itemId = mov.itemId || 'sem-item';
-        
-        // Define o ID e Nome para agrupamento (Local ou Grupo)
-        let groupingId = '';
-        let groupingName = '';
-        
-        if (tipoAgrupamentoProjetos === 'projeto') {
-          groupingId = mov.localUtilizacaoId || 'sem-local';
-          groupingName = mov.localUtilizacaoNome || 'Sem local';
-        } else {
-          // Busca o grupo vinculado ao local
-          const local = locaisConfig.find(l => l.id === mov.localUtilizacaoId);
-          const grupo = local?.group_id ? gruposProjeto.find(g => g.id === local.group_id) : null;
-          groupingId = grupo?.id || 'sem-grupo';
-          groupingName = grupo?.nome || 'Sem Grupo';
-        }
-
+        const { id: groupingId, name: groupingName } = getGroupingData(mov.localUtilizacaoId, mov.localUtilizacaoNome);
         const key = `${itemId}_${groupingId}`;
         
         const existing = saidasMap.get(key);
@@ -160,8 +167,8 @@ export const TabelaMovimentacoes = () => {
           saidasMap.set(key, {
             itemSnapshot: mov.itemSnapshot,
             itemId,
-            localUtilizacaoId: groupingId, // Agora guarda ID do local ou ID do grupo
-            localUtilizacaoNome: groupingName, // Agora guarda Nome do local ou Nome do grupo
+            localUtilizacaoId: groupingId,
+            localUtilizacaoNome: groupingName,
             totalSaida: mov.quantidade,
             totalDevolvido: 0,
             ultimaSaida: mov.dataHora,
@@ -173,20 +180,11 @@ export const TabelaMovimentacoes = () => {
       }
     });
 
-    // Subtrair devoluções
+    // 5. Processar Devoluções (Compensação)
     movimentacoes.forEach(mov => {
       if (isDevolucao(mov)) {
         const itemId = mov.itemId || 'sem-item';
-        
-        let groupingId = '';
-        if (tipoAgrupamentoProjetos === 'projeto') {
-          groupingId = mov.localUtilizacaoId || 'sem-local';
-        } else {
-          const local = locaisConfig.find(l => l.id === mov.localUtilizacaoId);
-          const grupo = local?.group_id ? gruposProjeto.find(g => g.id === local.group_id) : null;
-          groupingId = grupo?.id || 'sem-grupo';
-        }
-
+        const { id: groupingId } = getGroupingData(mov.localUtilizacaoId, mov.localUtilizacaoNome);
         const key = `${itemId}_${groupingId}`;
         
         const existing = saidasMap.get(key);
@@ -196,22 +194,21 @@ export const TabelaMovimentacoes = () => {
       }
     });
 
-    // Mapear para o formato final e calcular saldo
-    const pendentes = Array.from(saidasMap.entries())
-      .map(([key, v]) => {
+    // 6. Formatação final e cálculo de saldo compensado
+    return Array.from(saidasMap.values())
+      .map(v => {
         let projetoGrupoNome = '-';
         
         if (tipoAgrupamentoProjetos === 'projeto') {
-          const local = locaisConfig.find(l => l.id === v.localUtilizacaoId);
-          const grupo = local?.group_id ? gruposProjeto.find(g => g.id === local.group_id) : null;
+          const local = v.localUtilizacaoId !== 'sem-local' ? locaisMapLookup.get(v.localUtilizacaoId) : null;
+          const grupo = local?.group_id ? gruposMapLookup.get(local.group_id) : null;
           projetoGrupoNome = grupo?.nome || '-';
         } else {
-          // No modo grupo, o "localUtilizacaoNome" já é o nome do grupo
           projetoGrupoNome = v.localUtilizacaoNome;
         }
         
         return {
-          key,
+          key: `${v.itemId}_${v.localUtilizacaoId}`,
           ...v,
           projetoGrupoNome,
           pendente: Math.max(0, v.totalSaida - v.totalDevolvido),
@@ -220,8 +217,6 @@ export const TabelaMovimentacoes = () => {
         };
       })
       .sort((a, b) => new Date(b.ultimaSaida).getTime() - new Date(a.ultimaSaida).getTime());
-
-    return pendentes;
   }, [movimentacoes, locaisConfig, gruposProjeto, tipoAgrupamentoProjetos]);
 
   // Locais únicos dos pendentes para filtro
