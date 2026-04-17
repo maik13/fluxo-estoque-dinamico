@@ -17,7 +17,13 @@ import { Button } from '@/components/ui/button';
 
 export const PainelGerencial = () => {
   const { movimentacoes } = useEstoqueContext();
-  const { locaisUtilizacao: locaisConfig, gruposProjeto } = useConfiguracoes();
+  const { 
+    locaisUtilizacao: locaisConfig, 
+    gruposProjeto, 
+    categorias, 
+    subcategorias, 
+    categoriasSubcategorias 
+  } = useConfiguracoes();
   
   // Estados para filtros
   const [dataInicio, setDataInicio] = useState<string>('');
@@ -37,15 +43,14 @@ export const PainelGerencial = () => {
     localId
   }), [dataInicio, dataFim, tipoItem, grupoId, localId]);
 
-  // Extrair classificações reais presentes nas movimentações para o filtro dinâmico
+  // Extrair classificações reais presentes nos itens consolidados (Categoria Nome)
   const classificacoesDinamicas = useMemo(() => {
     const classes = new Set<string>();
-    movimentacoes.forEach(mov => {
-      const tipo = mov.itemSnapshot?.tipoItem;
-      if (tipo) classes.add(tipo);
+    itensAgrupados.forEach(item => {
+      if (item.classificacao) classes.add(item.classificacao);
     });
     return Array.from(classes).sort();
-  }, [movimentacoes]);
+  }, [itensAgrupados]);
 
   // Locais filtrados para o seletor (respeita o grupo se selecionado)
   const locaisParaSeletor = useMemo(() => {
@@ -66,7 +71,10 @@ export const PainelGerencial = () => {
     locaisConfig,
     gruposProjeto,
     'grupo',
-    filtros
+    filtros,
+    categorias,
+    subcategorias,
+    categoriasSubcategorias
   );
 
   // Obter a lista completa de grupos para exibição (Cadastro + Calculados)
@@ -138,7 +146,16 @@ export const PainelGerencial = () => {
     return partes.join(' | ');
   };
 
-  const { itensAgrupados } = useConsolidacao(movimentacoes, locaisConfig, gruposProjeto, 'grupo', filtros);
+  const { itensAgrupados } = useConsolidacao(
+    movimentacoes, 
+    locaisConfig, 
+    gruposProjeto, 
+    'grupo', 
+    filtros,
+    categorias,
+    subcategorias,
+    categoriasSubcategorias
+  );
 
   return (
     <div className="space-y-6">
@@ -442,7 +459,7 @@ export const PainelGerencial = () => {
                                         <TableCell className="font-mono text-[10px]">{item.itemSnapshot?.codigoBarras || '-'}</TableCell>
                                         <TableCell>
                                           <Badge variant="outline" className="text-[9px] h-4">
-                                            {item.itemSnapshot?.tipoItem || 'N/A'}
+                                            {item.classificacao || 'Sem Categoria'}
                                           </Badge>
                                         </TableCell>
                                         <TableCell className="text-right font-mono">{item.totalSaida}</TableCell>

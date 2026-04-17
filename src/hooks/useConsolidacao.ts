@@ -19,6 +19,7 @@ export interface ItemAgrupado {
   solicitanteNome?: string;
   solicitacaoId?: string;
   statusItem: 'pendente' | 'parcial' | 'devolvido';
+  classificacao: string; // Novo: Categoria real do item (EPI, Consumo, etc)
 }
 
 export interface GrupoAgrupado {
@@ -47,11 +48,14 @@ export interface ConsolidacaoFiltros {
 }
 
 export const useConsolidacao = (
-  movimentacoes: Movimentacao[],
   locaisConfig: LocalUtilizacaoConfig[],
   gruposProjeto: ProjectGroupConfig[],
   tipoAgrupamento: 'projeto' | 'grupo',
-  filtros?: ConsolidacaoFiltros
+  filtros?: ConsolidacaoFiltros,
+  // Metadados opcionais para resolução de taxonomia
+  categorias: any[] = [],
+  subcategorias: any[] = [],
+  categoriasSubcategorias: any[] = []
 ) => {
   // Helper para verificar se uma movimentação é devolução
   const isDevolucao = (mov: Movimentacao) => {
@@ -63,7 +67,24 @@ export const useConsolidacao = (
   };
 
   const dadosConsolidados = useMemo(() => {
-    // 1. Filtros de base (Data e Tipo de Item)
+    // Lookup de categorias para performance
+    const catSubMap = new Map<string, string>(); // subcatId -> catId
+    categoriasSubcategorias.forEach(rel => {
+      if (!catSubMap.has(rel.subcategoria_id)) {
+        catSubMap.set(rel.subcategoria_id, rel.categoria_id);
+      }
+    });
+
+    const catMap = new Map<string, string>(categorias.map(c => [c.id, c.nome]));
+
+    const resolveClassificacao = (subcatId?: string) => {
+      if (!subcatId) return 'Sem Classificação';
+      const catId = catSubMap.get(subcatId);
+      if (!catId) return 'Sem Classificação';
+      return catMap.get(catId) || 'Sem Classificação';
+    };
+
+    // 1. Filtros de base (Data e Classificação)
     const movsFiltradas = movimentacoes.filter(mov => {
       // Filtro de Data (se fornecido)
       if (filtros?.dataInicio || filtros?.dataFim) {
@@ -72,14 +93,13 @@ export const useConsolidacao = (
         if (filtros.dataFim && dataMov > filtros.dataFim) return false;
       }
       
-      // Filtro de Tipo de Item (se fornecido)
+      // Filtro de Classificação (usando a taxonomia real)
       if (filtros?.tipoItem && filtros.tipoItem !== 'todos') {
-        const tipoNoSnapshot = mov.itemSnapshot?.tipoItem;
-        // Verifica tanto tipoItem quanto categoria (se houver no snapshot)
-        if (tipoNoSnapshot !== filtros.tipoItem) return false;
+        const itemClass = resolveClassificacao(mov.itemSnapshot?.subcategoriaId);
+        if (itemClass !== filtros.tipoItem) return false;
       }
 
-      // Filtro de Projeto/Local específico (se fornecido)
+      // Filtro de Projeto/Local específico
       if (filtros?.localId && filtros.localId !== 'todos') {
         if (mov.localUtilizacaoId !== filtros.localId) return false;
       }
@@ -145,7 +165,8 @@ export const useConsolidacao = (
             destinatario: mov.destinatario,
             solicitanteNome: mov.solicitanteNome,
             solicitacaoId: mov.solicitacaoId,
-            statusItem: 'pendente'
+            statusItem: 'pendente',
+            classificacao: resolveClassificacao(mov.itemSnapshot?.subcategoriaId)
           });
         }
       }
@@ -237,7 +258,7 @@ export const useConsolidacao = (
       gruposAgrupados: gruposFinal,
       kpis
     };
-  }, [movimentacoes, locaisConfig, gruposProjeto, tipoAgrupamento, filtros]);
+  }, [movimentacoes, locaisConfig, gruposProjeto, tipoAgrupamento, filtros, categorias, subcategorias, categoriasSubcategorias]);
 
   return dadosConsolidados;
 };
