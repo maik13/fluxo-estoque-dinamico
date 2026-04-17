@@ -182,6 +182,7 @@ export type Database = {
         Row: {
           ativo: boolean
           created_at: string
+          group_id: string | null
           id: string
           nome: string
           updated_at: string
@@ -189,6 +190,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           created_at?: string
+          group_id?: string | null
           id?: string
           nome: string
           updated_at?: string
@@ -196,11 +198,20 @@ export type Database = {
         Update: {
           ativo?: boolean
           created_at?: string
+          group_id?: string | null
           id?: string
           nome?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "locais_utilizacao_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "project_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       movements: {
         Row: {
@@ -514,6 +525,30 @@ export type Database = {
           tipo_usuario?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      project_groups: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          id: string
+          nome: string
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          id?: string
+          nome: string
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
