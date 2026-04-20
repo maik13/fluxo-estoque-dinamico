@@ -39,7 +39,7 @@ export const MenuPrincipal = ({
   onAbrirProjetos?: () => void;
 }) => {
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoqueContext();
-  const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
+  const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria, obterSubcategoriasDaCategoria, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
   const { 
     isAdmin,
     isGestor,

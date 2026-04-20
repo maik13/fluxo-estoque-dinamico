@@ -25,6 +25,7 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
     obterSubcategoriasAtivas, 
     obterCategoriasUnicas, 
     obterSubcategoriasPorCategoria,
+    obterSubcategoriasDaCategoria,
     obterPrimeiraCategoriaDeSubcategoria 
   } = useConfiguracoes();
   const [formItem, setFormItem] = useState<Item | null>(null);
@@ -210,10 +211,10 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
               <Select 
                 value={formItem.subcategoriaId || ''} 
                 onValueChange={(value) => setFormItem(prev => prev ? {...prev, subcategoriaId: value} : null)}
-                disabled={!categoriaSelecionada}
+                disabled={!formItem.categoriaId}
               >
                 <SelectTrigger className="bg-background">
-                  <SelectValue placeholder={categoriaSelecionada ? "Selecione a subcategoria" : "Selecione uma categoria primeiro"} />
+                  <SelectValue placeholder={formItem.categoriaId ? "Selecione a subcategoria" : "Selecione uma categoria primeiro"} />
                 </SelectTrigger>
                 <SelectContent className="bg-background z-50">
                   {subcategoriasFiltradas.map((sub) => (
