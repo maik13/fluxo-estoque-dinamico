@@ -29,6 +29,9 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
   } = useConfiguracoes();
   const [formItem, setFormItem] = useState<Item | null>(null);
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<string>('');
+  
+  // Obter categorias únicas
+  const categoriasUnicas = obterCategoriasUnicas();
 
   // Atualizar formItem quando o diálogo é aberto com um novo item
   useEffect(() => {
@@ -68,9 +71,6 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberto, item?.id, categoriasUnicas.length]);
-
-  // Obter categorias únicas
-  const categoriasUnicas = obterCategoriasUnicas();
 
   // Obter subcategorias filtradas por categoria
   const subcategoriasFiltradas = categoriaSelecionada 
