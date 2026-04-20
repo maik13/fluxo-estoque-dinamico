@@ -781,7 +781,15 @@ const editarItem = async (itemEditado: Item) => {
     };
 
     const { error } = await supabase.from('items').update(update).eq('id', itemEditado.id);
-    if (error) throw error;
+    if (error) {
+      console.error('Erro detalhado do Supabase:', error);
+      toast({ 
+        title: 'Erro ao editar', 
+        description: `Erro: ${error.message}${error.details ? ' - ' + error.details : ''}`, 
+        variant: 'destructive' 
+      });
+      return false;
+    }
 
     // Atualizar item_snapshot em todas as movimentações deste item
     const { error: movError } = await supabase
