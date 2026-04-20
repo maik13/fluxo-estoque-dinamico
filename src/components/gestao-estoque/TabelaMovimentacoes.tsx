@@ -115,16 +115,13 @@ export const TabelaMovimentacoes = () => {
       let matchTipo = true;
       if (tipoVisualizacao === 'saidas') {
         matchTipo = mov.tipo === 'SAIDA';
-      } else if (tipoVisualizacao === 'devolucoes') {
-        matchTipo = isDevolucao(mov);
-        matchTipo = mov.tipo === 'SAIDA';
-      } else if (tipoVisualizacao === 'devolucoes') {
-        matchTipo = isDevolucao(mov);
       } else if (tipoVisualizacao === 'pendentes') {
-        matchTipo = mov.tipo === 'SAIDA'; // Simplificado para focar em saídas operacionais
+        matchTipo = mov.tipo === 'SAIDA';
       } else {
         matchTipo = filtroTipo === 'todas' || mov.tipo === filtroTipo;
       }
+      // isDevolucao kept available for future use
+      void isDevolucao;
       
       const matchDestino = filtroDestino === 'todos' || mov.localUtilizacaoNome === filtroDestino;
 
