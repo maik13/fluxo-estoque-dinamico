@@ -54,7 +54,8 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
     } else {
       setCategoriaSelecionada('');
     }
-  }, [aberto, item, obterPrimeiraCategoriaDeSubcategoria]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto, item?.id]);
 
   // Obter categorias únicas
   const categoriasUnicas = obterCategoriasUnicas();
