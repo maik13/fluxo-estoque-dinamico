@@ -433,6 +433,8 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          pode_acessar_gerencial: boolean | null
+          pode_acessar_projetos: boolean | null
           pode_cadastrar_itens: boolean
           pode_devolver_material: boolean
           pode_editar_itens: boolean
@@ -454,6 +456,8 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          pode_acessar_gerencial?: boolean | null
+          pode_acessar_projetos?: boolean | null
           pode_cadastrar_itens?: boolean
           pode_devolver_material?: boolean
           pode_editar_itens?: boolean
@@ -475,6 +479,8 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          pode_acessar_gerencial?: boolean | null
+          pode_acessar_projetos?: boolean | null
           pode_cadastrar_itens?: boolean
           pode_devolver_material?: boolean
           pode_editar_itens?: boolean
