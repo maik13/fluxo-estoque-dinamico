@@ -28,7 +28,6 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
     obterPrimeiraCategoriaDeSubcategoria 
   } = useConfiguracoes();
   const [formItem, setFormItem] = useState<Item | null>(null);
-  const [categoriaSelecionada, setCategoriaSelecionada] = useState<string>('');
   
   // Obter categorias únicas
   const categoriasUnicas = obterCategoriasUnicas();
@@ -38,7 +37,6 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
     if (!aberto) {
       // Limpar quando fechar
       setFormItem(null);
-      setCategoriaSelecionada('');
       return;
     }
     
@@ -50,31 +48,22 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
       return { ...item };
     });
 
-    // Carregar categoria do item se houver
-    if (item.categoriaId) {
-      const cat = categoriasUnicas.find(c => c.id === item.categoriaId);
-      if (cat) {
-        setCategoriaSelecionada(cat.nome);
-      }
-    } else if (item.subcategoriaId) {
-      // Fallback para itens que ainda não têm categoria_id mas têm subcategoria
+    // Fallback para itens que ainda não têm categoria_id mas têm subcategoria
+    if (!item.categoriaId && item.subcategoriaId) {
       const primeiraCategoria = obterPrimeiraCategoriaDeSubcategoria(item.subcategoriaId);
-      setCategoriaSelecionada(primeiraCategoria);
       
-      // Tentar atualizar o formItem com o ID da categoria se possível
+      // Tentar encontrar o ID dessa categoria
       const cat = categoriasUnicas.find(c => c.nome === primeiraCategoria);
       if (cat) {
         setFormItem(prev => prev ? { ...prev, categoriaId: cat.id } : null);
       }
-    } else {
-      setCategoriaSelecionada('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberto, item?.id, categoriasUnicas.length]);
 
   // Obter subcategorias filtradas por categoria
-  const subcategoriasFiltradas = categoriaSelecionada 
-    ? obterSubcategoriasPorCategoria(categoriaSelecionada) 
+  const subcategoriasFiltradas = formItem?.categoriaId 
+    ? obterSubcategoriasDaCategoria(formItem.categoriaId) 
     : [];
 
   const handleSalvar = async (e: React.FormEvent) => {
@@ -197,12 +186,10 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
             <div>
               <Label htmlFor="categoria">Categoria *</Label>
               <Select 
-                value={categoriaSelecionada} 
+                value={formItem.categoriaId || ''} 
                 onValueChange={(value) => {
-                  setCategoriaSelecionada(value);
-                  const cat = categoriasUnicas.find(c => c.nome === value);
                   // Limpar subcategoria quando categoria mudar e atualizar ID da categoria
-                  setFormItem(prev => prev ? {...prev, categoriaId: cat?.id, subcategoriaId: undefined} : null);
+                  setFormItem(prev => prev ? {...prev, categoriaId: value, subcategoriaId: undefined} : null);
                 }}
               >
                 <SelectTrigger className="bg-background">
@@ -210,7 +197,7 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
                 </SelectTrigger>
                 <SelectContent className="bg-background z-50">
                   {categoriasUnicas.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.nome}>
+                    <SelectItem key={cat.id} value={cat.id}>
                       {cat.nome}
                     </SelectItem>
                   ))}

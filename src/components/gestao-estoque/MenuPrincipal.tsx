@@ -95,8 +95,6 @@ export const MenuPrincipal = ({
   const [popoverSaidaAberto, setPopoverSaidaAberto] = useState(false);
   const [itemSelecionadoSaida, setItemSelecionadoSaida] = useState<EstoqueItem | null>(null);
   
-  // Estado para categoria selecionada no formulário de cadastro
-  const [categoriaSelecionada, setCategoriaSelecionada] = useState<string>('');
   
   // Estado para lista de itens na saída
   interface ItemSaida {
@@ -124,9 +122,9 @@ export const MenuPrincipal = ({
 
   // Obter subcategorias ativas filtradas por categoria
   const subcategoriasFiltradas = useMemo(() => {
-    if (!categoriaSelecionada) return [];
-    return obterSubcategoriasPorCategoria(categoriaSelecionada);
-  }, [categoriaSelecionada, obterSubcategoriasPorCategoria]);
+    if (!formCadastro.categoriaId) return [];
+    return obterSubcategoriasDaCategoria(formCadastro.categoriaId);
+  }, [formCadastro.categoriaId, obterSubcategoriasDaCategoria]);
 
   // Filtrar itens para busca inteligente na saída - só recalcula quando necessário
   const itensFiltrarados = useMemo(() => {
@@ -179,7 +177,6 @@ export const MenuPrincipal = ({
       });
       setCodigoBarrasManual('');
       setErroCodigoBarras('');
-      setCategoriaSelecionada('');
     }
   };
 
@@ -197,7 +194,6 @@ export const MenuPrincipal = ({
       condicao: 'Novo',
       subcategoriaId: undefined
     });
-    setCategoriaSelecionada('');
     setFormMovimentacao({
       codigoBarras: 0,
       quantidade: 0,
@@ -704,14 +700,12 @@ export const MenuPrincipal = ({
                 <div>
                   <Label htmlFor="categoria">Categoria *</Label>
                   <Select 
-                    value={categoriaSelecionada} 
+                    value={formCadastro.categoriaId || ''} 
                     onValueChange={(value) => {
-                      setCategoriaSelecionada(value);
-                      const cat = categoriasUnicas.find(c => c.nome === value);
                       // Limpar subcategoria quando categoria mudar e definir categoriaId
                       setFormCadastro(prev => ({
                         ...prev, 
-                        categoriaId: cat?.id,
+                        categoriaId: value,
                         subcategoriaId: undefined
                       }));
                     }}
@@ -721,7 +715,7 @@ export const MenuPrincipal = ({
                     </SelectTrigger>
                     <SelectContent className="bg-background z-50">
                       {categoriasUnicas.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.nome}>
+                        <SelectItem key={cat.id} value={cat.id}>
                           {cat.nome}
                         </SelectItem>
                       ))}
@@ -739,10 +733,10 @@ export const MenuPrincipal = ({
                         subcategoriaId: value
                       }));
                     }}
-                    disabled={!categoriaSelecionada}
+                    disabled={!formCadastro.categoriaId}
                   >
                     <SelectTrigger className="bg-background">
-                      <SelectValue placeholder={categoriaSelecionada ? "Selecione a subcategoria" : "Selecione uma categoria primeiro"} />
+                      <SelectValue placeholder={formCadastro.categoriaId ? "Selecione a subcategoria" : "Selecione uma categoria primeiro"} />
                     </SelectTrigger>
                     <SelectContent className="bg-background z-50">
                       {subcategoriasFiltradas.map((sub) => (

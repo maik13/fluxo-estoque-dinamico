@@ -119,6 +119,7 @@ export type Database = {
           origem: string | null
           quantidade_minima: number | null
           subcategoria_id: string | null
+          categoria_id: string | null
           tipo_item: string | null
           unidade: string
           updated_at: string
@@ -141,6 +142,7 @@ export type Database = {
           origem?: string | null
           quantidade_minima?: number | null
           subcategoria_id?: string | null
+          categoria_id?: string | null
           tipo_item?: string | null
           unidade: string
           updated_at?: string
@@ -163,12 +165,20 @@ export type Database = {
           origem?: string | null
           quantidade_minima?: number | null
           subcategoria_id?: string | null
+          categoria_id?: string | null
           tipo_item?: string | null
           unidade?: string
           updated_at?: string
           valor?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "items_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "items_subcategoria_id_fkey"
             columns: ["subcategoria_id"]
