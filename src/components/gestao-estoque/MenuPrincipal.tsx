@@ -73,6 +73,7 @@ export const MenuPrincipal = ({
     unidade: '',
     condicao: 'Novo',
     subcategoriaId: undefined,
+    categoriaId: undefined,
     ncm: '',
     valor: 0
   });
@@ -172,6 +173,7 @@ export const MenuPrincipal = ({
         unidade: '',
         condicao: 'Novo',
         subcategoriaId: undefined,
+        categoriaId: undefined,
         ncm: '',
         valor: 0
       });
@@ -234,6 +236,7 @@ export const MenuPrincipal = ({
           unidade: data.unidade || '',
           condicao: data.condicao as any,
           subcategoriaId: data.subcategoria_id || undefined,
+          categoriaId: data.categoria_id || undefined,
           ncm: data.ncm || '',
           valor: data.valor || 0
         });
@@ -704,9 +707,11 @@ export const MenuPrincipal = ({
                     value={categoriaSelecionada} 
                     onValueChange={(value) => {
                       setCategoriaSelecionada(value);
-                      // Limpar subcategoria quando categoria mudar
+                      const cat = categoriasUnicas.find(c => c.nome === value);
+                      // Limpar subcategoria quando categoria mudar e definir categoriaId
                       setFormCadastro(prev => ({
                         ...prev, 
+                        categoriaId: cat?.id,
                         subcategoriaId: undefined
                       }));
                     }}

@@ -15,6 +15,7 @@ export interface Item {
   unidade: string; // metro, peça, kg, etc.
   condicao: 'Novo' | 'Usado' | 'Defeito' | 'Descarte';
   subcategoriaId?: string; // ID da subcategoria (referência)
+  categoriaId?: string; // ID da categoria (referência)
   quantidadeMinima?: number; // Para alertas de estoque baixo
   ncm?: string; // NCM - Nomenclatura Comum do Mercosul
   valor?: number; // Valor unitário do item

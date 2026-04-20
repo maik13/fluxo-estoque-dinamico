@@ -20,6 +20,7 @@ export const itemRegistrationSchema = z.object({
   unidade: nonEmptyStringSchema.max(20, { message: 'Máximo 20 caracteres' }),
   condicao: z.enum(['Novo', 'Usado'], { message: 'Condição inválida' }),
   subcategoriaId: uuidSchema,
+  categoriaId: uuidSchema.optional(),
   ncm: z.string().trim().max(20, { message: 'Máximo 20 caracteres' }).optional(),
   valor: z.number()
     .min(0, { message: 'Valor não pode ser negativo' })
