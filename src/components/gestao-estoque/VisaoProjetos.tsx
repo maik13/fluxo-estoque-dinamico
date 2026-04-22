@@ -224,11 +224,11 @@ export const VisaoProjetos = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todas as categorias</SelectItem>
-                    <SelectItem value="Insumo">Insumo</SelectItem>
-                    <SelectItem value="Ferramenta">Ferramenta</SelectItem>
-                    <SelectItem value="Equipamento">Equipamento</SelectItem>
-                    <SelectItem value="EPI">EPI</SelectItem>
-                    <SelectItem value="Outros">Outros</SelectItem>
+                    {categorias.map(cat => (
+                      <SelectItem key={cat.id} value={cat.nome}>
+                        {cat.nome}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

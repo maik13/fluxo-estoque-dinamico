@@ -89,15 +89,25 @@ export const useConsolidacao = (
 
     const resolveClassificacao = (snapshot?: any) => {
       if (!snapshot) return '-';
-      // Suporta tanto camelCase quanto snake_case (comum em dados vindos do Supabase/Excel)
+      
+      // 1. Tentar obter o nome diretamente pelo ID da categoria (mais preciso e moderno)
+      const catIdDirect = snapshot.categoriaId || snapshot.categoria_id;
+      if (catIdDirect) {
+        const nomeDireto = catMap.get(catIdDirect);
+        if (nomeDireto) return nomeDireto;
+      }
+
+      // 2. Fallback: Tentar resolver via subcategoria (para movimentações antigas)
       const subcatId = snapshot.subcategoriaId || snapshot.subcategoria_id;
+      if (subcatId) {
+        const catIdFromSub = catSubMap.get(subcatId);
+        if (catIdFromSub) {
+          const nomePelaSub = catMap.get(catIdFromSub);
+          if (nomePelaSub) return nomePelaSub;
+        }
+      }
       
-      if (!subcatId) return '-';
-      const catId = catSubMap.get(subcatId);
-      if (!catId) return '-';
-      
-      const nome = catMap.get(catId);
-      return (nome && nome.trim().length > 0) ? nome : '-';
+      return '-';
     };
 
     // 1. Filtros de base (Data e Classificação)
