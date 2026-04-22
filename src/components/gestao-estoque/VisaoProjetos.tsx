@@ -91,7 +91,7 @@ export const VisaoProjetos = () => {
       'Grupo': item.projetoGrupoNome,
       'Item': item.itemSnapshot?.nome || 'Não identificado',
       'Código': item.itemSnapshot?.codigoBarras || '-',
-      'Tipo': item.itemSnapshot?.tipoItem || '-',
+      'Categoria': item.classificacao || '-',
       'Projeto/Local': item.localUtilizacaoNome,
       'Status': item.statusItem.toUpperCase(),
       'Saída': item.totalSaida,
@@ -217,13 +217,13 @@ export const VisaoProjetos = () => {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="pendentes-tipo" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo de Item</Label>
+                <Label htmlFor="pendentes-tipo" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Filtrar por Categoria</Label>
                 <Select value={filtroPendentesTipoItem} onValueChange={setFiltroPendentesTipoItem}>
                   <SelectTrigger id="pendentes-tipo">
                     <SelectValue placeholder="Todos os tipos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="todos">Todos os tipos</SelectItem>
+                    <SelectItem value="todos">Todas as categorias</SelectItem>
                     <SelectItem value="Insumo">Insumo</SelectItem>
                     <SelectItem value="Ferramenta">Ferramenta</SelectItem>
                     <SelectItem value="Equipamento">Equipamento</SelectItem>
@@ -293,7 +293,7 @@ export const VisaoProjetos = () => {
                   {tipoAgrupamentoProjetos === 'grupo' && <TableHead>Grupo</TableHead>}
                   <TableHead>Item</TableHead>
                   <TableHead>Código</TableHead>
-                  <TableHead>Tipo</TableHead>
+                  <TableHead>Categoria</TableHead>
                   {tipoAgrupamentoProjetos === 'projeto' && (
                     <>
                       <TableHead>Projeto/Local</TableHead>
@@ -344,9 +344,9 @@ export const VisaoProjetos = () => {
                         {item.itemSnapshot?.codigoBarras || '-'}
                       </TableCell>
                       <TableCell>
-                        {item.itemSnapshot?.tipoItem ? (
-                          <Badge variant="outline" className="text-[9px] uppercase h-4">
-                            {item.itemSnapshot.tipoItem}
+                        {item.classificacao !== '-' ? (
+                          <Badge variant="outline" className="text-[10px] h-4 bg-muted/50 border-primary/20 text-primary">
+                            {item.classificacao}
                           </Badge>
                         ) : '-'}
                       </TableCell>
