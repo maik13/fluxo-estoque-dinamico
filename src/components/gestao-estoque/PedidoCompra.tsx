@@ -48,6 +48,7 @@ interface PedidoItemDB {
   item_id: string | null;
   nome_item?: string | null;
   quantidade: number;
+  quantidade_recebida?: number | null;  // ← novo campo para recebimento parcial
   item_snapshot: any;
   status: string;
   created_at: string;
@@ -92,6 +93,9 @@ export const PedidoCompra = () => {
   const [editPopoverAberto, setEditPopoverAberto] = useState(false);
   const [editItemSelecionado, setEditItemSelecionado] = useState<EstoqueItem | null>(null);
   const [editQuantidade, setEditQuantidade] = useState<number>(0);
+
+  // ── Parcial: mapa de item.id -> qtd recebida sendo digitada ──
+  const [parcialQtdMap, setParcialQtdMap] = useState<Record<string, string>>({});
 
   const itensEstoque = obterEstoque();
 
@@ -410,19 +414,62 @@ export const PedidoCompra = () => {
 
   const atualizarStatusItem = async (itemId: string, novoStatus: string) => {
     try {
+      const updateData: Record<string, any> = { status: novoStatus };
+
+      // Ao trocar de parcial para outro status, limpa a qtd recebida
+      if (novoStatus !== 'parcial') {
+        updateData.quantidade_recebida = null;
+        setParcialQtdMap(prev => { const n = { ...prev }; delete n[itemId]; return n; });
+      }
+
       const { error } = await supabase
         .from('pedido_compra_itens')
-        .update({ status: novoStatus })
+        .update(updateData)
         .eq('id', itemId);
 
       if (error) throw error;
       setItensPedidoSelecionado(prev =>
-        prev.map(i => i.id === itemId ? { ...i, status: novoStatus } : i)
+        prev.map(i => i.id === itemId
+          ? { ...i, status: novoStatus, quantidade_recebida: novoStatus !== 'parcial' ? null : i.quantidade_recebida }
+          : i
+        )
       );
       toast.success('Status atualizado');
     } catch (error) {
       console.error('Erro:', error);
       toast.error('Erro ao atualizar status');
+    }
+  };
+
+  // Salva a quantidade recebida para itens parciais
+  const salvarQtdParcial = async (itemId: string) => {
+    const qtdStr = parcialQtdMap[itemId];
+    const qtd = parseFloat(qtdStr ?? '');
+    if (isNaN(qtd) || qtd <= 0) {
+      toast.error('Informe uma quantidade válida recebida');
+      return;
+    }
+
+    const item = itensPedidoSelecionado.find(i => i.id === itemId);
+    if (item && qtd > item.quantidade) {
+      toast.error(`A quantidade recebida não pode ser maior que a solicitada (${item.quantidade})`);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('pedido_compra_itens')
+        .update({ quantidade_recebida: qtd })
+        .eq('id', itemId);
+
+      if (error) throw error;
+      setItensPedidoSelecionado(prev =>
+        prev.map(i => i.id === itemId ? { ...i, quantidade_recebida: qtd } : i)
+      );
+      toast.success(`Quantidade recebida salva: ${qtd}`);
+    } catch (error) {
+      console.error('Erro:', error);
+      toast.error('Erro ao salvar quantidade recebida');
     }
   };
 
@@ -948,7 +995,8 @@ export const PedidoCompra = () => {
                 <TableHead>#</TableHead>
                 <TableHead>Item</TableHead>
                 <TableHead>Código</TableHead>
-                <TableHead>Qtd</TableHead>
+                <TableHead>Qtd. Pedida</TableHead>
+                {!modoEdicao && <TableHead>Qtd. Recebida</TableHead>}
                 <TableHead>Marca</TableHead>
                 <TableHead>Status</TableHead>
                 {modoEdicao && <TableHead>Ações</TableHead>}
@@ -957,8 +1005,10 @@ export const PedidoCompra = () => {
             <TableBody>
               {(modoEdicao ? editItensPedido : itensPedidoSelecionado).map((item, idx) => {
                 const snap = item.item_snapshot as any;
+                const eParcial = item.status === 'parcial';
+                const qtdRecebida = item.quantidade_recebida;
                 return (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} className={eParcial ? 'bg-amber-500/5' : ''}>
                     <TableCell>{idx + 1}</TableCell>
                     <TableCell className="font-medium">{snap?.nome || '-'}</TableCell>
                     <TableCell>{snap?.codigoBarras || '-'}</TableCell>
@@ -981,11 +1031,51 @@ export const PedidoCompra = () => {
                         <>{item.quantidade} {snap?.unidade || ''}</>
                       )}
                     </TableCell>
+
+                    {/* ── Qtd Recebida (apenas no modo visualização) ── */}
+                    {!modoEdicao && (
+                      <TableCell>
+                        {eParcial ? (
+                          <div className="flex items-center gap-1.5">
+                            <Input
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              max={item.quantidade}
+                              placeholder="Qtd"
+                              value={parcialQtdMap[item.id] ?? (qtdRecebida != null ? String(qtdRecebida) : '')}
+                              onChange={e => setParcialQtdMap(prev => ({ ...prev, [item.id]: e.target.value }))}
+                              disabled={pedidoSelecionado?.status === 'concluido'}
+                              className="w-20 h-8 text-xs border-amber-500/40 focus:border-amber-500"
+                            />
+                            <span className="text-xs text-muted-foreground">{snap?.unidade || ''}</span>
+                            {!pedidoSelecionado?.status || pedidoSelecionado.status !== 'concluido' ? (
+                              <Button
+                                size="icon-sm"
+                                variant="outline"
+                                className="h-8 w-8 border-amber-500/40 text-amber-500 hover:bg-amber-500/10"
+                                onClick={() => salvarQtdParcial(item.id)}
+                                title="Salvar quantidade recebida"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </Button>
+                            ) : null}
+                          </div>
+                        ) : qtdRecebida != null ? (
+                          <span className="text-sm text-muted-foreground">
+                            {qtdRecebida} {snap?.unidade || ''}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/40">—</span>
+                        )}
+                      </TableCell>
+                    )}
+
                     <TableCell>{snap?.marca || '-'}</TableCell>
                     <TableCell>
                       {modoEdicao ? (
                         <Badge variant={item.status === 'comprado' ? 'default' : 'secondary'}>
-                          {item.status === 'comprado' ? 'Comprado' : 'Pendente'}
+                          {item.status === 'comprado' ? 'Comprado' : item.status === 'parcial' ? 'Parcial' : 'Pendente'}
                         </Badge>
                       ) : (
                         <Select
@@ -998,10 +1088,19 @@ export const PedidoCompra = () => {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="pendente">
-                              <span className="flex items-center gap-1 text-orange-500 font-medium">Pendente</span>
+                              <span className="flex items-center gap-1 text-orange-500 font-medium">
+                                Pendente
+                              </span>
+                            </SelectItem>
+                            <SelectItem value="parcial">
+                              <span className="flex items-center gap-1 text-amber-400 font-medium">
+                                ⚠️ Parcial
+                              </span>
                             </SelectItem>
                             <SelectItem value="comprado">
-                              <span className="flex items-center gap-1 text-green-500 font-medium">Comprado</span>
+                              <span className="flex items-center gap-1 text-green-500 font-medium">
+                                Comprado
+                              </span>
                             </SelectItem>
                           </SelectContent>
                         </Select>
