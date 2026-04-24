@@ -56,7 +56,10 @@ export const SolicitarMaterial = () => {
   const { canManageStock, userProfile } = usePermissions();
   const { obterTiposOperacaoAtivos, obterSolicitantesAtivos, obterLocaisUtilizacaoAtivos } = useConfiguracoes();
   
-  const itensDisponiveis = obterEstoque().filter(item => item.ativo !== false);
+  // ── Regra 1: Apenas itens ativos COM saldo > 0 podem ser solicitados ──
+  const itensDisponiveis = obterEstoque().filter(
+    item => item.ativo !== false && (item.estoqueAtual ?? 0) > 0
+  );
   const tiposOperacaoDisponiveis = obterTiposOperacaoAtivos();
   const solicitantesDisponiveis = obterSolicitantesAtivos();
   const locaisDisponiveis = obterLocaisUtilizacaoAtivos();
@@ -162,6 +165,14 @@ export const SolicitarMaterial = () => {
   const atualizarQuantidade = (itemId: string, novaQuantidade: number) => {
     if (novaQuantidade <= 0) {
       removerItem(itemId);
+      return;
+    }
+
+    // ── Regra 2: Ferramenta sempre fica com quantidade 1 ──
+    const itemNaLista = itensSolicitados.find(i => i.item_id === itemId);
+    const eFerramenta = (itemNaLista?.item_snapshot as any)?.tipoItem === 'Ferramenta';
+    if (eFerramenta) {
+      // Bloqueia silenciosamente — UI já impede, mas garantimos aqui
       return;
     }
 
@@ -497,36 +508,62 @@ export const SolicitarMaterial = () => {
             {/* Lista de itens solicitados */}
             {itensSolicitados.length > 0 && (
               <div className="space-y-2">
-                <Label>Itens Solicitados</Label>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
+                <Label>Itens Solicitados ({itensSolicitados.length})</Label>
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                   {itensSolicitados.map((itemSolicitado) => {
                     const item = itemSolicitado.item_snapshot;
+                    const eFerramenta = (item as any)?.tipoItem === 'Ferramenta';
                     return (
-                      <Card key={itemSolicitado.item_id}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="font-medium">{item.nome}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {item.codigoBarras} - {item.marca || 'Sem marca'}
+                      <Card key={itemSolicitado.item_id} className="border-border/60">
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            {/* Info do item */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium text-sm truncate">{item.nome}</span>
+                                {eFerramenta && (
+                                  <Badge variant="warning" className="text-[10px] px-1.5 py-0 shrink-0">
+                                    🔧 Ferramenta
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                Cód. {item.codigoBarras}{item.marca ? ` · ${item.marca}` : ''}
                               </div>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <Input
-                                type="number"
-                                min="1"
-                                value={itemSolicitado.quantidade_solicitada}
-                                onChange={(e) => atualizarQuantidade(
-                                  itemSolicitado.item_id,
-                                  parseInt(e.target.value) || 0
-                                )}
-                                className="w-20"
-                              />
-                              <Badge variant="secondary">{item.unidade}</Badge>
+
+                            {/* Controle de quantidade + remoção */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              {eFerramenta ? (
+                                // ── Regra 2: Ferramenta — quantidade fixa 1, não editável ──
+                                <div className="flex items-center gap-1.5">
+                                  <div className="flex items-center justify-center w-16 h-9 rounded-md
+                                    border border-amber-500/30 bg-amber-500/10
+                                    text-amber-400 font-bold text-sm select-none">
+                                    1
+                                  </div>
+                                  <span className="text-[10px] text-amber-400/80 leading-tight text-right max-w-[50px]">
+                                    qtd.<br/>fixa
+                                  </span>
+                                </div>
+                              ) : (
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={itemSolicitado.quantidade_solicitada}
+                                  onChange={(e) => atualizarQuantidade(
+                                    itemSolicitado.item_id,
+                                    parseInt(e.target.value) || 0
+                                  )}
+                                  className="w-20 h-9"
+                                />
+                              )}
+                              <Badge variant="secondary" className="text-xs">{item.unidade}</Badge>
                               <Button
-                                variant="outline"
-                                size="sm"
+                                variant="ghost"
+                                size="icon-sm"
                                 onClick={() => removerItem(itemSolicitado.item_id)}
+                                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
