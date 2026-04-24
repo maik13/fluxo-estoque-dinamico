@@ -423,123 +423,123 @@ export const MenuPrincipal = ({
         formMovimentacao.observacoes,
         formMovimentacao.tipoOperacaoId || undefined,
         formMovimentacao.destinatario || undefined
-      );
-      if (!sucesso) {
-        todosRegistrados = false;
-        break;
+          marca: data.marca || '',
+          unidade: data.unidade || '',
+          condicao: data.condicao as any,
+          subcategoriaId: data.subcategoria_id || undefined,
+          categoriaId: data.categoria_id || undefined,
+          ncm: data.ncm || '',
+          valor: data.valor || 0
+        });
+        setCodigoBarrasManual('');
+        setErroCodigoBarras('');
       }
+    } catch (error) {
+      console.error('Erro ao carregar último cadastro:', error);
+    }
+  };
+
+  // Função para validar código de barras ao sair do campo
+  const validarCodigoBarras = async () => {
+    const codigoNormalizado = codigoBarrasManual.trim();
+
+    if (!codigoNormalizado) {
+      setErroCodigoBarras('O código de barras é obrigatório');
+      return false;
+    }
+
+    const codigo = Number(codigoNormalizado);
+
+    if (!Number.isInteger(codigo) || codigo <= 0) {
+      setErroCodigoBarras('Informe um código de barras válido');
+      return false;
     }
     
-    if (todosRegistrados) {
-      setDialogoSaida(false);
-      setItensSaida([]);
+    const { data, error } = await supabase
+      .from('items')
+      .select('id')
+      .eq('codigo_barras', codigo)
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Erro ao validar código:', error);
+      setErroCodigoBarras('Erro ao validar código de barras');
+      return false;
+    }
+    
+    if (data) {
+      setErroCodigoBarras('Este código de barras já está sendo usado por outro item');
+      return false;
+    }
+
+    setErroCodigoBarras('');
+    setCodigoBarrasManual(String(codigo));
+    setFormCadastro(prev => ({ ...prev, codigoBarras: codigo }));
+    return true;
+  };
+
+  // Função para lidar com cadastro
+  const handleCadastro = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validar que o código de barras foi preenchido
+    if (!codigoBarrasManual) {
+      setErroCodigoBarras('O código de barras é obrigatório');
+      toast.error('O código de barras é obrigatório');
+      return;
+    }
+    
+    // Validar código no banco antes de prosseguir
+    const codigoValido = await validarCodigoBarras();
+    if (!codigoValido) {
+      return;
+    }
+    
+    const codigoFinal = Number(codigoBarrasManual);
+    
+    const dadosParaValidar = {
+      ...formCadastro,
+      codigoBarras: codigoFinal,
+      nome: formCadastro.nome || '',
+      unidade: formCadastro.unidade || '',
+      condicao: formCadastro.condicao || 'Novo',
+      subcategoriaId: formCadastro.subcategoriaId || '',
+      valor: formCadastro.valor || 0
+    };
+    
+    // Validar com zod
+    const resultado = itemRegistrationSchema.safeParse(dadosParaValidar);
+    
+    if (!resultado.success) {
+      const erros = resultado.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join('\n');
+      toast.error(`Erro de validação:\n${erros}`);
+      console.error('Erros de validação:', resultado.error.errors);
+      return;
+    }
+    
+    if (cadastrarItem(resultado.data as any)) {
+      setDialogoCadastro(false);
       resetarFormularios();
+      setCodigoBarrasManual('');
+      setErroCodigoBarras('');
       // Dados atualizados automaticamente via contexto compartilhado
-      toast.success(`Saída registrada com sucesso! ${itensSaida.length} item(ns) processado(s).`);
     }
   };
 
-  // Função para selecionar item na busca inteligente
-  const selecionarItemSaida = (item: EstoqueItem) => {
-    setItemSelecionadoSaida(item);
-    setBuscaSaida(item.nome);
-    setFormMovimentacao(prev => ({
-      ...prev,
-      codigoBarras: item.codigoBarras
-    }));
-    setPopoverSaidaAberto(false);
-  };
-
-  // Função para limpar item selecionado
-  const limparItemSelecionado = () => {
-    setItemSelecionadoSaida(null);
-    setBuscaSaida('');
-    setFormMovimentacao(prev => ({
-      ...prev,
-      codigoBarras: 0
-    }));
-  };
-  
-  // Limpar lista de itens ao fechar o diálogo de saída
-  const fecharDialogoSaida = () => {
-    setDialogoSaida(false);
-    setItensSaida([]);
-    limparItemSelecionado();
-    resetarFormularios();
-  };
-
-  // Função para buscar item quando código for digitado
-  const buscarItemAoDigitarCodigo = (codigo: number, tipo: 'entrada' | 'saida') => {
-    if (codigo > 0) {
-      const item = buscarItemPorCodigo(codigo);
-      if (item) {
-        // Aqui você pode mostrar informações do item encontrado
-        console.log('Item encontrado:', item);
-      }
+  // Função para adicionar item à lista de saída
+  const adicionarItemSaida = () => {
+    if (!itemSelecionadoSaida) {
+      toast.error('Selecione um item');
+      return;
     }
-  };
-
-
-  return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center mb-8">
-        <div className="text-center flex-1">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
-            🏭 Sistema de Gestão de Almoxarifado
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Controle completo do seu almoxarifado de materiais
-          </p>
-          {!podeUsarCadastro && (
-            <p className="text-warning text-sm mt-1">
-              📋 {!canCreateItems 
-                ? "Sem permissão para cadastrar itens" 
-                : "Cadastros só podem ser feitos no Estoque Principal"
-              }. Estoque atual: {estoqueAtivoInfo?.nome}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-4">
-          {(isAdmin() || isGestor()) && <Configuracoes />}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-
-
-        {/* Painel Gerencial - Acesso via Card */}
-        {canAccessManagerial() && (
-          <Card 
-            className="group cursor-pointer hover:scale-105 transition-all duration-300 border-primary/20 hover:border-primary/40 shadow-sm hover:shadow-primary/10 overflow-hidden relative"
-            onClick={onAbrirGerencial}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <CardHeader className="text-center relative z-10">
-              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                <BarChart3 className="h-8 w-8 text-primary" />
-              </div>
-              <CardTitle className="text-primary">Gerencial</CardTitle>
-              <CardDescription>
-                Indicadores e visão consolidada por grupo
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )}
-
-        {/* Visão de Projetos - Acesso via Card */}
-        {canAccessProjects() && (
-          <Card 
-            className="group cursor-pointer hover:scale-105 transition-all duration-300 border-warning/20 hover:border-warning/40 shadow-sm hover:shadow-warning/10 overflow-hidden relative"
-            onClick={onAbrirProjetos}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-warning/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <CardHeader className="text-center relative z-10">
-              <div className="mx-auto w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-warning/20 transition-colors">
-                <Package className="h-8 w-8 text-warning" />
-              </div>
-              <CardTitle className="text-warning">Projetos</CardTitle>
-              <CardDescription>
-                Resumo e saldo de materiais por projeto/local
+    
+    // Validar quantidade
+    const quantidade = formMovimentacao.quantidade;
+    if (!quantidade || typeof quantidade !== 'number' || quantidade <= 0) {
+      toast.error('Informe uma quantidade válida maior que zero');
+      return;
+    }
+    
     if (quantidade > 999999) {
       toast.error('Quantidade muito alta (máximo 999999)');
       return;
@@ -567,7 +567,6 @@ export const MenuPrincipal = ({
     
     toast.success('Item adicionado à lista de saída');
   };
-  
   // Função para remover item da lista de saída
   const removerItemSaida = (itemId: string) => {
     setItensSaida(prev => prev.filter(i => i.item.id !== itemId));
