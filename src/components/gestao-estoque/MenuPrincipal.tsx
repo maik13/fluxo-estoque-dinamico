@@ -53,7 +53,8 @@ export const MenuPrincipal = ({
     canPedidoCompra, 
     canSolicitacaoMaterial, 
     canAccessManagerial,
-    canAccessProjects 
+    canAccessProjects,
+    canViewReports
   } = usePermissions();
   
   // Estados para controlar os diálogos
