@@ -8,8 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { FileBarChart, Filter, Download, X } from 'lucide-react';
+import { FileBarChart, Filter, Download, X, Package, Tag, Layers } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
+import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { EstoqueItem } from '@/types/estoque';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -45,19 +46,15 @@ export const RelatoriosComFiltros = () => {
 
   const itensEstoque = obterEstoque();
   
-  // Obter valores únicos para os filtros
+  const { categorias: categoriasConfig, subcategorias: subcategoriasConfig } = useConfiguracoes();
+
   const categorias = useMemo(() => {
-    return [];
-  }, [itensEstoque]);
+    return categoriasConfig.sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [categoriasConfig]);
 
   const subcategorias = useMemo(() => {
-    return [];
-  }, [itensEstoque]);
-
-  const responsaveis = useMemo(() => {
-    const resps = new Set<string>();
-    return Array.from(resps).sort();
-  }, [itensEstoque]);
+    return subcategoriasConfig.sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [subcategoriasConfig]);
 
   const localizacoes = useMemo(() => {
     const locs = new Set(itensEstoque.map(item => item.localizacao).filter(Boolean));
@@ -77,12 +74,16 @@ export const RelatoriosComFiltros = () => {
 
     // Filtro por categoria
     if (filtros.categoria) {
-      itemsFiltrados = itemsFiltrados.filter(item => false);
+      itemsFiltrados = itemsFiltrados.filter(item => 
+        item.categoriaId === filtros.categoria
+      );
     }
 
     // Filtro por subcategoria
     if (filtros.subcategoria) {
-      itemsFiltrados = itemsFiltrados.filter(item => false);
+      itemsFiltrados = itemsFiltrados.filter(item => 
+        item.subcategoriaId === filtros.subcategoria
+      );
     }
 
     // Filtro por localização
@@ -236,7 +237,7 @@ export const RelatoriosComFiltros = () => {
                      <SelectContent>
                        <SelectItem value="todas">Todas as categorias</SelectItem>
                        {categorias.map(cat => (
-                         <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                         <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
                        ))}
                      </SelectContent>
                   </Select>
@@ -255,7 +256,7 @@ export const RelatoriosComFiltros = () => {
                      <SelectContent>
                        <SelectItem value="todas">Todas as subcategorias</SelectItem>
                        {subcategorias.map(subcat => (
-                         <SelectItem key={subcat} value={subcat}>{subcat}</SelectItem>
+                         <SelectItem key={subcat.id} value={subcat.id}>{subcat.nome}</SelectItem>
                        ))}
                      </SelectContent>
                    </Select>
@@ -395,33 +396,57 @@ export const RelatoriosComFiltros = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      itensFiltrados.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-mono">{item.codigoBarras}</TableCell>
-                          <TableCell>{item.nome}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <span className={item.estoqueAtual === 0 ? 'text-destructive font-medium' : ''}>
-                                {item.estoqueAtual}
-                              </span>
-                              {item.estoqueAtual === 0 && (
-                                <Badge variant="destructive" className="text-xs">Zerado</Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                           <TableCell>{item.unidade}</TableCell>
-                          <TableCell>{item.localizacao || '-'}</TableCell>
-                          <TableCell>
-                            <Badge variant={
-                              item.condicao === 'Novo' ? 'default' :
-                              item.condicao === 'Usado' ? 'secondary' :
-                              item.condicao === 'Defeito' ? 'destructive' : 'outline'
-                            }>
-                              {item.condicao}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      itensFiltrados.map((item) => {
+                        const categoriaNome = categoriasConfig.find(c => c.id === item.categoriaId)?.nome || '-';
+                        const subcategoriaNome = subcategoriasConfig.find(s => s.id === item.subcategoriaId)?.nome || '-';
+                        
+                        return (
+                          <TableRow key={item.id} className="hover:bg-muted/30">
+                            <TableCell className="font-mono text-xs">{item.codigoBarras}</TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{item.nome}</span>
+                                <span className="text-[10px] text-muted-foreground">{item.marca || 'Sem marca'}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span className={cn(
+                                  "font-bold",
+                                  item.estoqueAtual === 0 ? 'text-destructive' : 
+                                  item.quantidadeMinima && item.estoqueAtual <= item.quantidadeMinima ? 'text-amber-500' : 
+                                  'text-emerald-500'
+                                )}>
+                                  {item.estoqueAtual}
+                                </span>
+                                {item.estoqueAtual === 0 && (
+                                  <Badge variant="destructive" className="text-[9px] h-4 px-1">Zerado</Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs">{item.unidade}</TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-1">
+                                <Badge variant="outline" className="text-[10px] h-4 w-fit bg-blue-500/5 border-blue-500/20 text-blue-400">
+                                  <Tag className="h-2.5 w-2.5 mr-1" /> {categoriaNome}
+                                </Badge>
+                                <Badge variant="outline" className="text-[10px] h-4 w-fit bg-zinc-500/5 border-zinc-500/20 text-zinc-400">
+                                  <Layers className="h-2.5 w-2.5 mr-1" /> {subcategoriaNome}
+                                </Badge>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={
+                                item.condicao === 'Novo' ? 'default' :
+                                item.condicao === 'Usado' ? 'secondary' :
+                                item.condicao === 'Defeito' ? 'destructive' : 'outline'
+                              } className="text-[10px] h-4">
+                                {item.condicao}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>

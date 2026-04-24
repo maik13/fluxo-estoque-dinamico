@@ -483,11 +483,8 @@ export const SolicitarMaterial = () => {
                             <CommandItem
                               key={item.id}
                               onSelect={() => {
-                                const quantidade = window.prompt('Quantidade solicitada:', '1');
-                                const qtd = parseInt(quantidade || '1');
-                                if (qtd > 0) {
-                                  adicionarItem(item, qtd);
-                                }
+                                adicionarItem(item, 1);
+                                setPopoverAberto(false);
                               }}
                             >
                               <div className="flex flex-col w-full">
@@ -641,21 +638,25 @@ export const SolicitarMaterial = () => {
             </div>
 
             {/* Botões */}
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center pt-4 border-t gap-4">
               <Button 
+                type="button" 
                 variant="outline" 
-                onClick={() => setVisualizarSolicitacoes(true)}
+                onClick={() => setDialogoAberto(false)}
+                className="hover:bg-destructive/10 hover:text-destructive transition-colors"
               >
-                <FileText className="h-4 w-4 mr-2" />
-                Consultar Solicitações
+                Cancelar
               </Button>
               
-              <div className="flex space-x-2">
+              <div className="flex gap-2">
                 <Button 
+                  type="button"
                   variant="outline" 
-                  onClick={() => setDialogoAberto(false)}
+                  onClick={() => setVisualizarSolicitacoes(true)}
+                  className="gap-2"
                 >
-                  Cancelar
+                  <FileText className="h-4 w-4" />
+                  Histórico
                 </Button>
                 <Button 
                   onClick={handleSubmit}
@@ -666,8 +667,9 @@ export const SolicitarMaterial = () => {
                     !localUtilizacao.trim() ||
                     !codigoAssinatura.trim()
                   }
+                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] gap-2"
                 >
-                  {enviando ? 'Enviando...' : 'Enviar Solicitação'}
+                  {enviando ? 'Enviando...' : '🚀 Enviar Solicitação'}
                 </Button>
               </div>
             </div>

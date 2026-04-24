@@ -1060,8 +1060,8 @@ export const SolicitacaoMaterial = () => {
       </Dialog>
 
       {/* Dialog Criar Nova Solicitação */}
-      <Dialog open={dialogoCriar} onOpenChange={(open) => { if (open) setDialogoCriar(true); }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()} onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+      <Dialog open={dialogoCriar} onOpenChange={setDialogoCriar}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5" /> Nova Solicitação de Material
@@ -1242,15 +1242,22 @@ export const SolicitacaoMaterial = () => {
               <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} placeholder="Observações sobre a solicitação (opcional)" rows={2} />
             </div>
 
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button variant="outline" onClick={() => setDialogoCriar(false)}>Cancelar</Button>
+            <div className="flex justify-between items-center pt-4 border-t gap-4">
               <Button 
-                onClick={criarSolicitacao} 
-                disabled={enviando || isInicializandoSolicitacao || itensLista.length === 0 || !localOrigemId} 
-                className="gap-2"
+                type="button" 
+                variant="outline" 
+                onClick={() => setDialogoCriar(false)}
+                className="hover:bg-destructive/10 hover:text-destructive transition-colors"
               >
-                <Send className="h-4 w-4" />
-                {enviando ? 'Enviando...' : isInicializandoSolicitacao ? 'Carregando...' : 'Criar Solicitação'}
+                Cancelar
+              </Button>
+              <Button 
+                type="submit" 
+                onClick={criarSolicitacao}
+                disabled={enviando || isInicializandoSolicitacao || itensLista.length === 0 || !localOrigemId} 
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02]"
+              >
+                {enviando ? 'Enviando...' : isInicializandoSolicitacao ? 'Carregando...' : '🚀 Criar Solicitação'}
               </Button>
             </div>
           </div>

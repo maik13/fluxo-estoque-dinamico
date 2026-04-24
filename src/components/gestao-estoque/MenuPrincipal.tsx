@@ -511,11 +511,12 @@ export const MenuPrincipal = ({
         {/* Painel Gerencial - Acesso via Card */}
         {canAccessManagerial() && (
           <Card 
-            className="cursor-pointer hover:scale-105 transition-all duration-300 border-primary/20 hover:border-primary/40"
+            className="group cursor-pointer hover:scale-105 transition-all duration-300 border-primary/20 hover:border-primary/40 shadow-sm hover:shadow-primary/10 overflow-hidden relative"
             onClick={onAbrirGerencial}
           >
-            <CardHeader className="text-center">
-              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <CardHeader className="text-center relative z-10">
+              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
                 <BarChart3 className="h-8 w-8 text-primary" />
               </div>
               <CardTitle className="text-primary">Gerencial</CardTitle>
@@ -529,12 +530,13 @@ export const MenuPrincipal = ({
         {/* Visão de Projetos - Acesso via Card */}
         {canAccessProjects() && (
           <Card 
-            className="cursor-pointer hover:scale-105 transition-all duration-300 border-warning/20 hover:border-warning/40"
+            className="group cursor-pointer hover:scale-105 transition-all duration-300 border-warning/20 hover:border-warning/40 shadow-sm hover:shadow-warning/10 overflow-hidden relative"
             onClick={onAbrirProjetos}
           >
-            <CardHeader className="text-center">
-              <div className="mx-auto w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center mb-4">
-                <BarChart3 className="h-8 w-8 text-warning" />
+            <div className="absolute inset-0 bg-gradient-to-br from-warning/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <CardHeader className="text-center relative z-10">
+              <div className="mx-auto w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-warning/20 transition-colors">
+                <Package className="h-8 w-8 text-warning" />
               </div>
               <CardTitle className="text-warning">Projetos</CardTitle>
               <CardDescription>
@@ -962,9 +964,7 @@ export const MenuPrincipal = ({
                       <X className="h-4 w-4" />
                     </Button>
                   )}
-                  <Button type="button" variant="outline" size="icon">
-                    <Scan className="h-4 w-4" />
-                  </Button>
+
                 </div>
                 {itemSelecionadoSaida && (
                   <div className="mt-2 p-3 bg-muted rounded-md relative">
