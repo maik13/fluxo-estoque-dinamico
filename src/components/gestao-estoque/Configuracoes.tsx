@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { gerarRelatorioPDF } from '@/utils/pdfExport';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { GuiaImportacaoExcel } from './GuiaImportacaoExcel';
 import { UsuariosList } from './UsuariosList';
@@ -30,6 +30,7 @@ interface ConfiguracoesProps {
 export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   const { toast } = useToast();
   const { obterEstoque } = useEstoqueContext();
+  const { canCreateUsers } = usePermissions();
   const {
     estoques,
     subcategorias,
@@ -637,7 +638,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
         
         <Tabs defaultValue="usuarios" className="w-full">
           <TabsList className="grid w-full grid-cols-12 gap-1">
-            <TabsTrigger value="usuarios" className="text-xs">Usuários</TabsTrigger>
+            {canCreateUsers() && <TabsTrigger value="usuarios" className="text-xs">Usuários</TabsTrigger>}
             <TabsTrigger value="solicitantes" className="text-xs">Solicitantes</TabsTrigger>
             <TabsTrigger value="grupos" className="text-xs">Grupos</TabsTrigger>
             <TabsTrigger value="locais" className="text-xs">Locais</TabsTrigger>
@@ -652,7 +653,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
           </TabsList>
 
           {/* Aba Usuários */}
-          <TabsContent value="usuarios" className="space-y-4">
+          {canCreateUsers() && <TabsContent value="usuarios" className="space-y-4">
             {/* Cadastro de Usuário */}
             <Card>
               <CardHeader>
@@ -763,7 +764,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
 
             {/* Painel de Permissões */}
             <PermissoesPanel />
-          </TabsContent>
+          </TabsContent>}
 
           {/* Aba Solicitantes */}
           <TabsContent value="solicitantes" className="space-y-4">

@@ -504,9 +504,203 @@ export const MenuPrincipal = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-        {/* Solicitar Material */}
-        {canSolicitarMaterial() && <SolicitarMaterial />}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+
+
+        {/* Painel Gerencial - Acesso via Card */}
+        {canAccessManagerial() && (
+          <Card 
+            className="group cursor-pointer hover:scale-105 transition-all duration-300 border-primary/20 hover:border-primary/40 shadow-sm hover:shadow-primary/10 overflow-hidden relative"
+            onClick={onAbrirGerencial}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <CardHeader className="text-center relative z-10">
+              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                <BarChart3 className="h-8 w-8 text-primary" />
+              </div>
+              <CardTitle className="text-primary">Gerencial</CardTitle>
+              <CardDescription>
+                Indicadores e visão consolidada por grupo
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+
+        {/* Visão de Projetos - Acesso via Card */}
+        {canAccessProjects() && (
+          <Card 
+            className="group cursor-pointer hover:scale-105 transition-all duration-300 border-warning/20 hover:border-warning/40 shadow-sm hover:shadow-warning/10 overflow-hidden relative"
+            onClick={onAbrirProjetos}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-warning/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <CardHeader className="text-center relative z-10">
+              <div className="mx-auto w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-warning/20 transition-colors">
+                <Package className="h-8 w-8 text-warning" />
+              </div>
+              <CardTitle className="text-warning">Projetos</CardTitle>
+              <CardDescription>
+                Resumo e saldo de materiais por projeto/local
+    if (quantidade > 999999) {
+      toast.error('Quantidade muito alta (máximo 999999)');
+      return;
+    }
+    
+    // Verificar se o item já está na lista
+    const itemJaAdicionado = itensSaida.find(i => i.item.id === itemSelecionadoSaida.id);
+    if (itemJaAdicionado) {
+      toast.error('Este item já foi adicionado à lista');
+      return;
+    }
+    
+    // Adicionar item à lista
+    setItensSaida(prev => [...prev, {
+      item: itemSelecionadoSaida,
+      quantidade: quantidade
+    }]);
+    
+    // Limpar seleção
+    limparItemSelecionado();
+    setFormMovimentacao(prev => ({
+      ...prev,
+      quantidade: 0
+    }));
+    
+    toast.success('Item adicionado à lista de saída');
+  };
+  
+  // Função para remover item da lista de saída
+  const removerItemSaida = (itemId: string) => {
+    setItensSaida(prev => prev.filter(i => i.item.id !== itemId));
+    toast.success('Item removido da lista');
+  };
+  
+  // Função para lidar com saída (registrar todos os itens)
+  const handleSaida = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Preparar dados para validação
+    const dadosParaValidar = {
+      tipoOperacaoId: formMovimentacao.tipoOperacaoId || undefined,
+      destinatario: formMovimentacao.destinatario?.trim() || undefined,
+      observacoes: formMovimentacao.observacoes?.trim() || undefined,
+      itensSaida: itensSaida.map(i => ({
+        item_id: i.item.id,
+        quantidade: i.quantidade
+      }))
+    };
+    
+    // Validar com zod
+    const resultado = exitRegistrationSchema.safeParse(dadosParaValidar);
+    
+    if (!resultado.success) {
+      const erros = resultado.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join('\n');
+      toast.error(`Erro de validação:\n${erros}`);
+      console.error('Erros de validação:', resultado.error.errors);
+      return;
+    }
+    
+    // Verificar se destinatário é obrigatório para ENTREGA DE EPI
+    const tipoOperacao = tiposOperacao.find(op => op.id === formMovimentacao.tipoOperacaoId);
+    const isEntregaEPI = tipoOperacao?.nome.toUpperCase().includes('ENTREGA DE EPI');
+    
+    if (isEntregaEPI && !formMovimentacao.destinatario.trim()) {
+      toast.error('O campo Destinatário é obrigatório para Entrega de EPI');
+      return;
+    }
+    
+    // Registrar saída de todos os itens (sequencial com await para evitar duplicatas)
+    let todosRegistrados = true;
+    for (const itemSaida of itensSaida) {
+      const sucesso = await registrarSaida(
+        itemSaida.item.codigoBarras,
+        itemSaida.quantidade,
+        '',
+        formMovimentacao.observacoes,
+        formMovimentacao.tipoOperacaoId || undefined,
+        formMovimentacao.destinatario || undefined
+      );
+      if (!sucesso) {
+        todosRegistrados = false;
+        break;
+      }
+    }
+    
+    if (todosRegistrados) {
+      setDialogoSaida(false);
+      setItensSaida([]);
+      resetarFormularios();
+      // Dados atualizados automaticamente via contexto compartilhado
+      toast.success(`Saída registrada com sucesso! ${itensSaida.length} item(ns) processado(s).`);
+    }
+  };
+
+  // Função para selecionar item na busca inteligente
+  const selecionarItemSaida = (item: EstoqueItem) => {
+    setItemSelecionadoSaida(item);
+    setBuscaSaida(item.nome);
+    setFormMovimentacao(prev => ({
+      ...prev,
+      codigoBarras: item.codigoBarras
+    }));
+    setPopoverSaidaAberto(false);
+  };
+
+  // Função para limpar item selecionado
+  const limparItemSelecionado = () => {
+    setItemSelecionadoSaida(null);
+    setBuscaSaida('');
+    setFormMovimentacao(prev => ({
+      ...prev,
+      codigoBarras: 0
+    }));
+  };
+  
+  // Limpar lista de itens ao fechar o diálogo de saída
+  const fecharDialogoSaida = () => {
+    setDialogoSaida(false);
+    setItensSaida([]);
+    limparItemSelecionado();
+    resetarFormularios();
+  };
+
+  // Função para buscar item quando código for digitado
+  const buscarItemAoDigitarCodigo = (codigo: number, tipo: 'entrada' | 'saida') => {
+    if (codigo > 0) {
+      const item = buscarItemPorCodigo(codigo);
+      if (item) {
+        // Aqui você pode mostrar informações do item encontrado
+        console.log('Item encontrado:', item);
+      }
+    }
+  };
+
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center mb-8">
+        <div className="text-center flex-1">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
+            🏭 Sistema de Gestão de Almoxarifado
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Controle completo do seu almoxarifado de materiais
+          </p>
+          {!podeUsarCadastro && (
+            <p className="text-warning text-sm mt-1">
+              📋 {!canCreateItems 
+                ? "Sem permissão para cadastrar itens" 
+                : "Cadastros só podem ser feitos no Estoque Principal"
+              }. Estoque atual: {estoqueAtivoInfo?.nome}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-4">
+          {(isAdmin() || isGestor()) && <Configuracoes />}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+
 
         {/* Painel Gerencial - Acesso via Card */}
         {canAccessManagerial() && (
@@ -548,12 +742,25 @@ export const MenuPrincipal = ({
         
         {/* Devolução de Material */}
         {canDevolverMaterial() && <DevolverMaterial />}
-        
+
         {/* Registrar Entrada */}
         {canRegistrarEntrada() && <RegistrarEntrada />}
-        
-        {/* Transferência */}
+
+        {/* Transferência entre Estoques */}
         {canTransferir() && <Transferencia />}
+
+        {/* Relatórios */}
+        {canViewReports() && <RelatoriosComFiltros />}
+
+        {/* BOTÃO PEDIDO DE COMPRA */}
+        {canPedidoCompra() && <PedidoCompra />}
+
+        {/* Card de Retirada (Processo de entrega imediata) */}
+        {canSolicitarMaterial() && <SolicitarMaterial />}
+
+        {/* Card de Solicitação (Processo de aprovação/engenharia) */}
+        {canSolicitacaoMaterial() && <SolicitacaoMaterial />}
+      </div>
         
         {/* BOTÃO CADASTRO */}
         {canCreateItems() && <Dialog open={dialogoCadastro} onOpenChange={handleDialogoCadastroChange}>
@@ -613,7 +820,7 @@ export const MenuPrincipal = ({
             </DialogHeader>
             
             <form onSubmit={handleCadastro} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 <div>
                   <Label htmlFor="codigoBarrasCadastro">Código de Barras *</Label>
                   <Input
@@ -1107,13 +1314,7 @@ export const MenuPrincipal = ({
           </DialogContent>
         </Dialog>}
 
-        {/* BOTÃO PEDIDO DE COMPRA */}
-        {canPedidoCompra() && <PedidoCompra />}
-
-        {/* BOTÃO SOLICITAÇÃO DE MATERIAL */}
-        {canSolicitacaoMaterial() && <SolicitacaoMaterial />}
-
-      </div>
+</div>
 
     </div>
   );

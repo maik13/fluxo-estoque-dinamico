@@ -14,6 +14,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { userEditSchema, type UserEditInput } from '@/schemas/validation';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
+import { usePermissions } from '@/hooks/usePermissions';
+
 interface Profile {
   id: string;
   nome: string;
@@ -24,12 +26,16 @@ interface Profile {
 }
 
 export const UsuariosList = () => {
+  const { canManageStock, userProfile, permissoesDinamicas } = usePermissions();
   const [usuarios, setUsuarios] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [editandoUsuario, setEditandoUsuario] = useState<Profile | null>(null);
   const [dialogAberto, setDialogAberto] = useState(false);
   const { toast } = useToast();
+
+  const isAdmin = userProfile?.tipo_usuario === 'administrador';
+  const podeGerenciar = permissoesDinamicas.pode_gerenciar_usuarios || isAdmin;
   
   const form = useForm<UserEditInput>({
     resolver: zodResolver(userEditSchema),
@@ -45,6 +51,11 @@ export const UsuariosList = () => {
   }, []);
 
   const carregarUsuarios = async () => {
+    if (!podeGerenciar) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -181,6 +192,20 @@ export const UsuariosList = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Carregando usuários...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!podeGerenciar) {
+    return (
+      <div className="flex items-center justify-center p-12 bg-destructive/5 rounded-lg border border-destructive/20">
+        <div className="text-center space-y-3">
+          <UserX className="h-12 w-12 text-destructive mx-auto opacity-50" />
+          <h3 className="text-lg font-semibold text-destructive">Acesso Negado</h3>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            Você não tem permissão para visualizar ou gerenciar a lista de usuários do sistema.
+          </p>
         </div>
       </div>
     );

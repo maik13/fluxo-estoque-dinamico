@@ -434,7 +434,7 @@ export const PedidoCompra = () => {
           : i
         )
       );
-      toast.success('Status atualizado');
+      toast.success(`Status atualizado para ${novoStatus === 'comprado' ? '✅ Comprado' : novoStatus === 'parcial' ? '📦 Parcial' : '⏳ Pendente'}`);
     } catch (error) {
       console.error('Erro:', error);
       toast.error('Erro ao atualizar status');
@@ -675,7 +675,7 @@ export const PedidoCompra = () => {
         className={cn(
           "cursor-pointer hover:scale-105 transition-all duration-300",
           podeMovimentar
-            ? "border-blue-500/20 hover:border-blue-500/40"
+            ? "border-blue-500/30 hover:border-blue-400 bg-gradient-to-br from-blue-950/20 to-indigo-950/20 shadow-sm"
             : "border-muted/20 hover:border-muted/40 opacity-60"
         )}
         onClick={() => {
@@ -685,11 +685,11 @@ export const PedidoCompra = () => {
         }}
       >
         <CardHeader className="text-center">
-          <div className="mx-auto w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mb-4">
-            <ShoppingCart className="h-8 w-8 text-blue-500" />
+          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
+            <ShoppingCart className="h-8 w-8 text-white" />
           </div>
-          <CardTitle className="text-blue-500">Pedido de Compra</CardTitle>
-          <CardDescription>Criar e consultar pedidos de compra</CardDescription>
+          <CardTitle className="text-blue-400">Pedido de Compra</CardTitle>
+          <CardDescription className="text-blue-500/70">Criar e consultar pedidos de compra</CardDescription>
         </CardHeader>
       </Card>
 
@@ -1107,8 +1107,8 @@ export const PedidoCompra = () => {
                     <TableCell>{snap?.marca || '-'}</TableCell>
                     <TableCell>
                       {modoEdicao ? (
-                        <Badge variant={item.status === 'comprado' ? 'default' : 'secondary'}>
-                          {item.status === 'comprado' ? 'Comprado' : item.status === 'parcial' ? 'Parcial' : 'Pendente'}
+                        <Badge variant={item.status === 'comprado' ? 'default' : item.status === 'parcial' ? 'warning' : 'secondary'} className="gap-1">
+                          {item.status === 'comprado' ? '✅ Comprado' : item.status === 'parcial' ? '📦 Parcial' : '⏳ Pendente'}
                         </Badge>
                       ) : (
                         <Select
@@ -1127,7 +1127,7 @@ export const PedidoCompra = () => {
                             </SelectItem>
                             <SelectItem value="parcial">
                               <span className="flex items-center gap-1 text-amber-400 font-medium">
-                                ⚠️ Parcial
+                                📦 Parcial
                               </span>
                             </SelectItem>
                             <SelectItem value="comprado">

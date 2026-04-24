@@ -159,9 +159,12 @@ export const SolicitacaoMaterial = () => {
   };
 
   const itensFiltrados = useMemo(() => {
-    if (!busca) return itensEstoque.slice(0, 50);
+    // Filtrar apenas itens com saldo maior que zero
+    const itensComSaldo = itensEstoque.filter(item => item.estoqueAtual > 0);
+    
+    if (!busca) return itensComSaldo.slice(0, 50);
     const termo = busca.toLowerCase();
-    return itensEstoque.filter(item =>
+    return itensComSaldo.filter(item =>
       item.nome.toLowerCase().includes(termo) ||
       item.codigoBarras.toString().includes(termo) ||
       item.marca?.toLowerCase().includes(termo)
@@ -187,10 +190,19 @@ export const SolicitacaoMaterial = () => {
       return;
     }
 
+    // Regra para Ferramentas: Somente 1 unidade
+    let qtdEfetiva = quantidadeItem;
+    if (item.tipoItem === 'Ferramenta') {
+      qtdEfetiva = 1;
+      if (quantidadeItem > 1) {
+        toast.info('Ferramentas são limitadas a 1 unidade por item. Adicione outro item se precisar de mais.');
+      }
+    }
+
     setItensLista(prev => [...prev, {
       item_id: item.id,
       nome_item: item.nome,
-      quantidade: quantidadeItem,
+      quantidade: qtdEfetiva,
       unidade: item.unidade,
       item_snapshot: {
         id: item.id,
@@ -200,6 +212,7 @@ export const SolicitacaoMaterial = () => {
         unidade: item.unidade,
         especificacao: item.especificacao,
         fotoUrl: item.fotoUrl,
+        tipoItem: item.tipoItem
       },
       observacoes: obsItem || undefined,
       isCustom: false
@@ -209,7 +222,7 @@ export const SolicitacaoMaterial = () => {
     setBusca('');
     setQuantidadeItem(1);
     setObsItem('');
-    toast.success(item.estoqueAtual < quantidadeItem ? 'Item sem saldo suficiente: será enviado para compra.' : 'Item adicionado');
+    toast.success('Item adicionado');
   };
 
   const adicionarItemCustom = () => {
@@ -659,10 +672,10 @@ export const SolicitacaoMaterial = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'pendente': return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Pendente</Badge>;
-      case 'aprovada': return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Aprovada</Badge>;
-      case 'rejeitada': return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Rejeitada</Badge>;
-      case 'convertida': return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Convertida em Retirada</Badge>;
+      case 'pendente': return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 gap-1">⏳ Pendente</Badge>;
+      case 'aprovada': return <Badge className="bg-green-500/20 text-green-400 border-green-500/30 gap-1">✅ Aprovada</Badge>;
+      case 'rejeitada': return <Badge className="bg-red-500/20 text-red-400 border-red-500/30 gap-1">❌ Rejeitada</Badge>;
+      case 'convertida': return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 gap-1">🔄 Convertida em Retirada</Badge>;
       default: return <Badge variant="outline">{status}</Badge>;
     }
   };
@@ -778,20 +791,21 @@ export const SolicitacaoMaterial = () => {
     <>
       {/* Botão no Menu Principal */}
       <Card
-        className="cursor-pointer hover:scale-105 transition-all duration-300 border-amber-500/20 hover:border-amber-500/40 relative"
+        className="group cursor-pointer hover:scale-105 transition-all duration-300 border-amber-500/30 hover:border-amber-400 bg-gradient-to-br from-amber-950/20 to-orange-950/20 shadow-sm relative overflow-hidden"
         onClick={() => {
           setDialogoListar(true);
           carregarSolicitacoes();
         }}
       >
-        <CardHeader className="text-center">
-          <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 bg-amber-500/10">
-            <ClipboardList className="h-8 w-8 text-amber-400" />
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        <CardHeader className="text-center relative z-10">
+          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
+            <ClipboardList className="h-8 w-8 text-white" />
           </div>
           <CardTitle className="text-amber-400">Solicitação de Material</CardTitle>
-          <CardDescription>Solicite materiais para aprovação do almoxarife</CardDescription>
+          <CardDescription className="text-amber-500/70">Solicite materiais para aprovação do almoxarife</CardDescription>
           {pendentesCount > 0 && canManageStock() && (
-            <Badge className="absolute top-2 right-2 bg-red-500 text-white border-none animate-pulse">
+            <Badge className="absolute top-2 right-2 bg-red-500 text-white border-none animate-pulse shadow-lg shadow-red-500/20">
               {pendentesCount}
             </Badge>
           )}
