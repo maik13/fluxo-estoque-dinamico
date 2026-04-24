@@ -10,7 +10,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Plus, Check, ChevronsUpDown, X, Printer, FileText, CheckCircle, Eye, Pencil, Lock, MessageCircle } from 'lucide-react';
+import { ShoppingCart, Plus, Check, ChevronsUpDown, X, Printer, FileText, CheckCircle, Eye, Pencil, Lock, MessageCircle, Ban, Trash2 } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -491,6 +491,29 @@ export const PedidoCompra = () => {
     }
   };
 
+  const cancelarPedido = async () => {
+    if (!pedidoSelecionado) return;
+    
+    if (!confirm('Tem certeza que deseja cancelar este pedido? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('pedidos_compra')
+        .update({ status: 'cancelado' })
+        .eq('id', pedidoSelecionado.id);
+
+      if (error) throw error;
+      setPedidoSelecionado(prev => prev ? { ...prev, status: 'cancelado' } : null);
+      toast.success('Pedido cancelado com sucesso!');
+      carregarPedidos();
+    } catch (error) {
+      console.error('Erro:', error);
+      toast.error('Erro ao cancelar pedido');
+    }
+  };
+
   const imprimirPedido = async () => {
     if (!pedidoSelecionado) return;
 
@@ -709,8 +732,14 @@ export const PedidoCompra = () => {
                     <TableCell>{pedido.criado_por_nome}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Badge variant={pedido.status === 'concluido' ? 'default' : 'secondary'}>
-                          {pedido.status === 'concluido' ? 'Concluído' : 'Aberto'}
+                        <Badge 
+                          variant={
+                            pedido.status === 'concluido' ? 'default' : 
+                            pedido.status === 'cancelado' ? 'destructive' : 'secondary'
+                          }
+                        >
+                          {pedido.status === 'concluido' ? 'Concluído' : 
+                           pedido.status === 'cancelado' ? 'Cancelado' : 'Aberto'}
                         </Badge>
                         {pedido.editado && (
                           <Badge variant="outline" className="text-orange-500 border-orange-500/50 text-xs">
@@ -914,9 +943,13 @@ export const PedidoCompra = () => {
             <DialogDescription>
               Criado por {pedidoSelecionado?.criado_por_nome} em {pedidoSelecionado ? new Date(pedidoSelecionado.data_pedido).toLocaleString('pt-BR') : ''}
               {' • '}
-              <Badge variant={pedidoSelecionado?.status === 'concluido' ? 'default' : 'secondary'}>
-                {pedidoSelecionado?.status === 'concluido' ? 'Concluído' : 'Aberto'}
-              </Badge>
+              {pedidoSelecionado?.status === 'concluido' ? (
+                <Badge variant="default">Concluído</Badge>
+              ) : pedidoSelecionado?.status === 'cancelado' ? (
+                <Badge variant="destructive">Cancelado</Badge>
+              ) : (
+                <Badge variant="secondary">Aberto</Badge>
+              )}
               {pedidoSelecionado?.editado && pedidoSelecionado.editado_por && (
                 <span className="block text-xs text-orange-500 mt-1">
                   ✏️ Editado por {pedidoSelecionado.editado_por} em {pedidoSelecionado.editado_em ? new Date(pedidoSelecionado.editado_em).toLocaleString('pt-BR') : ''}
@@ -1045,11 +1078,11 @@ export const PedidoCompra = () => {
                               placeholder="Qtd"
                               value={parcialQtdMap[item.id] ?? (qtdRecebida != null ? String(qtdRecebida) : '')}
                               onChange={e => setParcialQtdMap(prev => ({ ...prev, [item.id]: e.target.value }))}
-                              disabled={pedidoSelecionado?.status === 'concluido'}
+                              disabled={pedidoSelecionado?.status === 'concluido' || pedidoSelecionado?.status === 'cancelado'}
                               className="w-20 h-8 text-xs border-amber-500/40 focus:border-amber-500"
                             />
                             <span className="text-xs text-muted-foreground">{snap?.unidade || ''}</span>
-                            {!pedidoSelecionado?.status || pedidoSelecionado.status !== 'concluido' ? (
+                            {!pedidoSelecionado?.status || (pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado') ? (
                               <Button
                                 size="icon-sm"
                                 variant="outline"
@@ -1081,7 +1114,7 @@ export const PedidoCompra = () => {
                         <Select
                           value={item.status}
                           onValueChange={(val) => atualizarStatusItem(item.id, val)}
-                          disabled={pedidoSelecionado?.status === 'concluido'}
+                          disabled={pedidoSelecionado?.status === 'concluido' || pedidoSelecionado?.status === 'cancelado'}
                         >
                           <SelectTrigger className="w-[130px]">
                             <SelectValue />
@@ -1147,8 +1180,11 @@ export const PedidoCompra = () => {
                 </>
               ) : (
                 <>
-                  {pedidoSelecionado?.status !== 'concluido' && (
+                  {pedidoSelecionado?.status !== 'concluido' && pedidoSelecionado?.status !== 'cancelado' && (
                     <>
+                      <Button variant="outline" onClick={cancelarPedido} className="text-destructive border-destructive/50 hover:bg-destructive/10">
+                        <Ban className="h-4 w-4 mr-2" /> Cancelar Pedido
+                      </Button>
                       <Button variant="outline" onClick={solicitarEdicao}>
                         <Pencil className="h-4 w-4 mr-2" /> Editar
                       </Button>
