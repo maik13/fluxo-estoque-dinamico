@@ -121,7 +121,7 @@ const Index = () => {
             const showProjetos = canAccessProjects();
             
             // Filtra as abas que serão mostradas no topo
-            const tabCount = 1 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0) + (showGerencial ? 1 : 0) + (showProjetos ? 1 : 0);
+            const tabCount = 1 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
             
             return (
               <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
@@ -143,18 +143,6 @@ const Index = () => {
                     <TabsTrigger value="movimentacoes" className="flex items-center gap-2">
                       <History className="h-4 w-4" />
                       Movimentações
-                    </TabsTrigger>
-                  )}
-                  {showGerencial && (
-                    <TabsTrigger value="gerencial" className="flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4" />
-                      Gerencial
-                    </TabsTrigger>
-                  )}
-                  {showProjetos && (
-                    <TabsTrigger value="projetos" className="flex items-center gap-2">
-                      <Package className="h-4 w-4" />
-                      Projetos
                     </TabsTrigger>
                   )}
                 </TabsList>
