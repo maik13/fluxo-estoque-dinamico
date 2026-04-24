@@ -53,7 +53,8 @@ export const MenuPrincipal = ({
     canPedidoCompra, 
     canSolicitacaoMaterial, 
     canAccessManagerial,
-    canAccessProjects 
+    canAccessProjects,
+    canViewReports
   } = usePermissions();
   
   // Estados para controlar os diálogos
@@ -372,201 +373,7 @@ export const MenuPrincipal = ({
     
     toast.success('Item adicionado à lista de saída');
   };
-  
-  // Função para remover item da lista de saída
-  const removerItemSaida = (itemId: string) => {
-    setItensSaida(prev => prev.filter(i => i.item.id !== itemId));
-    toast.success('Item removido da lista');
-  };
-  
-  // Função para lidar com saída (registrar todos os itens)
-  const handleSaida = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Preparar dados para validação
-    const dadosParaValidar = {
-      tipoOperacaoId: formMovimentacao.tipoOperacaoId || undefined,
-      destinatario: formMovimentacao.destinatario?.trim() || undefined,
-      observacoes: formMovimentacao.observacoes?.trim() || undefined,
-      itensSaida: itensSaida.map(i => ({
-        item_id: i.item.id,
-        quantidade: i.quantidade
-      }))
-    };
-    
-    // Validar com zod
-    const resultado = exitRegistrationSchema.safeParse(dadosParaValidar);
-    
-    if (!resultado.success) {
-      const erros = resultado.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join('\n');
-      toast.error(`Erro de validação:\n${erros}`);
-      console.error('Erros de validação:', resultado.error.errors);
-      return;
-    }
-    
-    // Verificar se destinatário é obrigatório para ENTREGA DE EPI
-    const tipoOperacao = tiposOperacao.find(op => op.id === formMovimentacao.tipoOperacaoId);
-    const isEntregaEPI = tipoOperacao?.nome.toUpperCase().includes('ENTREGA DE EPI');
-    
-    if (isEntregaEPI && !formMovimentacao.destinatario.trim()) {
-      toast.error('O campo Destinatário é obrigatório para Entrega de EPI');
-      return;
-    }
-    
-    // Registrar saída de todos os itens (sequencial com await para evitar duplicatas)
-    let todosRegistrados = true;
-    for (const itemSaida of itensSaida) {
-      const sucesso = await registrarSaida(
-        itemSaida.item.codigoBarras,
-        itemSaida.quantidade,
-        '',
-        formMovimentacao.observacoes,
-        formMovimentacao.tipoOperacaoId || undefined,
-        formMovimentacao.destinatario || undefined
-          marca: data.marca || '',
-          unidade: data.unidade || '',
-          condicao: data.condicao as any,
-          subcategoriaId: data.subcategoria_id || undefined,
-          categoriaId: data.categoria_id || undefined,
-          ncm: data.ncm || '',
-          valor: data.valor || 0
-        });
-        setCodigoBarrasManual('');
-        setErroCodigoBarras('');
-      }
-    } catch (error) {
-      console.error('Erro ao carregar último cadastro:', error);
-    }
-  };
 
-  // Função para validar código de barras ao sair do campo
-  const validarCodigoBarras = async () => {
-    const codigoNormalizado = codigoBarrasManual.trim();
-
-    if (!codigoNormalizado) {
-      setErroCodigoBarras('O código de barras é obrigatório');
-      return false;
-    }
-
-    const codigo = Number(codigoNormalizado);
-
-    if (!Number.isInteger(codigo) || codigo <= 0) {
-      setErroCodigoBarras('Informe um código de barras válido');
-      return false;
-    }
-    
-    const { data, error } = await supabase
-      .from('items')
-      .select('id')
-      .eq('codigo_barras', codigo)
-      .maybeSingle();
-    
-    if (error) {
-      console.error('Erro ao validar código:', error);
-      setErroCodigoBarras('Erro ao validar código de barras');
-      return false;
-    }
-    
-    if (data) {
-      setErroCodigoBarras('Este código de barras já está sendo usado por outro item');
-      return false;
-    }
-
-    setErroCodigoBarras('');
-    setCodigoBarrasManual(String(codigo));
-    setFormCadastro(prev => ({ ...prev, codigoBarras: codigo }));
-    return true;
-  };
-
-  // Função para lidar com cadastro
-  const handleCadastro = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validar que o código de barras foi preenchido
-    if (!codigoBarrasManual) {
-      setErroCodigoBarras('O código de barras é obrigatório');
-      toast.error('O código de barras é obrigatório');
-      return;
-    }
-    
-    // Validar código no banco antes de prosseguir
-    const codigoValido = await validarCodigoBarras();
-    if (!codigoValido) {
-      return;
-    }
-    
-    const codigoFinal = Number(codigoBarrasManual);
-    
-    const dadosParaValidar = {
-      ...formCadastro,
-      codigoBarras: codigoFinal,
-      nome: formCadastro.nome || '',
-      unidade: formCadastro.unidade || '',
-      condicao: formCadastro.condicao || 'Novo',
-      subcategoriaId: formCadastro.subcategoriaId || '',
-      valor: formCadastro.valor || 0
-    };
-    
-    // Validar com zod
-    const resultado = itemRegistrationSchema.safeParse(dadosParaValidar);
-    
-    if (!resultado.success) {
-      const erros = resultado.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join('\n');
-      toast.error(`Erro de validação:\n${erros}`);
-      console.error('Erros de validação:', resultado.error.errors);
-      return;
-    }
-    
-    if (cadastrarItem(resultado.data as any)) {
-      setDialogoCadastro(false);
-      resetarFormularios();
-      setCodigoBarrasManual('');
-      setErroCodigoBarras('');
-      // Dados atualizados automaticamente via contexto compartilhado
-    }
-  };
-
-  // Função para adicionar item à lista de saída
-  const adicionarItemSaida = () => {
-    if (!itemSelecionadoSaida) {
-      toast.error('Selecione um item');
-      return;
-    }
-    
-    // Validar quantidade
-    const quantidade = formMovimentacao.quantidade;
-    if (!quantidade || typeof quantidade !== 'number' || quantidade <= 0) {
-      toast.error('Informe uma quantidade válida maior que zero');
-      return;
-    }
-    
-    if (quantidade > 999999) {
-      toast.error('Quantidade muito alta (máximo 999999)');
-      return;
-    }
-    
-    // Verificar se o item já está na lista
-    const itemJaAdicionado = itensSaida.find(i => i.item.id === itemSelecionadoSaida.id);
-    if (itemJaAdicionado) {
-      toast.error('Este item já foi adicionado à lista');
-      return;
-    }
-    
-    // Adicionar item à lista
-    setItensSaida(prev => [...prev, {
-      item: itemSelecionadoSaida,
-      quantidade: quantidade
-    }]);
-    
-    // Limpar seleção
-    limparItemSelecionado();
-    setFormMovimentacao(prev => ({
-      ...prev,
-      quantidade: 0
-    }));
-    
-    toast.success('Item adicionado à lista de saída');
-  };
   // Função para remover item da lista de saída
   const removerItemSaida = (itemId: string) => {
     setItensSaida(prev => prev.filter(i => i.item.id !== itemId));
@@ -1312,8 +1119,6 @@ export const MenuPrincipal = ({
             </form>
           </DialogContent>
         </Dialog>}
-
-</div>
 
     </div>
   );

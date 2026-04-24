@@ -22,6 +22,7 @@ import { UsuariosList } from './UsuariosList';
 import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 import { PermissoesPanel } from './PermissoesPanel';
 import { AuditLogViewer } from './AuditLogViewer';
+import { useToast } from '@/hooks/use-toast';
 
 interface ConfiguracoesProps {
   onConfigChange?: () => void;

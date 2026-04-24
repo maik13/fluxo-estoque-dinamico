@@ -105,6 +105,7 @@ export type Database = {
         Row: {
           ativo: boolean
           caixa_organizador: string | null
+          categoria_id: string | null
           codigo_antigo: string | null
           codigo_barras: number
           condicao: string | null
@@ -119,7 +120,6 @@ export type Database = {
           origem: string | null
           quantidade_minima: number | null
           subcategoria_id: string | null
-          categoria_id: string | null
           tipo_item: string | null
           unidade: string
           updated_at: string
@@ -128,6 +128,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           caixa_organizador?: string | null
+          categoria_id?: string | null
           codigo_antigo?: string | null
           codigo_barras: number
           condicao?: string | null
@@ -142,7 +143,6 @@ export type Database = {
           origem?: string | null
           quantidade_minima?: number | null
           subcategoria_id?: string | null
-          categoria_id?: string | null
           tipo_item?: string | null
           unidade: string
           updated_at?: string
@@ -151,6 +151,7 @@ export type Database = {
         Update: {
           ativo?: boolean
           caixa_organizador?: string | null
+          categoria_id?: string | null
           codigo_antigo?: string | null
           codigo_barras?: number
           condicao?: string | null
@@ -165,7 +166,6 @@ export type Database = {
           origem?: string | null
           quantidade_minima?: number | null
           subcategoria_id?: string | null
-          categoria_id?: string | null
           tipo_item?: string | null
           unidade?: string
           updated_at?: string

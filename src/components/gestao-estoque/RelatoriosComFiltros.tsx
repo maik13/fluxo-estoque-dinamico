@@ -13,6 +13,7 @@ import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { EstoqueItem } from '@/types/estoque';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { ptBR } from 'date-fns/locale';
 
 interface FiltrosRelatorio {
