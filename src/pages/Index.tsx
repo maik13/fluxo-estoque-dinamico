@@ -54,30 +54,60 @@ const Index = () => {
   return (
     <EstoqueProvider>
       <div className="min-h-screen bg-background overflow-x-hidden">
-        {/* Header */}
-        <div className="bg-card border-b">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        {/* Header Premium */}
+        <div
+          className="sticky top-0 z-40 border-b"
+          style={{
+            background: 'linear-gradient(180deg, hsl(224 32% 9%), hsl(222 28% 7%))',
+            borderBottomColor: 'hsl(145 72% 42% / 0.2)',
+            boxShadow: '0 1px 0 hsl(145 72% 42% / 0.15), 0 4px 24px hsl(222 28% 4% / 0.6)',
+          }}
+        >
+          <div className="px-6 py-3 flex items-center justify-between gap-4">
+            {/* Logo + Title */}
+            <div className="flex items-center gap-3 min-w-0">
               {logoUrl && (
-                <img 
-                  src={logoUrl} 
-                  alt="Logo" 
-                  className="h-12 w-auto object-contain"
+                <img
+                  src={logoUrl}
+                  alt="Logo"
+                  className="h-10 w-auto object-contain flex-shrink-0 drop-shadow-lg"
                 />
               )}
-              <h1 className="text-2xl font-bold text-foreground">
-                Controle completo do seu almoxarifado de materiais
-              </h1>
+              <div className="min-w-0">
+                <h1 className="text-lg font-bold leading-tight truncate"
+                  style={{
+                    background: 'linear-gradient(135deg, hsl(145 72% 62%), hsl(186 72% 57%))',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
+                  🏭 Almoxarifado
+                </h1>
+                <p className="text-xs text-muted-foreground hidden sm:block">
+                  Sistema de gestão de materiais
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
+
+            {/* Right actions */}
+            <div className="flex items-center gap-2 flex-shrink-0">
               <SeletorEstoque />
               {session?.user?.email && (
-                <span className="text-sm text-muted-foreground">
+                <span className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground
+                  bg-muted/60 border border-border rounded-lg px-3 py-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
                   {session.user.email}
                 </span>
               )}
-              <Button variant="outline" size="sm" onClick={signOut}>
-                <LogOut className="h-4 w-4 mr-2" /> Sair
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={signOut}
+                className="text-muted-foreground hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline ml-1">Sair</span>
               </Button>
             </div>
           </div>
