@@ -1089,7 +1089,7 @@ export const PedidoCompra = () => {
                           <SelectContent>
                             <SelectItem value="pendente">
                               <span className="flex items-center gap-1 text-orange-500 font-medium">
-                                Pendente
+                                ⏳ Pendente
                               </span>
                             </SelectItem>
                             <SelectItem value="parcial">
@@ -1099,7 +1099,7 @@ export const PedidoCompra = () => {
                             </SelectItem>
                             <SelectItem value="comprado">
                               <span className="flex items-center gap-1 text-green-500 font-medium">
-                                Comprado
+                                ✅ Comprado
                               </span>
                             </SelectItem>
                           </SelectContent>
