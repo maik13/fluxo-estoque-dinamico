@@ -1247,8 +1247,6 @@ export const MenuPrincipal = ({
           </DialogContent>
         </Dialog>}
 
-</div>
-
     </div>
   );
 };
