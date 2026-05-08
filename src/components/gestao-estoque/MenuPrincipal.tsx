@@ -566,8 +566,7 @@ export const MenuPrincipal = ({
 
         {/* Card de Solicitação (Processo de aprovação/engenharia) */}
         {canSolicitacaoMaterial() && <SolicitacaoMaterial />}
-      </div>
-        
+
         {/* BOTÃO CADASTRO */}
         {canCreateItems() && <Dialog open={dialogoCadastro} onOpenChange={handleDialogoCadastroChange}>
           <DialogTrigger asChild>
@@ -1119,6 +1118,7 @@ export const MenuPrincipal = ({
             </form>
           </DialogContent>
         </Dialog>}
+      </div>
 
     </div>
   );
