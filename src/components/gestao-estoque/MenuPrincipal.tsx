@@ -1118,6 +1118,7 @@ export const MenuPrincipal = ({
             </form>
           </DialogContent>
         </Dialog>}
+      </div>
 
     </div>
   );
