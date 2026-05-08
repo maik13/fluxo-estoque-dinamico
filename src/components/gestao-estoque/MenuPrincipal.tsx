@@ -23,7 +23,7 @@ import { Transferencia } from './Transferencia';
 import { PedidoCompra } from './PedidoCompra';
 import { SolicitacaoMaterial } from './SolicitacaoMaterial';
 import { Badge } from '@/components/ui/badge';
-import { RelatoriosComFiltros } from './RelatoriosComFiltros';
+
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
