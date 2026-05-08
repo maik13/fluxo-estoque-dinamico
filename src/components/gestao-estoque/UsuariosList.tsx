@@ -47,8 +47,10 @@ export const UsuariosList = () => {
   });
 
   useEffect(() => {
-    carregarUsuarios();
-  }, []);
+    if (podeGerenciar) {
+      carregarUsuarios();
+    }
+  }, [podeGerenciar]);
 
   const carregarUsuarios = async () => {
     if (!podeGerenciar) {
