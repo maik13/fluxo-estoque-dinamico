@@ -159,12 +159,10 @@ export const SolicitacaoMaterial = () => {
   };
 
   const itensFiltrados = useMemo(() => {
-    // Filtrar apenas itens com saldo maior que zero
-    const itensComSaldo = itensEstoque.filter(item => item.estoqueAtual > 0);
-    
-    if (!busca) return itensComSaldo.slice(0, 50);
+    // Mostrar todos os itens (inclusive sem saldo) — solicitação é usada para gerar compra
+    if (!busca) return itensEstoque.slice(0, 50);
     const termo = busca.toLowerCase();
-    return itensComSaldo.filter(item =>
+    return itensEstoque.filter(item =>
       item.nome.toLowerCase().includes(termo) ||
       item.codigoBarras.toString().includes(termo) ||
       item.marca?.toLowerCase().includes(termo)
