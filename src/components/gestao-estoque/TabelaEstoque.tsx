@@ -16,6 +16,7 @@ import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { EstoqueItem } from '@/types/estoque';
 import { DialogoEditarItem } from './DialogoEditarItem';
 import { EditarQuantidadeInline } from './EditarQuantidadeInline';
+import { EstoqueContado } from './EstoqueContado';
 import { gerarRelatorioPDF } from '@/utils/pdfExport';
 import { supabase } from '@/integrations/supabase/client';
 import { exportarExcel } from '@/utils/excelExport';
@@ -37,6 +38,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   const [filtroCondicao, setFiltroCondicao] = useState('todas');
   const [filtroEstoque, setFiltroEstoque] = useState('todos'); // todos, baixo, zerado
   const [filtroStatus, setFiltroStatus] = useState('ativos'); // ativos, inativos, todos
+  const [modoVisualizacao, setModoVisualizacao] = useState<'detalhado' | 'contado'>('detalhado');
   
   // Estados para edição
   const [dialogoEdicao, setDialogoEdicao] = useState(false);
@@ -573,11 +575,30 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                 Mostrando {itensPaginados.length} de {itensFiltrados.length} itens (Total: {estoque.length})
               </p>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={imprimirPagina} variant="outline" size="sm">
-                <Printer className="h-4 w-4 mr-2" />
-                Imprimir
-              </Button>
+            <div className="flex items-center gap-4">
+              <div className="flex bg-muted p-1 rounded-lg">
+                <Button 
+                  variant={modoVisualizacao === 'detalhado' ? 'default' : 'ghost'} 
+                  size="sm" 
+                  onClick={() => setModoVisualizacao('detalhado')}
+                  className="px-4"
+                >
+                  Detalhado
+                </Button>
+                <Button 
+                  variant={modoVisualizacao === 'contado' ? 'default' : 'ghost'} 
+                  size="sm" 
+                  onClick={() => setModoVisualizacao('contado')}
+                  className="px-4"
+                >
+                  Contado
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={imprimirPagina} variant="outline" size="sm">
+                  <Printer className="h-4 w-4 mr-2" />
+                  Imprimir
+                </Button>
               <Button onClick={exportarPDF} variant="outline" size="sm">
                 <FileText className="h-4 w-4 mr-2" />
                 PDF Estoque
@@ -623,7 +644,10 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
         </Card>
       )}
 
-      {/* Tabela */}
+      {/* Visualização de Estoque */}
+      {modoVisualizacao === 'contado' ? (
+        <EstoqueContado itens={itensFiltrados} />
+      ) : (
       <Card>
         <CardHeader>
           <CardTitle>📦 Estoque Atual</CardTitle>
@@ -899,6 +923,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Diálogo de Edição */}
       <DialogoEditarItem
