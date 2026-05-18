@@ -283,13 +283,13 @@ export const useEstoque = () => {
   }, [estoqueAtivo]);
 
   // Função para carregar dados do Supabase com proteção contra chamadas múltiplas
-  const carregarDados = async () => {
+  const carregarDados = async (forcar = false) => {
     // Prevenir múltiplas chamadas simultâneas
     if (isLoadingRef.current) return;
     
     const now = Date.now();
     // Evitar recarregar se foi carregado há menos de 500ms
-    if (now - lastLoadTimeRef.current < 500) return;
+    if (!forcar && now - lastLoadTimeRef.current < 500) return;
     
     isLoadingRef.current = true;
     lastLoadTimeRef.current = now;
