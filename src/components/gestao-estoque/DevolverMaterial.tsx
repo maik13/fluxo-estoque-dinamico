@@ -255,7 +255,7 @@ export const DevolverMaterial = () => {
       });
 
       if (sucesso) {
-        await carregarDados();
+        await carregarDados(true);
         toast.success('Devolução registrada com sucesso!');
         resetarFormulario();
         setDialogoAberto(false);
