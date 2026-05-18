@@ -659,6 +659,7 @@ const registrarEntrada = async (
       userId: user?.id,
       observacoes,
       dataHora: new Date().toISOString(),
+      tipoOperacaoId,
       itemSnapshot: item,
     };
 
@@ -750,6 +751,7 @@ const registrarSaida = async (
       userId: user?.id,
       observacoes,
       dataHora: new Date().toISOString(),
+      tipoOperacaoId,
       itemSnapshot: item,
     };
 
