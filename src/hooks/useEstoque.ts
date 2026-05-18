@@ -976,5 +976,6 @@ const importarItensServidor = async (lista: Omit<Item, 'id' | 'codigoBarras'>[])
     importarItensServidor,
     registrarEntrada,
     registrarSaida,
+    carregarDados,
   };
 };
