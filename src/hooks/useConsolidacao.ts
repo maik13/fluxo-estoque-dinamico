@@ -69,11 +69,15 @@ export const useConsolidacao = (
 ) => {
   // Helper para verificar se uma movimentação é devolução
   const isDevolucao = (mov: Movimentacao) => {
+    const operacaoNome = mov.tipoOperacaoNome?.toLowerCase() ?? '';
+    const observacoes = mov.observacoes?.toLowerCase() ?? '';
     const porObservacao = mov.tipo === 'ENTRADA' && 
-           mov.observacoes?.toLowerCase().includes('devolução');
+           observacoes.includes('devolução');
     const porTipoOperacao = mov.tipo === 'ENTRADA' && 
            (mov.solicitacaoTipoOperacao === 'devolucao' || mov.solicitacaoTipoOperacao === 'devolucao_estoque');
-    return porObservacao || porTipoOperacao;
+    const porTipoOperacaoDireta = mov.tipo === 'ENTRADA' && 
+           (mov.tipoOperacaoId === '8462f967-121e-4a0a-8d43-5e7131fc1981' || operacaoNome.includes('devolução'));
+    return porObservacao || porTipoOperacao || porTipoOperacaoDireta;
   };
 
   const dadosConsolidados = useMemo(() => {
