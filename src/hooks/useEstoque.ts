@@ -135,6 +135,7 @@ export const useEstoque = () => {
             let localNome: string | undefined;
             let solicitanteNome: string | undefined;
             let solicitacaoTipoOperacao: string | undefined;
+            let tipoOperacaoNome: string | undefined;
             if (payload.new.local_utilizacao_id) {
               const { data } = await supabase
                 .from('locais_utilizacao')
@@ -151,6 +152,14 @@ export const useEstoque = () => {
                 .single();
               solicitanteNome = data?.solicitante_nome;
               solicitacaoTipoOperacao = data?.tipo_operacao;
+            }
+            if (payload.new.tipo_operacao_id) {
+              const { data } = await supabase
+                .from('tipos_operacao')
+                .select('nome')
+                .eq('id', payload.new.tipo_operacao_id)
+                .single();
+              tipoOperacaoNome = data?.nome;
             }
 
             const novaMovimentacao: Movimentacao = {
@@ -170,6 +179,8 @@ export const useEstoque = () => {
               solicitacaoTipoOperacao: solicitacaoTipoOperacao,
               destinatario: payload.new.destinatario ?? undefined,
               estoqueId: payload.new.estoque_id ?? undefined,
+              tipoOperacaoId: payload.new.tipo_operacao_id ?? undefined,
+              tipoOperacaoNome,
               itemSnapshot: payload.new.item_snapshot as Partial<Item>,
             };
             setMovimentacoes(prev => {
@@ -199,6 +210,7 @@ export const useEstoque = () => {
           let localNome = '';
           let solicitanteNome: string | undefined;
           let solicitacaoTipoOperacao: string | undefined;
+          let tipoOperacaoNome: string | undefined;
           if (payload.new.local_utilizacao_id) {
             const { data: localData } = await supabase
               .from('locais_utilizacao')
@@ -218,6 +230,14 @@ export const useEstoque = () => {
             solicitanteNome = data?.solicitante_nome;
             solicitacaoTipoOperacao = data?.tipo_operacao;
           }
+          if (payload.new.tipo_operacao_id) {
+            const { data } = await supabase
+              .from('tipos_operacao')
+              .select('nome')
+              .eq('id', payload.new.tipo_operacao_id)
+              .single();
+            tipoOperacaoNome = data?.nome;
+          }
 
           const movimentacaoAtualizada: Movimentacao = {
             id: payload.new.id,
@@ -236,6 +256,8 @@ export const useEstoque = () => {
             solicitacaoTipoOperacao: solicitacaoTipoOperacao,
             destinatario: payload.new.destinatario ?? undefined,
             estoqueId: payload.new.estoque_id ?? undefined,
+            tipoOperacaoId: payload.new.tipo_operacao_id ?? undefined,
+            tipoOperacaoNome,
             itemSnapshot: payload.new.item_snapshot as Partial<Item>,
           };
           setMovimentacoes(prev => prev.map(m => m.id === movimentacaoAtualizada.id ? movimentacaoAtualizada : m));
@@ -261,13 +283,13 @@ export const useEstoque = () => {
   }, [estoqueAtivo]);
 
   // Função para carregar dados do Supabase com proteção contra chamadas múltiplas
-  const carregarDados = async () => {
+  const carregarDados = async (forcar = false) => {
     // Prevenir múltiplas chamadas simultâneas
     if (isLoadingRef.current) return;
     
     const now = Date.now();
     // Evitar recarregar se foi carregado há menos de 500ms
-    if (now - lastLoadTimeRef.current < 500) return;
+    if (!forcar && now - lastLoadTimeRef.current < 500) return;
     
     isLoadingRef.current = true;
     lastLoadTimeRef.current = now;
@@ -324,6 +346,12 @@ export const useEstoque = () => {
         movFrom += pageSize;
       }
 
+      const { data: tiposOperacaoData, error: tiposOperacaoError } = await supabase
+        .from('tipos_operacao')
+        .select('id, nome');
+      if (tiposOperacaoError) throw tiposOperacaoError;
+      const tipoOperacaoMap = new Map((tiposOperacaoData ?? []).map(op => [op.id, op.nome]));
+
       // Mapear DB -> Tipos locais
       const itensMapped: Item[] = (itensData ?? []).map((row: any) => ({
           id: row.id,
@@ -364,6 +392,8 @@ export const useEstoque = () => {
         solicitacaoTipoOperacao: row.solicitacoes?.tipo_operacao ?? undefined,
         destinatario: row.destinatario ?? undefined,
         estoqueId: row.estoque_id ?? undefined,
+        tipoOperacaoId: row.tipo_operacao_id ?? undefined,
+        tipoOperacaoNome: row.tipo_operacao_id ? tipoOperacaoMap.get(row.tipo_operacao_id) : undefined,
         itemSnapshot: row.item_snapshot as Partial<Item>,
       }));
 
@@ -632,6 +662,7 @@ const registrarEntrada = async (
       userId: user?.id,
       observacoes,
       dataHora: new Date().toISOString(),
+      tipoOperacaoId,
       itemSnapshot: item,
     };
 
@@ -723,6 +754,7 @@ const registrarSaida = async (
       userId: user?.id,
       observacoes,
       dataHora: new Date().toISOString(),
+      tipoOperacaoId,
       itemSnapshot: item,
     };
 
@@ -947,5 +979,6 @@ const importarItensServidor = async (lista: Omit<Item, 'id' | 'codigoBarras'>[])
     importarItensServidor,
     registrarEntrada,
     registrarSaida,
+    carregarDados,
   };
 };
