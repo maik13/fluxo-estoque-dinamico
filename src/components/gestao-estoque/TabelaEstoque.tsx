@@ -609,7 +609,8 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
               </Button>
             </div>
           </div>
-        </CardContent>
+        </div>
+      </CardContent>
       </Card>
 
       {/* Barra de ações para seleção múltipla - apenas para admins */}
