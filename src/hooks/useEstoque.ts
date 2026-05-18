@@ -327,9 +327,6 @@ export const useEstoque = () => {
           solicitacoes:solicitacao_id (
             solicitante_nome,
             tipo_operacao
-          ),
-          tipos_operacao:tipo_operacao_id (
-            nome
           )
         `)
         .order('data_hora', { ascending: true });
@@ -348,6 +345,12 @@ export const useEstoque = () => {
         if (data.length < pageSize) break;
         movFrom += pageSize;
       }
+
+      const { data: tiposOperacaoData, error: tiposOperacaoError } = await supabase
+        .from('tipos_operacao')
+        .select('id, nome');
+      if (tiposOperacaoError) throw tiposOperacaoError;
+      const tipoOperacaoMap = new Map((tiposOperacaoData ?? []).map(op => [op.id, op.nome]));
 
       // Mapear DB -> Tipos locais
       const itensMapped: Item[] = (itensData ?? []).map((row: any) => ({
@@ -390,7 +393,7 @@ export const useEstoque = () => {
         destinatario: row.destinatario ?? undefined,
         estoqueId: row.estoque_id ?? undefined,
         tipoOperacaoId: row.tipo_operacao_id ?? undefined,
-        tipoOperacaoNome: row.tipos_operacao?.nome ?? undefined,
+        tipoOperacaoNome: row.tipo_operacao_id ? tipoOperacaoMap.get(row.tipo_operacao_id) : undefined,
         itemSnapshot: row.item_snapshot as Partial<Item>,
       }));
 
