@@ -327,6 +327,9 @@ export const useEstoque = () => {
           solicitacoes:solicitacao_id (
             solicitante_nome,
             tipo_operacao
+          ),
+          tipos_operacao:tipo_operacao_id (
+            nome
           )
         `)
         .order('data_hora', { ascending: true });
@@ -386,6 +389,8 @@ export const useEstoque = () => {
         solicitacaoTipoOperacao: row.solicitacoes?.tipo_operacao ?? undefined,
         destinatario: row.destinatario ?? undefined,
         estoqueId: row.estoque_id ?? undefined,
+        tipoOperacaoId: row.tipo_operacao_id ?? undefined,
+        tipoOperacaoNome: row.tipos_operacao?.nome ?? undefined,
         itemSnapshot: row.item_snapshot as Partial<Item>,
       }));
 
