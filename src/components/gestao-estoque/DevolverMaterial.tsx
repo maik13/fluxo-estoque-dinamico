@@ -48,7 +48,7 @@ export const DevolverMaterial = () => {
 
   const { criarSolicitacao } = useSolicitacoes();
   const { userProfile } = usePermissions();
-  const { obterEstoque } = useEstoqueContext();
+  const { obterEstoque, carregarDados } = useEstoqueContext();
   const { obterLocaisUtilizacaoAtivos } = useConfiguracoes();
 
   const itensEstoque = obterEstoque().filter(item => item.ativo !== false);
@@ -255,6 +255,7 @@ export const DevolverMaterial = () => {
       });
 
       if (sucesso) {
+        await carregarDados();
         toast.success('Devolução registrada com sucesso!');
         resetarFormulario();
         setDialogoAberto(false);
