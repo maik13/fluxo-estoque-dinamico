@@ -274,7 +274,7 @@ export const VisaoProjetos = () => {
                     id="pendentes-data-fim"
                     type="date"
                     value={filtroDataPendentesFim ? format(filtroDataPendentesFim, "yyyy-MM-dd") : ""}
-                    onChange={(e) => setFiltroDataPendentesFim(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
+                    onChange={(e) => setFiltroDataPendentesFim(e.target.value ? new Date(e.target.value + 'T23:59:59.999') : undefined)}
                     className="pl-10"
                   />
                 </div>
