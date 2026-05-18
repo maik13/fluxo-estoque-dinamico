@@ -135,6 +135,7 @@ export const useEstoque = () => {
             let localNome: string | undefined;
             let solicitanteNome: string | undefined;
             let solicitacaoTipoOperacao: string | undefined;
+            let tipoOperacaoNome: string | undefined;
             if (payload.new.local_utilizacao_id) {
               const { data } = await supabase
                 .from('locais_utilizacao')
@@ -151,6 +152,14 @@ export const useEstoque = () => {
                 .single();
               solicitanteNome = data?.solicitante_nome;
               solicitacaoTipoOperacao = data?.tipo_operacao;
+            }
+            if (payload.new.tipo_operacao_id) {
+              const { data } = await supabase
+                .from('tipos_operacao')
+                .select('nome')
+                .eq('id', payload.new.tipo_operacao_id)
+                .single();
+              tipoOperacaoNome = data?.nome;
             }
 
             const novaMovimentacao: Movimentacao = {
@@ -170,6 +179,8 @@ export const useEstoque = () => {
               solicitacaoTipoOperacao: solicitacaoTipoOperacao,
               destinatario: payload.new.destinatario ?? undefined,
               estoqueId: payload.new.estoque_id ?? undefined,
+              tipoOperacaoId: payload.new.tipo_operacao_id ?? undefined,
+              tipoOperacaoNome,
               itemSnapshot: payload.new.item_snapshot as Partial<Item>,
             };
             setMovimentacoes(prev => {
@@ -199,6 +210,7 @@ export const useEstoque = () => {
           let localNome = '';
           let solicitanteNome: string | undefined;
           let solicitacaoTipoOperacao: string | undefined;
+          let tipoOperacaoNome: string | undefined;
           if (payload.new.local_utilizacao_id) {
             const { data: localData } = await supabase
               .from('locais_utilizacao')
@@ -218,6 +230,14 @@ export const useEstoque = () => {
             solicitanteNome = data?.solicitante_nome;
             solicitacaoTipoOperacao = data?.tipo_operacao;
           }
+          if (payload.new.tipo_operacao_id) {
+            const { data } = await supabase
+              .from('tipos_operacao')
+              .select('nome')
+              .eq('id', payload.new.tipo_operacao_id)
+              .single();
+            tipoOperacaoNome = data?.nome;
+          }
 
           const movimentacaoAtualizada: Movimentacao = {
             id: payload.new.id,
@@ -236,6 +256,8 @@ export const useEstoque = () => {
             solicitacaoTipoOperacao: solicitacaoTipoOperacao,
             destinatario: payload.new.destinatario ?? undefined,
             estoqueId: payload.new.estoque_id ?? undefined,
+            tipoOperacaoId: payload.new.tipo_operacao_id ?? undefined,
+            tipoOperacaoNome,
             itemSnapshot: payload.new.item_snapshot as Partial<Item>,
           };
           setMovimentacoes(prev => prev.map(m => m.id === movimentacaoAtualizada.id ? movimentacaoAtualizada : m));
