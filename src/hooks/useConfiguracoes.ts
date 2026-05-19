@@ -1341,5 +1341,7 @@ export const useConfiguracoes = () => {
     obterSolicitantesAtivos,
     obterLocaisUtilizacaoAtivos,
     obterEstoqueAtivoInfo,
+    obterEstoquePrincipalId,
+    isEstoqueAtivoPrincipal,
   };
 };
