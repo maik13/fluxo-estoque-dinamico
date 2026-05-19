@@ -154,7 +154,7 @@ export const EstoqueContado: React.FC<EstoqueContadoProps> = ({ itens }) => {
                     });
 
                     const itensOrdenadosPorCodigo = [...itensDaClassificacao].sort((a, b) => 
-                      (a.codigoBarras || '').localeCompare(b.codigoBarras || '')
+                      String(a.codigoBarras ?? '').localeCompare(String(b.codigoBarras ?? ''))
                     );
 
                     return (
