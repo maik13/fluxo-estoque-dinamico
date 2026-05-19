@@ -1286,6 +1286,12 @@ export const useConfiguracoes = () => {
   const obterSolicitantesAtivos = () => solicitantes.filter(s => s.ativo);
   const obterLocaisUtilizacaoAtivos = () => locaisUtilizacao.filter(l => l.ativo);
   const obterEstoqueAtivoInfo = () => estoques.find(e => e.id === estoqueAtivo);
+  const obterEstoquePrincipalId = (): string | undefined =>
+    estoques.find(e => e.nome.toLowerCase() === 'almoxarifado principal')?.id;
+  const isEstoqueAtivoPrincipal = (): boolean => {
+    const principalId = obterEstoquePrincipalId();
+    return !!principalId && principalId === estoqueAtivo;
+  };
 
   return {
     estoques,
