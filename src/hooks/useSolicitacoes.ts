@@ -13,7 +13,7 @@ export const useSolicitacoes = () => {
   const [loading, setLoading] = useState(true);
   const { user, loading: authLoading, forceReauth } = useAuth();
   const { userProfile } = usePermissions();
-  const { obterEstoqueAtivoInfo, estoqueAtivo } = useConfiguracoes();
+  const { obterEstoqueAtivoInfo, estoqueAtivo, isEstoqueAtivoPrincipal } = useConfiguracoes();
   
   // Refs para controle de debounce e prevenção de duplicatas
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -284,15 +284,24 @@ export const useSolicitacoes = () => {
 
       for (const item of novaSolicitacao.itens) {
         // Calcular o saldo real do item no estoque ativo antes de criar a movimentação
+        // Movimentações sem estoque_id (legado) contam para o "almoxarifado principal"
         const estoqueId = estoqueAtivoInfo?.id;
+        const incluirSemEstoque = isEstoqueAtivoPrincipal();
         let saldoAtual = 0;
         
         if (estoqueId) {
-          const { data: movsSaldo, error: errorSaldo } = await supabase
+          let saldoQuery = supabase
             .from('movements')
-            .select('tipo, quantidade')
-            .eq('item_id', item.item_id)
-            .eq('estoque_id', estoqueId);
+            .select('tipo, quantidade, estoque_id')
+            .eq('item_id', item.item_id);
+          
+          if (incluirSemEstoque) {
+            saldoQuery = saldoQuery.or(`estoque_id.eq.${estoqueId},estoque_id.is.null`);
+          } else {
+            saldoQuery = saldoQuery.eq('estoque_id', estoqueId);
+          }
+          
+          const { data: movsSaldo, error: errorSaldo } = await saldoQuery;
             
           if (!errorSaldo && movsSaldo) {
             movsSaldo.forEach(m => {

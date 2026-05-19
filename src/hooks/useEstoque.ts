@@ -10,7 +10,7 @@ export const useEstoque = () => {
   const [itens, setItens] = useState<Item[]>([]);
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
   const [loading, setLoading] = useState(true);
-  const { estoqueAtivo, obterEstoqueAtivoInfo } = useConfiguracoes();
+  const { estoqueAtivo, obterEstoqueAtivoInfo, isEstoqueAtivoPrincipal } = useConfiguracoes();
   const { user } = useAuth();
   
   // Refs para controle de carregamento e prevenção de duplicatas
@@ -487,11 +487,12 @@ export const useEstoque = () => {
   };
 
   // Função para calcular estoque atual de um item considerando apenas o estoque ativo
+  // Movimentações sem estoque_id são atribuídas ao "almoxarifado principal" (dados legados)
   const calcularEstoqueAtual = (itemId: string): number => {
-    // Filtrar movimentações do item E do estoque ativo
+    const incluirSemEstoque = isEstoqueAtivoPrincipal();
     const movimentacoesItem = movimentacoes.filter(mov => 
       mov.itemId === itemId && 
-      (!mov.estoqueId || mov.estoqueId === estoqueAtivo)
+      (mov.estoqueId === estoqueAtivo || (incluirSemEstoque && !mov.estoqueId))
     );
     let estoque = 0;
     
@@ -510,11 +511,13 @@ export const useEstoque = () => {
 
   // Cache do estoque calculado - usa useMemo para evitar recálculo a cada render
   const estoqueCalculado = useMemo(() => {
+    const incluirSemEstoque = isEstoqueAtivoPrincipal();
     return itens.map(item => {
       // Filtrar movimentações do item E do estoque ativo
+      // Movimentações sem estoque_id (legado) contam para o "almoxarifado principal"
       const movimentacoesItem = movimentacoes.filter(mov => 
         mov.itemId === item.id && 
-        (!mov.estoqueId || mov.estoqueId === estoqueAtivo)
+        (mov.estoqueId === estoqueAtivo || (incluirSemEstoque && !mov.estoqueId))
       );
       
       let estoqueAtual = 0;
