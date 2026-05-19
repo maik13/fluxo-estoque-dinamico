@@ -1,4 +1,6 @@
 import { EstoqueItem } from '@/types/estoque';
+import JsPdf from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const formatarClassificacao = (item: EstoqueItem): string => {
   const partes = [];
