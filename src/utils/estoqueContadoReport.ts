@@ -44,11 +44,28 @@ export const imprimirRelatorioContado = (
   
   itensOrdenados.forEach(item => {
     const key = item.nome || 'Sem Nome';
-    if (!agrupadoPorNome.has(key)) agrupadoPorNome.set(key, []);
-    agrupadoPorNome.get(key)!.push(item);
+    if (!mapaHasKeyIgnoreCase(agrupadoPorNome, key)) {
+      agrupadoPorNome.set(key, []);
+    }
+    getMapKeyIgnoreCase(agrupadoPorNome, key).push(item);
   });
 
-  // Gerar linhas da tabela executiva
+  // Helper functions for map key access
+  function mapaHasKeyIgnoreCase(map: Map<string, any>, searchKey: string) {
+    for (const key of map.keys()) {
+      if (key.toLowerCase() === searchKey.toLowerCase()) return true;
+    }
+    return false;
+  }
+
+  function getMapKeyIgnoreCase(map: Map<string, any>, searchKey: string) {
+    for (const [key, value] of map.entries()) {
+      if (key.toLowerCase() === searchKey.toLowerCase()) return value;
+    }
+    return undefined;
+  }
+
+  // Gerar linhas da tabela executiva por item
   const linhasTabelaExecutiva = Array.from(agrupadoPorNome.entries()).map(([nome, itensDoNome]) => {
     let noAlmoxarifado = 0;
     let emUsoProjeto = 0;
@@ -67,22 +84,40 @@ export const imprimirRelatorioContado = (
 
     return `
       <tr>
-        <td style="font-weight: bold;">${nome}</td>
+        <td style="font-weight: 600; text-transform: uppercase;">${nome}</td>
         <td style="text-align: center;">${itensDoNome.length}</td>
-        <td style="text-align: center; color: #2e7d32;">${noAlmoxarifado}</td>
-        <td style="text-align: center; color: #f57c00;">${emUsoProjeto}</td>
-        <td style="text-align: center; color: #c62828;">${semSaldo}</td>
+        <td style="text-align: center;">${noAlmoxarifado}</td>
+        <td style="text-align: center;">${emUsoProjeto}</td>
+        <td style="text-align: center;">${semSaldo}</td>
       </tr>
     `;
   }).join('');
 
   // Gerar detalhamento por item
   const detalhamentoItens = Array.from(agrupadoPorNome.entries()).map(([nome, itensDoNome]) => {
-    // Agrupar por classificação
+    // Calcular resumo específico do item
+    let noAlmoxarifadoNome = 0;
+    let emUsoProjetoNome = 0;
+    let semSaldoNome = 0;
+
+    itensDoNome.forEach(item => {
+      const isAlocado = alocacoes[item.id]?.alocada;
+      if (isAlocado) {
+        emUsoProjetoNome++;
+      } else if (item.estoqueAtual > 0) {
+        noAlmoxarifadoNome++;
+      } else {
+        semSaldoNome++;
+      }
+    });
+
+    // Agrupar itens do nome por classificação
     const agrupadoPorClassificacao = new Map<string, EstoqueItem[]>();
     itensDoNome.forEach(item => {
       const classificacao = formatarClassificacao(item);
-      if (!agrupadoPorClassificacao.has(classificacao)) agrupadoPorClassificacao.set(classificacao, []);
+      if (!agrupadoPorClassificacao.has(classificacao)) {
+        agrupadoPorClassificacao.set(classificacao, []);
+      }
       agrupadoPorClassificacao.get(classificacao)!.push(item);
     });
 
@@ -130,7 +165,7 @@ export const imprimirRelatorioContado = (
 
         return `
           <tr>
-            <td style="font-family: monospace; font-size: 11px;">${item.codigoBarras}</td>
+            <td style="font-family: monospace; font-size: 10px; font-weight: 500;">${item.codigoBarras}</td>
             <td>${item.marca || '-'}</td>
             <td>${item.especificacao || '-'}</td>
             <td>${status}</td>
@@ -143,25 +178,25 @@ export const imprimirRelatorioContado = (
 
       return `
         <div class="classificacao-block" style="margin-top: 15px; margin-bottom: 20px; page-break-inside: avoid;">
-          <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 4px; font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
-            <span>Classificação: ${classificacao}</span>
-            <span style="font-size: 11px; font-weight: normal;">
+          <div style="font-weight: 600; font-size: 12px; color: #333; margin-bottom: 5px; border-bottom: 1px dotted #ccc; padding-bottom: 3px; display: flex; justify-content: space-between; align-items: flex-end;">
+            <span style="font-size: 12px; text-transform: uppercase;">${classificacao}</span>
+            <span style="font-size: 11px; font-weight: normal; color: #555;">
               Códigos: <strong>${itensDaClassificacao.length}</strong> | 
-              Almoxarifado: <strong style="color: #2e7d32;">${noAlmoxarifadoClass}</strong> | 
-              Em uso: <strong style="color: #f57c00;">${emUsoProjetoClass}</strong> | 
-              Sem saldo: <strong style="color: #c62828;">${semSaldoClass}</strong>
+              No almoxarifado: <strong>${noAlmoxarifadoClass}</strong> | 
+              Em uso/projeto: <strong>${emUsoProjetoClass}</strong> | 
+              Sem saldo: <strong>${semSaldoClass}</strong>
             </span>
           </div>
-          <table style="width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px;">
+          <table style="width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 11px;">
             <thead>
               <tr style="background-color: #fafafa;">
-                <th style="width: 15%;">Código</th>
-                <th style="width: 12%;">Marca</th>
-                <th style="width: 20%;">Especificação</th>
-                <th style="width: 15%;">Status</th>
-                <th style="width: 18%;">Localização almox.</th>
-                <th style="width: 12%;">Projeto/Local</th>
-                <th style="width: 8%; text-align: right;">Saldo</th>
+                <th style="width: 14%; border: 1px solid #ddd; padding: 4px 8px; text-align: left; font-weight: 600; font-size: 10px;">Código</th>
+                <th style="width: 12%; border: 1px solid #ddd; padding: 4px 8px; text-align: left; font-weight: 600; font-size: 10px;">Marca</th>
+                <th style="width: 24%; border: 1px solid #ddd; padding: 4px 8px; text-align: left; font-weight: 600; font-size: 10px;">Especificação</th>
+                <th style="width: 15%; border: 1px solid #ddd; padding: 4px 8px; text-align: left; font-weight: 600; font-size: 10px;">Status</th>
+                <th style="width: 15%; border: 1px solid #ddd; padding: 4px 8px; text-align: left; font-weight: 600; font-size: 10px;">Localização almox.</th>
+                <th style="width: 13%; border: 1px solid #ddd; padding: 4px 8px; text-align: left; font-weight: 600; font-size: 10px;">Projeto/Local de uso</th>
+                <th style="width: 7%; border: 1px solid #ddd; padding: 4px 8px; text-align: right; font-weight: 600; font-size: 10px;">Saldo</th>
               </tr>
             </thead>
             <tbody>
@@ -173,14 +208,20 @@ export const imprimirRelatorioContado = (
     }).join('');
 
     return `
-      <div class="item-block" style="margin-top: 25px; border-bottom: 2px solid #eaeaea; padding-bottom: 15px; page-break-inside: avoid;">
-        <h2 style="color: #1a5276; font-size: 18px; margin-bottom: 5px; margin-top: 0; text-transform: uppercase;">${nome}</h2>
+      <div class="item-block" style="margin-top: 25px; margin-bottom: 20px; page-break-inside: avoid; border-top: 1px solid #ddd; padding-top: 15px;">
+        <h2 style="font-size: 15px; font-weight: bold; color: #111; margin: 0 0 5px 0; text-transform: uppercase;">${nome}</h2>
+        <div style="font-size: 11px; color: #555; margin-bottom: 12px; font-weight: 500;">
+          Códigos cadastrados: <strong>${itensDoNome.length}</strong> | 
+          No almoxarifado: <strong>${noAlmoxarifadoNome}</strong> | 
+          Em uso/projeto: <strong>${emUsoProjetoNome}</strong> | 
+          Sem saldo: <strong>${semSaldoNome}</strong>
+        </div>
         ${htmlClassificacoes}
       </div>
     `;
   }).join('');
 
-  const filtroTextoInfo = filtroTexto ? `<div class="filtro-info"><strong>Filtro aplicado:</strong> Busca por "${filtroTexto}"</div>` : '';
+  const filtroTextoInfo = filtroTexto ? `<div class="filtro-info"><strong>Filtro aplicado:</strong> ${filtroTexto}</div>` : '';
 
   const html = `
     <!DOCTYPE html>
@@ -188,81 +229,78 @@ export const imprimirRelatorioContado = (
     <head>
       <title>Relatório de Estoque Contado</title>
       <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 25px; color: #333; line-height: 1.4; background-color: #fff; }
-        h1 { color: #1a5276; font-size: 24px; margin-bottom: 5px; margin-top: 0; font-weight: 700; text-align: center; }
-        .subtitle { text-align: center; font-size: 14px; color: #555; margin-bottom: 20px; font-weight: 500; }
-        .meta-info { display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 20px; font-size: 12px; color: #666; }
-        .filtro-info { background-color: #fff8e1; border-left: 4px solid #ffb300; padding: 8px 12px; margin-bottom: 20px; font-size: 12px; border-radius: 0 4px 4px 0; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; color: #222; line-height: 1.35; background-color: #fff; font-size: 11px; }
+        h1 { color: #000; font-size: 20px; margin-bottom: 4px; margin-top: 0; font-weight: 700; text-align: center; text-transform: uppercase; }
+        .subtitle { text-align: center; font-size: 12px; color: #444; margin-bottom: 15px; font-weight: 500; }
+        .meta-info { display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 15px; font-size: 11px; color: #444; }
+        .filtro-info { background-color: #fcfcfc; border: 1px solid #ddd; padding: 6px 10px; margin-bottom: 15px; font-size: 11px; border-radius: 4px; display: inline-block; }
         
-        /* Cards de resumo */
-        .resumo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
-        .resumo-card { border: 1px solid #ddd; border-radius: 6px; padding: 12px; text-align: center; background-color: #fff; }
-        .resumo-val { font-size: 20px; font-weight: bold; margin-top: 4px; }
-        .resumo-lbl { font-size: 10px; text-transform: uppercase; color: #666; letter-spacing: 0.5px; }
+        /* Resumo no topo */
+        .resumo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+        .resumo-card { border: 1px solid #ccc; border-radius: 4px; padding: 10px; text-align: center; background-color: #fff; }
+        .resumo-val { font-size: 16px; font-weight: bold; margin-top: 2px; color: #000; }
+        .resumo-lbl { font-size: 9px; text-transform: uppercase; color: #555; font-weight: 600; letter-spacing: 0.3px; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #e0e0e0; padding: 6px 10px; text-align: left; }
-        th { background-color: #f1f5f9; color: #334155; font-weight: 600; font-size: 11px; }
-        tr:nth-child(even) { background-color: #f8fafc; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 5px 8px; text-align: left; }
+        th { background-color: #f5f5f5; color: #222; font-weight: 600; font-size: 10px; }
+        tr:nth-child(even) { background-color: #fcfcfc; }
         
-        .footer { margin-top: 40px; text-align: center; color: #888; font-size: 10px; border-top: 1px solid #eee; padding-top: 10px; }
+        .footer { margin-top: 30px; text-align: center; color: #666; font-size: 9px; border-top: 1px solid #ddd; padding-top: 8px; }
         
         @media print {
-          body { padding: 0; font-size: 12px; }
+          body { padding: 0; font-size: 11px; color: #000; }
           .item-block { page-break-inside: avoid; }
           .classificacao-block { page-break-inside: avoid; }
           .no-print { display: none; }
-          @page { margin: 1.5cm; }
+          @page { margin: 1.2cm 1.2cm; }
         }
       </style>
     </head>
     <body>
-      <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
-        <span style="font-weight: bold; font-size: 18px; color: #1a5276; margin-right: 8px;">Bambusa</span>
-        <span style="color: #888; font-size: 14px;">| Gestão de Estoque</span>
+      <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 5px; font-size: 12px; font-weight: 600; color: #444;">
+        Bambusa Almoxarifado Inteligente
       </div>
       <h1>RELATÓRIO DE ESTOQUE CONTADO</h1>
-      <div class="subtitle">Visão Executiva e Detalhada dos Itens de Estoque</div>
       
-      <div class="meta-info">
-        <div><strong>Almoxarifado Ativo:</strong> ${nomeEstoque || 'Geral'}</div>
+      <div class="meta-info" style="margin-top: 10px;">
+        <div><strong>Estoque:</strong> ${nomeEstoque || 'Almoxarifado Principal'}</div>
         <div><strong>Emissão:</strong> ${new Date().toLocaleString('pt-BR')}</div>
-        <div><strong>Itens Considerados:</strong> ${totalCodigosGeral}</div>
+        <div><strong>Total de códigos considerados:</strong> ${totalCodigosGeral}</div>
       </div>
 
       ${filtroTextoInfo}
 
       <!-- Resumo Geral -->
-      <h3 style="margin-top: 0; border-bottom: 1px solid #1a5276; color: #1a5276; font-size: 14px; padding-bottom: 4px; text-transform: uppercase;">Resumo Geral</h3>
       <div class="resumo-grid">
         <div class="resumo-card">
-          <div class="resumo-lbl">Cadastrados</div>
+          <div class="resumo-lbl">Códigos cadastrados</div>
           <div class="resumo-val">${totalCodigosGeral}</div>
         </div>
-        <div class="resumo-card" style="border-left: 4px solid #2e7d32;">
-          <div class="resumo-lbl" style="color: #2e7d32;">No Almoxarifado</div>
-          <div class="resumo-val" style="color: #2e7d32;">${noAlmoxarifadoGeral}</div>
+        <div class="resumo-card">
+          <div class="resumo-lbl">No Almoxarifado</div>
+          <div class="resumo-val">${noAlmoxarifadoGeral}</div>
         </div>
-        <div class="resumo-card" style="border-left: 4px solid #f57c00;">
-          <div class="resumo-lbl" style="color: #f57c00;">Em Uso / Projeto</div>
-          <div class="resumo-val" style="color: #f57c00;">${emUsoProjetoGeral}</div>
+        <div class="resumo-card">
+          <div class="resumo-lbl">Em Uso / Projeto</div>
+          <div class="resumo-val">${emUsoProjetoGeral}</div>
         </div>
-        <div class="resumo-card" style="border-left: 4px solid #c62828;">
-          <div class="resumo-lbl" style="color: #c62828;">Sem Saldo</div>
-          <div class="resumo-val" style="color: #c62828;">${semSaldoGeral}</div>
+        <div class="resumo-card">
+          <div class="resumo-lbl">Sem Saldo</div>
+          <div class="resumo-val">${semSaldoGeral}</div>
         </div>
       </div>
 
       <!-- Tabela Executiva -->
-      <h3 style="margin-top: 25px; border-bottom: 1px solid #1a5276; color: #1a5276; font-size: 14px; padding-bottom: 4px; text-transform: uppercase;">Tabela Executiva por Item</h3>
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px;">
+      <h3 style="margin-top: 15px; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 2px;">Tabela Executiva por Item</h3>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
         <thead>
           <tr>
-            <th>Item</th>
-            <th style="width: 15%; text-align: center;">Códigos Cadastrados</th>
-            <th style="width: 18%; text-align: center;">No Almoxarifado</th>
-            <th style="width: 18%; text-align: center;">Em Uso / Projeto</th>
-            <th style="width: 15%; text-align: center;">Sem Saldo</th>
+            <th style="padding: 4px 8px;">Item</th>
+            <th style="width: 15%; text-align: center; padding: 4px 8px;">Códigos</th>
+            <th style="width: 18%; text-align: center; padding: 4px 8px;">No Almoxarifado</th>
+            <th style="width: 18%; text-align: center; padding: 4px 8px;">Em Uso / Projeto</th>
+            <th style="width: 15%; text-align: center; padding: 4px 8px;">Sem Saldo</th>
           </tr>
         </thead>
         <tbody>
@@ -271,13 +309,13 @@ export const imprimirRelatorioContado = (
       </table>
 
       <!-- Detalhamento por Item -->
-      <div style="page-break-before: always;">
-        <h3 style="border-bottom: 1px solid #1a5276; color: #1a5276; font-size: 14px; padding-bottom: 4px; text-transform: uppercase; margin-bottom: 15px;">Detalhamento de Códigos</h3>
+      <h3 style="margin-top: 25px; margin-bottom: 10px; font-size: 12px; text-transform: uppercase; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 2px;">Detalhamento por Item</h3>
+      <div>
         ${detalhamentoItens}
       </div>
 
       <div class="footer">
-        Relatório de Estoque Contado — Bambusa Almoxarifado Inteligente. Gerado em ${new Date().toLocaleString('pt-BR')}.
+        Relatório de Estoque Contado — Bambusa. Impresso em ${new Date().toLocaleString('pt-BR')}.
       </div>
     </body>
     </html>
