@@ -647,7 +647,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
 
       {/* Visualização de Estoque */}
       {modoVisualizacao === 'contado' ? (
-        <EstoqueContado itens={itensFiltrados} />
+        <EstoqueContado itens={itensFiltrados} filtroTexto={filtroTexto} />
       ) : (
       <Card>
         <CardHeader>

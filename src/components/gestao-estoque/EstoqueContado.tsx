@@ -1,15 +1,18 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Package, TrendingUp, AlertTriangle, Loader2 } from 'lucide-react';
+import { Package, TrendingUp, AlertTriangle, Loader2, Printer } from 'lucide-react';
 import { EstoqueItem } from '@/types/estoque';
 import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { imprimirRelatorioContado } from '@/utils/estoqueContadoReport';
 
 interface EstoqueContadoProps {
   itens: EstoqueItem[];
+  filtroTexto: string;
 }
 
 const formatarClassificacao = (item: EstoqueItem): string => {
@@ -23,7 +26,7 @@ const formatarClassificacao = (item: EstoqueItem): string => {
   return partes.join(' • ');
 };
 
-export const EstoqueContado: React.FC<EstoqueContadoProps> = ({ itens }) => {
+export const EstoqueContado: React.FC<EstoqueContadoProps> = ({ itens, filtroTexto }) => {
   const { obterEstoqueAtivoInfo } = useConfiguracoes();
   const [alocacoes, setAlocacoes] = useState<Record<string, { alocada: boolean; saldoPendente: number; localAtual?: string }>>({});
   const [carregando, setCarregando] = useState(false);
@@ -69,14 +72,35 @@ export const EstoqueContado: React.FC<EstoqueContadoProps> = ({ itens }) => {
     return mapa;
   }, [itens]);
 
+  const handleGerarRelatorio = () => {
+    imprimirRelatorioContado(itens, filtroTexto, estoqueInfo?.nome || '', alocacoes);
+  };
+
   return (
     <div className="space-y-4">
-      {carregando && (
-        <div className="flex items-center justify-center p-4 text-muted-foreground bg-muted/20 rounded-lg border">
-          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          <span>Verificando itens em uso/projeto...</span>
+      {/* Aviso de carregamento & Botão de Impressão */}
+      <div className="flex justify-between items-center bg-muted/20 p-3 rounded-lg border gap-4">
+        <div className="flex items-center gap-2">
+          {carregando ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Verificando itens em uso/projeto...</span>
+            </>
+          ) : (
+            <span className="text-sm text-muted-foreground font-medium">Itens verificados e prontos.</span>
+          )}
         </div>
-      )}
+        <Button 
+          onClick={handleGerarRelatorio} 
+          variant="outline" 
+          size="sm"
+          className="gap-2"
+          disabled={carregando}
+        >
+          <Printer className="w-4 h-4" />
+          Relatório Contado
+        </Button>
+      </div>
 
       <Accordion type="multiple" className="w-full space-y-4">
         {Array.from(agrupadoPorNome.entries()).map(([nome, itensDoNome]) => {
