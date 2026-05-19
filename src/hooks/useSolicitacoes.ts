@@ -13,7 +13,7 @@ export const useSolicitacoes = () => {
   const [loading, setLoading] = useState(true);
   const { user, loading: authLoading, forceReauth } = useAuth();
   const { userProfile } = usePermissions();
-  const { obterEstoqueAtivoInfo, estoqueAtivo } = useConfiguracoes();
+  const { obterEstoqueAtivoInfo, estoqueAtivo, isEstoqueAtivoPrincipal } = useConfiguracoes();
   
   // Refs para controle de debounce e prevenção de duplicatas
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
