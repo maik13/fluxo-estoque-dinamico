@@ -10,7 +10,7 @@ export const useEstoque = () => {
   const [itens, setItens] = useState<Item[]>([]);
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
   const [loading, setLoading] = useState(true);
-  const { estoqueAtivo, obterEstoqueAtivoInfo } = useConfiguracoes();
+  const { estoqueAtivo, obterEstoqueAtivoInfo, isEstoqueAtivoPrincipal } = useConfiguracoes();
   const { user } = useAuth();
   
   // Refs para controle de carregamento e prevenção de duplicatas
