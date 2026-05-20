@@ -369,8 +369,10 @@ export const SolicitacaoMaterial = () => {
           solicitante_nome: userProfile.nome,
           observacoes: observacoes || null,
           estoque_id: estoqueInfo?.id || null,
+          local_origem: localOrigemNome || null,
+          local_origem_id: localOrigemId || null,
           status: 'pendente'
-        })
+        } as any)
         .select()
         .single();
 
