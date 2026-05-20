@@ -310,6 +310,7 @@ export const TabelaMovimentacoes = () => {
 
     const linhas = movimentacoesFiltradas.map(mov => {
       const eDevolucao = isDevolucao(mov);
+      const saldoCalculado = saldosCalculadosPorMovimentacao.get(mov.id);
       let responsavel = '-';
       const solicitante = mov.solicitanteNome || '-';
       if (mov.userId && usuariosMap[mov.userId]) {
@@ -754,9 +755,10 @@ export const TabelaMovimentacoes = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  movimentacoesPaginadas.map((mov) => {
+                    movimentacoesPaginadas.map((mov) => {
                     const tipoInfo = getTipoInfo(mov.tipo);
                     const eDevolucao = isDevolucao(mov);
+                    const saldoCalculado = saldosCalculadosPorMovimentacao.get(mov.id);
                     
                     return (
                       <TableRow key={mov.id} className="hover:bg-muted/50">
@@ -833,10 +835,10 @@ export const TabelaMovimentacoes = () => {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          {mov.quantidadeAnterior.toLocaleString('pt-BR')}
+                          {(saldoCalculado?.anterior ?? mov.quantidadeAnterior).toLocaleString('pt-BR')}
                         </TableCell>
                         <TableCell className="text-right font-bold">
-                          {mov.quantidadeAtual.toLocaleString('pt-BR')}
+                          {(saldoCalculado?.atual ?? mov.quantidadeAtual).toLocaleString('pt-BR')}
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
