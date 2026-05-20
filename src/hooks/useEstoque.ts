@@ -498,7 +498,7 @@ export const useEstoque = () => {
     const movimentacoesItem = movimentacoes.filter(mov => 
       mov.itemId === itemId && 
       (mov.estoqueId === estoqueAtivo || (incluirSemEstoque && !mov.estoqueId))
-    );
+    ).sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime());
     let estoque = 0;
     
     movimentacoesItem.forEach(mov => {
@@ -523,7 +523,7 @@ export const useEstoque = () => {
       const movimentacoesItem = movimentacoes.filter(mov => 
         mov.itemId === item.id && 
         (mov.estoqueId === estoqueAtivo || (incluirSemEstoque && !mov.estoqueId))
-      );
+      ).sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime());
       
       let estoqueAtual = 0;
       movimentacoesItem.forEach(mov => {
