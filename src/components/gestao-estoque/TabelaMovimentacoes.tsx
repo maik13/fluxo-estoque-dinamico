@@ -85,6 +85,26 @@ export const TabelaMovimentacoes = () => {
     );
   }, [movimentacoes]);
 
+  // Recalcula o saldo histórico pela ordem real das movimentações do estoque ativo.
+  // Os campos salvos em movements.quantidade_anterior/atual podem estar incorretos em registros antigos.
+  const saldosCalculadosPorMovimentacao = useMemo(() => {
+    const saldos = new Map<string, { anterior: number; atual: number }>();
+    const saldoPorItem = new Map<string, number>();
+
+    [...movimentacoes]
+      .sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
+      .forEach((mov) => {
+        const anterior = saldoPorItem.get(mov.itemId) ?? 0;
+        const delta = mov.tipo === 'SAIDA' ? -mov.quantidade : mov.quantidade;
+        const atual = Math.max(0, anterior + delta);
+
+        saldos.set(mov.id, { anterior, atual });
+        saldoPorItem.set(mov.itemId, atual);
+      });
+
+    return saldos;
+  }, [movimentacoes]);
+
   // Obter locais de utilização únicos para filtro
   const locaisUtilizacao = useMemo(() => {
     const locais = new Set(
@@ -187,6 +207,7 @@ export const TabelaMovimentacoes = () => {
       // Preparar dados para exportação
       const dadosExportacao = movimentacoesFiltradas.map(mov => {
         const eDevolucao = isDevolucao(mov);
+        const saldoCalculado = saldosCalculadosPorMovimentacao.get(mov.id);
         let responsavel = '-';
         const solicitante = mov.solicitanteNome || '-';
         // Para ENTRADA e CADASTRO: mostrar nome do usuário que fez a operação
@@ -203,8 +224,8 @@ export const TabelaMovimentacoes = () => {
           'Marca': mov.itemSnapshot?.marca || '',
           'Quantidade': `${mov.tipo === 'SAIDA' ? '-' : '+'}${mov.quantidade}`,
           'Unidade': mov.itemSnapshot?.unidade || '',
-          'Qtd. Anterior': mov.quantidadeAnterior,
-          'Qtd. Atual': mov.quantidadeAtual,
+          'Qtd. Anterior': saldoCalculado?.anterior ?? mov.quantidadeAnterior,
+          'Qtd. Atual': saldoCalculado?.atual ?? mov.quantidadeAtual,
           'Solicitante': solicitante,
           'Responsável': responsavel,
           'Destinatário': mov.destinatario || '-',
