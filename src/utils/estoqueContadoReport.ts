@@ -1,329 +1,352 @@
-import { EstoqueItem } from '@/types/estoque';
-import JsPdf from 'jspdf';
+import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { DadosEstoqueContado, GrupoItemEstoqueContado } from '@/hooks/useEstoqueContado';
 
-const formatarClassificacao = (item: EstoqueItem): string => {
-  const partes = [];
-  if (item.especificacao) partes.push(item.especificacao);
-  if (item.marca) partes.push(item.marca);
-  if (item.unidade) partes.push(item.unidade);
-  if (item.condicao) partes.push(item.condicao);
-  
-  if (partes.length === 0) return 'Sem classificação definida';
-  return partes.join(' • ');
+const dataArquivo = () => new Date().toISOString().split('T')[0];
+
+const nomeArquivoSeguro = (nome: string) =>
+  nome
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || 'estoque';
+
+const nomeArquivoRelatorioContado = (nomeEstoque: string) =>
+  `relatorio-estoque-contado-${nomeArquivoSeguro(nomeEstoque)}-${dataArquivo()}.pdf`;
+
+const adicionarRodape = (doc: jsPDF) => {
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+
+  for (let page = 1; page <= pageCount; page += 1) {
+    doc.setPage(page);
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Pagina ${page} de ${pageCount} | Sistema de Gestao de Estoque`, pageWidth / 2, pageHeight - 8, {
+      align: 'center',
+    });
+  }
 };
 
-export const imprimirRelatorioContado = (
-  itens: EstoqueItem[],
+const adicionarResumoItem = (doc: jsPDF, grupo: GrupoItemEstoqueContado, y: number) => {
+  doc.setFontSize(11);
+  doc.setTextColor(0, 0, 0);
+  doc.text(grupo.nome.toUpperCase(), 14, y);
+
+  doc.setFontSize(8);
+  doc.setTextColor(80, 80, 80);
+  doc.text(
+    `Codigos cadastrados: ${grupo.totais.codigosCadastrados} | No almoxarifado: ${grupo.totais.noAlmoxarifado} | Em uso/projeto: ${grupo.totais.emUsoProjeto} | Sem saldo: ${grupo.totais.semSaldo}`,
+    14,
+    y + 5
+  );
+};
+
+const criarDocumentoContado = (
+  dados: DadosEstoqueContado,
   filtroTexto: string,
-  nomeEstoque: string,
-  alocacoes: Record<string, { alocada: boolean; saldoPendente: number; localAtual?: string }>
+  nomeEstoque: string
 ) => {
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return;
+  const doc = new jsPDF({ orientation: 'landscape' });
+  const pageWidth = doc.internal.pageSize.width;
+  let yPosition = 16;
 
-  // 1. Calcular resumo geral
-  let noAlmoxarifadoGeral = 0;
-  let emUsoProjetoGeral = 0;
-  let semSaldoGeral = 0;
+  doc.setFontSize(18);
+  doc.setTextColor(41, 128, 185);
+  doc.text('RELATORIO DE ESTOQUE CONTADO', pageWidth / 2, yPosition, { align: 'center' });
+  yPosition += 8;
 
-  itens.forEach(item => {
-    const isAlocado = alocacoes[item.id]?.alocada;
-    if (isAlocado) {
-      emUsoProjetoGeral++;
-    } else if (item.estoqueAtual > 0) {
-      noAlmoxarifadoGeral++;
-    } else {
-      semSaldoGeral++;
-    }
-  });
+  doc.setFontSize(10);
+  doc.setTextColor(0, 0, 0);
+  doc.text(`Estoque: ${nomeEstoque || 'Estoque Atual'}`, 14, yPosition);
+  doc.text(`Data/hora: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 14, yPosition, { align: 'right' });
+  yPosition += 6;
 
-  const totalCodigosGeral = itens.length;
-
-  // 2. Agrupar e ordenar itens por nome
-  const agrupadoPorNome = new Map<string, EstoqueItem[]>();
-  const itensOrdenados = [...itens].sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
-  
-  itensOrdenados.forEach(item => {
-    const key = item.nome || 'Sem Nome';
-    if (!mapaHasKeyIgnoreCase(agrupadoPorNome, key)) {
-      agrupadoPorNome.set(key, []);
-    }
-    getMapKeyIgnoreCase(agrupadoPorNome, key).push(item);
-  });
-
-  // Helper functions for map key access
-  function mapaHasKeyIgnoreCase(map: Map<string, any>, searchKey: string) {
-    for (const key of map.keys()) {
-      if (key.toLowerCase() === searchKey.toLowerCase()) return true;
-    }
-    return false;
+  if (filtroTexto.trim()) {
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Filtro aplicado: ${filtroTexto.trim()}`, 14, yPosition);
+    yPosition += 6;
   }
 
-  function getMapKeyIgnoreCase(map: Map<string, any>, searchKey: string) {
-    for (const [key, value] of map.entries()) {
-      if (key.toLowerCase() === searchKey.toLowerCase()) return value;
-    }
-    return undefined;
-  }
+  autoTable(doc, {
+    startY: yPosition,
+    head: [['Indicador', 'Quantidade']],
+    body: [
+      ['Codigos cadastrados', dados.totais.codigosCadastrados],
+      ['No almoxarifado', dados.totais.noAlmoxarifado],
+      ['Em uso/projeto', dados.totais.emUsoProjeto],
+      ['Sem saldo', dados.totais.semSaldo],
+    ],
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [41, 128, 185], textColor: [255, 255, 255] },
+    margin: { left: 14, right: 14 },
+    tableWidth: 100,
+  });
 
-  // Gerar linhas da tabela executiva por item
-  const linhasTabelaExecutiva = Array.from(agrupadoPorNome.entries()).map(([nome, itensDoNome]) => {
-    let noAlmoxarifado = 0;
-    let emUsoProjeto = 0;
-    let semSaldo = 0;
+  yPosition = ((doc as any).lastAutoTable?.finalY || yPosition) + 10;
 
-    itensDoNome.forEach(item => {
-      const isAlocado = alocacoes[item.id]?.alocada;
-      if (isAlocado) {
-        emUsoProjeto++;
-      } else if (item.estoqueAtual > 0) {
-        noAlmoxarifado++;
-      } else {
-        semSaldo++;
-      }
-    });
+  autoTable(doc, {
+    startY: yPosition,
+    head: [['Item', 'Codigos', 'No almoxarifado', 'Em uso/projeto', 'Sem saldo']],
+    body: dados.grupos.map((grupo) => [
+      grupo.nome,
+      grupo.totais.codigosCadastrados,
+      grupo.totais.noAlmoxarifado,
+      grupo.totais.emUsoProjeto,
+      grupo.totais.semSaldo,
+    ]),
+    theme: 'striped',
+    styles: { fontSize: 8, cellPadding: 2, lineColor: [210, 210, 210], lineWidth: 0.1 },
+    headStyles: { fillColor: [41, 128, 185], textColor: [255, 255, 255] },
+    columnStyles: {
+      0: { cellWidth: 130 },
+      1: { halign: 'center' },
+      2: { halign: 'center' },
+      3: { halign: 'center' },
+      4: { halign: 'center' },
+    },
+    margin: { left: 14, right: 14 },
+  });
 
-    return `
-      <tr>
-        <td style="font-weight: 600; text-transform: uppercase;">${nome}</td>
-        <td style="text-align: center;">${itensDoNome.length}</td>
-        <td style="text-align: center;">${noAlmoxarifado}</td>
-        <td style="text-align: center;">${emUsoProjeto}</td>
-        <td style="text-align: center;">${semSaldo}</td>
-      </tr>
-    `;
-  }).join('');
+  dados.grupos.forEach((grupo) => {
+    doc.addPage();
+    yPosition = 16;
+    adicionarResumoItem(doc, grupo, yPosition);
+    yPosition += 10;
 
-  // Gerar detalhamento por item
-  const detalhamentoItens = Array.from(agrupadoPorNome.entries()).map(([nome, itensDoNome]) => {
-    // Calcular resumo específico do item
-    let noAlmoxarifadoNome = 0;
-    let emUsoProjetoNome = 0;
-    let semSaldoNome = 0;
+    grupo.classificacoes.forEach((classificacao) => {
+      const linhas = classificacao.linhas.map((linha) => [
+        String(linha.codigo),
+        linha.marca,
+        linha.especificacao,
+        linha.localizacaoAlmox,
+        linha.status,
+        linha.projetoLocalUso,
+        linha.saldo,
+      ]);
 
-    itensDoNome.forEach(item => {
-      const isAlocado = alocacoes[item.id]?.alocada;
-      if (isAlocado) {
-        emUsoProjetoNome++;
-      } else if (item.estoqueAtual > 0) {
-        noAlmoxarifadoNome++;
-      } else {
-        semSaldoNome++;
-      }
-    });
-
-    // Agrupar itens do nome por classificação
-    const agrupadoPorClassificacao = new Map<string, EstoqueItem[]>();
-    itensDoNome.forEach(item => {
-      const classificacao = formatarClassificacao(item);
-      if (!agrupadoPorClassificacao.has(classificacao)) {
-        agrupadoPorClassificacao.set(classificacao, []);
-      }
-      agrupadoPorClassificacao.get(classificacao)!.push(item);
-    });
-
-    const classificacoesOrdenadas = Array.from(agrupadoPorClassificacao.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-
-    const htmlClassificacoes = classificacoesOrdenadas.map(([classificacao, itensDaClassificacao]) => {
-      let noAlmoxarifadoClass = 0;
-      let emUsoProjetoClass = 0;
-      let semSaldoClass = 0;
-
-      itensDaClassificacao.forEach(item => {
-        const isAlocado = alocacoes[item.id]?.alocada;
-        if (isAlocado) {
-          emUsoProjetoClass++;
-        } else if (item.estoqueAtual > 0) {
-          noAlmoxarifadoClass++;
-        } else {
-          semSaldoClass++;
-        }
+      autoTable(doc, {
+        startY: yPosition,
+        head: [[
+          `${classificacao.classificacao} | Codigos: ${classificacao.totais.codigosCadastrados} | No almoxarifado: ${classificacao.totais.noAlmoxarifado} | Em uso/projeto: ${classificacao.totais.emUsoProjeto} | Sem saldo: ${classificacao.totais.semSaldo}`,
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+        ]],
+        body: [
+          ['Codigo', 'Marca', 'Especificacao', 'Localizacao almox.', 'Status', 'Projeto/Local de uso', 'Saldo'],
+          ...linhas,
+        ],
+        theme: 'grid',
+        styles: { fontSize: 7, cellPadding: 1.5, lineColor: [215, 215, 215], lineWidth: 0.1 },
+        headStyles: { fillColor: [235, 240, 245], textColor: [20, 20, 20], fontStyle: 'bold' },
+        bodyStyles: { textColor: [30, 30, 30] },
+        didParseCell: (data) => {
+          if (data.row.index === 0 && data.section === 'body') {
+            data.cell.styles.fillColor = [245, 245, 245];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        },
+        columnStyles: {
+          0: { cellWidth: 28 },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 58 },
+          3: { cellWidth: 45 },
+          4: { cellWidth: 32 },
+          5: { cellWidth: 48 },
+          6: { cellWidth: 28, halign: 'right' },
+        },
+        margin: { left: 14, right: 14 },
       });
 
-      const itensOrdenadosPorCodigo = [...itensDaClassificacao].sort((a, b) => 
-        (a.codigoBarras || '').localeCompare(b.codigoBarras || '')
-      );
+      yPosition = ((doc as any).lastAutoTable?.finalY || yPosition) + 7;
 
-      const linhasTabelaCodigos = itensOrdenadosPorCodigo.map(item => {
-        const isAlocado = alocacoes[item.id]?.alocada;
-        let status = '';
-        let saldoText = '';
-        let projetoLocal = '-';
-        
-        if (isAlocado) {
-          status = 'Em uso/projeto';
-          saldoText = `Pendente: ${alocacoes[item.id]?.saldoPendente}`;
-          projetoLocal = alocacoes[item.id]?.localAtual || "Local não identificado";
-        } else if (item.estoqueAtual > 0) {
-          status = 'No almoxarifado';
-          saldoText = item.estoqueAtual.toString();
-        } else {
-          status = 'Sem saldo';
-          saldoText = '0';
-        }
+      if (yPosition > 180) {
+        doc.addPage();
+        yPosition = 16;
+      }
+    });
+  });
 
-        const localizacaoAlmox = [item.localizacao, item.caixaOrganizador].filter(Boolean).join(' - ') || '-';
+  adicionarRodape(doc);
+  return doc;
+};
 
-        return `
-          <tr>
-            <td style="font-family: monospace; font-size: 10px; font-weight: 500;">${item.codigoBarras}</td>
-            <td>${item.marca || '-'}</td>
-            <td>${item.especificacao || '-'}</td>
-            <td>${status}</td>
-            <td>${localizacaoAlmox}</td>
-            <td>${projetoLocal}</td>
-            <td style="text-align: right; font-weight: bold;">${saldoText}</td>
-          </tr>
-        `;
-      }).join('');
+const escaparHtml = (valor: unknown) =>
+  String(valor ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 
-      return `
-        <div class="classificacao-block" style="margin-top: 15px; margin-bottom: 20px; page-break-inside: avoid;">
-          <div style="font-weight: 600; font-size: 12px; color: #333; margin-bottom: 5px; border-bottom: 1px dotted #ccc; padding-bottom: 3px; display: flex; justify-content: space-between; align-items: flex-end;">
-            <span style="font-size: 12px; text-transform: uppercase;">${classificacao}</span>
-            <span style="font-size: 11px; font-weight: normal; color: #555;">
-              Códigos: <strong>${itensDaClassificacao.length}</strong> | 
-              No almoxarifado: <strong>${noAlmoxarifadoClass}</strong> | 
-              Em uso/projeto: <strong>${emUsoProjetoClass}</strong> | 
-              Sem saldo: <strong>${semSaldoClass}</strong>
-            </span>
-          </div>
-          <table style="width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 11px;">
+const criarHtmlRelatorioContado = (
+  dados: DadosEstoqueContado,
+  filtroTexto: string,
+  nomeEstoque: string
+) => {
+  const resumoItens = dados.grupos.map((grupo) => `
+    <tr>
+      <td>${escaparHtml(grupo.nome)}</td>
+      <td>${grupo.totais.codigosCadastrados}</td>
+      <td>${grupo.totais.noAlmoxarifado}</td>
+      <td>${grupo.totais.emUsoProjeto}</td>
+      <td>${grupo.totais.semSaldo}</td>
+    </tr>
+  `).join('');
+
+  const detalhamento = dados.grupos.map((grupo) => `
+    <section class="item">
+      <h2>${escaparHtml(grupo.nome)}</h2>
+      <p class="summary">
+        Códigos cadastrados: <strong>${grupo.totais.codigosCadastrados}</strong> |
+        No almoxarifado: <strong>${grupo.totais.noAlmoxarifado}</strong> |
+        Em uso/projeto: <strong>${grupo.totais.emUsoProjeto}</strong> |
+        Sem saldo: <strong>${grupo.totais.semSaldo}</strong>
+      </p>
+      ${grupo.classificacoes.map((classificacao) => `
+        <div class="classificacao">
+          <h3>${escaparHtml(classificacao.classificacao)}</h3>
+          <p class="summary">
+            Códigos: <strong>${classificacao.totais.codigosCadastrados}</strong> |
+            No almoxarifado: <strong>${classificacao.totais.noAlmoxarifado}</strong> |
+            Em uso/projeto: <strong>${classificacao.totais.emUsoProjeto}</strong> |
+            Sem saldo: <strong>${classificacao.totais.semSaldo}</strong>
+          </p>
+          <table>
             <thead>
-              <tr style="background-color: #fafafa;">
-                <th style="width: 14%; border: 1px solid #ddd; padding: 4px 8px; text-align: left; font-weight: 600; font-size: 10px;">Código</th>
-                <th style="width: 12%; border: 1px solid #ddd; padding: 4px 8px; text-align: left; font-weight: 600; font-size: 10px;">Marca</th>
-                <th style="width: 24%; border: 1px solid #ddd; padding: 4px 8px; text-align: left; font-weight: 600; font-size: 10px;">Especificação</th>
-                <th style="width: 15%; border: 1px solid #ddd; padding: 4px 8px; text-align: left; font-weight: 600; font-size: 10px;">Status</th>
-                <th style="width: 15%; border: 1px solid #ddd; padding: 4px 8px; text-align: left; font-weight: 600; font-size: 10px;">Localização almox.</th>
-                <th style="width: 13%; border: 1px solid #ddd; padding: 4px 8px; text-align: left; font-weight: 600; font-size: 10px;">Projeto/Local de uso</th>
-                <th style="width: 7%; border: 1px solid #ddd; padding: 4px 8px; text-align: right; font-weight: 600; font-size: 10px;">Saldo</th>
+              <tr>
+                <th>Código</th>
+                <th>Marca</th>
+                <th>Especificação</th>
+                <th>Localização almox.</th>
+                <th>Status</th>
+                <th>Projeto/Local de uso</th>
+                <th class="num">Saldo</th>
               </tr>
             </thead>
             <tbody>
-              ${linhasTabelaCodigos}
+              ${classificacao.linhas.map((linha) => `
+                <tr>
+                  <td class="mono">${escaparHtml(linha.codigo)}</td>
+                  <td>${escaparHtml(linha.marca)}</td>
+                  <td>${escaparHtml(linha.especificacao)}</td>
+                  <td>${escaparHtml(linha.localizacaoAlmox)}</td>
+                  <td>${escaparHtml(linha.status)}</td>
+                  <td>${escaparHtml(linha.projetoLocalUso)}</td>
+                  <td class="num">${escaparHtml(linha.saldo)}</td>
+                </tr>
+              `).join('')}
             </tbody>
           </table>
         </div>
-      `;
-    }).join('');
+      `).join('')}
+    </section>
+  `).join('');
 
-    return `
-      <div class="item-block" style="margin-top: 25px; margin-bottom: 20px; page-break-inside: avoid; border-top: 1px solid #ddd; padding-top: 15px;">
-        <h2 style="font-size: 15px; font-weight: bold; color: #111; margin: 0 0 5px 0; text-transform: uppercase;">${nome}</h2>
-        <div style="font-size: 11px; color: #555; margin-bottom: 12px; font-weight: 500;">
-          Códigos cadastrados: <strong>${itensDoNome.length}</strong> | 
-          No almoxarifado: <strong>${noAlmoxarifadoNome}</strong> | 
-          Em uso/projeto: <strong>${emUsoProjetoNome}</strong> | 
-          Sem saldo: <strong>${semSaldoNome}</strong>
+  return `
+    <!doctype html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8" />
+        <title>Relatório de Estoque Contado</title>
+        <style>
+          body { color: #111827; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.35; margin: 24px; background: #fff; }
+          .toolbar { align-items: center; background: #111827; color: #fff; display: flex; gap: 8px; justify-content: space-between; left: 0; padding: 10px 16px; position: sticky; right: 0; top: 0; z-index: 10; }
+          .toolbar button { background: #22c55e; border: 0; border-radius: 4px; color: #fff; cursor: pointer; font-weight: 700; padding: 8px 12px; }
+          .toolbar button.secondary { background: #374151; }
+          h1 { color: #111827; font-size: 22px; margin: 24px 0 8px; text-align: center; }
+          h2 { border-top: 1px solid #d1d5db; font-size: 15px; margin: 24px 0 4px; padding-top: 12px; text-transform: uppercase; }
+          h3 { color: #374151; font-size: 12px; margin: 14px 0 4px; text-transform: uppercase; }
+          .meta { border-bottom: 1px solid #d1d5db; display: flex; justify-content: space-between; margin-bottom: 14px; padding-bottom: 8px; }
+          .filter { background: #f9fafb; border: 1px solid #d1d5db; border-radius: 4px; display: inline-block; margin-bottom: 14px; padding: 6px 8px; }
+          .cards { display: grid; gap: 8px; grid-template-columns: repeat(4, 1fr); margin: 14px 0; }
+          .card { border: 1px solid #d1d5db; border-radius: 4px; padding: 8px; text-align: center; }
+          .card strong { display: block; font-size: 18px; }
+          table { border-collapse: collapse; margin: 8px 0 14px; width: 100%; }
+          th, td { border: 1px solid #d1d5db; padding: 5px 6px; text-align: left; vertical-align: top; }
+          th { background: #f3f4f6; font-size: 11px; }
+          .summary { color: #4b5563; margin: 0 0 8px; }
+          .mono { font-family: Consolas, monospace; }
+          .num { text-align: right; }
+          .item, .classificacao { break-inside: avoid; }
+          @media print {
+            body { margin: 12mm; }
+            .toolbar { display: none; }
+            h1 { margin-top: 0; }
+            @page { margin: 12mm; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="toolbar">
+          <span>Relatório contado pronto para impressão</span>
+          <div>
+            <button class="secondary" onclick="history.back()">Voltar</button>
+            <button onclick="window.print()">Imprimir</button>
+          </div>
         </div>
-        ${htmlClassificacoes}
-      </div>
-    `;
-  }).join('');
 
-  const filtroTextoInfo = filtroTexto ? `<div class="filtro-info"><strong>Filtro aplicado:</strong> ${filtroTexto}</div>` : '';
-
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Relatório de Estoque Contado</title>
-      <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; color: #222; line-height: 1.35; background-color: #fff; font-size: 11px; }
-        h1 { color: #000; font-size: 20px; margin-bottom: 4px; margin-top: 0; font-weight: 700; text-align: center; text-transform: uppercase; }
-        .subtitle { text-align: center; font-size: 12px; color: #444; margin-bottom: 15px; font-weight: 500; }
-        .meta-info { display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 15px; font-size: 11px; color: #444; }
-        .filtro-info { background-color: #fcfcfc; border: 1px solid #ddd; padding: 6px 10px; margin-bottom: 15px; font-size: 11px; border-radius: 4px; display: inline-block; }
-        
-        /* Resumo no topo */
-        .resumo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
-        .resumo-card { border: 1px solid #ccc; border-radius: 4px; padding: 10px; text-align: center; background-color: #fff; }
-        .resumo-val { font-size: 16px; font-weight: bold; margin-top: 2px; color: #000; }
-        .resumo-lbl { font-size: 9px; text-transform: uppercase; color: #555; font-weight: 600; letter-spacing: 0.3px; }
-        
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 5px 8px; text-align: left; }
-        th { background-color: #f5f5f5; color: #222; font-weight: 600; font-size: 10px; }
-        tr:nth-child(even) { background-color: #fcfcfc; }
-        
-        .footer { margin-top: 30px; text-align: center; color: #666; font-size: 9px; border-top: 1px solid #ddd; padding-top: 8px; }
-        
-        @media print {
-          body { padding: 0; font-size: 11px; color: #000; }
-          .item-block { page-break-inside: avoid; }
-          .classificacao-block { page-break-inside: avoid; }
-          .no-print { display: none; }
-          @page { margin: 1.2cm 1.2cm; }
-        }
-      </style>
-    </head>
-    <body>
-      <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 5px; font-size: 12px; font-weight: 600; color: #444;">
-        Bambusa Almoxarifado Inteligente
-      </div>
-      <h1>RELATÓRIO DE ESTOQUE CONTADO</h1>
-      
-      <div class="meta-info" style="margin-top: 10px;">
-        <div><strong>Estoque:</strong> ${nomeEstoque || 'Almoxarifado Principal'}</div>
-        <div><strong>Emissão:</strong> ${new Date().toLocaleString('pt-BR')}</div>
-        <div><strong>Total de códigos considerados:</strong> ${totalCodigosGeral}</div>
-      </div>
-
-      ${filtroTextoInfo}
-
-      <!-- Resumo Geral -->
-      <div class="resumo-grid">
-        <div class="resumo-card">
-          <div class="resumo-lbl">Códigos cadastrados</div>
-          <div class="resumo-val">${totalCodigosGeral}</div>
+        <h1>RELATÓRIO DE ESTOQUE CONTADO</h1>
+        <div class="meta">
+          <span><strong>Estoque:</strong> ${escaparHtml(nomeEstoque || 'Estoque Atual')}</span>
+          <span><strong>Data/hora:</strong> ${escaparHtml(new Date().toLocaleString('pt-BR'))}</span>
         </div>
-        <div class="resumo-card">
-          <div class="resumo-lbl">No Almoxarifado</div>
-          <div class="resumo-val">${noAlmoxarifadoGeral}</div>
-        </div>
-        <div class="resumo-card">
-          <div class="resumo-lbl">Em Uso / Projeto</div>
-          <div class="resumo-val">${emUsoProjetoGeral}</div>
-        </div>
-        <div class="resumo-card">
-          <div class="resumo-lbl">Sem Saldo</div>
-          <div class="resumo-val">${semSaldoGeral}</div>
-        </div>
-      </div>
+        ${filtroTexto.trim() ? `<div class="filter"><strong>Filtro aplicado:</strong> ${escaparHtml(filtroTexto.trim())}</div>` : ''}
 
-      <!-- Tabela Executiva -->
-      <h3 style="margin-top: 15px; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 2px;">Tabela Executiva por Item</h3>
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
-        <thead>
-          <tr>
-            <th style="padding: 4px 8px;">Item</th>
-            <th style="width: 15%; text-align: center; padding: 4px 8px;">Códigos</th>
-            <th style="width: 18%; text-align: center; padding: 4px 8px;">No Almoxarifado</th>
-            <th style="width: 18%; text-align: center; padding: 4px 8px;">Em Uso / Projeto</th>
-            <th style="width: 15%; text-align: center; padding: 4px 8px;">Sem Saldo</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${linhasTabelaExecutiva}
-        </tbody>
-      </table>
+        <div class="cards">
+          <div class="card">Códigos cadastrados<strong>${dados.totais.codigosCadastrados}</strong></div>
+          <div class="card">No almoxarifado<strong>${dados.totais.noAlmoxarifado}</strong></div>
+          <div class="card">Em uso/projeto<strong>${dados.totais.emUsoProjeto}</strong></div>
+          <div class="card">Sem saldo<strong>${dados.totais.semSaldo}</strong></div>
+        </div>
 
-      <!-- Detalhamento por Item -->
-      <h3 style="margin-top: 25px; margin-bottom: 10px; font-size: 12px; text-transform: uppercase; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 2px;">Detalhamento por Item</h3>
-      <div>
-        ${detalhamentoItens}
-      </div>
+        <h2>Tabela executiva</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Códigos</th>
+              <th>No almoxarifado</th>
+              <th>Em uso/projeto</th>
+              <th>Sem saldo</th>
+            </tr>
+          </thead>
+          <tbody>${resumoItens}</tbody>
+        </table>
 
-      <div class="footer">
-        Relatório de Estoque Contado — Bambusa. Impresso em ${new Date().toLocaleString('pt-BR')}.
-      </div>
-    </body>
+        <h2>Detalhamento por item</h2>
+        ${detalhamento}
+      </body>
     </html>
   `;
+};
 
-  printWindow.document.write(html);
-  printWindow.document.close();
-  printWindow.print();
+const visualizarHtmlNaAbaAtual = (html: string) => {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  window.location.assign(url);
+};
+
+export const exportarPDFContado = (
+  dados: DadosEstoqueContado,
+  filtroTexto: string,
+  nomeEstoque: string
+) => {
+  const doc = criarDocumentoContado(dados, filtroTexto, nomeEstoque);
+  doc.save(nomeArquivoRelatorioContado(nomeEstoque));
+};
+
+export const imprimirRelatorioContado = (
+  dados: DadosEstoqueContado,
+  filtroTexto: string,
+  nomeEstoque: string
+) => {
+  visualizarHtmlNaAbaAtual(criarHtmlRelatorioContado(dados, filtroTexto, nomeEstoque));
 };

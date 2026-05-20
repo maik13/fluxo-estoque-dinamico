@@ -19,9 +19,11 @@ import { EditarQuantidadeInline } from './EditarQuantidadeInline';
 import { EstoqueContado } from './EstoqueContado';
 import { gerarRelatorioPDF } from '@/utils/pdfExport';
 import { supabase } from '@/integrations/supabase/client';
-import { exportarExcel } from '@/utils/excelExport';
+import { exportarExcel, exportarExcelContado } from '@/utils/excelExport';
+import { exportarPDFContado, imprimirRelatorioContado } from '@/utils/estoqueContadoReport';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useEstoqueContado } from '@/hooks/useEstoqueContado';
 import { toast } from 'sonner';
 
 interface TabelaEstoqueProps {
@@ -72,6 +74,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
     if (!deveBuscar) return [];
     return obterEstoque();
   }, [obterEstoque, deveBuscar]);
+
   
   // Obter todas as subcategorias ativas
   const todasSubcategorias = useMemo(() => {
@@ -151,6 +154,13 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   
   // Calcular número total de páginas
   const totalPaginas = Math.ceil(itensFiltrados.length / itensPorPagina);
+
+  const estoqueInfo = obterEstoqueAtivoInfo();
+  const estoqueContado = useEstoqueContado({
+    itens: itensFiltrados,
+    estoqueId: estoqueInfo?.id,
+    ativo: modoVisualizacao === 'contado',
+  });
 
   // Estatísticas do estoque
   const estatisticas = useMemo(() => {
@@ -233,12 +243,15 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
 
   // Função para exportar dados em PDF
   const exportarPDF = async () => {
-    const estoqueInfo = obterEstoqueAtivoInfo();
-    await gerarRelatorioPDF({
-      titulo: 'RELATÓRIO DE ESTOQUE',
-      nomeEstoque: estoqueInfo?.nome || 'Estoque Atual',
-      itens: itensFiltrados
-    });
+    if (modoVisualizacao === 'contado') {
+      exportarPDFContado(estoqueContado.dados, filtroTexto, estoqueInfo?.nome || 'Estoque Atual');
+    } else {
+      await gerarRelatorioPDF({
+        titulo: 'RELATÓRIO DE ESTOQUE',
+        nomeEstoque: estoqueInfo?.nome || 'Estoque Atual',
+        itens: itensFiltrados
+      });
+    }
   };
 
   // Função para editar quantidade diretamente
@@ -261,18 +274,25 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
 
   // Função para exportar dados em Excel
   const exportarExcelCompleto = () => {
-    const estoqueInfo = obterEstoqueAtivoInfo();
-    exportarExcel({
-      titulo: 'RELATÓRIO DE ESTOQUE',
-      nomeEstoque: estoqueInfo?.nome || 'Estoque Atual',
-      itens: itensFiltrados,
-      incluirEstatisticas: true
-    });
+    if (modoVisualizacao === 'contado') {
+      exportarExcelContado(estoqueContado.dados, filtroTexto, estoqueInfo?.nome || 'Estoque Atual');
+    } else {
+      exportarExcel({
+        titulo: 'RELATÓRIO DE ESTOQUE',
+        nomeEstoque: estoqueInfo?.nome || 'Estoque Atual',
+        itens: itensFiltrados,
+        incluirEstatisticas: true
+      });
+    }
   };
 
-  // Função para imprimir página atual
+  // Função para imprimir página atual ou relatório contado
   const imprimirPagina = () => {
-    window.print();
+    if (modoVisualizacao === 'contado') {
+      imprimirRelatorioContado(estoqueContado.dados, filtroTexto, estoqueInfo?.nome || 'Estoque Atual');
+    } else {
+      window.print();
+    }
   };
 
   // Função para editar item
@@ -595,17 +615,17 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                 </Button>
               </div>
               <div className="flex gap-2">
-                <Button onClick={imprimirPagina} variant="outline" size="sm">
+                <Button onClick={imprimirPagina} variant="outline" size="sm" disabled={modoVisualizacao === 'contado' && estoqueContado.carregando}>
                   <Printer className="h-4 w-4 mr-2" />
                   Imprimir
                 </Button>
-              <Button onClick={exportarPDF} variant="outline" size="sm">
+              <Button onClick={exportarPDF} variant="outline" size="sm" disabled={modoVisualizacao === 'contado' && estoqueContado.carregando}>
                 <FileText className="h-4 w-4 mr-2" />
-                PDF Estoque
+                {modoVisualizacao === 'contado' ? 'PDF Contado' : 'PDF Estoque'}
               </Button>
-              <Button onClick={exportarExcelCompleto} variant="outline" size="sm">
+              <Button onClick={exportarExcelCompleto} variant="outline" size="sm" disabled={modoVisualizacao === 'contado' && estoqueContado.carregando}>
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Excel
+                {modoVisualizacao === 'contado' ? 'Excel Contado' : 'Excel'}
               </Button>
             </div>
           </div>
@@ -647,7 +667,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
 
       {/* Visualização de Estoque */}
       {modoVisualizacao === 'contado' ? (
-        <EstoqueContado itens={itensFiltrados} filtroTexto={filtroTexto} />
+        <EstoqueContado grupos={estoqueContado.grupos} carregando={estoqueContado.carregando} />
       ) : (
       <Card>
         <CardHeader>
