@@ -129,8 +129,9 @@ export const useEstoque = () => {
         },
         async (payload) => {
           const estoqueAtivoInfo = obterEstoqueAtivoInfo();
-          // Só adicionar se for do estoque ativo ou se não houver filtro
-          if (!estoqueAtivoInfo?.id || payload.new.estoque_id === estoqueAtivoInfo.id) {
+            // Só adicionar se for do estoque ativo; movimentações sem estoque_id contam apenas no principal
+          const incluirSemEstoque = isEstoqueAtivoPrincipal();
+          if (!estoqueAtivoInfo?.id || payload.new.estoque_id === estoqueAtivoInfo.id || (incluirSemEstoque && payload.new.estoque_id === null)) {
             // Buscar nome do local se houver local_utilizacao_id
             let localNome: string | undefined;
             let solicitanteNome: string | undefined;
@@ -202,8 +203,9 @@ export const useEstoque = () => {
           const estoqueAtivoInfo = obterEstoqueAtivoInfo();
           const estoqueId = estoqueAtivoInfo?.id;
           
-          // Verificar se a movimentação pertence ao estoque ativo
-          if (payload.new.estoque_id !== estoqueId && payload.new.estoque_id !== null) {
+          // Verificar se a movimentação pertence ao estoque ativo; sem estoque_id conta apenas no principal
+          const incluirSemEstoque = isEstoqueAtivoPrincipal();
+          if (payload.new.estoque_id !== estoqueId && !(incluirSemEstoque && payload.new.estoque_id === null)) {
             return;
           }
 
@@ -332,7 +334,10 @@ export const useEstoque = () => {
         .order('data_hora', { ascending: true });
       
       if (estoqueId) {
-        movsQueryBase = movsQueryBase.eq('estoque_id', estoqueId);
+        const incluirSemEstoque = isEstoqueAtivoPrincipal();
+        movsQueryBase = incluirSemEstoque
+          ? movsQueryBase.or(`estoque_id.eq.${estoqueId},estoque_id.is.null`)
+          : movsQueryBase.eq('estoque_id', estoqueId);
       }
 
       let movsData: any[] = [];
