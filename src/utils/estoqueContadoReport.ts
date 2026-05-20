@@ -142,7 +142,7 @@ export const imprimirRelatorioContado = (
       });
 
       const itensOrdenadosPorCodigo = [...itensDaClassificacao].sort((a, b) => 
-        (a.codigoBarras || '').localeCompare(b.codigoBarras || '')
+        String(a.codigoBarras ?? '').localeCompare(String(b.codigoBarras ?? ''))
       );
 
       const linhasTabelaCodigos = itensOrdenadosPorCodigo.map(item => {
