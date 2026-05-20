@@ -293,7 +293,8 @@ export const useSolicitacoes = () => {
           let saldoQuery = supabase
             .from('movements')
             .select('tipo, quantidade, estoque_id')
-            .eq('item_id', item.item_id);
+            .eq('item_id', item.item_id)
+            .order('data_hora', { ascending: true });
           
           if (incluirSemEstoque) {
             saldoQuery = saldoQuery.or(`estoque_id.eq.${estoqueId},estoque_id.is.null`);
