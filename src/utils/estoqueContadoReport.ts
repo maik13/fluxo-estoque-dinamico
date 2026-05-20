@@ -288,7 +288,7 @@ const criarHtmlRelatorioContado = (
         <div class="toolbar">
           <span>Relatório contado pronto para impressão</span>
           <div>
-            <button class="secondary" onclick="history.back()">Voltar</button>
+            <button class="secondary" onclick="window.close()">Fechar</button>
             <button onclick="window.print()">Imprimir</button>
           </div>
         </div>
@@ -328,10 +328,17 @@ const criarHtmlRelatorioContado = (
   `;
 };
 
-const visualizarHtmlNaAbaAtual = (html: string) => {
+const abrirHtmlEmNovaAba = (html: string) => {
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  window.location.assign(url);
+  const abaRelatorio = window.open(url, '_blank');
+
+  if (!abaRelatorio) {
+    window.location.assign(url);
+    return;
+  }
+
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 };
 
 export const exportarPDFContado = (
@@ -348,5 +355,5 @@ export const imprimirRelatorioContado = (
   filtroTexto: string,
   nomeEstoque: string
 ) => {
-  visualizarHtmlNaAbaAtual(criarHtmlRelatorioContado(dados, filtroTexto, nomeEstoque));
+  abrirHtmlEmNovaAba(criarHtmlRelatorioContado(dados, filtroTexto, nomeEstoque));
 };
