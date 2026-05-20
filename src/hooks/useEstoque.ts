@@ -546,7 +546,7 @@ export const useEstoque = () => {
         ultimaMovimentacao: ultimaMovimentacao || null
       };
     });
-  }, [itens, movimentacoes, estoqueAtivo]);
+  }, [itens, movimentacoes, estoqueAtivo, isEstoqueAtivoPrincipal]);
 
   // Obter estoque com quantidades atuais - agora retorna o cache
   const obterEstoque = useCallback((): EstoqueItem[] => {
