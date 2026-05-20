@@ -285,10 +285,26 @@ const criarHtmlRelatorioContado = (
         </style>
       </head>
       <body>
+        <script>
+          function fecharRelatorio() {
+            window.close();
+
+            setTimeout(function () {
+              window.open('', '_self');
+              window.close();
+            }, 50);
+
+            setTimeout(function () {
+              if (!window.closed) {
+                window.location.replace('${window.location.origin}/');
+              }
+            }, 200);
+          }
+        </script>
         <div class="toolbar">
           <span>Relatório contado pronto para impressão</span>
           <div>
-            <button class="secondary" onclick="window.close()">Fechar</button>
+            <button class="secondary" onclick="fecharRelatorio()">Fechar</button>
             <button onclick="window.print()">Imprimir</button>
           </div>
         </div>
