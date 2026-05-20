@@ -310,7 +310,6 @@ export const TabelaMovimentacoes = () => {
 
     const linhas = movimentacoesFiltradas.map(mov => {
       const eDevolucao = isDevolucao(mov);
-      const saldoCalculado = saldosCalculadosPorMovimentacao.get(mov.id);
       let responsavel = '-';
       const solicitante = mov.solicitanteNome || '-';
       if (mov.userId && usuariosMap[mov.userId]) {
