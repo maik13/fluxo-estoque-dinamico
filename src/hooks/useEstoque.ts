@@ -437,14 +437,15 @@ export const useEstoque = () => {
     const codigosBloqueados = new Set([1001]);
 
     const encontrarProximoCodigo = (codigosExistentes: number[]) => {
-      const codigosValidos = codigosExistentes
-        .map((codigo) => Number(codigo))
-        .filter((codigo) => Number.isInteger(codigo) && codigo > 0);
+      const codigosValidos = new Set(
+        codigosExistentes
+          .map((codigo) => Number(codigo))
+          .filter((codigo) => Number.isInteger(codigo) && codigo > 0)
+      );
       
-      const maxCodigo = codigosValidos.length > 0 ? Math.max(...codigosValidos) : 0;
-      let proximo = maxCodigo + 1;
+      let proximo = 1;
 
-      while (codigosBloqueados.has(proximo)) {
+      while (codigosValidos.has(proximo) || codigosBloqueados.has(proximo)) {
         proximo++;
       }
 
@@ -502,13 +503,11 @@ export const useEstoque = () => {
     let estoque = 0;
     
     movimentacoesItem.forEach(mov => {
-      if (mov.tipo === 'ENTRADA' || mov.tipo === 'CADASTRO') {
+      if (mov.tipo === 'ENTRADA') {
         estoque += mov.quantidade;
       } else if (mov.tipo === 'SAIDA') {
         estoque -= mov.quantidade;
       }
-      // Impedir acúmulo de débito negativo a cada passo
-      estoque = Math.max(0, estoque);
     });
     
     return estoque;
@@ -527,13 +526,11 @@ export const useEstoque = () => {
       
       let estoqueAtual = 0;
       movimentacoesItem.forEach(mov => {
-        if (mov.tipo === 'ENTRADA' || mov.tipo === 'CADASTRO') {
+        if (mov.tipo === 'ENTRADA') {
           estoqueAtual += mov.quantidade;
         } else if (mov.tipo === 'SAIDA') {
           estoqueAtual -= mov.quantidade;
         }
-        // Impedir acúmulo de débito negativo a cada passo
-        estoqueAtual = Math.max(0, estoqueAtual);
       });
       
       // Encontrar última movimentação

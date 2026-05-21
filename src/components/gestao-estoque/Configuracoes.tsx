@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -151,6 +151,11 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoUrl, setLogoUrl] = useState<string>('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [corrigindoAcertos, setCorrigindoAcertos] = useState(false);
+  const [itensParaCorrigir, setItensParaCorrigir] = useState<any[] | null>(null);
+  const [buscandoItens, setBuscandoItens] = useState(false);
+  const [itensSelecionados, setItensSelecionados] = useState<Set<string>>(new Set());
+  const [filtroCategoria, setFiltroCategoria] = useState<string>('Todos');
 
   const handleTemaChange = (tema: 'light' | 'dark') => {
     setConfiguracao(prev => ({ ...prev, tema }));
@@ -624,6 +629,176 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     }
   };
 
+  const itensFiltrados = useMemo(() => {
+    if (!itensParaCorrigir) return null;
+    if (filtroCategoria === 'Todos') return itensParaCorrigir;
+    return itensParaCorrigir.filter(item => {
+      const tipo = item.item_snapshot?.tipoItem || 'Outros';
+      if (filtroCategoria === 'Outros') {
+        return tipo !== 'Ferramenta' && tipo !== 'Insumo';
+      }
+      return tipo === filtroCategoria;
+    });
+  }, [itensParaCorrigir, filtroCategoria]);
+
+  const handleToggleSelectAll = (checked: boolean) => {
+    if (!itensFiltrados) return;
+    if (checked) {
+      const newSet = new Set(itensSelecionados);
+      itensFiltrados.forEach(item => newSet.add(item.id));
+      setItensSelecionados(newSet);
+    } else {
+      const newSet = new Set(itensSelecionados);
+      itensFiltrados.forEach(item => newSet.delete(item.id));
+      setItensSelecionados(newSet);
+    }
+  };
+
+  const handleToggleSelectItem = (id: string, checked: boolean) => {
+    const newSet = new Set(itensSelecionados);
+    if (checked) {
+      newSet.add(id);
+    } else {
+      newSet.delete(id);
+    }
+    setItensSelecionados(newSet);
+  };
+
+  const handleImprimirLista = () => {
+    if (!itensFiltrados || itensFiltrados.length === 0) return;
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Por favor, permita pop-ups para imprimir.');
+      return;
+    }
+
+    const html = `
+      <html>
+        <head>
+          <title>Relatório de Acertos Pendentes</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { font-size: 18px; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            .right { text-align: right; }
+          </style>
+        </head>
+        <body>
+          <h1>Relatório de Acertos Pendentes (${filtroCategoria}) - ${new Date().toLocaleString('pt-BR')}</h1>
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Nome do Item</th>
+                <th>Data da Movimentação</th>
+                <th>Operação Original</th>
+                <th class="right">Qtd (Saída)</th>
+                <th>Observações</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itensFiltrados.map(item => {
+                const tipoOp = tiposOperacao.find(t => t.id === item.tipo_operacao_id);
+                return `
+                  <tr>
+                    <td>${item.item_snapshot?.codigoBarras || '-'}</td>
+                    <td>${item.item_snapshot?.nome || 'Desconhecido'}</td>
+                    <td>${new Date(item.created_at).toLocaleString('pt-BR')}</td>
+                    <td>${tipoOp ? tipoOp.nome : 'Nenhuma'}</td>
+                    <td class="right">${item.quantidade}</td>
+                    <td>${item.observacoes || '-'}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+          <script>
+            window.onload = function() { window.print(); window.close(); }
+          </script>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
+  const handleBuscarItensParaCorrigir = async () => {
+    setBuscandoItens(true);
+    try {
+      const { data, error } = await supabase
+        .from('movements')
+        .select('id, created_at, quantidade, observacoes, item_snapshot, tipo_operacao_id')
+        .eq('tipo', 'SAIDA')
+        .is('local_utilizacao_id', null)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setItensParaCorrigir(data || []);
+      setItensSelecionados(new Set());
+      setFiltroCategoria('Todos');
+    } catch (error: any) {
+      toast({
+        title: "Erro ao buscar itens",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setBuscandoItens(false);
+    }
+  };
+
+  const handleCorrigirAcertosAntigos = async () => {
+    if (itensSelecionados.size === 0) {
+      toast({ title: "Aviso", description: "Selecione pelo menos um item para corrigir.", variant: "default" });
+      return;
+    }
+    const confirmar = window.confirm(
+      `Isso vai classificar os ${itensSelecionados.size} itens selecionados como 'Saída para acerto'. Deseja continuar?`
+    );
+    if (!confirmar) return;
+
+    setCorrigindoAcertos(true);
+    try {
+      let tipoOperacaoId = null;
+      let tipoOperacaoNome = 'Saída para acerto';
+      
+      const tipoExiste = tiposOperacao.find(t => t.nome.toLowerCase() === 'saída para acerto' || t.nome.toLowerCase() === 'saida para acerto');
+      if (tipoExiste) {
+        tipoOperacaoId = tipoExiste.id;
+        tipoOperacaoNome = tipoExiste.nome;
+      }
+
+      const { error } = await supabase
+        .from('movements')
+        .update({
+          tipo_operacao_id: tipoOperacaoId,
+        })
+        .in('id', Array.from(itensSelecionados));
+
+      if (error) throw error;
+      
+      toast({
+        title: "Sucesso!",
+        description: `Os ${itensSelecionados.size} acertos antigos selecionados foram corrigidos com sucesso.`,
+      });
+      setItensSelecionados(new Set());
+      handleBuscarItensParaCorrigir();
+      onConfigChange?.();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao atualizar banco de dados",
+        variant: "destructive"
+      });
+    } finally {
+      setCorrigindoAcertos(false);
+    }
+  };
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -632,7 +807,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
           Configurações
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>⚙️ Configurações do Sistema</DialogTitle>
         </DialogHeader>
@@ -1798,6 +1973,143 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
           
           {/* Aba Auditoria */}
           <TabsContent value="auditoria" className="space-y-4">
+            <Card className="border-destructive/20 bg-destructive/5 mb-4">
+              <CardHeader>
+                <CardTitle className="text-destructive flex items-center gap-2">
+                  <Wrench className="h-5 w-5" />
+                  Manutenção de Dados
+                </CardTitle>
+                <CardDescription>
+                  Ferramentas para correção e ajustes no banco de dados.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium leading-none">Corrigir Acertos Antigos</p>
+                      <p className="text-sm text-muted-foreground">Localiza todas as saídas sem destino e as classifica como "Saída para acerto", escondendo-as dos projetos.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        onClick={handleBuscarItensParaCorrigir}
+                        disabled={buscandoItens}
+                      >
+                        {buscandoItens ? "Buscando..." : "Ver Itens Afetados"}
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        onClick={handleCorrigirAcertosAntigos}
+                        disabled={corrigindoAcertos || (itensParaCorrigir && itensParaCorrigir.length === 0)}
+                      >
+                        {corrigindoAcertos ? "Corrigindo..." : "Executar Correção"}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {itensFiltrados !== null && (
+                    <div className="mt-4 border rounded-md p-4 bg-background">
+                      
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">Filtrar por:</span>
+                          <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Categoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Todos">Todas as Categorias</SelectItem>
+                              <SelectItem value="Ferramenta">Ferramentas</SelectItem>
+                              <SelectItem value="Insumo">Insumos</SelectItem>
+                              <SelectItem value="Outros">Outros</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <Button variant="outline" size="sm" onClick={handleImprimirLista} disabled={itensFiltrados.length === 0}>
+                          🖨️ Imprimir Lista
+                        </Button>
+                      </div>
+
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="font-medium">
+                          {itensFiltrados.length} registros encontrados {filtroCategoria !== 'Todos' && `(${filtroCategoria})`}
+                        </h4>
+                        
+                        <div className="flex items-center gap-2">
+                          <Checkbox 
+                            id="select-all" 
+                            checked={itensFiltrados.length > 0 && itensFiltrados.every(item => itensSelecionados.has(item.id))}
+                            onCheckedChange={handleToggleSelectAll}
+                          />
+                          <label htmlFor="select-all" className="text-sm cursor-pointer select-none font-medium">
+                            Selecionar Todos Visíveis
+                          </label>
+                        </div>
+                      </div>
+
+                      {itensFiltrados.length > 0 ? (
+                        <div className="max-h-[40vh] overflow-y-auto space-y-2 pr-2 mt-4">
+                          {itensFiltrados.map(item => {
+                            const tipoOp = tiposOperacao.find(t => t.id === item.tipo_operacao_id);
+                            const isSelected = itensSelecionados.has(item.id);
+                            
+                            return (
+                              <div key={item.id} className={`text-sm flex flex-col md:flex-row justify-between border-b pb-4 pt-2 gap-4 ${isSelected ? 'bg-primary/5 rounded-md px-2' : 'px-2'}`}>
+                                <div className="flex gap-3">
+                                  <div className="pt-1">
+                                    <Checkbox 
+                                      checked={isSelected} 
+                                      onCheckedChange={(checked) => handleToggleSelectItem(item.id, checked as boolean)} 
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-1.5">
+                                    <div className="flex items-center gap-2">
+                                      {item.item_snapshot?.codigoBarras && (
+                                        <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs font-mono font-bold">
+                                          CÓD: {item.item_snapshot.codigoBarras}
+                                        </span>
+                                      )}
+                                      <span className="font-bold text-base text-foreground">
+                                        {item.item_snapshot?.nome || 'Desconhecido'}
+                                      </span>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                      <span className="flex items-center gap-1">
+                                        🗓️ {new Date(item.created_at).toLocaleString('pt-BR')}
+                                      </span>
+                                      <span className="flex items-center gap-1 bg-secondary/50 px-2 py-0.5 rounded-md text-foreground">
+                                        🏷️ Operação Original: <strong>{tipoOp ? tipoOp.nome : 'Nenhuma'}</strong>
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="text-right flex flex-col justify-center items-end">
+                                  <span className="font-bold text-destructive text-lg bg-destructive/10 px-3 py-1 rounded-md">
+                                    {item.quantidade} UN (SAÍDA)
+                                  </span>
+                                  {item.observacoes && (
+                                    <p className="text-xs text-muted-foreground mt-2 max-w-[250px] truncate" title={item.observacoes}>
+                                      Obs: {item.observacoes}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground py-4 text-center">Nenhum item encontrado para esta categoria.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

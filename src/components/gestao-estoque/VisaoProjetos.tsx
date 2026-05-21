@@ -5,14 +5,19 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Calendar as CalendarIcon, Package, FileSpreadsheet, Printer, BarChart3 } from 'lucide-react';
+import { Search, Calendar as CalendarIcon, Package, FileSpreadsheet, Printer, CheckCircle2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
-import { useConsolidacao } from '@/hooks/useConsolidacao';
+import { useConsolidacao, ItemAgrupado } from '@/hooks/useConsolidacao';
+import { Checkbox } from '@/components/ui/checkbox';
+import { DialogoEncerrarItens } from './DialogoEncerrarItens';
+import { DetalhesMovimentacoesProjeto } from './DetalhesMovimentacoesProjeto';
+import { isAcertoDeEstoque } from '@/utils/movimentacoes';
+import React from 'react';
 
 export const VisaoProjetos = () => {
   const { movimentacoes } = useEstoqueContext();
@@ -31,6 +36,60 @@ export const VisaoProjetos = () => {
   const [filtroDataPendentesInicio, setFiltroDataPendentesInicio] = useState<Date | undefined>(undefined);
   const [filtroDataPendentesFim, setFiltroDataPendentesFim] = useState<Date | undefined>(undefined);
   const [tipoAgrupamentoProjetos, setTipoAgrupamentoProjetos] = useState<'projeto' | 'grupo'>('projeto');
+  
+  const [selectedItensIds, setSelectedItensIds] = useState<string[]>([]);
+  const [dialogoEncerrarOpen, setDialogoEncerrarOpen] = useState(false);
+  const [itensParaEncerrar, setItensParaEncerrar] = useState<ItemAgrupado[]>([]);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+
+  const getMovimentacoesItem = (item: ItemAgrupado) => {
+    return movimentacoes.filter(m => {
+      if (isAcertoDeEstoque(m)) return false;
+      const mItemId = m.item_id || m.itemId;
+      if (mItemId !== item.itemId) return false;
+      
+      const mLocalId = m.local_utilizacao_id || m.localUtilizacaoId || 'sem-local';
+      
+      if (tipoAgrupamentoProjetos === 'grupo') {
+        const local = locaisConfig.find(l => l.id === mLocalId);
+        const grupoId = local?.group_id || 'sem-grupo';
+        return grupoId === item.localUtilizacaoId;
+      } else {
+        return mLocalId === item.localUtilizacaoId;
+      }
+    });
+  };
+
+  const handleToggleSelection = (id: string) => {
+    setSelectedItensIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedItensIds(pendentesFiltrados.map(i => i.key));
+    } else {
+      setSelectedItensIds([]);
+    }
+  };
+
+  const handleEncerrarSelecionados = () => {
+    const itens = pendentesFiltrados.filter(i => selectedItensIds.includes(i.key));
+    if (itens.length > 0) {
+      setItensParaEncerrar(itens);
+      setDialogoEncerrarOpen(true);
+    }
+  };
+
+  const handleEncerrarProjeto = () => {
+    // Encerrar apenas as ferramentas que estão de fato pendentes no filtro atual
+    const ferramentasPendentes = pendentesFiltrados.filter(i => i.pendente > 0 && i.statusItem !== 'consumido');
+    if (ferramentasPendentes.length > 0) {
+      setItensParaEncerrar(ferramentasPendentes);
+      setDialogoEncerrarOpen(true);
+    }
+  };
 
   // Obter locais de utilização únicos para filtro
   const locaisPendentes = useMemo(() => {
@@ -145,6 +204,27 @@ export const VisaoProjetos = () => {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              {selectedItensIds.length > 0 ? (
+                <Button 
+                  onClick={handleEncerrarSelecionados}
+                  variant="default"
+                  size="sm"
+                  className="h-8 gap-2 bg-destructive hover:bg-destructive/90 text-destructive-foreground font-semibold"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Encerrar {selectedItensIds.length} Itens</span>
+                </Button>
+              ) : (
+                <Button 
+                  onClick={handleEncerrarProjeto}
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-2 border-destructive/50 text-destructive hover:bg-destructive/10"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Encerrar Pendências</span>
+                </Button>
+              )}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -290,6 +370,13 @@ export const VisaoProjetos = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[40px]">
+                    <Checkbox 
+                      checked={selectedItensIds.length > 0 && selectedItensIds.length === pendentesFiltrados.length}
+                      onCheckedChange={handleToggleAll}
+                      aria-label="Selecionar todos"
+                    />
+                  </TableHead>
                   {tipoAgrupamentoProjetos === 'grupo' && <TableHead>Grupo</TableHead>}
                   <TableHead>Item</TableHead>
                   <TableHead>Código</TableHead>
@@ -324,7 +411,18 @@ export const VisaoProjetos = () => {
                   </TableRow>
                 ) : (
                   pendentesFiltrados.map((item) => (
-                    <TableRow key={item.key}>
+                    <React.Fragment key={item.key}>
+                      <TableRow 
+                        className={`cursor-pointer transition-colors hover:bg-muted/50 ${selectedItensIds.includes(item.key) ? 'bg-muted/50' : ''} ${expandedRow === item.key ? 'bg-muted/80 border-b-0' : ''}`}
+                        onDoubleClick={() => setExpandedRow(expandedRow === item.key ? null : item.key)}
+                      >
+                        <TableCell>
+                        <Checkbox 
+                          checked={selectedItensIds.includes(item.key)}
+                          onCheckedChange={() => handleToggleSelection(item.key)}
+                          aria-label={`Selecionar ${item.itemSnapshot?.nome}`}
+                        />
+                      </TableCell>
                       {tipoAgrupamentoProjetos === 'grupo' && (
                         <TableCell>
                           <Badge variant={item.localUtilizacaoNome === 'Sem Grupo' ? 'outline' : 'default'} className={item.localUtilizacaoNome === 'Sem Grupo' ? '' : 'bg-blue-500 hover:bg-blue-600'}>
@@ -372,11 +470,13 @@ export const VisaoProjetos = () => {
                             "text-[10px] h-4",
                             item.statusItem === 'pendente' && "bg-red-500/10 text-red-500 border-red-500/20",
                             item.statusItem === 'parcial' && "bg-amber-500/10 text-amber-500 border-amber-500/20",
-                            item.statusItem === 'devolvido' && "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                            item.statusItem === 'devolvido' && "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+                            (item.statusItem === 'consumido' || item.statusItem === 'concluido') && "bg-blue-500/10 text-blue-500 border-blue-500/20"
                           )}
                         >
                           {item.statusItem === 'pendente' ? '🔴 Pendente' : 
-                           item.statusItem === 'parcial' ? '🟡 Parcial' : '🟢 Devolvido'}
+                           item.statusItem === 'parcial' ? '🟡 Parcial' : 
+                           item.statusItem === 'consumido' ? '🔵 Consumido' : '🟢 Devolvido'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-warning font-mono font-bold text-xs text-right">
@@ -387,7 +487,7 @@ export const VisaoProjetos = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge variant={item.pendente > 0 ? "destructive" : "outline"} className="font-mono font-bold text-xs">
-                          {item.pendente.toLocaleString('pt-BR')} {item.itemSnapshot?.unidade || ''}
+                          {item.statusItem === 'consumido' && item.pendenteOriginal ? item.pendenteOriginal.toLocaleString('pt-BR') : item.pendente.toLocaleString('pt-BR')} {item.itemSnapshot?.unidade || ''}
                         </Badge>
                       </TableCell>
                       {tipoAgrupamentoProjetos === 'projeto' && (
@@ -401,13 +501,31 @@ export const VisaoProjetos = () => {
                         </>
                       )}
                     </TableRow>
-                  ))
+                    {expandedRow === item.key && (
+                      <TableRow className="bg-muted/20 hover:bg-muted/20">
+                        <TableCell colSpan={tipoAgrupamentoProjetos === 'projeto' ? 12 : 10} className="p-0 border-b">
+                          <DetalhesMovimentacoesProjeto movimentacoes={getMovimentacoesItem(item)} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                ))
                 )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
+
+      <DialogoEncerrarItens 
+        open={dialogoEncerrarOpen} 
+        onOpenChange={setDialogoEncerrarOpen} 
+        itens={itensParaEncerrar} 
+        onSuccess={() => {
+          setSelectedItensIds([]);
+          // Force a small reload ou os canais real-time atualizarão
+        }}
+      />
     </div>
   );
 };

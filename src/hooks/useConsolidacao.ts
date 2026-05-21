@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Movimentacao } from '@/types/estoque';
+import { isAcertoDeEstoque } from '@/utils/movimentacoes';
 
 type LocalUtilizacaoConfig = { id: string; nome: string; group_id?: string | null };
 type ProjectGroupConfig = { id: string; nome: string };
@@ -18,10 +19,11 @@ export interface ItemAgrupado {
   destinatario?: string;
   solicitanteNome?: string;
   solicitacaoId?: string;
-  statusItem: 'pendente' | 'parcial' | 'devolvido';
+  statusItem: 'pendente' | 'parcial' | 'devolvido' | 'consumido' | 'concluido';
   classificacao: string;
   agingDias: number;
   criticidade: 'normal' | 'atencao' | 'critico';
+  pendenteOriginal?: number; // Saldo que realmente saiu menos o que voltou, útil para Insumos
 }
 
 export interface ResponsavelAgrupado {
@@ -37,7 +39,7 @@ export interface GrupoAgrupado {
   totalSaida: number;
   totalDevolvido: number;
   saldo: number;
-  status: 'Pendente' | 'Parcial' | 'Devolvido';
+  status: 'Pendente' | 'Parcial' | 'Devolvido' | 'Concluído';
   quantidadeItens: number;
 }
 
@@ -165,6 +167,8 @@ export const useConsolidacao = (
 
     movsFiltradas.forEach(mov => {
       if (mov.tipo === 'SAIDA') {
+        if (isAcertoDeEstoque(mov)) return;
+        
         const itemId = mov.itemId || 'sem-item';
         const { id: groupingId, name: groupingName } = getGroupingData(mov.localUtilizacaoId || null, mov.localUtilizacaoNome || null);
         
@@ -237,15 +241,29 @@ export const useConsolidacao = (
         projetoGrupoNome = item.localUtilizacaoNome;
       }
 
-      const pendente = Math.max(0, item.totalSaida - item.totalDevolvido);
-      const statusItem: 'pendente' | 'parcial' | 'devolvido' = 
-        pendente <= 0 ? 'devolvido' : (item.totalDevolvido > 0 ? 'parcial' : 'pendente');
+      // O saldo que a ferramenta deve é o que saiu menos o que voltou (ou foi baixado ficticiamente)
+      const pendenteReal = item.totalSaida - item.totalDevolvido;
+      
+      const tipo = item.itemSnapshot?.tipoItem || 'Insumo';
+      const isFerramenta = tipo === 'Ferramenta';
+      
+      let pendente = 0;
+      let statusItem: 'pendente' | 'parcial' | 'devolvido' | 'consumido' | 'concluido' = 'concluido';
+
+      if (isFerramenta) {
+        pendente = Math.max(0, pendenteReal);
+        statusItem = pendente <= 0 ? 'devolvido' : (item.totalDevolvido > 0 ? 'parcial' : 'pendente');
+      } else {
+        // Insumos e outros: não ficam pendentes de devolução
+        pendente = 0;
+        statusItem = 'consumido';
+      }
 
       // Cálculo de Inteligência Operacional (Aging e Criticidade)
       let agingDias = 0;
       let criticidade: 'normal' | 'atencao' | 'critico' = 'normal';
 
-      if (pendente > 0) {
+      if (pendente > 0 && isFerramenta) {
         const dataReferencia = new Date(item.ultimaSaida);
         const agora = new Date();
         const diffTime = Math.abs(agora.getTime() - dataReferencia.getTime());
@@ -255,7 +273,7 @@ export const useConsolidacao = (
         else if (agingDias >= 4) criticidade = 'atencao';
       }
 
-      const itemFinal = { ...item, projetoGrupoNome, pendente, statusItem, agingDias, criticidade };
+      const itemFinal = { ...item, projetoGrupoNome, pendente, pendenteOriginal: Math.max(0, pendenteReal), statusItem, agingDias, criticidade };
 
       // Acumular para o resumo de grupos
       const gId = tipoAgrupamento === 'grupo' ? item.localUtilizacaoId : grupoIdFinal;
@@ -279,7 +297,7 @@ export const useConsolidacao = (
       if (gStats.saldo > 0) {
         gStats.status = gStats.totalDevolvido > 0 ? 'Parcial' : 'Pendente';
       } else {
-        gStats.status = 'Devolvido';
+        gStats.status = item.statusItem === 'consumido' && gStats.totalSaida > 0 ? 'Concluído' : 'Devolvido';
       }
 
       gruposStatsMap.set(gId, gStats);

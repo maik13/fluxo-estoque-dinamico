@@ -20,7 +20,9 @@ import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Movimentacao, TipoMovimentacao } from '@/types/estoque';
 import * as XLSX from 'xlsx';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
+import { isAcertoDeEstoque } from '@/utils/movimentacoes';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -45,6 +47,7 @@ export const TabelaMovimentacoes = () => {
   const { locaisUtilizacao: locaisConfig, gruposProjeto, subcategorias: subcategoriasConfig, obterPrimeiraCategoriaDeSubcategoria } = useConfiguracoes();
   const [movimentoEditando, setMovimentoEditando] = useState<Movimentacao | null>(null);
   const [novoLocalId, setNovoLocalId] = useState<string>('');
+  const [novaQuantidade, setNovaQuantidade] = useState<string>('');
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
   // Buscar informações dos usuários (para coluna Responsável)
@@ -95,8 +98,13 @@ export const TabelaMovimentacoes = () => {
       .sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
       .forEach((mov) => {
         const anterior = saldoPorItem.get(mov.itemId) ?? 0;
-        const delta = mov.tipo === 'SAIDA' ? -mov.quantidade : mov.quantidade;
-        const atual = Math.max(0, anterior + delta);
+        let delta = 0;
+        if (mov.tipo === 'ENTRADA') {
+          delta = mov.quantidade;
+        } else if (mov.tipo === 'SAIDA') {
+          delta = -mov.quantidade;
+        }
+        const atual = anterior + delta;
 
         saldos.set(mov.id, { anterior, atual });
         saldoPorItem.set(mov.itemId, atual);
@@ -216,7 +224,7 @@ export const TabelaMovimentacoes = () => {
         }
 
         return {
-          'Tipo': eDevolucao ? 'Devolução' : getTipoInfo(mov.tipo).label,
+          'Tipo': eDevolucao ? 'Devolução' : getTipoInfo(mov).label,
           'Data': new Date(mov.dataHora).toLocaleDateString('pt-BR'),
           'Hora': new Date(mov.dataHora).toLocaleTimeString('pt-BR'),
           'Item': mov.itemSnapshot?.nome || 'Item não identificado',
@@ -317,7 +325,7 @@ export const TabelaMovimentacoes = () => {
       }
 
       return `<tr>
-        <td>${eDevolucao ? 'Devolução' : getTipoInfo(mov.tipo).label}</td>
+        <td>${eDevolucao ? 'Devolução' : getTipoInfo(mov).label}</td>
         <td>${new Date(mov.dataHora).toLocaleDateString('pt-BR')} ${new Date(mov.dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
         <td>${mov.itemSnapshot?.nome || '-'}</td>
         <td>${mov.itemSnapshot?.codigoBarras || '-'}</td>
@@ -361,7 +369,11 @@ export const TabelaMovimentacoes = () => {
   };
 
   // Função para obter ícone e cor do tipo de movimentação
-  const getTipoInfo = (tipo: TipoMovimentacao) => {
+  const getTipoInfo = (movOuTipo: Movimentacao | TipoMovimentacao) => {
+    const isObj = typeof movOuTipo === 'object' && movOuTipo !== null;
+    const tipo = isObj ? (movOuTipo as Movimentacao).tipo : movOuTipo as TipoMovimentacao;
+    const isAcerto = isObj ? isAcertoDeEstoque(movOuTipo as Movimentacao) : false;
+
     switch (tipo) {
       case 'ENTRADA':
         return {
@@ -371,6 +383,14 @@ export const TabelaMovimentacoes = () => {
           label: 'Entrada'
         };
       case 'SAIDA':
+        if (isAcerto) {
+          return {
+            icon: <AlertTriangle className="h-4 w-4" />,
+            color: 'text-orange-500',
+            bgColor: 'bg-orange-500/10',
+            label: 'Saída para acerto'
+          };
+        }
         return {
           icon: <ArrowDownCircle className="h-4 w-4" />,
           color: 'text-warning',
@@ -418,16 +438,22 @@ export const TabelaMovimentacoes = () => {
   };
 
   const handleSalvarEdicaoDestino = async () => {
-    if (!movimentoEditando || !novoLocalId) return;
+    if (!movimentoEditando) return;
     
     setSalvandoEdicao(true);
     try {
       const localSelecionado = locaisAtivos.find(l => l.id === novoLocalId);
+      const quantidadeAtualizada = parseFloat(novaQuantidade);
+      
+      if (isNaN(quantidadeAtualizada) || quantidadeAtualizada <= 0) {
+        throw new Error("Quantidade inválida");
+      }
       
       const { error } = await supabase
         .from('movements')
         .update({ 
-          local_utilizacao_id: novoLocalId
+          local_utilizacao_id: novoLocalId || null,
+          quantidade: quantidadeAtualizada
         })
         .eq('id', movimentoEditando.id);
         
@@ -436,10 +462,12 @@ export const TabelaMovimentacoes = () => {
       // Registrar log de auditoria
       await (supabase as any).from('action_logs').insert({
         user_id: user?.id,
-        action: 'EDICAO_DESTINO_MOVIMENTACAO',
+        action: 'EDICAO_MOVIMENTACAO',
         entity_type: 'movements',
         entity_id: movimentoEditando.id,
         details: {
+          antiga_quantidade: movimentoEditando.quantidade,
+          nova_quantidade: quantidadeAtualizada,
           antigo_local_id: movimentoEditando.localUtilizacaoId,
           antigo_local_nome: movimentoEditando.localUtilizacaoNome,
           novo_local_id: novoLocalId,
@@ -449,16 +477,16 @@ export const TabelaMovimentacoes = () => {
       });
       
       toast({
-        title: "Destino atualizado",
-        description: "O local de destino da movimentação foi alterado com sucesso."
+        title: "Movimentação atualizada",
+        description: "A movimentação foi alterada com sucesso."
       });
       
       setMovimentoEditando(null);
     } catch (error: any) {
-      console.error('Erro ao atualizar destino:', error);
+      console.error('Erro ao atualizar movimentação:', error);
       toast({
         title: "Erro ao atualizar",
-        description: error.message || "Não foi possível alterar o destino.",
+        description: error.message || "Não foi possível alterar a movimentação.",
         variant: "destructive"
       });
     } finally {
@@ -755,7 +783,7 @@ export const TabelaMovimentacoes = () => {
                   </TableRow>
                 ) : (
                     movimentacoesPaginadas.map((mov) => {
-                    const tipoInfo = getTipoInfo(mov.tipo);
+                    const tipoInfo = getTipoInfo(mov);
                     const eDevolucao = isDevolucao(mov);
                     const saldoCalculado = saldosCalculadosPorMovimentacao.get(mov.id);
                     
@@ -771,6 +799,7 @@ export const TabelaMovimentacoes = () => {
                                 onClick={() => {
                                   setMovimentoEditando(mov);
                                   setNovoLocalId(mov.localUtilizacaoId || '');
+                                  setNovaQuantidade(mov.quantidade.toString());
                                 }}
                               >
                                 <Pencil className="h-4 w-4" />
@@ -983,18 +1012,29 @@ export const TabelaMovimentacoes = () => {
       <Dialog open={!!movimentoEditando} onOpenChange={(open) => !open && setMovimentoEditando(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar Destino da Movimentação</DialogTitle>
+            <DialogTitle>Editar Movimentação</DialogTitle>
             <DialogDescription>
-              Altere o local de utilização/destino para esta movimentação de "{movimentoEditando?.itemSnapshot?.nome}".
+              Altere a quantidade ou destino para esta movimentação de "{movimentoEditando?.itemSnapshot?.nome}".
             </DialogDescription>
           </DialogHeader>
           
           <div className="py-4 space-y-4">
             <div className="space-y-2">
+              <label className="text-sm font-medium">Quantidade</label>
+              <Input 
+                type="number" 
+                value={novaQuantidade} 
+                onChange={(e) => setNovaQuantidade(e.target.value)}
+                min="0.01"
+                step="0.01"
+              />
+            </div>
+
+            <div className="space-y-2">
               <label className="text-sm font-medium">Novo Local de Destino</label>
               <Select value={novoLocalId} onValueChange={setNovoLocalId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione um local" />
+                  <SelectValue placeholder="Selecione um local (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
                   {locaisAtivos.map(local => (
@@ -1008,7 +1048,6 @@ export const TabelaMovimentacoes = () => {
             
             <div className="bg-muted p-3 rounded-md text-sm space-y-1">
               <p><strong>Item:</strong> {movimentoEditando?.itemSnapshot?.nome}</p>
-              <p><strong>Quantidade:</strong> {movimentoEditando?.quantidade} {movimentoEditando?.itemSnapshot?.unidade}</p>
               <p><strong>Local Atual:</strong> {movimentoEditando?.localUtilizacaoNome || 'Nenhum'}</p>
             </div>
           </div>
@@ -1017,7 +1056,7 @@ export const TabelaMovimentacoes = () => {
             <Button variant="outline" onClick={() => setMovimentoEditando(null)}>
               Cancelar
             </Button>
-            <Button onClick={handleSalvarEdicaoDestino} disabled={salvandoEdicao || !novoLocalId}>
+            <Button onClick={handleSalvarEdicaoDestino} disabled={salvandoEdicao}>
               {salvandoEdicao ? "Salvando..." : "Salvar Alteração"}
             </Button>
           </DialogFooter>
