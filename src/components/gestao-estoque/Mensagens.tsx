@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Loader2, MessageCircle, Send, Paperclip } from "lucide-react";
+import { Search, Loader2, MessageCircle, Send, Paperclip, Bell, BellRing } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRef } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -57,6 +57,7 @@ export function Mensagens() {
   const [messageRecipients, setMessageRecipients] = useState<MessageRecipient[]>([]);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [threads, setThreads] = useState<ViewerThread[]>([]);
@@ -202,19 +203,96 @@ export function Mensagens() {
   useEffect(() => {
     fetchThreads();
 
-    const channel = supabase
-      .channel("viewer-message-thread-updates")
-      .on("postgres_changes", { event: "*", schema: "public", table: "viewer_message_threads" }, fetchThreads)
-      .on("postgres_changes", { event: "*", schema: "public", table: "viewer_thread_messages" }, () => {
-        fetchThreads();
-        fetchThreadMessages();
-      })
+    const handleNewMessage = async (payload: any) => {
+      try {
+        if (payload.new.thread_id === selectedThreadId) {
+          await fetchThreadMessages();
+        }
+        await fetchThreads();
+      } catch (error) {
+        console.error("Erro no processamento da mensagem realtime:", error);
+      }
+    };
+
+    const threadSubscription = supabase
+      .channel('public:viewer_thread_messages')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'viewer_thread_messages' },
+        handleNewMessage
+      )
       .subscribe();
 
+    if ('Notification' in window && 'serviceWorker' in navigator) {
+      setPushEnabled(Notification.permission === 'granted');
+    }
+
     return () => {
-      supabase.removeChannel(channel);
+      threadSubscription.unsubscribe();
     };
-  }, [userId, canChooseMessageRecipient, selectedThreadId]);
+  }, [selectedThreadId, isComposingNewThread, user]);
+
+  const handleSubscribePush = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      toast.error('Seu navegador não suporta notificações Push.');
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        toast.error('Permissão para notificações foi negada.');
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+
+      const urlBase64ToUint8Array = (base64String: string) => {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding)
+          .replace(/\-/g, '+')
+          .replace(/_/g, '/');
+
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+      };
+
+      const publicVapidKey = 'BAJaTusXeN97bOB7m38jSAAgu0kR-VMTk3xEU6Zw0MV6vL1NsQtoPCrbm7qz7hX8q0HTK8bt5QB00DLP5IJt-H4';
+      
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+      });
+
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .insert({
+          user_id: user?.id,
+          subscription: JSON.parse(JSON.stringify(subscription))
+        });
+
+      if (error) {
+        if (error.code === '42P01') {
+          toast.error('Tabela push_subscriptions não encontrada. Configure o Supabase.');
+        } else {
+           throw error;
+        }
+      } else {
+        setPushEnabled(true);
+        toast.success('Notificações ativadas com sucesso!');
+      }
+
+    } catch (error: any) {
+      console.error('Erro ao ativar notificações:', error);
+      toast.error('Não foi possível ativar as notificações.');
+    }
+  };
 
   useEffect(() => {
     fetchThreadMessages();
@@ -459,19 +537,30 @@ export function Mensagens() {
               <MessageCircle className="h-5 w-5 text-primary" />
               Conversas
             </h2>
-            {!isComposingNewThread && (
+            <div className="flex items-center gap-2">
               <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 text-xs font-medium"
-                onClick={() => {
-                  setSelectedThreadId(null);
-                  setIsComposingNewThread(true);
-                }}
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                onClick={handleSubscribePush}
+                title={pushEnabled ? "Notificações ativadas" : "Ativar notificações Push"}
               >
-                Nova
+                {pushEnabled ? <BellRing className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
               </Button>
-            )}
+              {!isComposingNewThread && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 text-xs font-medium"
+                  onClick={() => {
+                    setSelectedThreadId(null);
+                    setIsComposingNewThread(true);
+                  }}
+                >
+                  Nova
+                </Button>
+              )}
+            </div>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
