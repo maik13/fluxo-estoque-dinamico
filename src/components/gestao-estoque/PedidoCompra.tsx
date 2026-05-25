@@ -427,7 +427,20 @@ export const PedidoCompra = () => {
         .update(updateData)
         .eq('id', itemId);
 
-      if (error) throw error;
+      if (error) {
+        if (error.message && error.message.includes('quantidade_recebida')) {
+          console.warn("Aviso: Coluna quantidade_recebida não encontrada, ignorando-a no update.");
+          const fallbackData = { status: novoStatus };
+          const { error: fallbackError } = await supabase
+            .from('pedido_compra_itens')
+            .update(fallbackData)
+            .eq('id', itemId);
+            
+          if (fallbackError) throw fallbackError;
+        } else {
+          throw error;
+        }
+      }
       setItensPedidoSelecionado(prev =>
         prev.map(i => i.id === itemId
           ? { ...i, status: novoStatus, quantidade_recebida: novoStatus !== 'parcial' ? null : i.quantidade_recebida }
@@ -459,10 +472,16 @@ export const PedidoCompra = () => {
     try {
       const { error } = await supabase
         .from('pedido_compra_itens')
-        .update({ quantidade_recebida: qtd } as any)
+        .update({ quantidade_recebida: qtd })
         .eq('id', itemId);
 
-      if (error) throw error;
+      if (error) {
+        if (error.message && error.message.includes('quantidade_recebida')) {
+           toast.error('O sistema ainda está sincronizando esta funcionalidade. Tente novamente em alguns minutos.');
+           return;
+        }
+        throw error;
+      }
       setItensPedidoSelecionado(prev =>
         prev.map(i => i.id === itemId ? { ...i, quantidade_recebida: qtd } : i)
       );

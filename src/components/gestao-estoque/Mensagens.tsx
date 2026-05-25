@@ -144,11 +144,13 @@ export function Mensagens() {
       if (participantIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("id,nome,email")
-          .in("id", participantIds);
+          .select("id,user_id,nome,email")
+          .or(`user_id.in.(${participantIds.join(",")}),id.in.(${participantIds.join(",")})`);
 
         (profiles || []).forEach((profile: any) => {
-          profileMap.set(profile.id, profile.nome || profile.email || "Usuário");
+          const displayName = profile.nome || profile.email || "Usuário";
+          profileMap.set(profile.user_id, displayName);
+          profileMap.set(profile.id, displayName);
         });
       }
 
@@ -240,11 +242,13 @@ export function Mensagens() {
       if (senderIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("id,nome,email")
-          .in("id", senderIds);
+          .select("id,user_id,nome,email")
+          .or(`user_id.in.(${senderIds.join(",")}),id.in.(${senderIds.join(",")})`);
 
         (profiles || []).forEach((profile: any) => {
-          profileMap.set(profile.id, profile.nome || profile.email || "Usuário");
+          const displayName = profile.nome || profile.email || "Usuário";
+          profileMap.set(profile.user_id, displayName);
+          profileMap.set(profile.id, displayName);
         });
       }
 
@@ -427,14 +431,15 @@ export function Mensagens() {
     try {
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id,nome,email,tipo_usuario")
-        .neq("id", userId);
+        .select("id,user_id,nome,email,tipo_usuario")
+        .neq("user_id", userId)
+        .not("user_id", "is", null);
 
       if (profilesError) throw profilesError;
 
       setMessageRecipients((profiles || [])
         .map((profile: any) => ({
-          id: profile.id,
+          id: profile.user_id,
           name: profile.nome || profile.email || "Usuário",
           email: profile.email,
           role: profile.tipo_usuario || null,

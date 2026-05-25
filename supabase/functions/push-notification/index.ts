@@ -22,6 +22,18 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    const resolveAuthUserId = async (id?: string | null) => {
+      if (!id) return null;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .or(`user_id.eq.${id},id.eq.${id}`)
+        .maybeSingle();
+
+      return profile?.user_id || id;
+    };
+
     const { data: thread } = await supabase
       .from('viewer_message_threads')
       .select('created_by, recipient_id, viewer_id')
@@ -30,15 +42,18 @@ serve(async (req) => {
 
     if (!thread) return new Response("Thread nao encontrada", { status: 404 });
 
-    const senderId = message.sender_id;
+    const senderId = await resolveAuthUserId(message.sender_id);
+    const recipientId = await resolveAuthUserId(thread.recipient_id);
+    const createdBy = await resolveAuthUserId(thread.created_by);
+    const viewerId = await resolveAuthUserId(thread.viewer_id);
     let targetUserId = null;
 
-    if (thread.recipient_id && senderId !== thread.recipient_id) {
-      targetUserId = thread.recipient_id;
-    } else if (thread.created_by && senderId !== thread.created_by) {
-      targetUserId = thread.created_by;
-    } else if (thread.viewer_id && senderId !== thread.viewer_id) {
-      targetUserId = thread.viewer_id;
+    if (recipientId && senderId !== recipientId) {
+      targetUserId = recipientId;
+    } else if (createdBy && senderId !== createdBy) {
+      targetUserId = createdBy;
+    } else if (viewerId && senderId !== viewerId) {
+      targetUserId = viewerId;
     }
 
     if (!targetUserId) {
