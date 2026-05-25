@@ -4,8 +4,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Loader2, MessageCircle, Send } from "lucide-react";
+import { Search, Loader2, MessageCircle, Send, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRef } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -55,6 +56,8 @@ export function Mensagens() {
   const [recipientSearchTerm, setRecipientSearchTerm] = useState("");
   const [messageRecipients, setMessageRecipients] = useState<MessageRecipient[]>([]);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [threads, setThreads] = useState<ViewerThread[]>([]);
   const [messages, setMessages] = useState<ViewerMessage[]>([]);
@@ -343,6 +346,86 @@ export function Mensagens() {
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validar tamanho (máx 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('O arquivo deve ter no máximo 10MB');
+      return;
+    }
+
+    setIsUploadingFile(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('product-photos') // Usando o bucket existente
+        .upload(`anexos/${fileName}`, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('product-photos')
+        .getPublicUrl(`anexos/${fileName}`);
+
+      const attachmentText = `\n[Anexo: ${file.name}](${publicUrl})`;
+      
+      if (isComposingNewThread) {
+        setMessageText(prev => prev + attachmentText);
+      } else {
+        setReplyText(prev => prev + attachmentText);
+      }
+      
+      toast.success('Arquivo anexado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao fazer upload:', error);
+      toast.error('Erro ao enviar arquivo');
+    } finally {
+      setIsUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const formatMessageContent = (text: string) => {
+    const linkRegex = /\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = linkRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index));
+      }
+      parts.push(
+        <a 
+          key={match.index} 
+          href={match[2]} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="font-bold underline hover:opacity-80 transition-opacity"
+          style={{ color: 'inherit' }}
+        >
+          📎 {match[1]}
+        </a>
+      );
+      lastIndex = linkRegex.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+
+    return parts.length > 0 ? parts : text;
+  };
+
   const selectedThread = threads.find((thread) => thread.id === selectedThreadId) || null;
   const filteredThreads = threads.filter((thread) => {
     const search = threadSearchTerm.trim().toLowerCase();
@@ -532,7 +615,7 @@ export function Mensagens() {
                           {message.sender_name}
                         </p>
                       )}
-                      <p className="whitespace-pre-wrap leading-relaxed">{message.message}</p>
+                      <p className="whitespace-pre-wrap leading-relaxed">{formatMessageContent(message.message)}</p>
                       <div className={cn(
                           "mt-1 text-[10px] font-medium opacity-70 flex items-center justify-end gap-1",
                           isOwnMessage ? "text-primary-foreground/80" : "text-muted-foreground"
@@ -552,6 +635,13 @@ export function Mensagens() {
         </div>
 
         <div className="border-t border-border bg-card/80 backdrop-blur-md p-4 sticky bottom-0 z-10">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            className="hidden"
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
+          />
           {isComposingNewThread ? (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-4">
@@ -572,7 +662,7 @@ export function Mensagens() {
                         className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/40 transition-shadow"
                       />
                       {filteredMessageRecipients.length > 0 && !selectedRecipientId && (
-                        <div className="absolute left-0 right-0 top-[110%] z-20 overflow-hidden rounded-md border border-border bg-popover shadow-xl">
+                        <div className="absolute left-0 right-0 bottom-[110%] z-20 overflow-hidden rounded-md border border-border bg-popover shadow-xl max-h-[300px] overflow-y-auto">
                           {filteredMessageRecipients.map((recipient) => (
                             <button
                               key={recipient.id}
@@ -623,18 +713,31 @@ export function Mensagens() {
                       }
                   }}
                 />
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={isSendingMessage}
-                  className="h-auto gap-2 px-6 self-end rounded-xl shadow-md hover:shadow-lg transition-all"
-                >
-                  {isSendingMessage ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <Send className="h-5 w-5" />
-                  )}
-                  <span className="hidden sm:inline font-semibold">Enviar</span>
-                </Button>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingFile}
+                    className="h-10 w-10 rounded-xl"
+                    title="Anexar arquivo"
+                  >
+                    {isUploadingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={isSendingMessage || isUploadingFile}
+                    className="h-10 gap-2 px-6 rounded-xl shadow-md hover:shadow-lg transition-all"
+                  >
+                    {isSendingMessage ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Send className="h-5 w-5" />
+                    )}
+                    <span className="hidden sm:inline font-semibold">Enviar</span>
+                  </Button>
+                </div>
               </div>
             </div>
           ) : (
@@ -652,18 +755,31 @@ export function Mensagens() {
                     }
                 }}
               />
-              <Button
-                onClick={handleSendReply}
-                disabled={!selectedThread || isSendingMessage || !replyText.trim()}
-                className="h-auto gap-2 px-6 self-end rounded-xl shadow-md hover:shadow-lg transition-all"
-              >
-                {isSendingMessage ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Send className="h-5 w-5" />
-                )}
-                <span className="hidden sm:inline font-semibold">Responder</span>
-              </Button>
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingFile || !selectedThread}
+                  className="h-10 w-10 rounded-xl"
+                  title="Anexar arquivo"
+                >
+                  {isUploadingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                </Button>
+                <Button
+                  onClick={handleSendReply}
+                  disabled={!selectedThread || isSendingMessage || isUploadingFile || (!replyText.trim() && !replyText.includes('[Anexo:'))}
+                  className="h-10 gap-2 px-6 rounded-xl shadow-md hover:shadow-lg transition-all"
+                >
+                  {isSendingMessage ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
+                  <span className="hidden sm:inline font-semibold">Responder</span>
+                </Button>
+              </div>
             </div>
           )}
         </div>
