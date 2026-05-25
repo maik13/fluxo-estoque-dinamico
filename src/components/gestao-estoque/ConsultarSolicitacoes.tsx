@@ -256,7 +256,7 @@ export const ConsultarSolicitacoes = () => {
 
       {/* Dialog de detalhes */}
       <Dialog open={dialogoAberto} onOpenChange={setDialogoAberto}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Detalhes da Solicitação #{solicitacaoSelecionada?.id.slice(-8)}
@@ -320,7 +320,7 @@ export const ConsultarSolicitacoes = () => {
                   <TableBody>
                     {solicitacaoSelecionada.itens.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell className="whitespace-nowrap">{item.item_snapshot.nome}</TableCell>
+                        <TableCell className="min-w-[200px]">{item.item_snapshot.nome}</TableCell>
                         <TableCell className="whitespace-nowrap">{item.item_snapshot.codigoBarras}</TableCell>
                         <TableCell>{item.quantidade_solicitada}</TableCell>
                         <TableCell>{item.quantidade_aprovada}</TableCell>

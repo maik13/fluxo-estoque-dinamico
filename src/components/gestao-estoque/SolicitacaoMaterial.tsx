@@ -814,7 +814,7 @@ export const SolicitacaoMaterial = () => {
 
       {/* Dialog Listar Solicitações */}
       <Dialog open={dialogoListar} onOpenChange={setDialogoListar}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="w-[95vw] sm:w-full max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardList className="h-5 w-5 text-amber-400" />
@@ -914,7 +914,7 @@ export const SolicitacaoMaterial = () => {
 
       {/* Dialog Detalhes da Solicitação */}
       <Dialog open={dialogoDetalhes} onOpenChange={setDialogoDetalhes}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="w-[95vw] sm:w-full max-w-3xl max-h-[90vh] overflow-y-auto">
           {solicitacaoSelecionada && (
             <>
               <DialogHeader>
@@ -1077,7 +1077,7 @@ export const SolicitacaoMaterial = () => {
 
       {/* Dialog Criar Nova Solicitação */}
       <Dialog open={dialogoCriar} onOpenChange={setDialogoCriar}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5" /> Nova Solicitação de Material

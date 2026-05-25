@@ -714,7 +714,7 @@ export const PedidoCompra = () => {
 
       {/* Dialog de Consulta de Pedidos */}
       <Dialog open={dialogoConsulta} onOpenChange={setDialogoConsulta}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:w-full max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>🛒 Pedidos de Compra</DialogTitle>
             <DialogDescription>Consulte e crie novos pedidos de compra</DialogDescription>
@@ -731,6 +731,7 @@ export const PedidoCompra = () => {
           ) : pedidos.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">Nenhum pedido encontrado</p>
           ) : (
+            <div className="overflow-x-auto w-full">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -778,13 +779,14 @@ export const PedidoCompra = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </DialogContent>
       </Dialog>
 
       {/* Dialog Novo Pedido */}
       <Dialog open={dialogoNovoPedido} onOpenChange={setDialogoNovoPedido}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:w-full max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>📋 Novo Pedido de Compra</DialogTitle>
             <DialogDescription>Selecione os itens e quantidades para o pedido</DialogDescription>
@@ -902,7 +904,7 @@ export const PedidoCompra = () => {
 
       {/* Dialog Senha Admin */}
       <Dialog open={dialogoSenhaAdmin} onOpenChange={setDialogoSenhaAdmin}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] sm:w-full max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Lock className="h-5 w-5 text-orange-500" />
@@ -946,7 +948,7 @@ export const PedidoCompra = () => {
 
       {/* Dialog Detalhe do Pedido */}
       <Dialog open={dialogoDetalhe} onOpenChange={(open) => { setDialogoDetalhe(open); if (!open) setModoEdicao(false); }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:w-full max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               📋 Pedido de Compra #{pedidoSelecionado?.numero}
@@ -1063,7 +1065,7 @@ export const PedidoCompra = () => {
                   return (
                     <TableRow key={item.id} className={eParcial ? 'bg-amber-500/5' : ''}>
                       <TableCell>{idx + 1}</TableCell>
-                      <TableCell className="font-medium whitespace-nowrap">{snap?.nome || '-'}</TableCell>
+                      <TableCell className="font-medium min-w-[200px]">{snap?.nome || '-'}</TableCell>
                       <TableCell className="whitespace-nowrap">{snap?.codigoBarras || '-'}</TableCell>
                       <TableCell>
                         {modoEdicao ? (
@@ -1173,7 +1175,7 @@ export const PedidoCompra = () => {
             </Table>
           </div>
 
-          <div className="flex flex-col md:flex-row justify-between gap-4 pt-4 border-t">
+          <div className="flex flex-col sm:flex-row justify-between pt-4 gap-4 border-t mt-6">
             <div className="flex flex-wrap gap-2">
               {!modoEdicao && (
                 <>

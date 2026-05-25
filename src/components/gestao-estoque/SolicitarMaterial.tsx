@@ -386,7 +386,7 @@ export const SolicitarMaterial = () => {
           </Card>
         </DialogTrigger>
 
-        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Retirada de Material</DialogTitle>
           </DialogHeader>
@@ -679,7 +679,7 @@ export const SolicitarMaterial = () => {
 
       {/* Dialog para visualizar solicitações */}
       <Dialog open={visualizarSolicitacoes} onOpenChange={setVisualizarSolicitacoes}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-6xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="w-[95vw] sm:w-full max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Minhas Solicitações</DialogTitle>
           </DialogHeader>
@@ -740,7 +740,7 @@ export const SolicitarMaterial = () => {
 
       {/* Dialog para detalhes da solicitação */}
       <Dialog open={detalhesAberto} onOpenChange={setDetalhesAberto}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalhes da Solicitação</DialogTitle>
           </DialogHeader>

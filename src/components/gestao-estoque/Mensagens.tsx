@@ -118,6 +118,42 @@ export function Mensagens() {
     return participants.includes(firstUserId) && participants.includes(secondUserId);
   };
 
+  const fetchProfileNamesByIds = async (ids: string[]) => {
+    const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+    const profileMap = new Map<string, string>();
+
+    if (uniqueIds.length === 0) {
+      return profileMap;
+    }
+
+    const addProfilesToMap = (profiles: any[] | null) => {
+      (profiles || []).forEach((profile: any) => {
+        const displayName = profile.nome || profile.email || "Usuário";
+        if (profile.user_id) profileMap.set(profile.user_id, displayName);
+        if (profile.id) profileMap.set(profile.id, displayName);
+      });
+    };
+
+    const { data: profilesByUserId } = await supabase
+      .from("profiles")
+      .select("id,user_id,nome,email")
+      .in("user_id", uniqueIds);
+
+    addProfilesToMap(profilesByUserId);
+
+    const missingIds = uniqueIds.filter((id) => !profileMap.has(id));
+    if (missingIds.length > 0) {
+      const { data: profilesById } = await supabase
+        .from("profiles")
+        .select("id,user_id,nome,email")
+        .in("id", missingIds);
+
+      addProfilesToMap(profilesById);
+    }
+
+    return profileMap;
+  };
+
   const fetchThreads = async () => {
     if (!userId) return;
 
@@ -139,20 +175,7 @@ export function Mensagens() {
           thread.recipient_id,
         ]).filter(Boolean)
       ));
-      const profileMap = new Map<string, string>();
-
-      if (participantIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id,user_id,nome,email")
-          .or(`user_id.in.(${participantIds.join(",")}),id.in.(${participantIds.join(",")})`);
-
-        (profiles || []).forEach((profile: any) => {
-          const displayName = profile.nome || profile.email || "Usuário";
-          profileMap.set(profile.user_id, displayName);
-          profileMap.set(profile.id, displayName);
-        });
-      }
+      const profileMap = await fetchProfileNamesByIds(participantIds);
 
       const threadIds = loadedThreads.map((thread) => thread.id);
       const lastMessageMap = new Map<string, string>();
@@ -219,8 +242,8 @@ export function Mensagens() {
     }
   };
 
-  const fetchThreadMessages = async () => {
-    if (!selectedThreadId) {
+  const fetchThreadMessages = async (threadId = selectedThreadId) => {
+    if (!threadId) {
       setMessages([]);
       return;
     }
@@ -230,27 +253,14 @@ export function Mensagens() {
       const { data, error } = await (supabase as any)
         .from("viewer_thread_messages")
         .select("*")
-        .eq("thread_id", selectedThreadId)
+        .eq("thread_id", threadId)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
 
       const loadedMessages = (data || []) as ViewerMessage[];
       const senderIds = Array.from(new Set(loadedMessages.map((message) => message.sender_id)));
-      const profileMap = new Map<string, string>();
-
-      if (senderIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id,user_id,nome,email")
-          .or(`user_id.in.(${senderIds.join(",")}),id.in.(${senderIds.join(",")})`);
-
-        (profiles || []).forEach((profile: any) => {
-          const displayName = profile.nome || profile.email || "Usuário";
-          profileMap.set(profile.user_id, displayName);
-          profileMap.set(profile.id, displayName);
-        });
-      }
+      const profileMap = await fetchProfileNamesByIds(senderIds);
 
       setMessages(
         loadedMessages.map((message) => ({
@@ -271,6 +281,13 @@ export function Mensagens() {
     selectedThreadIdRef.current = selectedThreadId;
   }, [selectedThreadId]);
 
+  const refreshCurrentConversation = async () => {
+    await fetchThreads();
+    if (selectedThreadIdRef.current) {
+      await fetchThreadMessages(selectedThreadIdRef.current);
+    }
+  };
+
   useEffect(() => {
     fetchThreads();
 
@@ -282,7 +299,7 @@ export function Mensagens() {
         }
 
         if (payload.new.thread_id === selectedThreadIdRef.current) {
-          await fetchThreadMessages();
+          await fetchThreadMessages(payload.new.thread_id);
         }
         await fetchThreads();
       } catch (error) {
@@ -347,6 +364,33 @@ export function Mensagens() {
       threadSubscription.unsubscribe();
     };
   }, [user]);
+
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        refreshCurrentConversation().catch(console.error);
+      }
+    };
+
+    const refreshWhenFocused = () => {
+      refreshCurrentConversation().catch(console.error);
+    };
+
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("focus", refreshWhenFocused);
+
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        refreshCurrentConversation().catch(console.error);
+      }
+    }, 8000);
+
+    return () => {
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("focus", refreshWhenFocused);
+      window.clearInterval(interval);
+    };
+  }, [userId]);
 
   const handleSubscribePush = async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
