@@ -5,7 +5,8 @@ import { TabelaEstoque } from '@/components/gestao-estoque/TabelaEstoque';
 import { TabelaMovimentacoes } from '@/components/gestao-estoque/TabelaMovimentacoes';
 import { PainelGerencial } from '@/components/gestao-estoque/PainelGerencial';
 import { VisaoProjetos } from '@/components/gestao-estoque/VisaoProjetos';
-import { Package, Menu, History, LogOut, BarChart3 } from 'lucide-react';
+import { Mensagens } from '@/components/gestao-estoque/Mensagens';
+import { Package, Menu, History, LogOut, BarChart3, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -121,7 +122,7 @@ const Index = () => {
             const showProjetos = canAccessProjects();
             
             // Filtra as abas que serão mostradas no topo
-            const tabCount = 1 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
+            const tabCount = 2 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
             
             return (
               <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
@@ -145,12 +146,17 @@ const Index = () => {
                       Movimentações
                     </TabsTrigger>
                   )}
+                  <TabsTrigger value="mensagens" className="flex items-center gap-2">
+                    <MessageCircle className="h-4 w-4" />
+                    Mensagens
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="menu" className="space-y-6">
                   <MenuPrincipal 
                     onAbrirGerencial={() => setTabAtiva('gerencial')} 
                     onAbrirProjetos={() => setTabAtiva('projetos')}
+                    onAbrirMensagens={() => setTabAtiva('mensagens')}
                   />
                 </TabsContent>
 
@@ -179,6 +185,10 @@ const Index = () => {
                     <TabelaMovimentacoes />
                   </TabsContent>
                 )}
+
+                <TabsContent value="mensagens" className="space-y-6">
+                  <Mensagens />
+                </TabsContent>
               </Tabs>
             );
           })()}
