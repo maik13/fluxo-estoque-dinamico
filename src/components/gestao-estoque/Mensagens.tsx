@@ -68,24 +68,34 @@ export function Mensagens() {
   const [isLoadingThreads, setIsLoadingThreads] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
+  const getThreadParticipantIds = (thread: ViewerThread) => {
+    const ids = [thread.viewer_id, thread.created_by, thread.recipient_id].filter(Boolean) as string[];
+    return Array.from(new Set(ids));
+  };
+
+  const getOtherParticipantId = (thread: ViewerThread, currentUserId: string) => {
+    return getThreadParticipantIds(thread).find((participantId) => participantId !== currentUserId) || null;
+  };
+
+  const threadMatchesPair = (thread: ViewerThread, firstUserId: string, secondUserId: string) => {
+    const participants = getThreadParticipantIds(thread);
+    return participants.includes(firstUserId) && participants.includes(secondUserId);
+  };
+
   const fetchThreads = async () => {
     if (!userId) return;
 
     setIsLoadingThreads(true);
     try {
-      let query = (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("viewer_message_threads")
         .select("*")
         .order("updated_at", { ascending: false });
 
-      if (!canChooseMessageRecipient) {
-        query = query.eq("viewer_id", userId);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
 
-      const loadedThreads = (data || []) as ViewerThread[];
+      const loadedThreads = ((data || []) as ViewerThread[])
+        .filter((thread) => getThreadParticipantIds(thread).includes(userId));
       const participantIds = Array.from(new Set(
         loadedThreads.flatMap((thread) => [
           thread.viewer_id,
@@ -123,18 +133,35 @@ export function Mensagens() {
         });
       }
 
-      const nextThreads = loadedThreads.map((thread) => ({
-        ...thread,
-        viewer_name: profileMap.get(thread.viewer_id) || "Usuário",
-        creator_name: thread.created_by ? profileMap.get(thread.created_by) : undefined,
-        recipient_name: thread.recipient_id ? profileMap.get(thread.recipient_id) : undefined,
-        display_name: thread.recipient_id
-          ? profileMap.get(thread.created_by === userId ? thread.recipient_id : thread.created_by || thread.viewer_id)
-          : canChooseMessageRecipient
-            ? profileMap.get(thread.viewer_id) || "Usuário"
-            : "Gestão / Coordenação",
-        last_message: lastMessageMap.get(thread.id) || "",
-      }));
+      const threadsByParticipantPair = new Map<string, ViewerThread>();
+
+      loadedThreads.forEach((thread) => {
+        const otherParticipantId = getOtherParticipantId(thread, userId);
+        const pairKey = otherParticipantId
+          ? [userId, otherParticipantId].sort().join(":")
+          : thread.id;
+
+        if (!threadsByParticipantPair.has(pairKey)) {
+          threadsByParticipantPair.set(pairKey, thread);
+        }
+      });
+
+      const nextThreads = Array.from(threadsByParticipantPair.values()).map((thread) => {
+        const otherParticipantId = getOtherParticipantId(thread, userId);
+
+        return {
+          ...thread,
+          viewer_name: profileMap.get(thread.viewer_id) || "Usuário",
+          creator_name: thread.created_by ? profileMap.get(thread.created_by) : undefined,
+          recipient_name: thread.recipient_id ? profileMap.get(thread.recipient_id) : undefined,
+          display_name: otherParticipantId
+            ? profileMap.get(otherParticipantId) || "Usuário"
+            : canChooseMessageRecipient
+              ? profileMap.get(thread.viewer_id) || "Usuário"
+              : "Gestão / Coordenação",
+          last_message: lastMessageMap.get(thread.id) || "",
+        };
+      });
 
       setThreads(nextThreads);
       
@@ -392,10 +419,8 @@ export function Mensagens() {
     try {
       if (canChooseMessageRecipient) {
         // Evitar duplicar conversas com a mesma pessoa
-        const existingThread = threads.find(t => 
-          t.viewer_id === selectedRecipientId || 
-          t.recipient_id === selectedRecipientId ||
-          t.created_by === selectedRecipientId
+        const existingThread = threads.find((thread) =>
+          threadMatchesPair(thread, userId!, selectedRecipientId)
         );
 
         if (existingThread) {
