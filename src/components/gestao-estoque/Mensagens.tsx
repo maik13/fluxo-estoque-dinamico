@@ -45,7 +45,7 @@ export function Mensagens() {
   const { user } = useAuth();
   const userId = user?.id;
   const { isAdmin, isGestor } = usePermissions();
-  const canChooseMessageRecipient = isAdmin() || isGestor();
+  const canChooseMessageRecipient = true; // Liberado para espelhar a visāo do PC (isAdmin() || isGestor())
 
   const [messageDate, setMessageDate] = useState(new Date().toISOString().split('T')[0]);
   const [messageText, setMessageText] = useState("");
