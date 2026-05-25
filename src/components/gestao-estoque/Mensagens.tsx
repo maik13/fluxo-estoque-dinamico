@@ -607,7 +607,10 @@ export function Mensagens() {
 
   return (
     <div className="grid min-h-[calc(100dvh-15rem)] overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-[320px_minmax(0,1fr)] shadow-sm">
-      <aside className="flex min-h-[400px] flex-col border-b border-border lg:border-b-0 lg:border-r bg-muted/10">
+      <aside className={cn(
+        "flex min-h-[400px] flex-col border-b border-border lg:border-b-0 lg:border-r bg-muted/10",
+        (selectedThreadId || isComposingNewThread) ? "hidden lg:flex" : "flex"
+      )}>
         <div className="border-b border-border p-4">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -708,8 +711,22 @@ export function Mensagens() {
         </div>
       </aside>
 
-      <section className="flex min-h-[500px] flex-col bg-background/50 relative">
+      <section className={cn(
+        "flex min-h-[500px] flex-col bg-background/50 relative",
+        (!selectedThreadId && !isComposingNewThread) ? "hidden lg:flex lg:flex-1" : "flex-1"
+      )}>
         <header className="flex min-h-16 items-center gap-3 border-b border-border bg-card/80 backdrop-blur-md px-6 sticky top-0 z-10">
+          {(selectedThreadId || isComposingNewThread) && (
+            <button
+              onClick={() => {
+                setSelectedThreadId(null);
+                setIsComposingNewThread(false);
+              }}
+              className="lg:hidden -ml-2 p-2 text-muted-foreground hover:text-foreground"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+          )}
           <div className="min-w-0">
             <h2 className="truncate text-base font-bold text-foreground">
               {isComposingNewThread
