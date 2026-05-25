@@ -223,14 +223,15 @@ export function Mensagens() {
       )
       .subscribe();
 
-    if ('Notification' in window && 'serviceWorker' in navigator) {
-      if (Notification.permission === 'granted') {
-        setPushEnabled(true);
-        // Garante que o service worker está registrado e com assinatura ativa
-        navigator.serviceWorker.register('/sw.js').then(async (registration) => {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      // Registra o service worker silenciosamente no background e verifica a inscrição real
+      navigator.serviceWorker.register('/sw.js').then(async (registration) => {
+        try {
           const sub = await registration.pushManager.getSubscription();
-          if (!sub) {
-            // Se tem permissão mas perdeu a assinatura (comum ao fechar app), refaz silenciosamente
+          if (sub) {
+            setPushEnabled(true); // Tem inscrição real = sininho marcado
+          } else if (Notification.permission === 'granted') {
+            // Permissão dada, mas perdeu a inscrição (bug do PWA). Refaz em silêncio.
             const publicVapidKey = 'BAJaTusXeN97bOB7m38jSAAgu0kR-VMTk3xEU6Zw0MV6vL1NsQtoPCrbm7qz7hX8q0HTK8bt5QB00DLP5IJt-H4';
             const urlBase64ToUint8Array = (base64String: string) => {
               const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -245,16 +246,20 @@ export function Mensagens() {
               applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
             });
             if (user?.id) {
-              await supabase.from('push_subscriptions').insert({
+              await supabase.from('push_subscriptions').upsert({
                 user_id: user.id,
                 subscription: JSON.parse(JSON.stringify(newSub))
               });
             }
+            setPushEnabled(true);
+          } else {
+            setPushEnabled(false);
           }
-        }).catch(console.error);
-      } else {
-        setPushEnabled(false);
-      }
+        } catch (error) {
+          console.error("Erro ao verificar/restaurar push:", error);
+          setPushEnabled(false);
+        }
+      }).catch(console.error);
     }
 
     return () => {
@@ -378,6 +383,35 @@ export function Mensagens() {
     setIsSendingMessage(true);
     try {
       if (canChooseMessageRecipient) {
+        // Evitar duplicar conversas com a mesma pessoa
+        const existingThread = threads.find(t => 
+          t.viewer_id === selectedRecipientId || 
+          t.recipient_id === selectedRecipientId ||
+          t.created_by === selectedRecipientId
+        );
+
+        if (existingThread) {
+          const { error } = await (supabase as any).rpc("send_visualizador_thread_message", {
+            p_thread_id: existingThread.id,
+            p_message: trimmedMessage,
+          });
+
+          if (error) throw error;
+
+          supabase.functions.invoke('rapid-service', {
+            body: { record: { thread_id: existingThread.id, sender_id: userId } }
+          }).catch(console.error);
+
+          setMessageText("");
+          setSelectedRecipientId("");
+          setRecipientSearchTerm("");
+          setIsComposingNewThread(false);
+          await fetchThreads();
+          setSelectedThreadId(existingThread.id);
+          return;
+        }
+
+        // Se não existe, cria uma nova
         const { data: threadId, error } = await (supabase as any).rpc("start_user_message_thread", {
           p_recipient_id: selectedRecipientId,
           p_message: trimmedMessage,
