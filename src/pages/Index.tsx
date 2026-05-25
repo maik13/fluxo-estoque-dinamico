@@ -127,21 +127,21 @@ const Index = () => {
             return (
               <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
                 <TabsList 
-                  className="grid w-full mb-6" 
+                  className="flex flex-wrap sm:grid w-full mb-6 h-auto gap-2 sm:gap-0" 
                   style={{ gridTemplateColumns: `repeat(${tabCount}, 1fr)` }}
                 >
-                  <TabsTrigger value="menu" className="flex items-center gap-2">
+                  <TabsTrigger value="menu" className="flex-1 sm:flex-none flex items-center justify-center gap-2 min-w-[120px]">
                     <Menu className="h-4 w-4" />
                     Menu Principal
                   </TabsTrigger>
                   {showEstoque && (
-                    <TabsTrigger value="estoque" className="flex items-center gap-2">
+                    <TabsTrigger value="estoque" className="flex-1 sm:flex-none flex items-center justify-center gap-2 min-w-[120px]">
                       <Package className="h-4 w-4" />
                       Estoque
                     </TabsTrigger>
                   )}
                   {showMovimentacoes && (
-                    <TabsTrigger value="movimentacoes" className="flex items-center gap-2">
+                    <TabsTrigger value="movimentacoes" className="flex-1 sm:flex-none flex items-center justify-center gap-2 min-w-[140px]">
                       <History className="h-4 w-4" />
                       Movimentações
                     </TabsTrigger>

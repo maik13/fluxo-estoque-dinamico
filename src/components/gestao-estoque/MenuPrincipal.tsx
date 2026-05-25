@@ -484,12 +484,12 @@ export const MenuPrincipal = ({
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center mb-8">
-        <div className="text-center flex-1">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
+      <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-6">
+        <div className="text-center lg:text-left flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
             🏭 Sistema de Gestão de Almoxarifado
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-muted-foreground mt-2 text-sm sm:text-base">
             Controle completo do seu almoxarifado de materiais
           </p>
           {!podeUsarCadastro && (
@@ -501,14 +501,14 @@ export const MenuPrincipal = ({
             </p>
           )}
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 w-full lg:w-auto justify-center lg:justify-end">
           <Button 
             variant="outline" 
             onClick={onAbrirMensagens}
-            className="flex items-center gap-2 border-blue-500/30 hover:border-blue-500 hover:bg-blue-500/10 text-blue-500 transition-colors"
+            className="flex items-center gap-2 border-blue-500/30 hover:border-blue-500 hover:bg-blue-500/10 text-blue-500 transition-colors h-10 px-4"
           >
             <MessageCircle className="h-5 w-5" />
-            <span className="hidden sm:inline">Mensagens</span>
+            <span>Mensagens</span>
           </Button>
           {(isAdmin() || isGestor()) && <Configuracoes />}
         </div>
