@@ -324,7 +324,7 @@ export const MenuPrincipal = ({
       return;
     }
     
-    if (cadastrarItem(resultado.data as any)) {
+    if (await cadastrarItem(resultado.data as any)) {
       setDialogoCadastro(false);
       resetarFormularios();
       setCodigoBarrasManual('');

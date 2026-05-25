@@ -559,12 +559,7 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id'> & { codigoBarras?: numb
     if (dadosItem.codigoBarras && dadosItem.codigoBarras > 0) {
       codigoNumerico = dadosItem.codigoBarras;
     } else {
-      // Gerar código sequencial automático usando função do banco
-      const { data: codigoData, error: codigoError } = await supabase.rpc('gerar_proximo_codigo');
-      if (codigoError) throw codigoError;
-      
-      const codigoGerado = codigoData as string;
-      codigoNumerico = parseInt(codigoGerado.replace('COD-', ''));
+      codigoNumerico = await obterProximoCodigoDisponivel();
     }
 
     const insertItem = {
