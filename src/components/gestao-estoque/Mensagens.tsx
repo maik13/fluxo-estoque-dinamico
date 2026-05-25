@@ -356,6 +356,12 @@ export function Mensagens() {
 
         if (error) throw error;
 
+        if (threadId) {
+          supabase.functions.invoke('rapid-service', {
+            body: { record: { thread_id: threadId, sender_id: userId } }
+          }).catch(console.error);
+        }
+
         setMessageText("");
         setSelectedRecipientId("");
         setRecipientSearchTerm("");
@@ -365,7 +371,7 @@ export function Mensagens() {
         return;
       }
 
-      const { data, error } = await (supabase as any).rpc("send_visualizador_message", {
+      const { data: newThreadId, error } = await (supabase as any).rpc("send_visualizador_message", {
         p_message: trimmedMessage,
         p_requested_date: messageDate || null,
       });
@@ -374,12 +380,13 @@ export function Mensagens() {
         throw error;
       }
 
-      const recipients = Number(data || 0);
-      toast.success(
-        recipients > 0
-          ? `Mensagem enviada para a gestão.`
-          : "Mensagem registrada."
-      );
+      if (newThreadId && typeof newThreadId === 'string') {
+        supabase.functions.invoke('rapid-service', {
+          body: { record: { thread_id: newThreadId, sender_id: userId } }
+        }).catch(console.error);
+      }
+
+      toast.success("Mensagem enviada com sucesso.");
       setMessageText("");
       await fetchThreads();
       setIsComposingNewThread(false);
@@ -412,6 +419,10 @@ export function Mensagens() {
       });
 
       if (error) throw error;
+
+      supabase.functions.invoke('rapid-service', {
+        body: { record: { thread_id: selectedThreadId, sender_id: userId } }
+      }).catch(console.error);
 
       setReplyText("");
       await fetchThreads();
