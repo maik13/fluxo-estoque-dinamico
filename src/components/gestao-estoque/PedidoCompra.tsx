@@ -435,9 +435,9 @@ export const PedidoCompra = () => {
         )
       );
       toast.success(`Status atualizado para ${novoStatus === 'comprado' ? '✅ Comprado' : novoStatus === 'parcial' ? '📦 Parcial' : '⏳ Pendente'}`);
-    } catch (error) {
-      console.error('Erro:', error);
-      toast.error('Erro ao atualizar status');
+    } catch (error: any) {
+      console.error('Erro ao atualizar status:', error);
+      toast.error(`Erro ao atualizar status: ${error?.message || 'Erro desconhecido'}`);
     }
   };
 

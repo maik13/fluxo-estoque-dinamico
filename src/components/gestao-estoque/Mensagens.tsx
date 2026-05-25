@@ -61,6 +61,7 @@ export function Mensagens() {
     typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted'
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const [threads, setThreads] = useState<ViewerThread[]>([]);
   const [messages, setMessages] = useState<ViewerMessage[]>([]);
@@ -411,6 +412,11 @@ export function Mensagens() {
   }, [selectedThreadId]);
 
   useEffect(() => {
+    if (isComposingNewThread || isLoadingMessages) return;
+    messagesEndRef.current?.scrollIntoView({ block: "end" });
+  }, [messages.length, selectedThreadId, isComposingNewThread, isLoadingMessages]);
+
+  useEffect(() => {
     if (selectedThreadId) return;
     setIsComposingNewThread(true);
   }, [selectedThreadId]);
@@ -671,9 +677,9 @@ export function Mensagens() {
         .slice(0, 8);
 
   return (
-    <div className="grid min-h-[calc(100dvh-15rem)] overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-[320px_minmax(0,1fr)] shadow-sm">
+    <div className="grid h-[calc(100dvh-15rem)] min-h-[500px] overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-[320px_minmax(0,1fr)] shadow-sm">
       <aside className={cn(
-        "flex min-h-[400px] flex-col border-b border-border lg:border-b-0 lg:border-r bg-muted/10",
+        "flex min-h-0 flex-col border-b border-border lg:border-b-0 lg:border-r bg-muted/10",
         (selectedThreadId || isComposingNewThread) ? "hidden lg:flex" : "flex"
       )}>
         <div className="border-b border-border p-4">
@@ -777,7 +783,7 @@ export function Mensagens() {
       </aside>
 
       <section className={cn(
-        "flex min-h-[500px] flex-col bg-background/50 relative",
+        "flex min-h-0 flex-col bg-background/50 relative",
         (!selectedThreadId && !isComposingNewThread) ? "hidden lg:flex lg:flex-1" : "flex-1"
       )}>
         <header className="flex min-h-16 items-center gap-3 border-b border-border bg-card/80 backdrop-blur-md px-6 sticky top-0 z-10">
@@ -812,7 +818,7 @@ export function Mensagens() {
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6" style={{
+        <div className="min-h-0 flex-1 overflow-y-auto p-6" style={{
             backgroundImage: "radial-gradient(hsl(var(--muted-foreground)/0.1) 1px, transparent 1px)",
             backgroundSize: "20px 20px"
         }}>
@@ -839,50 +845,53 @@ export function Mensagens() {
                 Nenhuma mensagem encontrada
               </div>
             ) : (
-              messages.map((message) => {
-                const isOwnMessage = message.sender_id === userId;
+              <div className="flex min-h-full flex-col justify-end gap-4">
+                {messages.map((message) => {
+                  const isOwnMessage = message.sender_id === userId;
 
-                return (
-                  <div
-                    key={message.id}
-                    className={cn(
-                      "flex",
-                      isOwnMessage ? "justify-end" : "justify-start"
-                    )}
-                  >
+                  return (
                     <div
+                      key={message.id}
                       className={cn(
-                        "max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm relative group",
-                        isOwnMessage
-                          ? "rounded-tr-sm bg-primary text-primary-foreground"
-                          : "rounded-tl-sm bg-card border border-border text-foreground"
+                        "flex",
+                        isOwnMessage ? "justify-end" : "justify-start"
                       )}
                     >
-                      {!isOwnMessage && (
-                        <p className="mb-1 text-[11px] font-bold text-primary">
-                          {message.sender_name}
-                        </p>
-                      )}
-                      <p className="whitespace-pre-wrap leading-relaxed">{formatMessageContent(message.message)}</p>
-                      <div className={cn(
-                          "mt-1 text-[10px] font-medium opacity-70 flex items-center justify-end gap-1",
-                          isOwnMessage ? "text-primary-foreground/80" : "text-muted-foreground"
-                      )}>
-                        {new Date(message.created_at).toLocaleString("pt-BR", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                      <div
+                        className={cn(
+                          "max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm relative group",
+                          isOwnMessage
+                            ? "rounded-tr-sm bg-primary text-primary-foreground"
+                            : "rounded-tl-sm bg-card border border-border text-foreground"
+                        )}
+                      >
+                        {!isOwnMessage && (
+                          <p className="mb-1 text-[11px] font-bold text-primary">
+                            {message.sender_name}
+                          </p>
+                        )}
+                        <p className="whitespace-pre-wrap leading-relaxed">{formatMessageContent(message.message)}</p>
+                        <div className={cn(
+                            "mt-1 text-[10px] font-medium opacity-70 flex items-center justify-end gap-1",
+                            isOwnMessage ? "text-primary-foreground/80" : "text-muted-foreground"
+                        )}>
+                          {new Date(message.created_at).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+                <div ref={messagesEndRef} />
+              </div>
             )}
         </div>
 
-        <div className="border-t border-border bg-card/80 backdrop-blur-md p-4 sticky bottom-0 z-10">
+        <div className="shrink-0 border-t border-border bg-card/80 backdrop-blur-md p-4">
           <input
             type="file"
             ref={fileInputRef}
