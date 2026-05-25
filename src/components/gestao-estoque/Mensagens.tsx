@@ -68,6 +68,41 @@ export function Mensagens() {
   const [isLoadingThreads, setIsLoadingThreads] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
+  const playIncomingMessageSound = () => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      const audioContext = new AudioContextClass();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(660, audioContext.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.001, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.18, audioContext.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.28);
+
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (error) {
+      console.error("Erro ao tocar alerta de mensagem:", error);
+    }
+  };
+
+  const notifyMessageRecipients = (threadId?: string | null) => {
+    if (!threadId || !userId) return;
+
+    supabase.functions.invoke('push-notification', {
+      body: { record: { thread_id: threadId, sender_id: userId } }
+    }).catch(console.error);
+  };
+
   const getThreadParticipantIds = (thread: ViewerThread) => {
     const ids = [thread.viewer_id, thread.created_by, thread.recipient_id].filter(Boolean) as string[];
     return Array.from(new Set(ids));
@@ -236,6 +271,11 @@ export function Mensagens() {
 
     const handleNewMessage = async (payload: any) => {
       try {
+        if (payload.new.sender_id && payload.new.sender_id !== userId) {
+          playIncomingMessageSound();
+          toast.info("Nova mensagem recebida");
+        }
+
         if (payload.new.thread_id === selectedThreadIdRef.current) {
           await fetchThreadMessages();
         }
@@ -279,8 +319,9 @@ export function Mensagens() {
             if (user?.id) {
               await supabase.from('push_subscriptions').upsert({
                 user_id: user.id,
+                endpoint: newSub.endpoint,
                 subscription: JSON.parse(JSON.stringify(newSub))
-              });
+              }, { onConflict: 'user_id,endpoint' });
             }
             setPushEnabled(true);
           } else {
@@ -342,10 +383,11 @@ export function Mensagens() {
 
       const { error } = await supabase
         .from('push_subscriptions')
-        .insert({
+        .upsert({
           user_id: user?.id,
+          endpoint: subscription.endpoint,
           subscription: JSON.parse(JSON.stringify(subscription))
-        });
+        }, { onConflict: 'user_id,endpoint' });
 
       if (error) {
         if (error.code === '42P01') {
@@ -431,9 +473,7 @@ export function Mensagens() {
 
           if (error) throw error;
 
-          supabase.functions.invoke('rapid-service', {
-            body: { record: { thread_id: existingThread.id, sender_id: userId } }
-          }).catch(console.error);
+          notifyMessageRecipients(existingThread.id);
 
           setMessageText("");
           setSelectedRecipientId("");
@@ -454,9 +494,7 @@ export function Mensagens() {
         if (error) throw error;
 
         if (threadId) {
-          supabase.functions.invoke('rapid-service', {
-            body: { record: { thread_id: threadId, sender_id: userId } }
-          }).catch(console.error);
+          notifyMessageRecipients(threadId);
         }
 
         setMessageText("");
@@ -478,9 +516,7 @@ export function Mensagens() {
       }
 
       if (newThreadId && typeof newThreadId === 'string') {
-        supabase.functions.invoke('rapid-service', {
-          body: { record: { thread_id: newThreadId, sender_id: userId } }
-        }).catch(console.error);
+        notifyMessageRecipients(newThreadId);
       }
 
       toast.success("Mensagem enviada com sucesso.");
@@ -517,9 +553,7 @@ export function Mensagens() {
 
       if (error) throw error;
 
-      supabase.functions.invoke('rapid-service', {
-        body: { record: { thread_id: selectedThreadId, sender_id: userId } }
-      }).catch(console.error);
+      notifyMessageRecipients(selectedThreadId);
 
       setReplyText("");
       await fetchThreads();

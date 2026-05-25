@@ -814,7 +814,7 @@ export const SolicitacaoMaterial = () => {
 
       {/* Dialog Listar Solicitações */}
       <Dialog open={dialogoListar} onOpenChange={setDialogoListar}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:w-full max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardList className="h-5 w-5 text-amber-400" />
@@ -914,7 +914,7 @@ export const SolicitacaoMaterial = () => {
 
       {/* Dialog Detalhes da Solicitação */}
       <Dialog open={dialogoDetalhes} onOpenChange={setDialogoDetalhes}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:w-full max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           {solicitacaoSelecionada && (
             <>
               <DialogHeader>
@@ -940,7 +940,8 @@ export const SolicitacaoMaterial = () => {
 
               <Separator />
 
-              <Table>
+              <div className="overflow-x-auto">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>#</TableHead>
@@ -1021,30 +1022,31 @@ export const SolicitacaoMaterial = () => {
                   })}
                 </TableBody>
               </Table>
+              </div>
 
-              <div className="flex justify-between pt-4">
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => imprimirSolicitacao(solicitacaoSelecionada)} className="gap-2">
-                    <Printer className="h-4 w-4" /> Imprimir
+              <div className="flex flex-col sm:flex-row justify-between pt-4 gap-4 border-t mt-4">
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => imprimirSolicitacao(solicitacaoSelecionada)} className="gap-2 flex-1 sm:flex-none">
+                    <Printer className="h-4 w-4 shrink-0" /> <span className="truncate">Imprimir</span>
                   </Button>
-                  <Button variant="outline" onClick={() => gerarPDF(solicitacaoSelecionada)} className="gap-2">
-                    <FileText className="h-4 w-4" /> Baixar PDF
+                  <Button variant="outline" onClick={() => gerarPDF(solicitacaoSelecionada)} className="gap-2 flex-1 sm:flex-none">
+                    <FileText className="h-4 w-4 shrink-0" /> <span className="truncate">Baixar PDF</span>
                   </Button>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {canManageStock() && solicitacaoSelecionada.status === 'pendente' && (
                     <>
-                      <Button variant="outline" className="text-red-400 border-red-400/30" onClick={() => rejeitarSolicitacao(solicitacaoSelecionada.id)}>
-                        <X className="h-4 w-4 mr-1" /> Rejeitar
+                      <Button variant="outline" className="text-red-400 border-red-400/30 flex-1 sm:flex-none" onClick={() => rejeitarSolicitacao(solicitacaoSelecionada.id)}>
+                        <X className="h-4 w-4 mr-1 shrink-0" /> <span className="truncate">Rejeitar</span>
                       </Button>
-                      <Button className="bg-green-600 hover:bg-green-700" onClick={() => aprovarSolicitacao(solicitacaoSelecionada.id)}>
-                        <Check className="h-4 w-4 mr-1" /> Aprovar
+                      <Button className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none" onClick={() => aprovarSolicitacao(solicitacaoSelecionada.id)}>
+                        <Check className="h-4 w-4 mr-1 shrink-0" /> <span className="truncate">Aprovar</span>
                       </Button>
                     </>
                   )}
                   {canManageStock() && solicitacaoSelecionada.status === 'aprovada' && (
-                    <Button className="gap-1 bg-primary hover:bg-primary/90" onClick={() => converterEmRetirada(solicitacaoSelecionada)}>
-                      <ArrowRight className="h-4 w-4" /> Converter em Retirada
+                    <Button className="gap-1 bg-primary hover:bg-primary/90 flex-1 sm:flex-none" onClick={() => converterEmRetirada(solicitacaoSelecionada)}>
+                      <ArrowRight className="h-4 w-4 shrink-0" /> <span className="truncate">Converter em Retirada</span>
                     </Button>
                   )}
                   {isAdmin() && (
@@ -1075,7 +1077,7 @@ export const SolicitacaoMaterial = () => {
 
       {/* Dialog Criar Nova Solicitação */}
       <Dialog open={dialogoCriar} onOpenChange={setDialogoCriar}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5" /> Nova Solicitação de Material
@@ -1203,7 +1205,8 @@ export const SolicitacaoMaterial = () => {
             {itensLista.length > 0 && (
               <div>
                 <h3 className="text-sm font-medium mb-2">Itens da solicitação ({itensLista.length})</h3>
-                <Table>
+                <div className="overflow-x-auto">
+                  <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Foto</TableHead>
@@ -1248,6 +1251,7 @@ export const SolicitacaoMaterial = () => {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               </div>
             )}
 

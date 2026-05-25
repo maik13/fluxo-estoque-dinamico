@@ -386,7 +386,7 @@ export const SolicitarMaterial = () => {
           </Card>
         </DialogTrigger>
 
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Retirada de Material</DialogTitle>
           </DialogHeader>
@@ -679,7 +679,7 @@ export const SolicitarMaterial = () => {
 
       {/* Dialog para visualizar solicitações */}
       <Dialog open={visualizarSolicitacoes} onOpenChange={setVisualizarSolicitacoes}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:w-full max-w-6xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Minhas Solicitações</DialogTitle>
           </DialogHeader>
@@ -740,7 +740,7 @@ export const SolicitarMaterial = () => {
 
       {/* Dialog para detalhes da solicitação */}
       <Dialog open={detalhesAberto} onOpenChange={setDetalhesAberto}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Detalhes da Solicitação</DialogTitle>
           </DialogHeader>
@@ -782,6 +782,7 @@ export const SolicitarMaterial = () => {
 
               <div>
                 <Label className="font-medium">Itens Solicitados</Label>
+                <div className="overflow-x-auto">
                 <Table className="mt-2">
                   <TableHeader>
                     <TableRow>
@@ -804,6 +805,7 @@ export const SolicitarMaterial = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </div>
 
               <div className="flex justify-end space-x-2">

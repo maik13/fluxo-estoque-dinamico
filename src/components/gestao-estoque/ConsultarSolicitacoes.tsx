@@ -256,7 +256,7 @@ export const ConsultarSolicitacoes = () => {
 
       {/* Dialog de detalhes */}
       <Dialog open={dialogoAberto} onOpenChange={setDialogoAberto}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>
               Detalhes da Solicitação #{solicitacaoSelecionada?.id.slice(-8)}
@@ -306,6 +306,7 @@ export const ConsultarSolicitacoes = () => {
               {/* Itens */}
               <div>
                 <Label>Itens Solicitados</Label>
+                <div className="overflow-x-auto">
                 <Table className="mt-2">
                   <TableHeader>
                     <TableRow>
@@ -319,8 +320,8 @@ export const ConsultarSolicitacoes = () => {
                   <TableBody>
                     {solicitacaoSelecionada.itens.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell>{item.item_snapshot.nome}</TableCell>
-                        <TableCell>{item.item_snapshot.codigoBarras}</TableCell>
+                        <TableCell className="whitespace-nowrap">{item.item_snapshot.nome}</TableCell>
+                        <TableCell className="whitespace-nowrap">{item.item_snapshot.codigoBarras}</TableCell>
                         <TableCell>{item.quantidade_solicitada}</TableCell>
                         <TableCell>{item.quantidade_aprovada}</TableCell>
                         <TableCell>{item.item_snapshot.unidade}</TableCell>
@@ -328,6 +329,7 @@ export const ConsultarSolicitacoes = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </div>
 
               {/* Campo Destinatário (para gestores/estoquistas) */}
@@ -360,7 +362,7 @@ export const ConsultarSolicitacoes = () => {
               {/* Aceites */}
               <div className="space-y-4">
                 <Label>Aceites</Label>
-                <div className="flex gap-6">
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
                   <div className="flex items-center space-x-2">
                     <Checkbox 
                       id="aceite-separador"
@@ -392,10 +394,11 @@ export const ConsultarSolicitacoes = () => {
               </div>
 
               {/* Botões de ação */}
-              <div className="flex justify-between">
+              <div className="flex flex-col sm:flex-row justify-between gap-4 mt-6 pt-4 border-t">
                 <Button
                   variant="outline"
                   onClick={() => imprimirSolicitacao(solicitacaoSelecionada)}
+                  className="flex-1 sm:flex-none"
                 >
                   <Printer className="h-4 w-4 mr-2" />
                   Imprimir
@@ -405,6 +408,7 @@ export const ConsultarSolicitacoes = () => {
                   <Button
                     variant="outline"
                     onClick={() => setDialogoAberto(false)}
+                    className="flex-1 sm:flex-none"
                   >
                     Fechar
                   </Button>

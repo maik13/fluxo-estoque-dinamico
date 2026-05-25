@@ -1022,174 +1022,176 @@ export const PedidoCompra = () => {
             </div>
           )}
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>Item</TableHead>
-                <TableHead>Código</TableHead>
-                <TableHead>Qtd. Pedida</TableHead>
-                {!modoEdicao && <TableHead>Qtd. Recebida</TableHead>}
-                <TableHead>Marca</TableHead>
-                <TableHead>Status</TableHead>
-                {modoEdicao && <TableHead>Ações</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(modoEdicao ? editItensPedido : itensPedidoSelecionado).map((item, idx) => {
-                const snap = item.item_snapshot as any;
-                const eParcial = item.status === 'parcial';
-                const qtdRecebida = item.quantidade_recebida;
-                return (
-                  <TableRow key={item.id} className={eParcial ? 'bg-amber-500/5' : ''}>
-                    <TableCell>{idx + 1}</TableCell>
-                    <TableCell className="font-medium">{snap?.nome || '-'}</TableCell>
-                    <TableCell>{snap?.codigoBarras || '-'}</TableCell>
-                    <TableCell>
-                      {modoEdicao ? (
-                        <Input
-                          type="number"
-                          min="0.01"
-                          step="0.01"
-                          value={item.quantidade}
-                          onChange={e => {
-                            const val = Number(e.target.value);
-                            setEditItensPedido(prev =>
-                              prev.map(i => i.id === item.id ? { ...i, quantidade: val } : i)
-                            );
-                          }}
-                          className="w-20"
-                        />
-                      ) : (
-                        <>{item.quantidade} {snap?.unidade || ''}</>
-                      )}
-                    </TableCell>
-
-                    {/* ── Qtd Recebida (apenas no modo visualização) ── */}
-                    {!modoEdicao && (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Qtd. Pedida</TableHead>
+                  {!modoEdicao && <TableHead>Qtd. Recebida</TableHead>}
+                  <TableHead>Marca</TableHead>
+                  <TableHead>Status</TableHead>
+                  {modoEdicao && <TableHead>Ações</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(modoEdicao ? editItensPedido : itensPedidoSelecionado).map((item, idx) => {
+                  const snap = item.item_snapshot as any;
+                  const eParcial = item.status === 'parcial';
+                  const qtdRecebida = item.quantidade_recebida;
+                  return (
+                    <TableRow key={item.id} className={eParcial ? 'bg-amber-500/5' : ''}>
+                      <TableCell>{idx + 1}</TableCell>
+                      <TableCell className="font-medium whitespace-nowrap">{snap?.nome || '-'}</TableCell>
+                      <TableCell className="whitespace-nowrap">{snap?.codigoBarras || '-'}</TableCell>
                       <TableCell>
-                        {eParcial ? (
-                          <div className="flex items-center gap-1.5">
-                            <Input
-                              type="number"
-                              min="0.01"
-                              step="0.01"
-                              max={item.quantidade}
-                              placeholder="Qtd"
-                              value={parcialQtdMap[item.id] ?? (qtdRecebida != null ? String(qtdRecebida) : '')}
-                              onChange={e => setParcialQtdMap(prev => ({ ...prev, [item.id]: e.target.value }))}
-                              disabled={pedidoSelecionado?.status === 'concluido' || pedidoSelecionado?.status === 'cancelado'}
-                              className="w-20 h-8 text-xs border-amber-500/40 focus:border-amber-500"
-                            />
-                            <span className="text-xs text-muted-foreground">{snap?.unidade || ''}</span>
-                            {!pedidoSelecionado?.status || (pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado') ? (
-                              <Button
-                                size="icon-sm"
-                                variant="outline"
-                                className="h-8 w-8 border-amber-500/40 text-amber-500 hover:bg-amber-500/10"
-                                onClick={() => salvarQtdParcial(item.id)}
-                                title="Salvar quantidade recebida"
-                              >
-                                <Check className="h-3.5 w-3.5" />
-                              </Button>
-                            ) : null}
-                          </div>
-                        ) : qtdRecebida != null ? (
-                          <span className="text-sm text-muted-foreground">
-                            {qtdRecebida} {snap?.unidade || ''}
-                          </span>
+                        {modoEdicao ? (
+                          <Input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={item.quantidade}
+                            onChange={e => {
+                              const val = Number(e.target.value);
+                              setEditItensPedido(prev =>
+                                prev.map(i => i.id === item.id ? { ...i, quantidade: val } : i)
+                              );
+                            }}
+                            className="w-20"
+                          />
                         ) : (
-                          <span className="text-xs text-muted-foreground/40">—</span>
+                          <span className="whitespace-nowrap">{item.quantidade} {snap?.unidade || ''}</span>
                         )}
                       </TableCell>
-                    )}
-
-                    <TableCell>{snap?.marca || '-'}</TableCell>
-                    <TableCell>
-                      {modoEdicao ? (
-                        <Badge variant={item.status === 'comprado' ? 'default' : item.status === 'parcial' ? 'warning' : 'secondary'} className="gap-1">
-                          {item.status === 'comprado' ? '✅ Comprado' : item.status === 'parcial' ? '📦 Parcial' : '⏳ Pendente'}
-                        </Badge>
-                      ) : (
-                        <Select
-                          value={item.status}
-                          onValueChange={(val) => atualizarStatusItem(item.id, val)}
-                          disabled={pedidoSelecionado?.status === 'concluido' || pedidoSelecionado?.status === 'cancelado'}
-                        >
-                          <SelectTrigger className="w-[130px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pendente">
-                              <span className="flex items-center gap-1 text-orange-500 font-medium">
-                                ⏳ Pendente
-                              </span>
-                            </SelectItem>
-                            <SelectItem value="parcial">
-                              <span className="flex items-center gap-1 text-amber-400 font-medium">
-                                📦 Parcial
-                              </span>
-                            </SelectItem>
-                            <SelectItem value="comprado">
-                              <span className="flex items-center gap-1 text-green-500 font-medium">
-                                ✅ Comprado
-                              </span>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+  
+                      {/* ── Qtd Recebida (apenas no modo visualização) ── */}
+                      {!modoEdicao && (
+                        <TableCell>
+                          {eParcial ? (
+                            <div className="flex items-center gap-1.5 min-w-[120px]">
+                              <Input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                max={item.quantidade}
+                                placeholder="Qtd"
+                                value={parcialQtdMap[item.id] ?? (qtdRecebida != null ? String(qtdRecebida) : '')}
+                                onChange={e => setParcialQtdMap(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                disabled={pedidoSelecionado?.status === 'concluido' || pedidoSelecionado?.status === 'cancelado'}
+                                className="w-20 h-8 text-xs border-amber-500/40 focus:border-amber-500"
+                              />
+                              <span className="text-xs text-muted-foreground">{snap?.unidade || ''}</span>
+                              {!pedidoSelecionado?.status || (pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado') ? (
+                                <Button
+                                  size="icon-sm"
+                                  variant="outline"
+                                  className="h-8 w-8 border-amber-500/40 text-amber-500 hover:bg-amber-500/10 shrink-0"
+                                  onClick={() => salvarQtdParcial(item.id)}
+                                  title="Salvar quantidade recebida"
+                                >
+                                  <Check className="h-3.5 w-3.5" />
+                                </Button>
+                              ) : null}
+                            </div>
+                          ) : qtdRecebida != null ? (
+                            <span className="text-sm text-muted-foreground whitespace-nowrap">
+                              {qtdRecebida} {snap?.unidade || ''}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/40">—</span>
+                          )}
+                        </TableCell>
                       )}
-                    </TableCell>
-                    {modoEdicao && (
+  
+                      <TableCell className="whitespace-nowrap">{snap?.marca || '-'}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm" onClick={() => removerItemEdicao(item.id)} className="text-destructive">
-                          <X className="h-4 w-4" />
-                        </Button>
+                        {modoEdicao ? (
+                          <Badge variant={item.status === 'comprado' ? 'default' : item.status === 'parcial' ? 'warning' : 'secondary'} className="gap-1 whitespace-nowrap">
+                            {item.status === 'comprado' ? '✅ Comprado' : item.status === 'parcial' ? '📦 Parcial' : '⏳ Pendente'}
+                          </Badge>
+                        ) : (
+                          <Select
+                            value={item.status}
+                            onValueChange={(val) => atualizarStatusItem(item.id, val)}
+                            disabled={pedidoSelecionado?.status === 'concluido' || pedidoSelecionado?.status === 'cancelado'}
+                          >
+                            <SelectTrigger className="w-[130px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pendente">
+                                <span className="flex items-center gap-1 text-orange-500 font-medium">
+                                  ⏳ Pendente
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="parcial">
+                                <span className="flex items-center gap-1 text-amber-400 font-medium">
+                                  📦 Parcial
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="comprado">
+                                <span className="flex items-center gap-1 text-green-500 font-medium">
+                                  ✅ Comprado
+                                </span>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
                       </TableCell>
-                    )}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                      {modoEdicao && (
+                        <TableCell>
+                          <Button variant="ghost" size="sm" onClick={() => removerItemEdicao(item.id)} className="text-destructive">
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
 
-          <div className="flex justify-between pt-4 border-t">
-            <div className="flex gap-2">
+          <div className="flex flex-col md:flex-row justify-between gap-4 pt-4 border-t">
+            <div className="flex flex-wrap gap-2">
               {!modoEdicao && (
                 <>
-                  <Button variant="outline" onClick={imprimirPedido}>
-                    <Printer className="h-4 w-4 mr-2" /> Imprimir
+                  <Button variant="outline" onClick={imprimirPedido} className="flex-1 sm:flex-none">
+                    <Printer className="h-4 w-4 mr-2 shrink-0" /> <span className="truncate">Imprimir</span>
                   </Button>
-                  <Button variant="outline" onClick={salvarPDF}>
-                    <FileText className="h-4 w-4 mr-2" /> Salvar PDF
+                  <Button variant="outline" onClick={salvarPDF} className="flex-1 sm:flex-none">
+                    <FileText className="h-4 w-4 mr-2 shrink-0" /> <span className="truncate">Salvar PDF</span>
                   </Button>
-                  <Button variant="outline" onClick={enviarWhatsApp} className="text-green-600 border-green-600/50 hover:bg-green-50">
-                    <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp
+                  <Button variant="outline" onClick={enviarWhatsApp} className="text-green-600 border-green-600/50 hover:bg-green-50 flex-1 sm:flex-none w-full sm:w-auto mt-2 sm:mt-0">
+                    <MessageCircle className="h-4 w-4 mr-2 shrink-0" /> WhatsApp
                   </Button>
                 </>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {modoEdicao ? (
                 <>
-                  <Button variant="outline" onClick={() => setModoEdicao(false)}>
+                  <Button variant="outline" onClick={() => setModoEdicao(false)} className="flex-1 sm:flex-none">
                     Cancelar
                   </Button>
-                  <Button onClick={salvarEdicao} className="bg-orange-500 hover:bg-orange-600">
-                    <Check className="h-4 w-4 mr-2" /> Salvar Alterações
+                  <Button onClick={salvarEdicao} className="bg-orange-500 hover:bg-orange-600 flex-1 sm:flex-none">
+                    <Check className="h-4 w-4 mr-2 shrink-0" /> <span className="truncate">Salvar</span>
                   </Button>
                 </>
               ) : (
                 <>
                   {pedidoSelecionado?.status !== 'concluido' && pedidoSelecionado?.status !== 'cancelado' && (
                     <>
-                      <Button variant="outline" onClick={cancelarPedido} className="text-destructive border-destructive/50 hover:bg-destructive/10">
-                        <Ban className="h-4 w-4 mr-2" /> Cancelar Pedido
+                      <Button variant="outline" onClick={cancelarPedido} className="text-destructive border-destructive/50 hover:bg-destructive/10 flex-1 sm:flex-none">
+                        <Ban className="h-4 w-4 mr-2 shrink-0" /> <span className="truncate">Cancelar Pedido</span>
                       </Button>
-                      <Button variant="outline" onClick={solicitarEdicao}>
-                        <Pencil className="h-4 w-4 mr-2" /> Editar
+                      <Button variant="outline" onClick={solicitarEdicao} className="flex-1 sm:flex-none">
+                        <Pencil className="h-4 w-4 mr-2 shrink-0" /> Editar
                       </Button>
-                      <Button onClick={concluirPedido} className="bg-green-600 hover:bg-green-700">
-                        <CheckCircle className="h-4 w-4 mr-2" /> Concluir Pedido
+                      <Button onClick={concluirPedido} className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none w-full sm:w-auto mt-2 sm:mt-0">
+                        <CheckCircle className="h-4 w-4 mr-2 shrink-0" /> <span className="truncate">Concluir Pedido</span>
                       </Button>
                     </>
                   )}
