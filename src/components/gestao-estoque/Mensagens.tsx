@@ -224,7 +224,37 @@ export function Mensagens() {
       .subscribe();
 
     if ('Notification' in window && 'serviceWorker' in navigator) {
-      setPushEnabled(Notification.permission === 'granted');
+      if (Notification.permission === 'granted') {
+        setPushEnabled(true);
+        // Garante que o service worker está registrado e com assinatura ativa
+        navigator.serviceWorker.register('/sw.js').then(async (registration) => {
+          const sub = await registration.pushManager.getSubscription();
+          if (!sub) {
+            // Se tem permissão mas perdeu a assinatura (comum ao fechar app), refaz silenciosamente
+            const publicVapidKey = 'BAJaTusXeN97bOB7m38jSAAgu0kR-VMTk3xEU6Zw0MV6vL1NsQtoPCrbm7qz7hX8q0HTK8bt5QB00DLP5IJt-H4';
+            const urlBase64ToUint8Array = (base64String: string) => {
+              const padding = '='.repeat((4 - base64String.length % 4) % 4);
+              const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+              const rawData = window.atob(base64);
+              const outputArray = new Uint8Array(rawData.length);
+              for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+              return outputArray;
+            };
+            const newSub = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+            });
+            if (user?.id) {
+              await supabase.from('push_subscriptions').insert({
+                user_id: user.id,
+                subscription: JSON.parse(JSON.stringify(newSub))
+              });
+            }
+          }
+        }).catch(console.error);
+      } else {
+        setPushEnabled(false);
+      }
     }
 
     return () => {
