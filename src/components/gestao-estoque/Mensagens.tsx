@@ -138,10 +138,7 @@ export function Mensagens() {
 
       setThreads(nextThreads);
       
-      if (!selectedThreadId && nextThreads.length > 0) {
-        setSelectedThreadId(nextThreads[0].id);
-        setIsComposingNewThread(false);
-      } else if (nextThreads.length === 0) {
+      if (nextThreads.length === 0) {
         setIsComposingNewThread(true);
       }
     } catch (error: any) {
@@ -202,12 +199,17 @@ export function Mensagens() {
     }
   };
 
+  const selectedThreadIdRef = useRef(selectedThreadId);
+  useEffect(() => {
+    selectedThreadIdRef.current = selectedThreadId;
+  }, [selectedThreadId]);
+
   useEffect(() => {
     fetchThreads();
 
     const handleNewMessage = async (payload: any) => {
       try {
-        if (payload.new.thread_id === selectedThreadId) {
+        if (payload.new.thread_id === selectedThreadIdRef.current) {
           await fetchThreadMessages();
         }
         await fetchThreads();
@@ -271,7 +273,7 @@ export function Mensagens() {
     return () => {
       threadSubscription.unsubscribe();
     };
-  }, [selectedThreadId, isComposingNewThread, user]);
+  }, [user]);
 
   const handleSubscribePush = async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
