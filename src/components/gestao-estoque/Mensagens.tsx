@@ -259,7 +259,11 @@ export function Mensagens() {
           }
         } catch (error) {
           console.error("Erro ao verificar/restaurar push:", error);
-          setPushEnabled(false);
+          if (Notification.permission !== 'granted') {
+            setPushEnabled(false);
+          } else {
+            setPushEnabled(true);
+          }
         }
       }).catch(console.error);
     }
