@@ -502,6 +502,14 @@ export const MenuPrincipal = ({
           )}
         </div>
         <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            onClick={onAbrirMensagens}
+            className="flex items-center gap-2 border-blue-500/30 hover:border-blue-500 hover:bg-blue-500/10 text-blue-500 transition-colors"
+          >
+            <MessageCircle className="h-5 w-5" />
+            <span className="hidden sm:inline">Mensagens</span>
+          </Button>
           {(isAdmin() || isGestor()) && <Configuracoes />}
         </div>
       </div>
@@ -867,22 +875,6 @@ export const MenuPrincipal = ({
             </CardHeader>
           </Card>
         )}
-
-        <Card 
-          className="group cursor-pointer hover:scale-105 transition-all duration-300 border-info/20 hover:border-info/40 shadow-sm hover:shadow-info/10 overflow-hidden relative"
-          onClick={onAbrirMensagens}
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-info/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <CardHeader className="text-center relative z-10">
-            <div className="mx-auto w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-blue-500/20 transition-colors">
-              <MessageCircle className="h-8 w-8 text-blue-500" />
-            </div>
-            <CardTitle className="text-blue-500">Mensagens</CardTitle>
-            <CardDescription>
-              Comunicação com a gestão e administradores
-            </CardDescription>
-          </CardHeader>
-        </Card>
 
         {/* Pedido de Compra */}
         {canPedidoCompra() && <PedidoCompra />}

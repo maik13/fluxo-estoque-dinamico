@@ -122,7 +122,7 @@ const Index = () => {
             const showProjetos = canAccessProjects();
             
             // Filtra as abas que serão mostradas no topo
-            const tabCount = 2 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
+            const tabCount = 1 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
             
             return (
               <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
@@ -146,10 +146,6 @@ const Index = () => {
                       Movimentações
                     </TabsTrigger>
                   )}
-                  <TabsTrigger value="mensagens" className="flex items-center gap-2">
-                    <MessageCircle className="h-4 w-4" />
-                    Mensagens
-                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="menu" className="space-y-6">
