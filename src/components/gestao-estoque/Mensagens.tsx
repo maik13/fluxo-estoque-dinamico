@@ -57,7 +57,9 @@ export function Mensagens() {
   const [messageRecipients, setMessageRecipients] = useState<MessageRecipient[]>([]);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
-  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(
+    typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted'
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [threads, setThreads] = useState<ViewerThread[]>([]);
