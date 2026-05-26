@@ -680,7 +680,17 @@ const registrarEntrada = async (
       estoque_id: estoqueAtivoInfo?.id ?? null,
       tipo_operacao_id: tipoOperacaoId ?? null,
     }).select('*').maybeSingle();
-    if (error) throw error;
+    if (error) {
+      if (error.code === '23505') {
+        toast({
+          title: 'Entrada duplicada bloqueada',
+          description: 'Este item já teve uma entrada idêntica registrada agora há pouco.',
+          variant: 'destructive'
+        });
+        return false;
+      }
+      throw error;
+    }
 
     setMovimentacoes(prev => [...prev, { ...movimento, id: data!.id }]);
 

@@ -27,6 +27,7 @@ export const RegistrarEntrada = () => {
   const [tipoOperacaoId, setTipoOperacaoId] = useState('');
   const [popoverAberto, setPopoverAberto] = useState(false);
   const [busca, setBusca] = useState('');
+  const [processando, setProcessando] = useState(false);
 
   const { obterEstoque, registrarEntrada } = useEstoqueContext();
   const { tiposOperacao } = useConfiguracoes();
@@ -65,6 +66,17 @@ export const RegistrarEntrada = () => {
   };
 
   const atualizarQuantidade = (itemId: string, novaQuantidade: number) => {
+    if (!Number.isFinite(novaQuantidade)) {
+      setItensEntrada(prev =>
+        prev.map(i =>
+          i.item.id === itemId
+            ? { ...i, quantidade: novaQuantidade }
+            : i
+        )
+      );
+      return;
+    }
+
     if (novaQuantidade <= 0) {
       removerItem(itemId);
       return;
@@ -81,6 +93,7 @@ export const RegistrarEntrada = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (processando) return;
     
     // Preparar dados para validação
     const dadosParaValidar = {
@@ -102,28 +115,33 @@ export const RegistrarEntrada = () => {
       return;
     }
 
-    // Processar cada item (sequencial com await para evitar duplicatas)
-    let sucesso = true;
-    for (const itemEntrada of itensEntrada) {
-      const resultado = await registrarEntrada(
-        itemEntrada.item.codigoBarras,
-        itemEntrada.quantidade,
-        '',
-        observacoes,
-        tipoOperacaoId
-      );
-      
-      if (!resultado) {
-        sucesso = false;
-        break;
+    setProcessando(true);
+    try {
+      // Processar cada item (sequencial com await para evitar duplicatas)
+      let sucesso = true;
+      for (const itemEntrada of itensEntrada) {
+        const resultado = await registrarEntrada(
+          itemEntrada.item.codigoBarras,
+          itemEntrada.quantidade,
+          '',
+          observacoes,
+          tipoOperacaoId
+        );
+        
+        if (!resultado) {
+          sucesso = false;
+          break;
+        }
       }
-    }
 
-    if (sucesso) {
-      resetarFormulario();
-      setDialogoAberto(false);
-      // Dados atualizados automaticamente via contexto compartilhado
-      toast.success(`Entrada registrada com sucesso! ${itensEntrada.length} item(ns) processado(s).`);
+      if (sucesso) {
+        resetarFormulario();
+        setDialogoAberto(false);
+        // Dados atualizados automaticamente via contexto compartilhado
+        toast.success(`Entrada registrada com sucesso! ${itensEntrada.length} item(ns) processado(s).`);
+      }
+    } finally {
+      setProcessando(false);
     }
   };
 
@@ -247,8 +265,8 @@ export const RegistrarEntrada = () => {
                             type="number"
                             min="0.01"
                             step="0.01"
-                            value={itemEntrada.quantidade}
-                            onChange={(e) => atualizarQuantidade(itemEntrada.item.id, parseFloat(e.target.value))}
+                            value={Number.isFinite(itemEntrada.quantidade) ? itemEntrada.quantidade : ''}
+                            onChange={(e) => atualizarQuantidade(itemEntrada.item.id, e.target.value === '' ? NaN : parseFloat(e.target.value))}
                             className="w-24"
                           />
                           <span className="text-sm text-muted-foreground min-w-[40px]">
@@ -288,8 +306,8 @@ export const RegistrarEntrada = () => {
             <Button type="button" variant="outline" onClick={() => setDialogoAberto(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={itensEntrada.length === 0}>
-              Registrar Entrada
+            <Button type="submit" disabled={processando || itensEntrada.length === 0}>
+              {processando ? 'Registrando...' : 'Registrar Entrada'}
             </Button>
           </div>
         </form>

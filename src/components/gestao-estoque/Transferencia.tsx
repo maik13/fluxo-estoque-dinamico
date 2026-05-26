@@ -65,6 +65,17 @@ export const Transferencia = () => {
   };
 
   const atualizarQuantidade = (itemId: string, novaQuantidade: number) => {
+    if (!Number.isFinite(novaQuantidade)) {
+      setItensTransferencia(prev =>
+        prev.map(i =>
+          i.item.id === itemId
+            ? { ...i, quantidade: novaQuantidade }
+            : i
+        )
+      );
+      return;
+    }
+
     if (novaQuantidade <= 0) {
       removerItem(itemId);
       return;
@@ -354,8 +365,8 @@ export const Transferencia = () => {
                             type="number"
                             min="0.01"
                             step="0.01"
-                            value={itemTransf.quantidade}
-                            onChange={(e) => atualizarQuantidade(itemTransf.item.id, parseFloat(e.target.value))}
+                            value={Number.isFinite(itemTransf.quantidade) ? itemTransf.quantidade : ''}
+                            onChange={(e) => atualizarQuantidade(itemTransf.item.id, e.target.value === '' ? NaN : parseFloat(e.target.value))}
                             className="w-24"
                           />
                           <span className="text-sm text-muted-foreground min-w-[40px]">

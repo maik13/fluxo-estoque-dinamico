@@ -60,6 +60,29 @@ export const SolicitarMaterial = () => {
   const itensDisponiveis = obterEstoque().filter(
     item => item.ativo !== false && (item.estoqueAtual ?? 0) > 0
   );
+  const itensFiltrados = itensDisponiveis
+    .filter(item => {
+      const termo = busca.trim().toLowerCase();
+      if (!termo) return true;
+
+      return (
+        item.nome.toLowerCase().includes(termo) ||
+        item.codigoBarras.toString().includes(termo) ||
+        item.marca?.toLowerCase().includes(termo)
+      );
+    })
+    .sort((a, b) => {
+      const termo = busca.trim().toLowerCase();
+      if (!termo) return a.nome.localeCompare(b.nome, 'pt-BR');
+
+      const codigoA = a.codigoBarras.toString();
+      const codigoB = b.codigoBarras.toString();
+      const aExato = codigoA === termo ? 0 : codigoA.startsWith(termo) ? 1 : 2;
+      const bExato = codigoB === termo ? 0 : codigoB.startsWith(termo) ? 1 : 2;
+
+      if (aExato !== bExato) return aExato - bExato;
+      return a.nome.localeCompare(b.nome, 'pt-BR');
+    });
   const tiposOperacaoDisponiveis = obterTiposOperacaoAtivos();
   const solicitantesDisponiveis = obterSolicitantesAtivos();
   const locaisDisponiveis = obterLocaisUtilizacaoAtivos();
@@ -158,11 +181,27 @@ export const SolicitarMaterial = () => {
     setPopoverAberto(false);
   };
 
+  const selecionarItemDaBusca = (item: Item) => {
+    adicionarItem(item, 1);
+    setPopoverAberto(false);
+  };
+
   const removerItem = (itemId: string) => {
     setItensSolicitados(prev => prev.filter(item => item.item_id !== itemId));
   };
 
   const atualizarQuantidade = (itemId: string, novaQuantidade: number) => {
+    if (!Number.isFinite(novaQuantidade)) {
+      setItensSolicitados(prev =>
+        prev.map(item =>
+          item.item_id === itemId
+            ? { ...item, quantidade_solicitada: novaQuantidade }
+            : item
+        )
+      );
+      return;
+    }
+
     if (novaQuantidade <= 0) {
       removerItem(itemId);
       return;
@@ -386,12 +425,12 @@ export const SolicitarMaterial = () => {
           </Card>
         </DialogTrigger>
 
-        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Retirada de Material</DialogTitle>
+        <DialogContent className="left-2 right-2 top-[5dvh] box-border w-auto max-w-[calc(100vw-1rem)] translate-x-0 translate-y-0 overflow-x-hidden p-4 lg:left-[50%] lg:right-auto lg:top-[50%] lg:w-full lg:max-w-4xl lg:translate-x-[-50%] lg:translate-y-[-50%] lg:p-6 max-h-[90dvh] overflow-y-auto">
+          <DialogHeader className="min-w-0 pr-7">
+            <DialogTitle className="truncate">Retirada de Material</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-6">
+          <div className="w-full min-w-0 max-w-full space-y-5 lg:space-y-6 [&_*]:max-w-full">
             {/* Campo Solicitante */}
             <div className="space-y-2">
               <Label htmlFor="solicitante">Solicitante *</Label>
@@ -410,10 +449,10 @@ export const SolicitarMaterial = () => {
                   }
                 }}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full min-w-0">
                   <SelectValue placeholder="Selecione o solicitante" />
                 </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
+                <SelectContent className="max-h-[300px] max-w-[calc(100vw-1rem)]">
                   {solicitantesCarregados
                     .sort((a, b) => a.nome.localeCompare(b.nome))
                     .map(solicitante => (
@@ -432,10 +471,10 @@ export const SolicitarMaterial = () => {
                 value={localUtilizacao || ""}
                 onValueChange={(value) => setLocalUtilizacao(value)}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full min-w-0">
                   <SelectValue placeholder="Selecione o local" />
                 </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
+                <SelectContent className="max-h-[300px] max-w-[calc(100vw-1rem)]">
                   {locaisDisponiveis
                     .sort((a, b) => a.nome.localeCompare(b.nome))
                     .map(local => (
@@ -452,13 +491,13 @@ export const SolicitarMaterial = () => {
               <Label>Adicionar Item</Label>
               <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Buscar item para adicionar...
+                  <Button type="button" variant="outline" className="w-full min-w-0 justify-start">
+                    <Plus className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="truncate">Buscar item para adicionar...</span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent 
-                  className="w-[var(--radix-popover-trigger-width)] min-w-[400px] p-0" 
+                  className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] min-w-0 lg:min-w-[400px] p-0" 
                   align="start" 
                   side="bottom"
                   sideOffset={4}
@@ -474,22 +513,24 @@ export const SolicitarMaterial = () => {
                     <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
                     <CommandList className="max-h-[250px] overflow-y-auto">
                       <CommandGroup>
-                        {itensDisponiveis
-                          .filter(item => 
-                            item.nome.toLowerCase().includes(busca.toLowerCase()) ||
-                            item.codigoBarras.toString().includes(busca)
-                          )
+                        {itensFiltrados
                           .map((item) => (
                             <CommandItem
                               key={item.id}
+                              value={`${item.codigoBarras} ${item.nome} ${item.marca || ''}`}
+                              className="cursor-pointer"
                               onSelect={() => {
-                                adicionarItem(item, 1);
-                                setPopoverAberto(false);
+                                selecionarItemDaBusca(item);
+                              }}
+                              onPointerDown={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                selecionarItemDaBusca(item);
                               }}
                             >
-                              <div className="flex flex-col w-full">
-                                <div className="font-medium">{item.nome}</div>
-                                <div className="text-sm text-muted-foreground">
+                              <div className="flex min-w-0 flex-col w-full">
+                                <div className="font-medium whitespace-normal break-words">{item.nome}</div>
+                                <div className="text-sm text-muted-foreground whitespace-normal break-words">
                                   {item.codigoBarras} - {item.marca || 'Sem marca'} - Estoque: {item.estoqueAtual}
                                 </div>
                               </div>
@@ -513,11 +554,11 @@ export const SolicitarMaterial = () => {
                     return (
                       <Card key={itemSolicitado.item_id} className="border-border/60">
                         <CardContent className="p-3">
-                          <div className="flex items-center justify-between gap-3">
+                          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             {/* Info do item */}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-medium text-sm truncate">{item.nome}</span>
+                                <span className="font-medium text-sm break-words">{item.nome}</span>
                                 {eFerramenta && (
                                   <Badge variant="warning" className="text-[10px] px-1.5 py-0 shrink-0">
                                     🔧 Ferramenta
@@ -530,7 +571,7 @@ export const SolicitarMaterial = () => {
                             </div>
 
                             {/* Controle de quantidade + remoção */}
-                            <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
                               {eFerramenta ? (
                                 // ── Regra 2: Ferramenta — quantidade fixa 1, não editável ──
                                 <div className="flex items-center gap-1.5">
@@ -547,10 +588,10 @@ export const SolicitarMaterial = () => {
                                 <Input
                                   type="number"
                                   min="1"
-                                  value={itemSolicitado.quantidade_solicitada}
+                                  value={Number.isFinite(itemSolicitado.quantidade_solicitada) ? itemSolicitado.quantidade_solicitada : ''}
                                   onChange={(e) => atualizarQuantidade(
                                     itemSolicitado.item_id,
-                                    parseInt(e.target.value) || 0
+                                    e.target.value === '' ? NaN : parseInt(e.target.value)
                                   )}
                                   className="w-20 h-9"
                                 />
@@ -582,14 +623,15 @@ export const SolicitarMaterial = () => {
                 placeholder="Observações sobre a solicitação..."
                 value={observacoes}
                 onChange={(e) => setObservacoes(e.target.value)}
+                className="min-w-0"
               />
             </div>
 
             <Separator />
 
             {/* Assinatura Eletrônica */}
-            <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
-              <div className="flex items-center justify-between">
+            <div className="space-y-3 rounded-lg border bg-muted/30 p-3 lg:p-4">
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                 <Label htmlFor="codigoAssinatura" className="text-base font-semibold">
                   Assinatura Eletrônica do Solicitante *
                 </Label>
@@ -626,7 +668,7 @@ export const SolicitarMaterial = () => {
                     setCodigoAssinatura(e.target.value);
                     setErroAssinatura('');
                   }}
-                  className={erroAssinatura ? 'border-destructive' : ''}
+                  className={erroAssinatura ? 'min-w-0 border-destructive' : 'min-w-0'}
                 />
                 {erroAssinatura && (
                   <p className="text-sm text-destructive">{erroAssinatura}</p>
@@ -638,25 +680,25 @@ export const SolicitarMaterial = () => {
             </div>
 
             {/* Botões */}
-            <div className="flex justify-between items-center pt-4 border-t gap-4">
+            <div className="flex flex-col gap-3 border-t pt-4 lg:flex-row lg:items-center lg:justify-between">
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={() => setDialogoAberto(false)}
-                className="hover:bg-destructive/10 hover:text-destructive transition-colors"
+                className="w-full transition-colors hover:bg-destructive/10 hover:text-destructive lg:w-auto"
               >
                 Cancelar
               </Button>
               
-              <div className="flex gap-2">
-                <Button 
+              <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row">
+                <Button
                   type="button"
                   variant="outline" 
                   onClick={() => setVisualizarSolicitacoes(true)}
-                  className="gap-2"
+                  className="w-full min-w-0 gap-2 lg:w-auto"
                 >
-                  <FileText className="h-4 w-4" />
-                  Histórico
+                  <FileText className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Histórico</span>
                 </Button>
                 <Button 
                   onClick={handleSubmit}
@@ -667,9 +709,9 @@ export const SolicitarMaterial = () => {
                     !localUtilizacao.trim() ||
                     !codigoAssinatura.trim()
                   }
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] gap-2"
+                  className="w-full min-w-0 gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/20 transition-all duration-300 hover:from-emerald-500 hover:to-teal-500 lg:w-auto"
                 >
-                  {enviando ? 'Enviando...' : '🚀 Enviar Solicitação'}
+                  <span className="truncate">{enviando ? 'Enviando...' : 'Enviar Solicitação'}</span>
                 </Button>
               </div>
             </div>

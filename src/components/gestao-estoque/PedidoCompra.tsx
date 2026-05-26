@@ -72,7 +72,7 @@ export const PedidoCompra = () => {
   const [buscaItem, setBuscaItem] = useState('');
   const [popoverAberto, setPopoverAberto] = useState(false);
   const [itemSelecionado, setItemSelecionado] = useState<EstoqueItem | null>(null);
-  const [quantidade, setQuantidade] = useState<number>(0);
+  const [quantidade, setQuantidade] = useState('');
   const [itensPedido, setItensPedido] = useState<ItemPedido[]>([]);
 
   // Consulta states
@@ -92,7 +92,7 @@ export const PedidoCompra = () => {
   const [editBuscaItem, setEditBuscaItem] = useState('');
   const [editPopoverAberto, setEditPopoverAberto] = useState(false);
   const [editItemSelecionado, setEditItemSelecionado] = useState<EstoqueItem | null>(null);
-  const [editQuantidade, setEditQuantidade] = useState<number>(0);
+  const [editQuantidade, setEditQuantidade] = useState('');
 
   // ── Parcial: mapa de item.id -> qtd recebida sendo digitada ──
   const [parcialQtdMap, setParcialQtdMap] = useState<Record<string, string>>({});
@@ -130,12 +130,13 @@ export const PedidoCompra = () => {
 
   const adicionarItem = () => {
     if (!itemSelecionado) { toast.error('Selecione um item'); return; }
-    if (!quantidade || quantidade <= 0) { toast.error('Informe uma quantidade válida'); return; }
+    const quantidadeNumerica = Number(quantidade.replace(',', '.'));
+    if (!Number.isFinite(quantidadeNumerica) || quantidadeNumerica <= 0) { toast.error('Informe uma quantidade válida'); return; }
     if (itensPedido.find(i => i.item.id === itemSelecionado.id)) { toast.error('Item já adicionado'); return; }
 
-    setItensPedido(prev => [...prev, { item: itemSelecionado, quantidade }]);
+    setItensPedido(prev => [...prev, { item: itemSelecionado, quantidade: quantidadeNumerica }]);
     limparItem();
-    setQuantidade(0);
+    setQuantidade('');
     toast.success('Item adicionado');
   };
 
@@ -312,6 +313,11 @@ export const PedidoCompra = () => {
 
   const salvarEdicao = async () => {
     if (!pedidoSelecionado || !userProfile) return;
+
+    if (editItensPedido.some(item => !Number.isFinite(item.quantidade) || item.quantidade <= 0)) {
+      toast.error('Informe uma quantidade válida em todos os itens');
+      return;
+    }
     
     try {
       // Update order
@@ -363,7 +369,8 @@ export const PedidoCompra = () => {
 
   const adicionarItemEdicao = async () => {
     if (!editItemSelecionado || !pedidoSelecionado) { toast.error('Selecione um item'); return; }
-    if (!editQuantidade || editQuantidade <= 0) { toast.error('Informe uma quantidade válida'); return; }
+    const editQuantidadeNumerica = Number(editQuantidade.replace(',', '.'));
+    if (!Number.isFinite(editQuantidadeNumerica) || editQuantidadeNumerica <= 0) { toast.error('Informe uma quantidade válida'); return; }
     if (editItensPedido.find(i => i.item_id === editItemSelecionado.id)) { toast.error('Item já adicionado'); return; }
 
     try {
@@ -372,7 +379,7 @@ export const PedidoCompra = () => {
         .insert({
           pedido_id: pedidoSelecionado.id,
           item_id: editItemSelecionado.id,
-          quantidade: editQuantidade,
+          quantidade: editQuantidadeNumerica,
           item_snapshot: {
             nome: editItemSelecionado.nome,
             codigoBarras: editItemSelecionado.codigoBarras,
@@ -388,7 +395,7 @@ export const PedidoCompra = () => {
       setEditItensPedido(prev => [...prev, data]);
       setEditItemSelecionado(null);
       setEditBuscaItem('');
-      setEditQuantidade(0);
+      setEditQuantidade('');
       toast.success('Item adicionado');
     } catch (error) {
       console.error('Erro:', error);
@@ -848,8 +855,8 @@ export const PedidoCompra = () => {
                   type="number"
                   min="0.01"
                   step="0.01"
-                  value={quantidade || ''}
-                  onChange={e => setQuantidade(Number(e.target.value))}
+                  value={quantidade}
+                  onChange={e => setQuantidade(e.target.value)}
                   placeholder="Quantidade"
                   className="flex-1"
                 />
@@ -1031,8 +1038,8 @@ export const PedidoCompra = () => {
                   type="number"
                   min="0.01"
                   step="0.01"
-                  value={editQuantidade || ''}
-                  onChange={e => setEditQuantidade(Number(e.target.value))}
+                  value={editQuantidade}
+                  onChange={e => setEditQuantidade(e.target.value)}
                   placeholder="Qtd"
                   className="w-24"
                 />
@@ -1073,9 +1080,9 @@ export const PedidoCompra = () => {
                             type="number"
                             min="0.01"
                             step="0.01"
-                            value={item.quantidade}
+                            value={Number.isFinite(item.quantidade) ? item.quantidade : ''}
                             onChange={e => {
-                              const val = Number(e.target.value);
+                              const val = e.target.value === '' ? NaN : Number(e.target.value);
                               setEditItensPedido(prev =>
                                 prev.map(i => i.id === item.id ? { ...i, quantidade: val } : i)
                               );

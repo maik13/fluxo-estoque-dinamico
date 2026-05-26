@@ -150,6 +150,17 @@ export const DevolverMaterial = () => {
   };
 
   const atualizarQuantidade = (itemId: string, novaQuantidade: number) => {
+    if (!Number.isFinite(novaQuantidade)) {
+      setItensDevolucao(prev =>
+        prev.map(i =>
+          i.item_id === itemId
+            ? { ...i, quantidade_solicitada: novaQuantidade }
+            : i
+        )
+      );
+      return;
+    }
+
     if (novaQuantidade <= 0) {
       removerItem(itemId);
       return;
@@ -486,8 +497,8 @@ export const DevolverMaterial = () => {
                           <Input
                             type="number"
                             min="1"
-                            value={item.quantidade_solicitada}
-                            onChange={(e) => atualizarQuantidade(item.item_id, Number(e.target.value))}
+                            value={Number.isFinite(item.quantidade_solicitada) ? item.quantidade_solicitada : ''}
+                            onChange={(e) => atualizarQuantidade(item.item_id, e.target.value === '' ? NaN : Number(e.target.value))}
                             className="w-24"
                           />
                         </TableCell>

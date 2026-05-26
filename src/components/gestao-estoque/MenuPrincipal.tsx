@@ -86,7 +86,7 @@ export const MenuPrincipal = ({
 
   const [formMovimentacao, setFormMovimentacao] = useState({
     codigoBarras: 0,
-    quantidade: 0,
+    quantidade: '',
     observacoes: '',
     tipoOperacaoId: '',
     destinatario: ''
@@ -198,7 +198,7 @@ export const MenuPrincipal = ({
     });
     setFormMovimentacao({
       codigoBarras: 0,
-      quantidade: 0,
+      quantidade: '',
       observacoes: '',
       tipoOperacaoId: '',
       destinatario: ''
@@ -341,8 +341,8 @@ export const MenuPrincipal = ({
     }
     
     // Validar quantidade
-    const quantidade = formMovimentacao.quantidade;
-    if (!quantidade || typeof quantidade !== 'number' || quantidade <= 0) {
+    const quantidade = Number(String(formMovimentacao.quantidade).replace(',', '.'));
+    if (!Number.isFinite(quantidade) || quantidade <= 0) {
       toast.error('Informe uma quantidade válida maior que zero');
       return;
     }
@@ -369,7 +369,7 @@ export const MenuPrincipal = ({
     limparItemSelecionado();
     setFormMovimentacao(prev => ({
       ...prev,
-      quantidade: 0
+      quantidade: ''
     }));
     
     toast.success('Item adicionado à lista de saída');
@@ -1008,8 +1008,8 @@ export const MenuPrincipal = ({
                     type="number"
                     min="0.01"
                     step="0.01"
-                    value={formMovimentacao.quantidade || ''}
-                    onChange={(e) => setFormMovimentacao(prev => ({...prev, quantidade: Number(e.target.value)}))}
+                    value={formMovimentacao.quantidade}
+                    onChange={(e) => setFormMovimentacao(prev => ({...prev, quantidade: e.target.value}))}
                     placeholder="Digite a quantidade"
                     className="flex-1"
                   />

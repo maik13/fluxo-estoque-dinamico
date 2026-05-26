@@ -68,7 +68,7 @@ export const SolicitacaoMaterial = () => {
   const [itensLista, setItensLista] = useState<ItemSolicitacaoMaterial[]>([]);
   const [popoverAberto, setPopoverAberto] = useState(false);
   const [busca, setBusca] = useState('');
-  const [quantidadeItem, setQuantidadeItem] = useState<number>(1);
+  const [quantidadeItem, setQuantidadeItem] = useState('');
   const [nomeItemCustom, setNomeItemCustom] = useState('');
   const [unidadeCustom, setUnidadeCustom] = useState('un');
   const [obsItem, setObsItem] = useState('');
@@ -79,6 +79,8 @@ export const SolicitacaoMaterial = () => {
   const [pendentesCount, setPendentesCount] = useState(0);
   const [localOrigemId, setLocalOrigemId] = useState<string>('');
   const [localOrigemNome, setLocalOrigemNome] = useState<string>('');
+  const [localOrigemEdicaoId, setLocalOrigemEdicaoId] = useState<string>('');
+  const [salvandoLocalOrigem, setSalvandoLocalOrigem] = useState(false);
   // itemId → quantidade editada pelo estoque (antes de converter em retirada)
   const [quantidadesEditadas, setQuantidadesEditadas] = useState<Record<string, number>>({});
 
@@ -169,6 +171,8 @@ export const SolicitacaoMaterial = () => {
     ).slice(0, 50);
   }, [busca, itensEstoque]);
 
+  const obterQuantidadeDigitada = () => Number(quantidadeItem.replace(',', '.'));
+
   const itemVaiParaCompra = (item: { item_id?: string; quantidade: number; isCustom?: boolean }) => {
     if (!item.item_id || item.isCustom) return true;
 
@@ -188,11 +192,17 @@ export const SolicitacaoMaterial = () => {
       return;
     }
 
+    const quantidade = obterQuantidadeDigitada();
+    if (!Number.isFinite(quantidade) || quantidade <= 0) {
+      toast.error('Informe uma quantidade válida maior que zero');
+      return;
+    }
+
     // Regra para Ferramentas: Somente 1 unidade
-    let qtdEfetiva = quantidadeItem;
+    let qtdEfetiva = quantidade;
     if (item.tipoItem === 'Ferramenta') {
       qtdEfetiva = 1;
-      if (quantidadeItem > 1) {
+      if (quantidade > 1) {
         toast.info('Ferramentas são limitadas a 1 unidade por item. Adicione outro item se precisar de mais.');
       }
     }
@@ -218,7 +228,7 @@ export const SolicitacaoMaterial = () => {
 
     setPopoverAberto(false);
     setBusca('');
-    setQuantidadeItem(1);
+    setQuantidadeItem('');
     setObsItem('');
     toast.success('Item adicionado');
   };
@@ -229,16 +239,22 @@ export const SolicitacaoMaterial = () => {
       return;
     }
 
+    const quantidade = obterQuantidadeDigitada();
+    if (!Number.isFinite(quantidade) || quantidade <= 0) {
+      toast.error('Informe uma quantidade válida maior que zero');
+      return;
+    }
+
     setItensLista(prev => [...prev, {
       nome_item: nomeItemCustom.trim(),
-      quantidade: quantidadeItem,
+      quantidade,
       unidade: unidadeCustom,
       observacoes: obsItem || undefined,
       isCustom: true
     }]);
 
     setNomeItemCustom('');
-    setQuantidadeItem(1);
+    setQuantidadeItem('');
     setUnidadeCustom('un');
     setObsItem('');
     toast.success('Item avulso adicionado ao Pedido de Compra');
@@ -252,7 +268,7 @@ export const SolicitacaoMaterial = () => {
     setItensLista([]);
     setObservacoes('');
     setBusca('');
-    setQuantidadeItem(1);
+    setQuantidadeItem('');
     setNomeItemCustom('');
     setUnidadeCustom('un');
     setObsItem('');
@@ -356,6 +372,11 @@ export const SolicitacaoMaterial = () => {
 
     if (itensLista.length === 0) {
       toast.error('Adicione pelo menos um item');
+      return;
+    }
+
+    if (!localOrigemId || !localOrigemNome.trim()) {
+      toast.error('Selecione o local de origem antes de criar a solicitação');
       return;
     }
 
@@ -582,6 +603,11 @@ export const SolicitacaoMaterial = () => {
     try {
       const estoqueInfo = obterEstoqueAtivoInfo();
 
+      if (!sol.local_origem_id || !sol.local_origem?.trim()) {
+        toast.error('Informe o local de origem antes de converter em retirada');
+        return;
+      }
+
       // Filtrar apenas itens que existem no estoque (com item_id)
       const itensEstoqueOnly = sol.itens.filter(i => i.item_id);
 
@@ -667,6 +693,50 @@ export const SolicitacaoMaterial = () => {
     } catch (error) {
       console.error('Erro ao converter em retirada:', error);
       toast.error('Erro ao converter em retirada');
+    }
+  };
+
+  const salvarLocalOrigemSolicitacao = async () => {
+    if (!solicitacaoSelecionada || !isAdmin()) return;
+    if (!localOrigemEdicaoId) {
+      toast.error('Selecione o local de origem');
+      return;
+    }
+
+    const local = obterLocaisUtilizacaoAtivos().find(l => l.id === localOrigemEdicaoId);
+    if (!local) {
+      toast.error('Local de origem inválido ou inativo');
+      return;
+    }
+
+    setSalvandoLocalOrigem(true);
+    try {
+      const { error } = await supabase
+        .from('solicitacoes_material')
+        .update({
+          local_origem_id: local.id,
+          local_origem: local.nome
+        } as any)
+        .eq('id', solicitacaoSelecionada.id);
+
+      if (error) throw error;
+
+      setSolicitacaoSelecionada(prev => prev ? {
+        ...prev,
+        local_origem_id: local.id,
+        local_origem: local.nome,
+      } : prev);
+      setSolicitacoes(prev => prev.map(sol =>
+        sol.id === solicitacaoSelecionada.id
+          ? { ...sol, local_origem_id: local.id, local_origem: local.nome }
+          : sol
+      ));
+      toast.success('Local de origem atualizado');
+    } catch (error) {
+      console.error('Erro ao atualizar local de origem:', error);
+      toast.error('Não foi possível atualizar o local de origem');
+    } finally {
+      setSalvandoLocalOrigem(false);
     }
   };
 
@@ -859,7 +929,7 @@ export const SolicitacaoMaterial = () => {
                     <TableCell>{getStatusBadge(sol.status)}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => { setSolicitacaoSelecionada(sol); setQuantidadesEditadas({}); setDialogoDetalhes(true); }}>
+                        <Button variant="ghost" size="icon" onClick={() => { setSolicitacaoSelecionada(sol); setQuantidadesEditadas({}); setLocalOrigemEdicaoId(sol.local_origem_id || ''); setDialogoDetalhes(true); }}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => imprimirSolicitacao(sol)}>
@@ -879,7 +949,14 @@ export const SolicitacaoMaterial = () => {
                           </>
                         )}
                         {canManageStock() && sol.status === 'aprovada' && (
-                          <Button variant="ghost" size="icon" className="text-primary hover:text-primary/80" title="Converter em Retirada" onClick={() => converterEmRetirada(sol)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-primary hover:text-primary/80"
+                            title={sol.local_origem_id && sol.local_origem ? "Converter em Retirada" : "Informe o Local de Origem antes de converter"}
+                            disabled={!sol.local_origem_id || !sol.local_origem}
+                            onClick={() => converterEmRetirada(sol)}
+                          >
                             <ArrowRight className="h-4 w-4" />
                           </Button>
                         )}
@@ -933,10 +1010,38 @@ export const SolicitacaoMaterial = () => {
                 {solicitacaoSelecionada.aprovado_por_nome && (
                   <div><span className="text-muted-foreground">Aprovado por:</span> {solicitacaoSelecionada.aprovado_por_nome}</div>
                 )}
-                {solicitacaoSelecionada.local_origem && (
-                  <div><span className="text-muted-foreground">Local de Origem:</span> {solicitacaoSelecionada.local_origem}</div>
-                )}
+                <div className={cn(!solicitacaoSelecionada.local_origem && "text-destructive")}>
+                  <span className="text-muted-foreground">Local de Origem:</span> {solicitacaoSelecionada.local_origem || 'Não informado'}
+                </div>
               </div>
+
+              {isAdmin() && (
+                <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+                  <Label>Corrigir Local de Origem</Label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Select value={localOrigemEdicaoId} onValueChange={setLocalOrigemEdicaoId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o local de origem" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {obterLocaisUtilizacaoAtivos().map((local) => (
+                          <SelectItem key={local.id} value={local.id}>
+                            {local.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      onClick={salvarLocalOrigemSolicitacao}
+                      disabled={salvandoLocalOrigem || !localOrigemEdicaoId}
+                      className="sm:w-auto"
+                    >
+                      {salvandoLocalOrigem ? 'Salvando...' : 'Salvar Local'}
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               <Separator />
 
@@ -1045,7 +1150,12 @@ export const SolicitacaoMaterial = () => {
                     </>
                   )}
                   {canManageStock() && solicitacaoSelecionada.status === 'aprovada' && (
-                    <Button className="gap-1 bg-primary hover:bg-primary/90 flex-1 sm:flex-none" onClick={() => converterEmRetirada(solicitacaoSelecionada)}>
+                    <Button
+                      className="gap-1 bg-primary hover:bg-primary/90 flex-1 sm:flex-none"
+                      disabled={!solicitacaoSelecionada.local_origem_id || !solicitacaoSelecionada.local_origem}
+                      title={solicitacaoSelecionada.local_origem_id && solicitacaoSelecionada.local_origem ? undefined : "Informe o Local de Origem antes de converter"}
+                      onClick={() => converterEmRetirada(solicitacaoSelecionada)}
+                    >
                       <ArrowRight className="h-4 w-4 shrink-0" /> <span className="truncate">Converter em Retirada</span>
                     </Button>
                   )}
@@ -1126,7 +1236,8 @@ export const SolicitacaoMaterial = () => {
                         <CommandEmpty>Nenhum item encontrado</CommandEmpty>
                         <CommandGroup>
                           {itensFiltrados.map(item => {
-                            const vaiParaCompra = item.estoqueAtual < quantidadeItem;
+                            const quantidade = obterQuantidadeDigitada();
+                            const vaiParaCompra = Number.isFinite(quantidade) && quantidade > 0 && item.estoqueAtual < quantidade;
 
                             return (
                               <CommandItem
@@ -1170,7 +1281,7 @@ export const SolicitacaoMaterial = () => {
               </div>
               <div className="w-24">
                 <Label>Qtd</Label>
-                <Input type="number" min={1} value={quantidadeItem} onChange={(e) => setQuantidadeItem(Number(e.target.value))} />
+                <Input type="number" min={1} value={quantidadeItem} onChange={(e) => setQuantidadeItem(e.target.value)} placeholder="Qtd" />
               </div>
             </div>
 
@@ -1184,7 +1295,7 @@ export const SolicitacaoMaterial = () => {
               </div>
               <div className="w-24">
                 <Label>Qtd</Label>
-                <Input type="number" min={1} value={quantidadeItem} onChange={(e) => setQuantidadeItem(Number(e.target.value))} />
+                <Input type="number" min={1} value={quantidadeItem} onChange={(e) => setQuantidadeItem(e.target.value)} placeholder="Qtd" />
               </div>
               <div className="w-24">
                 <Label>Unidade</Label>
