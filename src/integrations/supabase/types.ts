@@ -227,6 +227,7 @@ export type Database = {
         Row: {
           created_at: string
           data_hora: string
+          dedupe_key: string | null
           destinatario: string | null
           estoque_id: string | null
           id: string
@@ -245,6 +246,7 @@ export type Database = {
         Insert: {
           created_at?: string
           data_hora?: string
+          dedupe_key?: string | null
           destinatario?: string | null
           estoque_id?: string | null
           id?: string
@@ -263,6 +265,7 @@ export type Database = {
         Update: {
           created_at?: string
           data_hora?: string
+          dedupe_key?: string | null
           destinatario?: string | null
           estoque_id?: string | null
           id?: string
@@ -568,6 +571,33 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          created_at: string
+          endpoint: string
+          id: string
+          subscription: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          id?: string
+          subscription: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          id?: string
+          subscription?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       solicitacao_itens: {
         Row: {
           created_at: string
@@ -767,6 +797,8 @@ export type Database = {
           data_aprovacao: string | null
           estoque_id: string | null
           id: string
+          local_origem: string | null
+          local_origem_id: string | null
           numero: number
           observacoes: string | null
           solicitacao_retirada_id: string | null
@@ -782,6 +814,8 @@ export type Database = {
           data_aprovacao?: string | null
           estoque_id?: string | null
           id?: string
+          local_origem?: string | null
+          local_origem_id?: string | null
           numero?: number
           observacoes?: string | null
           solicitacao_retirada_id?: string | null
@@ -797,6 +831,8 @@ export type Database = {
           data_aprovacao?: string | null
           estoque_id?: string | null
           id?: string
+          local_origem?: string | null
+          local_origem_id?: string | null
           numero?: number
           observacoes?: string | null
           solicitacao_retirada_id?: string | null
@@ -811,6 +847,13 @@ export type Database = {
             columns: ["estoque_id"]
             isOneToOne: false
             referencedRelation: "estoques"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_material_local_origem_id_fkey"
+            columns: ["local_origem_id"]
+            isOneToOne: false
+            referencedRelation: "locais_utilizacao"
             referencedColumns: ["id"]
           },
           {
@@ -993,6 +1036,71 @@ export type Database = {
           },
         ]
       }
+      viewer_message_threads: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          last_message: string | null
+          recipient_id: string | null
+          requested_date: string | null
+          updated_at: string | null
+          viewer_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_message?: string | null
+          recipient_id?: string | null
+          requested_date?: string | null
+          updated_at?: string | null
+          viewer_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_message?: string | null
+          recipient_id?: string | null
+          requested_date?: string | null
+          updated_at?: string | null
+          viewer_id?: string | null
+        }
+        Relationships: []
+      }
+      viewer_thread_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          sender_id: string
+          thread_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          sender_id: string
+          thread_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          sender_id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "viewer_thread_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "viewer_message_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1009,6 +1117,14 @@ export type Database = {
       }
       can_create_items: { Args: never; Returns: boolean }
       can_manage_inventory: { Args: never; Returns: boolean }
+      create_visualizador_message_thread: {
+        Args: {
+          p_initial_message: string
+          p_recipient_id: string
+          p_viewer_id: string
+        }
+        Returns: string
+      }
       gerar_proximo_codigo: { Args: never; Returns: string }
       get_current_user_role: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
@@ -1020,6 +1136,22 @@ export type Database = {
       promote_user_to_admin: {
         Args: { target_email: string }
         Returns: undefined
+      }
+      send_visualizador_message: {
+        Args: { p_message: string; p_requested_date?: string }
+        Returns: string
+      }
+      send_visualizador_thread_message: {
+        Args: { p_message: string; p_thread_id: string }
+        Returns: undefined
+      }
+      start_user_message_thread: {
+        Args: {
+          p_message: string
+          p_recipient_id: string
+          p_requested_date?: string
+        }
+        Returns: string
       }
     }
     Enums: {
