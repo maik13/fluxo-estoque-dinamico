@@ -19,6 +19,35 @@ export const useEstoque = () => {
   const processedItemsRef = useRef<Set<string>>(new Set());
   const processedMovementsRef = useRef<Set<string>>(new Set());
 
+  const verificarEntradaRecenteSimilar = async (
+    itemId: string,
+    quantidade: number,
+    estoqueId?: string | null
+  ) => {
+    const limiteRecente = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
+    let query = supabase
+      .from('movements')
+      .select('id, data_hora')
+      .eq('item_id', itemId)
+      .eq('tipo', 'ENTRADA')
+      .eq('quantidade', quantidade)
+      .eq('user_id', user?.id ?? '')
+      .gte('data_hora', limiteRecente)
+      .order('data_hora', { ascending: false })
+      .limit(1);
+
+    query = estoqueId ? query.eq('estoque_id', estoqueId) : query.is('estoque_id', null);
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('Erro ao verificar entrada recente similar:', error);
+      return false;
+    }
+
+    return Boolean(data?.length);
+  };
+
   // Obter dados iniciais quando o estoque ativo mudar
   useEffect(() => {
     if (estoqueAtivo) {
@@ -652,6 +681,22 @@ const registrarEntrada = async (
 
     const estoqueAnterior = calcularEstoqueAtual(item.id);
     const estoqueAtual = estoqueAnterior + quantidade;
+    const estoqueAtivoInfo = obterEstoqueAtivoInfo();
+
+    const entradaSimilarRecente = await verificarEntradaRecenteSimilar(
+      item.id,
+      quantidade,
+      estoqueAtivoInfo?.id ?? null
+    );
+
+    if (entradaSimilarRecente) {
+      toast({
+        title: 'Entrada duplicada bloqueada',
+        description: 'Já existe uma entrada igual para este item nos últimos 5 minutos. Aguarde ou ajuste a quantidade se for uma nova entrada real.',
+        variant: 'destructive'
+      });
+      return false;
+    }
 
     const movimento: Omit<Movimentacao, 'id'> = {
       itemId: item.id,
@@ -666,7 +711,6 @@ const registrarEntrada = async (
       itemSnapshot: item,
     };
 
-    const estoqueAtivoInfo = obterEstoqueAtivoInfo();
     const { data, error } = await supabase.from('movements').insert({
       item_id: movimento.itemId,
       tipo: movimento.tipo,
