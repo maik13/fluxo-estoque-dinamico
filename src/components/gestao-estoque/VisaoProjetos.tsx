@@ -45,10 +45,10 @@ export const VisaoProjetos = () => {
   const getMovimentacoesItem = (item: ItemAgrupado) => {
     return movimentacoes.filter(m => {
       if (isAcertoDeEstoque(m)) return false;
-      const mItemId = m.item_id || m.itemId;
+      const mItemId = m.itemId;
       if (mItemId !== item.itemId) return false;
       
-      const mLocalId = m.local_utilizacao_id || m.localUtilizacaoId || 'sem-local';
+      const mLocalId = m.localUtilizacaoId || 'sem-local';
       
       if (tipoAgrupamentoProjetos === 'grupo') {
         const local = locaisConfig.find(l => l.id === mLocalId);
@@ -471,7 +471,7 @@ export const VisaoProjetos = () => {
                             item.statusItem === 'pendente' && "bg-red-500/10 text-red-500 border-red-500/20",
                             item.statusItem === 'parcial' && "bg-amber-500/10 text-amber-500 border-amber-500/20",
                             item.statusItem === 'devolvido' && "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-                            (item.statusItem === 'consumido' || item.statusItem === 'concluido') && "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                            item.statusItem === 'consumido' && "bg-blue-500/10 text-blue-500 border-blue-500/20"
                           )}
                         >
                           {item.statusItem === 'pendente' ? '🔴 Pendente' : 

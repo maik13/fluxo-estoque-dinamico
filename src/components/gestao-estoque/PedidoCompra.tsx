@@ -477,7 +477,7 @@ export const PedidoCompra = () => {
     }
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('pedido_compra_itens')
         .update({ quantidade_recebida: qtd })
         .eq('id', itemId);
