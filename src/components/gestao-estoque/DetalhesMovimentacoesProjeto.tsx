@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { isAcertoDeEstoque } from '@/utils/movimentacoes';
+import { isAcertoDeEstoque, isEntradaParaAcerto } from '@/utils/movimentacoes';
 
 interface DetalhesMovimentacoesProjetoProps {
   movimentacoes: any[];
@@ -38,6 +38,9 @@ export const DetalhesMovimentacoesProjeto = ({ movimentacoes }: DetalhesMoviment
         return { icon: <ArrowDownCircle className="h-4 w-4" />, color: 'text-orange-500', bgColor: 'bg-orange-500/10', label: 'Saída para acerto' };
       }
       return { icon: <ArrowDownCircle className="h-4 w-4" />, color: 'text-warning', bgColor: 'bg-warning/10', label: 'Saída' };
+    }
+    if (isEntradaParaAcerto(mov)) {
+      return { icon: <ArrowUpCircle className="h-4 w-4" />, color: 'text-orange-500', bgColor: 'bg-orange-500/10', label: 'Entrada para acerto' };
     }
     return { icon: <ArrowUpCircle className="h-4 w-4" />, color: 'text-success', bgColor: 'bg-success/10', label: 'Entrada' };
   };

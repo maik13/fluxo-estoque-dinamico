@@ -33,7 +33,8 @@ export const TabelaMovimentacoes = () => {
   const { isAdmin, canEditMovements } = usePermissions();
   const { user } = useAuth();
   const [filtroTexto, setFiltroTexto] = useState('');
-  const [filtroTipo, setFiltroTipo] = useState<TipoMovimentacao | 'todas'>('todas');
+  type FiltroTipoMovimentacao = TipoMovimentacao | 'todas' | 'DEVOLUCAO' | 'ENTRADA_ACERTO' | 'SAIDA_ACERTO';
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipoMovimentacao>('todas');
   const [filtroDestino, setFiltroDestino] = useState('todos');
   const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes' | 'pendentes'>('todas');
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
@@ -147,15 +148,25 @@ export const TabelaMovimentacoes = () => {
       );
 
       const movEhDevolucao = isDevolucao(mov);
+      const movEhEntradaAcerto = isEntradaParaAcerto(mov);
+      const movEhSaidaAcerto = isAcertoDeEstoque(mov);
       let matchTipo = true;
       if (tipoVisualizacao === 'saidas') {
-        matchTipo = mov.tipo === 'SAIDA';
+        matchTipo = mov.tipo === 'SAIDA' && !movEhSaidaAcerto;
       } else if (tipoVisualizacao === 'devolucoes') {
         matchTipo = movEhDevolucao;
       } else if (tipoVisualizacao === 'pendentes') {
-        matchTipo = mov.tipo === 'SAIDA';
+        matchTipo = mov.tipo === 'SAIDA' && !movEhSaidaAcerto;
       } else if (filtroTipo === 'ENTRADA') {
-        matchTipo = mov.tipo === 'ENTRADA' && !movEhDevolucao;
+        matchTipo = mov.tipo === 'ENTRADA' && !movEhDevolucao && !movEhEntradaAcerto;
+      } else if (filtroTipo === 'ENTRADA_ACERTO') {
+        matchTipo = movEhEntradaAcerto;
+      } else if (filtroTipo === 'SAIDA') {
+        matchTipo = mov.tipo === 'SAIDA' && !movEhSaidaAcerto;
+      } else if (filtroTipo === 'SAIDA_ACERTO') {
+        matchTipo = movEhSaidaAcerto;
+      } else if (filtroTipo === 'DEVOLUCAO') {
+        matchTipo = movEhDevolucao;
       } else {
         matchTipo = filtroTipo === 'todas' || mov.tipo === filtroTipo;
       }
@@ -206,10 +217,10 @@ export const TabelaMovimentacoes = () => {
     ).length;
     
     const entradas = movimentacoes.filter(mov => 
-      mov.tipo === 'ENTRADA' || mov.tipo === 'CADASTRO'
+      (mov.tipo === 'ENTRADA' && !isDevolucao(mov) && !isEntradaParaAcerto(mov)) || mov.tipo === 'CADASTRO'
     ).length;
     
-    const saidas = movimentacoes.filter(mov => mov.tipo === 'SAIDA').length;
+    const saidas = movimentacoes.filter(mov => mov.tipo === 'SAIDA' && !isAcertoDeEstoque(mov)).length;
     
     const devolucoes = movimentacoes.filter(mov => isDevolucao(mov)).length;
     
@@ -354,8 +365,8 @@ export const TabelaMovimentacoes = () => {
     }).join('');
 
     const filtrosAtivos = [];
-    if (tipoVisualizacao !== 'todas') filtrosAtivos.push(`Tipo: ${tipoVisualizacao === 'saidas' ? 'Saídas' : 'Devoluções'}`);
-    if (filtroTipo !== 'todas' && tipoVisualizacao === 'todas') filtrosAtivos.push(`Tipo: ${getTipoInfo(filtroTipo as TipoMovimentacao).label}`);
+    if (tipoVisualizacao !== 'todas') filtrosAtivos.push(`Tipo: ${tipoVisualizacao === 'saidas' ? 'Saídas' : tipoVisualizacao === 'devolucoes' ? 'Devoluções' : 'Pendentes'}`);
+    if (filtroTipo !== 'todas' && tipoVisualizacao === 'todas') filtrosAtivos.push(`Tipo: ${getFiltroTipoLabel(filtroTipo)}`);
     if (filtroDestino !== 'todos') filtrosAtivos.push(`Estoque/Destino: ${filtroDestino}`);
     if (filtroTexto) filtrosAtivos.push(`Busca: ${filtroTexto}`);
 
@@ -433,6 +444,25 @@ export const TabelaMovimentacoes = () => {
           bgColor: 'bg-muted',
           label: tipo
         };
+    }
+  };
+
+  const getFiltroTipoLabel = (tipo: FiltroTipoMovimentacao) => {
+    switch (tipo) {
+      case 'ENTRADA':
+        return 'Entrada';
+      case 'ENTRADA_ACERTO':
+        return 'Entrada para acerto';
+      case 'SAIDA':
+        return 'Saída';
+      case 'SAIDA_ACERTO':
+        return 'Saída para acerto';
+      case 'DEVOLUCAO':
+        return 'Devolução';
+      case 'CADASTRO':
+        return 'Cadastro';
+      default:
+        return 'Todos os tipos';
     }
   };
 
@@ -660,8 +690,8 @@ export const TabelaMovimentacoes = () => {
             </div>
             
              <Select 
-               value={tipoVisualizacao !== 'todas' ? (tipoVisualizacao === 'saidas' ? 'SAIDA' : 'DEVOLUCAO') : filtroTipo} 
-               onValueChange={(value) => setFiltroTipo(value as any)}
+               value={tipoVisualizacao !== 'todas' ? (tipoVisualizacao === 'saidas' || tipoVisualizacao === 'pendentes' ? 'SAIDA' : 'DEVOLUCAO') : filtroTipo} 
+               onValueChange={(value) => setFiltroTipo(value as FiltroTipoMovimentacao)}
                disabled={tipoVisualizacao !== 'todas'}
              >
               <SelectTrigger>
@@ -669,10 +699,12 @@ export const TabelaMovimentacoes = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todos os tipos</SelectItem>
-                <SelectItem value="ENTRADA">Entradas</SelectItem>
-                <SelectItem value="SAIDA">Saídas</SelectItem>
-                <SelectItem value="DEVOLUCAO">Devoluções</SelectItem>
-                <SelectItem value="CADASTRO">Cadastros</SelectItem>
+                <SelectItem value="ENTRADA">Entrada</SelectItem>
+                <SelectItem value="ENTRADA_ACERTO">Entrada para acerto</SelectItem>
+                <SelectItem value="SAIDA">Saída</SelectItem>
+                <SelectItem value="SAIDA_ACERTO">Saída para acerto</SelectItem>
+                <SelectItem value="DEVOLUCAO">Devolução</SelectItem>
+                <SelectItem value="CADASTRO">Cadastro</SelectItem>
               </SelectContent>
             </Select>
 

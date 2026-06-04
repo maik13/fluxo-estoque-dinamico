@@ -7,12 +7,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Search, Calendar as CalendarIcon, FileSpreadsheet, Printer, BarChart3, ArrowDownCircle, ArrowUpCircle, Package } from 'lucide-react';
-import { Movimentacao, TipoMovimentacao } from '@/types/estoque';
+import { Movimentacao } from '@/types/estoque';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { isAcertoDeEstoque, isEntradaParaAcerto, normalizarMovimentacaoTexto } from '@/utils/movimentacoes';
 
 interface RelatorioMovimentacoesDialogProps {
   aberto: boolean;
@@ -34,8 +35,9 @@ interface ResumoItem {
 }
 
 export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }: RelatorioMovimentacoesDialogProps) => {
+  type FiltroTipoMovimentacao = 'todas' | 'ENTRADA' | 'ENTRADA_ACERTO' | 'SAIDA' | 'SAIDA_ACERTO' | 'DEVOLUCAO' | 'CADASTRO';
   const [filtroTexto, setFiltroTexto] = useState('');
-  const [filtroTipo, setFiltroTipo] = useState<string>('todas');
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipoMovimentacao>('todas');
   const [filtroDestino, setFiltroDestino] = useState('todos');
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | undefined>(undefined);
   const [filtroDataFim, setFiltroDataFim] = useState<Date | undefined>(undefined);
@@ -44,7 +46,26 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
   const { obterPrimeiraCategoriaDeSubcategoria, subcategorias: subcategoriasConfig } = useConfiguracoes();
 
   const isDevolucao = (mov: Movimentacao) => {
-    return mov.tipo === 'ENTRADA' && mov.observacoes?.toLowerCase().includes('devolução');
+    return mov.tipo === 'ENTRADA' && normalizarMovimentacaoTexto(mov.observacoes).includes('devolu');
+  };
+
+  const getFiltroTipoLabel = (tipo: FiltroTipoMovimentacao) => {
+    switch (tipo) {
+      case 'ENTRADA':
+        return 'Entrada';
+      case 'ENTRADA_ACERTO':
+        return 'Entrada para acerto';
+      case 'SAIDA':
+        return 'Saída';
+      case 'SAIDA_ACERTO':
+        return 'Saída para acerto';
+      case 'DEVOLUCAO':
+        return 'Devolução';
+      case 'CADASTRO':
+        return 'Cadastro';
+      default:
+        return 'Todos os tipos';
+    }
   };
 
   const locaisUtilizacao = useMemo(() => {
@@ -61,9 +82,15 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
         mov.itemSnapshot?.codigoBarras?.toString().includes(textoFiltro);
 
       let matchTipo = true;
-      if (filtroTipo === 'SAIDA') matchTipo = mov.tipo === 'SAIDA';
-      else if (filtroTipo === 'DEVOLUCAO') matchTipo = isDevolucao(mov);
-      else if (filtroTipo === 'ENTRADA') matchTipo = mov.tipo === 'ENTRADA' && !isDevolucao(mov);
+      const movEhDevolucao = isDevolucao(mov);
+      const movEhEntradaAcerto = isEntradaParaAcerto(mov);
+      const movEhSaidaAcerto = isAcertoDeEstoque(mov);
+
+      if (filtroTipo === 'SAIDA') matchTipo = mov.tipo === 'SAIDA' && !movEhSaidaAcerto;
+      else if (filtroTipo === 'SAIDA_ACERTO') matchTipo = movEhSaidaAcerto;
+      else if (filtroTipo === 'DEVOLUCAO') matchTipo = movEhDevolucao;
+      else if (filtroTipo === 'ENTRADA') matchTipo = mov.tipo === 'ENTRADA' && !movEhDevolucao && !movEhEntradaAcerto;
+      else if (filtroTipo === 'ENTRADA_ACERTO') matchTipo = movEhEntradaAcerto;
       else if (filtroTipo === 'CADASTRO') matchTipo = mov.tipo === 'CADASTRO';
 
       const matchDestino = filtroDestino === 'todos' || mov.localUtilizacaoNome === filtroDestino;
@@ -114,7 +141,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
       // Update name to latest
       resumo.itemNome = itemNome;
 
-      if (mov.tipo === 'SAIDA') {
+      if (mov.tipo === 'SAIDA' && !isAcertoDeEstoque(mov)) {
         resumo.totalSaidas += mov.quantidade;
         resumo.qtdMovSaida += 1;
       } else if (isDevolucao(mov)) {
@@ -208,7 +235,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
 
     const filtrosAtivos = [];
     if (filtroTexto) filtrosAtivos.push(`Busca: ${filtroTexto}`);
-    if (filtroTipo !== 'todas') filtrosAtivos.push(`Tipo: ${filtroTipo}`);
+    if (filtroTipo !== 'todas') filtrosAtivos.push(`Tipo: ${getFiltroTipoLabel(filtroTipo)}`);
     if (filtroDestino !== 'todos') filtrosAtivos.push(`Destino: ${filtroDestino}`);
     if (filtroDataInicio) filtrosAtivos.push(`De: ${format(filtroDataInicio, 'dd/MM/yyyy')}`);
     if (filtroDataFim) filtrosAtivos.push(`Até: ${format(filtroDataFim, 'dd/MM/yyyy')}`);
@@ -278,16 +305,18 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
               />
             </div>
 
-            <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+            <Select value={filtroTipo} onValueChange={(value) => setFiltroTipo(value as FiltroTipoMovimentacao)}>
               <SelectTrigger>
                 <SelectValue placeholder="Todos os tipos" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todos os tipos</SelectItem>
-                <SelectItem value="SAIDA">Saídas</SelectItem>
-                <SelectItem value="DEVOLUCAO">Devoluções</SelectItem>
-                <SelectItem value="ENTRADA">Entradas</SelectItem>
-                <SelectItem value="CADASTRO">Cadastros</SelectItem>
+                <SelectItem value="ENTRADA">Entrada</SelectItem>
+                <SelectItem value="ENTRADA_ACERTO">Entrada para acerto</SelectItem>
+                <SelectItem value="SAIDA">Saída</SelectItem>
+                <SelectItem value="SAIDA_ACERTO">Saída para acerto</SelectItem>
+                <SelectItem value="DEVOLUCAO">Devolução</SelectItem>
+                <SelectItem value="CADASTRO">Cadastro</SelectItem>
               </SelectContent>
             </Select>
 
