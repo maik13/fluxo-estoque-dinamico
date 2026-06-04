@@ -521,6 +521,15 @@ export const useEstoque = () => {
     }
   };
 
+  const normalizarTexto = (texto?: string | null) =>
+    (texto || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
+  const isEntradaParaAcerto = (mov: Pick<Movimentacao, 'tipo' | 'tipoOperacaoNome'>) =>
+    mov.tipo === 'ENTRADA' && normalizarTexto(mov.tipoOperacaoNome).includes('acerto');
+
   // Função para calcular estoque atual de um item considerando apenas o estoque ativo
   // Movimentações sem estoque_id são atribuídas ao "almoxarifado principal" (dados legados)
   const calcularEstoqueAtual = (itemId: string): number => {
@@ -532,7 +541,9 @@ export const useEstoque = () => {
     let estoque = 0;
     
     movimentacoesItem.forEach(mov => {
-      if (mov.tipo === 'ENTRADA') {
+      if (isEntradaParaAcerto(mov)) {
+        estoque = mov.quantidadeAtual;
+      } else if (mov.tipo === 'ENTRADA') {
         estoque += mov.quantidade;
       } else if (mov.tipo === 'SAIDA') {
         estoque -= mov.quantidade;
@@ -555,7 +566,9 @@ export const useEstoque = () => {
       
       let estoqueAtual = 0;
       movimentacoesItem.forEach(mov => {
-        if (mov.tipo === 'ENTRADA') {
+        if (isEntradaParaAcerto(mov)) {
+          estoqueAtual = mov.quantidadeAtual;
+        } else if (mov.tipo === 'ENTRADA') {
           estoqueAtual += mov.quantidade;
         } else if (mov.tipo === 'SAIDA') {
           estoqueAtual -= mov.quantidade;
@@ -680,8 +693,22 @@ const registrarEntrada = async (
     }
 
     const estoqueAnterior = calcularEstoqueAtual(item.id);
-    const estoqueAtual = estoqueAnterior + quantidade;
     const estoqueAtivoInfo = obterEstoqueAtivoInfo();
+    let tipoOperacaoNome: string | undefined;
+
+    if (tipoOperacaoId) {
+      const { data: tipoOperacaoData, error: tipoOperacaoError } = await supabase
+        .from('tipos_operacao')
+        .select('nome')
+        .eq('id', tipoOperacaoId)
+        .maybeSingle();
+
+      if (tipoOperacaoError) throw tipoOperacaoError;
+      tipoOperacaoNome = tipoOperacaoData?.nome;
+    }
+
+    const entradaParaAcerto = normalizarTexto(tipoOperacaoNome).includes('acerto');
+    const estoqueAtual = entradaParaAcerto ? quantidade : estoqueAnterior + quantidade;
 
     const entradaSimilarRecente = await verificarEntradaRecenteSimilar(
       item.id,
@@ -708,6 +735,7 @@ const registrarEntrada = async (
       observacoes,
       dataHora: new Date().toISOString(),
       tipoOperacaoId,
+      tipoOperacaoNome,
       itemSnapshot: item,
     };
 
@@ -738,7 +766,12 @@ const registrarEntrada = async (
 
     setMovimentacoes(prev => [...prev, { ...movimento, id: data!.id }]);
 
-    toast({ title: 'Entrada registrado!', description: `Entrada de ${quantidade} ${item.unidade} de ${item.nome}.` });
+    toast({
+      title: entradaParaAcerto ? 'Entrada para acerto registrada!' : 'Entrada registrada!',
+      description: entradaParaAcerto
+        ? `Saldo de ${item.nome} ajustado para ${estoqueAtual} ${item.unidade}.`
+        : `Entrada de ${quantidade} ${item.unidade} de ${item.nome}.`
+    });
     return true;
   } catch (error) {
     console.error('Erro ao registrar entrada:', error);

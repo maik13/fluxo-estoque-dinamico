@@ -22,7 +22,7 @@ import { Movimentacao, TipoMovimentacao } from '@/types/estoque';
 import * as XLSX from 'xlsx';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
-import { isAcertoDeEstoque } from '@/utils/movimentacoes';
+import { isAcertoDeEstoque, isEntradaParaAcerto } from '@/utils/movimentacoes';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -99,7 +99,9 @@ export const TabelaMovimentacoes = () => {
       .forEach((mov) => {
         const anterior = saldoPorItem.get(mov.itemId) ?? 0;
         let delta = 0;
-        if (mov.tipo === 'ENTRADA') {
+        if (isEntradaParaAcerto(mov)) {
+          delta = mov.quantidadeAtual - anterior;
+        } else if (mov.tipo === 'ENTRADA') {
           delta = mov.quantidade;
         } else if (mov.tipo === 'SAIDA') {
           delta = -mov.quantidade;
@@ -241,7 +243,7 @@ export const TabelaMovimentacoes = () => {
           'Item': mov.itemSnapshot?.nome || 'Item não identificado',
           'Código de Barras': mov.itemSnapshot?.codigoBarras || '',
           'Marca': mov.itemSnapshot?.marca || '',
-          'Quantidade': `${mov.tipo === 'SAIDA' ? '-' : '+'}${mov.quantidade}`,
+          'Quantidade': formatarQuantidadeMovimentacao(mov),
           'Unidade': mov.itemSnapshot?.unidade || '',
           'Qtd. Anterior': saldoCalculado?.anterior ?? mov.quantidadeAnterior,
           'Qtd. Atual': saldoCalculado?.atual ?? mov.quantidadeAtual,
@@ -340,7 +342,7 @@ export const TabelaMovimentacoes = () => {
         <td>${new Date(mov.dataHora).toLocaleDateString('pt-BR')} ${new Date(mov.dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
         <td>${mov.itemSnapshot?.nome || '-'}</td>
         <td>${mov.itemSnapshot?.codigoBarras || '-'}</td>
-        <td>${mov.tipo === 'SAIDA' ? '-' : '+'}${mov.quantidade}</td>
+        <td>${formatarQuantidadeMovimentacao(mov)}</td>
         <td>${solicitante}</td>
         <td>${responsavel}</td>
         <td>${mov.destinatario || '-'}</td>
@@ -384,9 +386,18 @@ export const TabelaMovimentacoes = () => {
     const isObj = typeof movOuTipo === 'object' && movOuTipo !== null;
     const tipo = isObj ? (movOuTipo as Movimentacao).tipo : movOuTipo as TipoMovimentacao;
     const isAcerto = isObj ? isAcertoDeEstoque(movOuTipo as Movimentacao) : false;
+    const entradaParaAcerto = isObj ? isEntradaParaAcerto(movOuTipo as Movimentacao) : false;
 
     switch (tipo) {
       case 'ENTRADA':
+        if (entradaParaAcerto) {
+          return {
+            icon: <AlertTriangle className="h-4 w-4" />,
+            color: 'text-orange-500',
+            bgColor: 'bg-orange-500/10',
+            label: 'Entrada para acerto'
+          };
+        }
         return {
           icon: <ArrowUpCircle className="h-4 w-4" />,
           color: 'text-info',
@@ -423,6 +434,14 @@ export const TabelaMovimentacoes = () => {
           label: tipo
         };
     }
+  };
+
+  const formatarQuantidadeMovimentacao = (mov: Movimentacao) => {
+    if (isEntradaParaAcerto(mov)) {
+      return `=${mov.quantidadeAtual.toLocaleString('pt-BR')}`;
+    }
+
+    return `${mov.tipo === 'SAIDA' ? '-' : '+'}${mov.quantidade.toLocaleString('pt-BR')}`;
   };
 
   // Função para formatar data e hora
@@ -867,7 +886,7 @@ export const TabelaMovimentacoes = () => {
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <span className={`font-bold ${tipoInfo.color}`}>
-                              {mov.tipo === 'SAIDA' ? '-' : '+'}{mov.quantidade.toLocaleString('pt-BR')}
+                              {formatarQuantidadeMovimentacao(mov)}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {mov.itemSnapshot?.unidade}
