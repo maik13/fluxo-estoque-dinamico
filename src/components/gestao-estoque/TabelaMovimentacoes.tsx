@@ -144,11 +144,16 @@ export const TabelaMovimentacoes = () => {
             mov.observacoes?.toLowerCase().includes(textoFiltro)
       );
 
+      const movEhDevolucao = isDevolucao(mov);
       let matchTipo = true;
       if (tipoVisualizacao === 'saidas') {
         matchTipo = mov.tipo === 'SAIDA';
+      } else if (tipoVisualizacao === 'devolucoes') {
+        matchTipo = movEhDevolucao;
       } else if (tipoVisualizacao === 'pendentes') {
         matchTipo = mov.tipo === 'SAIDA';
+      } else if (filtroTipo === 'ENTRADA') {
+        matchTipo = mov.tipo === 'ENTRADA' && !movEhDevolucao;
       } else {
         matchTipo = filtroTipo === 'todas' || mov.tipo === filtroTipo;
       }
@@ -157,8 +162,10 @@ export const TabelaMovimentacoes = () => {
       
       const matchDestino = filtroDestino === 'todos' || mov.localUtilizacaoNome === filtroDestino;
 
-      const dInicio = filtroDataInicio ? new Date(new Date(filtroDataInicio).setHours(0, 0, 0, 0)) : null;
-      const dFim = filtroDataFim ? new Date(new Date(filtroDataFim).setHours(23, 59, 59, 999)) : null;
+      const dataInicioFiltro = filtroDataInicio ?? filtroDataFim;
+      const dataFimFiltro = filtroDataFim ?? filtroDataInicio;
+      const dInicio = dataInicioFiltro ? new Date(new Date(dataInicioFiltro).setHours(0, 0, 0, 0)) : null;
+      const dFim = dataFimFiltro ? new Date(new Date(dataFimFiltro).setHours(23, 59, 59, 999)) : null;
       const movData = new Date(mov.dataHora);
 
       const matchData = !dInicio || movData >= dInicio;
@@ -177,7 +184,7 @@ export const TabelaMovimentacoes = () => {
   // Resetar página quando filtros mudarem
   useEffect(() => {
     setPaginaAtual(1);
-  }, [filtroTexto, filtroTipo, filtroDestino, tipoVisualizacao, filtroCategoria, filtroTipoItem]);
+  }, [filtroTexto, filtroTipo, filtroDestino, tipoVisualizacao, filtroCategoria, filtroTipoItem, filtroDataInicio, filtroDataFim]);
 
   // Calcular paginação
   const totalPaginas = Math.ceil(movimentacoesFiltradas.length / itensPorPagina);
@@ -645,6 +652,7 @@ export const TabelaMovimentacoes = () => {
                 <SelectItem value="todas">Todos os tipos</SelectItem>
                 <SelectItem value="ENTRADA">Entradas</SelectItem>
                 <SelectItem value="SAIDA">Saídas</SelectItem>
+                <SelectItem value="DEVOLUCAO">Devoluções</SelectItem>
                 <SelectItem value="CADASTRO">Cadastros</SelectItem>
               </SelectContent>
             </Select>
