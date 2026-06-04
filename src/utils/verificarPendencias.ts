@@ -1,5 +1,17 @@
 import { supabase } from '@/integrations/supabase/client';
 import { REGRA_FERRAMENTA_UNICA_ATIVA_DESDE } from '@/config/regra-ferramenta';
+import { isAcertoDeEstoque, isEntradaParaAcerto, normalizarMovimentacaoTexto } from '@/utils/movimentacoes';
+
+const isDevolucaoMovimento = (mov: any) =>
+  mov?.tipo === 'ENTRADA' && (
+    normalizarMovimentacaoTexto(mov.observacoes).includes('devolu') ||
+    normalizarMovimentacaoTexto(mov.tipoOperacaoNome).includes('devolu')
+  );
+
+const mapMovimentoOperacao = (mov: any) => ({
+  ...mov,
+  tipoOperacaoNome: mov.tipoOperacaoNome || mov.tipos_operacao?.nome || undefined,
+});
 
 /**
  * Verifica se um item possui devoluções pendentes (saídas sem devolução correspondente).
@@ -13,7 +25,7 @@ export const verificarDevolucaoPendente = async (
   try {
     let query = supabase
       .from('movements')
-      .select('tipo, quantidade, observacoes, created_at')
+      .select('tipo, quantidade, observacoes, created_at, tipo_operacao_id, tipos_operacao:tipo_operacao_id (nome)')
       .eq('item_id', itemId)
       .order('created_at', { ascending: true });
 
@@ -28,10 +40,15 @@ export const verificarDevolucaoPendente = async (
     // Calcular saldo cronologicamente, nunca permitindo negativo
     let saldo = 0;
     data.forEach((mov) => {
-      if (mov.tipo === 'SAIDA') {
+      const movimento = mapMovimentoOperacao(mov);
+      if (isEntradaParaAcerto(movimento)) {
+        saldo = 0;
+        return;
+      }
+      if (movimento.tipo === 'SAIDA' && !isAcertoDeEstoque(movimento)) {
         saldo += Number(mov.quantidade);
       }
-      if (mov.tipo === 'ENTRADA' && mov.observacoes?.toLowerCase().includes('devolução')) {
+      if (isDevolucaoMovimento(movimento)) {
         saldo = Math.max(0, saldo - Number(mov.quantidade));
       }
     });
@@ -93,10 +110,13 @@ export const verificarFerramentaAlocada = async (
       .select(`
         tipo, 
         quantidade, 
+        quantidade_atual,
         observacoes, 
         data_hora,
         created_at,
+        tipo_operacao_id,
         local_utilizacao_id,
+        tipos_operacao:tipo_operacao_id (nome),
         locais_utilizacao:local_utilizacao_id (nome)
       `)
       .eq('item_id', itemId)
@@ -117,16 +137,31 @@ export const verificarFerramentaAlocada = async (
     let lastData = '';
 
     data.forEach((mov) => {
-      if (mov.tipo === 'SAIDA') {
+      const movimento = mapMovimentoOperacao(mov);
+
+      if (isEntradaParaAcerto(movimento)) {
+        saldo = 0;
+        lastLocal = '';
+        lastLocalId = '';
+        lastData = '';
+        return;
+      }
+
+      if (movimento.tipo === 'SAIDA' && !isAcertoDeEstoque(movimento)) {
         saldo += Number(mov.quantidade);
         const localNome = (mov.locais_utilizacao as any)?.nome || 'Local não identificado';
         lastLocal = localNome;
         lastLocalId = mov.local_utilizacao_id || '';
         lastData = mov.data_hora;
       }
-      if (mov.tipo === 'ENTRADA' && mov.observacoes?.toLowerCase().includes('devolução')) {
+      if (isDevolucaoMovimento(movimento)) {
         // Para ferramentas, a devolução "zera" a pendência mais recente
         saldo = Math.max(0, saldo - Number(mov.quantidade));
+        if (saldo === 0) {
+          lastLocal = '';
+          lastLocalId = '';
+          lastData = '';
+        }
       }
     });
 
