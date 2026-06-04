@@ -134,11 +134,15 @@ export const TabelaMovimentacoes = () => {
   // Filtrar movimentações - lógica unificada
   const movimentacoesFiltradas = useMemo(() => {
     return movimentacoesOrdenadas.filter(mov => {
-      const textoFiltro = filtroTexto.toLowerCase();
-      const matchTexto = !textoFiltro || 
-        mov.itemSnapshot?.nome?.toLowerCase().includes(textoFiltro) ||
-        mov.itemSnapshot?.codigoBarras?.toString().includes(textoFiltro) ||
-        mov.observacoes?.toLowerCase().includes(textoFiltro);
+      const textoFiltro = filtroTexto.trim().toLowerCase();
+      const buscaPorCodigo = /^\d+$/.test(textoFiltro);
+      const codigoItem = mov.itemSnapshot?.codigoBarras?.toString().trim() || '';
+      const matchTexto = !textoFiltro || (
+        buscaPorCodigo
+          ? codigoItem === textoFiltro
+          : mov.itemSnapshot?.nome?.toLowerCase().includes(textoFiltro) ||
+            mov.observacoes?.toLowerCase().includes(textoFiltro)
+      );
 
       let matchTipo = true;
       if (tipoVisualizacao === 'saidas') {
