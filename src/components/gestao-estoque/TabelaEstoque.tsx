@@ -110,12 +110,16 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
 
   const itensFiltrados = useMemo(() => {
     return estoque.filter(item => {
-      const textoFiltro = filtroTexto.toLowerCase();
-      const matchTexto = !textoFiltro || 
-        item.nome.toLowerCase().includes(textoFiltro) ||
-        item.codigoBarras.toString().includes(textoFiltro) ||
-        item.marca.toLowerCase().includes(textoFiltro) ||
-        item.especificacao.toLowerCase().includes(textoFiltro);
+      const textoFiltro = filtroTexto.trim().toLowerCase();
+      const buscaPorCodigo = /^\d+$/.test(textoFiltro);
+      const codigoItem = item.codigoBarras.toString().trim();
+      const matchTexto = !textoFiltro || (
+        buscaPorCodigo
+          ? codigoItem === textoFiltro
+          : item.nome.toLowerCase().includes(textoFiltro) ||
+            item.marca.toLowerCase().includes(textoFiltro) ||
+            item.especificacao.toLowerCase().includes(textoFiltro)
+      );
 
       // Filtro por categoria (via subcategorias vinculadas)
       const matchCategoria = !subcategoriaIdsDaCategoria || 
