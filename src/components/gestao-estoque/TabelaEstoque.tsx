@@ -31,6 +31,7 @@ interface TabelaEstoqueProps {
 }
 
 type FiltroEstoque = 'todos' | 'com-estoque' | 'baixo' | 'zerado' | 'negativo';
+type FiltroFoto = 'todas' | 'com-foto' | 'sem-foto';
 
 export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   const { obterEstoque, loading, editarItem, registrarEntrada, registrarSaida } = useEstoqueContext();
@@ -41,6 +42,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   const [filtroSubcategoria, setFiltroSubcategoria] = useState('todas');
   const [filtroCondicao, setFiltroCondicao] = useState('todas');
   const [filtroEstoque, setFiltroEstoque] = useState<FiltroEstoque>('todos');
+  const [filtroFoto, setFiltroFoto] = useState<FiltroFoto>('todas');
   const [filtroStatus, setFiltroStatus] = useState('ativos'); // ativos, inativos, todos
   const [modoVisualizacao, setModoVisualizacao] = useState<'detalhado' | 'contado'>('detalhado');
   
@@ -135,6 +137,14 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
         matchEstoque = item.estoqueAtual < 0;
       }
 
+      const temFoto = Boolean(item.fotoUrl?.trim());
+      let matchFoto = true;
+      if (filtroFoto === 'com-foto') {
+        matchFoto = temFoto;
+      } else if (filtroFoto === 'sem-foto') {
+        matchFoto = !temFoto;
+      }
+
       let matchStatus = true;
       if (filtroStatus === 'ativos') {
         matchStatus = item.ativo !== false;
@@ -142,14 +152,14 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
         matchStatus = item.ativo === false;
       }
 
-      return matchTexto && matchCategoria && matchSubcategoria && matchCondicao && matchEstoque && matchStatus;
+      return matchTexto && matchCategoria && matchSubcategoria && matchCondicao && matchEstoque && matchFoto && matchStatus;
     });
-  }, [estoque, filtroTexto, subcategoriaIdsDaCategoria, filtroSubcategoria, filtroCondicao, filtroEstoque, filtroStatus]);
+  }, [estoque, filtroTexto, subcategoriaIdsDaCategoria, filtroSubcategoria, filtroCondicao, filtroEstoque, filtroFoto, filtroStatus]);
   
   // Resetar página quando filtros mudarem
   useEffect(() => {
     setPaginaAtual(1);
-  }, [filtroTexto, filtroCategoria, filtroSubcategoria, filtroCondicao, filtroEstoque]);
+  }, [filtroTexto, filtroCategoria, filtroSubcategoria, filtroCondicao, filtroEstoque, filtroFoto]);
   
   // Calcular itens da página atual
   const itensPaginados = useMemo(() => {
@@ -575,7 +585,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -640,6 +650,17 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                 <SelectItem value="baixo">Estoque baixo</SelectItem>
                 <SelectItem value="zerado">Estoque zerado</SelectItem>
                 <SelectItem value="negativo">Estoque negativo</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filtroFoto} onValueChange={(value) => setFiltroFoto(value as FiltroFoto)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Foto" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas as fotos</SelectItem>
+                <SelectItem value="com-foto">Com foto</SelectItem>
+                <SelectItem value="sem-foto">Sem foto</SelectItem>
               </SelectContent>
             </Select>
 
