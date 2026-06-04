@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, type KeyboardEvent } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -30,6 +30,8 @@ interface TabelaEstoqueProps {
   onAbrirRetirada?: () => void;
 }
 
+type FiltroEstoque = 'todos' | 'com-estoque' | 'baixo' | 'zerado' | 'negativo';
+
 export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   const { obterEstoque, loading, editarItem, registrarEntrada, registrarSaida } = useEstoqueContext();
   const { obterEstoqueAtivoInfo, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria } = useConfiguracoes();
@@ -38,7 +40,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroSubcategoria, setFiltroSubcategoria] = useState('todas');
   const [filtroCondicao, setFiltroCondicao] = useState('todas');
-  const [filtroEstoque, setFiltroEstoque] = useState('todos'); // todos, baixo, zerado
+  const [filtroEstoque, setFiltroEstoque] = useState<FiltroEstoque>('todos');
   const [filtroStatus, setFiltroStatus] = useState('ativos'); // ativos, inativos, todos
   const [modoVisualizacao, setModoVisualizacao] = useState<'detalhado' | 'contado'>('detalhado');
   
@@ -123,10 +125,14 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
       const matchCondicao = filtroCondicao === 'todas' || item.condicao === filtroCondicao;
       
       let matchEstoque = true;
-      if (filtroEstoque === 'baixo') {
-        matchEstoque = item.quantidadeMinima ? item.estoqueAtual <= item.quantidadeMinima : false;
+      if (filtroEstoque === 'com-estoque') {
+        matchEstoque = item.estoqueAtual > 0;
+      } else if (filtroEstoque === 'baixo') {
+        matchEstoque = item.quantidadeMinima ? item.estoqueAtual > 0 && item.estoqueAtual <= item.quantidadeMinima : false;
       } else if (filtroEstoque === 'zerado') {
         matchEstoque = item.estoqueAtual === 0;
+      } else if (filtroEstoque === 'negativo') {
+        matchEstoque = item.estoqueAtual < 0;
       }
 
       let matchStatus = true;
@@ -169,11 +175,37 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
     const estoqueZero = estoque.filter(item => item.estoqueAtual === 0).length;
     const estoqueNegativo = estoque.filter(item => item.estoqueAtual < 0).length;
     const estoqueBaixo = estoque.filter(item => 
-      item.quantidadeMinima && item.estoqueAtual <= item.quantidadeMinima
+      item.quantidadeMinima && item.estoqueAtual > 0 && item.estoqueAtual <= item.quantidadeMinima
     ).length;
 
     return { total, comEstoque, estoqueZero, estoqueNegativo, estoqueBaixo };
   }, [estoque]);
+
+  const aplicarFiltroResumo = (novoFiltro: FiltroEstoque) => {
+    const filtroAtivo = filtroEstoque === novoFiltro ? 'todos' : novoFiltro;
+
+    setFiltroEstoque(filtroAtivo);
+    setFiltroTexto('');
+    setFiltroCategoria('todas');
+    setFiltroSubcategoria('todas');
+    setFiltroCondicao('todas');
+    setFiltroStatus('todos');
+    setModoVisualizacao('detalhado');
+  };
+
+  const getResumoCardClass = (cardFiltro: FiltroEstoque) => {
+    const ativo = filtroEstoque === cardFiltro;
+    return `group cursor-pointer select-none outline-none transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+      ativo ? 'border-primary/70 bg-primary/10 shadow-lg shadow-primary/10' : ''
+    }`;
+  };
+
+  const handleResumoKeyDown = (event: KeyboardEvent<HTMLDivElement>, cardFiltro: FiltroEstoque) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      aplicarFiltroResumo(cardFiltro);
+    }
+  };
 
   // Função para obter cor do badge baseado no estoque
   const getEstoqueBadge = (item: EstoqueItem) => {
@@ -450,7 +482,15 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card
+          role="button"
+          tabIndex={0}
+          aria-pressed={filtroEstoque === 'com-estoque'}
+          aria-label="Filtrar itens com estoque"
+          onClick={() => aplicarFiltroResumo('com-estoque')}
+          onKeyDown={(event) => handleResumoKeyDown(event, 'com-estoque')}
+          className={getResumoCardClass('com-estoque')}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -462,7 +502,15 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card
+          role="button"
+          tabIndex={0}
+          aria-pressed={filtroEstoque === 'baixo'}
+          aria-label="Filtrar itens com estoque baixo"
+          onClick={() => aplicarFiltroResumo('baixo')}
+          onKeyDown={(event) => handleResumoKeyDown(event, 'baixo')}
+          className={getResumoCardClass('baixo')}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -474,7 +522,15 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card
+          role="button"
+          tabIndex={0}
+          aria-pressed={filtroEstoque === 'zerado'}
+          aria-label="Filtrar itens zerados"
+          onClick={() => aplicarFiltroResumo('zerado')}
+          onKeyDown={(event) => handleResumoKeyDown(event, 'zerado')}
+          className={getResumoCardClass('zerado')}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -486,7 +542,15 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card
+          role="button"
+          tabIndex={0}
+          aria-pressed={filtroEstoque === 'negativo'}
+          aria-label="Filtrar itens negativados"
+          onClick={() => aplicarFiltroResumo('negativo')}
+          onKeyDown={(event) => handleResumoKeyDown(event, 'negativo')}
+          className={getResumoCardClass('negativo')}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -566,14 +630,16 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
               </SelectContent>
             </Select>
             
-            <Select value={filtroEstoque} onValueChange={setFiltroEstoque}>
+            <Select value={filtroEstoque} onValueChange={(value) => setFiltroEstoque(value as FiltroEstoque)}>
               <SelectTrigger>
                 <SelectValue placeholder="Nível de Estoque" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos os níveis</SelectItem>
+                <SelectItem value="com-estoque">Com estoque</SelectItem>
                 <SelectItem value="baixo">Estoque baixo</SelectItem>
                 <SelectItem value="zerado">Estoque zerado</SelectItem>
+                <SelectItem value="negativo">Estoque negativo</SelectItem>
               </SelectContent>
             </Select>
 
