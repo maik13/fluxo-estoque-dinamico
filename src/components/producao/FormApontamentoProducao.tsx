@@ -4,6 +4,7 @@ import {
   Check,
   ChevronsUpDown,
   Clock,
+  ImageIcon,
   ImagePlus,
   Loader2,
   Save,
@@ -47,6 +48,7 @@ import { cn } from '@/lib/utils';
 import type {
   NovoApontamentoProducao,
   ProducaoApontamento,
+  ProducaoApontamentoAnexo,
   ProducaoLocalTipo,
   ProducaoMembro,
   ProducaoTarefa,
@@ -141,6 +143,56 @@ const SecaoFormulario = ({
 
 const MensagemErro = ({ texto }: { texto?: string }) =>
   texto ? <p className="text-xs font-medium text-destructive">{texto}</p> : null;
+
+const MiniaturaImagem = ({ src, alt }: { src: string; alt: string }) => (
+  <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted/30">
+    {src ? (
+      <img src={src} alt={alt} className="h-full w-full object-cover" />
+    ) : (
+      <ImageIcon className="h-5 w-5 text-muted-foreground" />
+    )}
+  </div>
+);
+
+const MiniaturaImagemPendente = ({ arquivo }: { arquivo: File }) => {
+  const [src, setSrc] = useState('');
+
+  useEffect(() => {
+    const url = URL.createObjectURL(arquivo);
+    setSrc(url);
+    return () => URL.revokeObjectURL(url);
+  }, [arquivo]);
+
+  return <MiniaturaImagem src={src} alt={arquivo.name} />;
+};
+
+const MiniaturaAnexoExistente = ({
+  anexo,
+  obterUrl,
+}: {
+  anexo: ProducaoApontamentoAnexo;
+  obterUrl: (filePath: string) => Promise<string>;
+}) => {
+  const [src, setSrc] = useState('');
+
+  useEffect(() => {
+    let ativo = true;
+
+    void obterUrl(anexo.file_path)
+      .then((url) => {
+        if (ativo) setSrc(url);
+      })
+      .catch(() => {
+        if (ativo) setSrc('');
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [anexo.file_path, obterUrl]);
+
+  return <MiniaturaImagem src={src} alt={anexo.file_name} />;
+};
 
 const CampoPesquisavel = ({
   opcoes,
@@ -240,6 +292,7 @@ export const FormApontamentoProducao = ({
     listarAnexos,
     anexarImagem,
     removerAnexo,
+    obterUrlAnexo,
   } = useProducaoAnexos();
 
   const editando = Boolean(apontamentoInicial);
@@ -786,7 +839,8 @@ export const FormApontamentoProducao = ({
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Nenhum membro ativo está disponível para seleção.
+                  Nenhum membro ativo. Cadastre a equipe em Configurações da
+                  Produção.
                 </AlertDescription>
               </Alert>
             )}
@@ -815,6 +869,10 @@ export const FormApontamentoProducao = ({
                 <p className="text-xs text-muted-foreground">
                   JPEG, PNG ou WebP, com até 10 MB por imagem.
                 </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  As imagens ficam vinculadas ao apontamento e não movimentam
+                  estoque.
+                </p>
               </div>
               <Button
                 type="button"
@@ -840,9 +898,15 @@ export const FormApontamentoProducao = ({
                       key={anexo.id}
                       className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2"
                     >
-                      <span className="min-w-0 truncate text-sm">
-                        {anexo.file_name}
-                      </span>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <MiniaturaAnexoExistente
+                          anexo={anexo}
+                          obterUrl={obterUrlAnexo}
+                        />
+                        <span className="min-w-0 truncate text-sm">
+                          {anexo.file_name}
+                        </span>
+                      </div>
                       <Button
                         type="button"
                         variant="ghost"
@@ -868,11 +932,14 @@ export const FormApontamentoProducao = ({
                         key={chave}
                         className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2"
                       >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm">{imagem.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Pronta para enviar ao salvar
-                          </p>
+                        <div className="flex min-w-0 items-center gap-3">
+                          <MiniaturaImagemPendente arquivo={imagem} />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm">{imagem.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Pronta para enviar ao salvar
+                            </p>
+                          </div>
                         </div>
                         <Button
                           type="button"

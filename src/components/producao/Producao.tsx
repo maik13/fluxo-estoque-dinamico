@@ -1,10 +1,18 @@
 import { useCallback, useEffect } from 'react';
-import { AlertCircle, ClipboardList, Factory, History, PackageSearch } from 'lucide-react';
+import {
+  AlertCircle,
+  ClipboardList,
+  Factory,
+  History,
+  PackageSearch,
+  Settings,
+} from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useProducao } from '@/hooks/useProducao';
+import { ConfiguracoesProducao } from './ConfiguracoesProducao';
 import { FormApontamentoProducao } from './FormApontamentoProducao';
 import { HistoricoApontamentosProducao } from './HistoricoApontamentosProducao';
 import { MateriaisProjetoProducao } from './MateriaisProjetoProducao';
@@ -16,7 +24,11 @@ export const Producao = () => {
     apontamentos,
     loading,
     listarTarefas,
+    criarTarefa,
     listarMembrosProducao,
+    criarMembroProducao,
+    editarMembroProducao,
+    inativarMembroProducao,
     listarApontamentos,
     criarApontamento,
     editarApontamento,
@@ -34,11 +46,12 @@ export const Producao = () => {
 
   const podeApontar = canApontarProducao();
   const podeConferir = canConferirProducao();
+  const podeConfigurar = canConfigurarProducao();
   const podeAcessar =
     podeApontar ||
     podeConferir ||
     canViewBIProducao() ||
-    canConfigurarProducao();
+    podeConfigurar;
 
   const carregarDados = useCallback(async () => {
     await Promise.all([
@@ -81,7 +94,11 @@ export const Producao = () => {
       </div>
 
       <Tabs defaultValue={podeApontar ? 'apontamento' : 'historico'} className="w-full">
-        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 sm:grid-cols-3">
+        <TabsList
+          className={`grid h-auto w-full grid-cols-1 gap-1 ${
+            podeConfigurar ? 'sm:grid-cols-4' : 'sm:grid-cols-3'
+          }`}
+        >
           <TabsTrigger value="apontamento" className="gap-2">
             <ClipboardList className="h-4 w-4" />
             Apontamento
@@ -94,6 +111,12 @@ export const Producao = () => {
             <PackageSearch className="h-4 w-4" />
             Materiais do Projeto
           </TabsTrigger>
+          {podeConfigurar && (
+            <TabsTrigger value="configuracoes" className="gap-2">
+              <Settings className="h-4 w-4" />
+              Configurações
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="apontamento" className="mt-5">
@@ -132,6 +155,21 @@ export const Producao = () => {
             podeRegistrar={podeApontar}
           />
         </TabsContent>
+
+        {podeConfigurar && (
+          <TabsContent value="configuracoes" className="mt-5">
+            <ConfiguracoesProducao
+              membros={membrosProducao}
+              tarefas={tarefas}
+              listarMembros={listarMembrosProducao}
+              criarMembro={criarMembroProducao}
+              editarMembro={editarMembroProducao}
+              inativarMembro={inativarMembroProducao}
+              listarTarefas={listarTarefas}
+              criarTarefa={criarTarefa}
+            />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
