@@ -559,27 +559,68 @@ export type Database = {
         }
         Relationships: []
       }
+      producao_apontamento_anexos: {
+        Row: {
+          apontamento_id: string
+          created_at: string
+          file_name: string
+          file_path: string
+          id: string
+          mime_type: string
+          size_bytes: number | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          apontamento_id: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          id?: string
+          mime_type: string
+          size_bytes?: number | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          apontamento_id?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          mime_type?: string
+          size_bytes?: number | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_apontamento_anexos_apontamento_id_fkey"
+            columns: ["apontamento_id"]
+            isOneToOne: false
+            referencedRelation: "producao_apontamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       producao_apontamento_membros: {
         Row: {
           apontamento_id: string
           created_at: string
           id: string
+          membro_id: string
           nome_snapshot: string
-          solicitante_id: string
         }
         Insert: {
           apontamento_id: string
           created_at?: string
           id?: string
+          membro_id: string
           nome_snapshot: string
-          solicitante_id: string
         }
         Update: {
           apontamento_id?: string
           created_at?: string
           id?: string
+          membro_id?: string
           nome_snapshot?: string
-          solicitante_id?: string
         }
         Relationships: [
           {
@@ -590,10 +631,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "producao_apontamento_membros_solicitante_id_fkey"
-            columns: ["solicitante_id"]
+            foreignKeyName: "producao_apontamento_membros_membro_id_fkey"
+            columns: ["membro_id"]
             isOneToOne: false
-            referencedRelation: "solicitantes"
+            referencedRelation: "producao_membros"
             referencedColumns: ["id"]
           },
         ]
@@ -737,6 +778,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      producao_membros: {
+        Row: {
+          apelido: string | null
+          ativo: boolean
+          created_at: string
+          funcao: string | null
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          apelido?: string | null
+          ativo?: boolean
+          created_at?: string
+          funcao?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          apelido?: string | null
+          ativo?: boolean
+          created_at?: string
+          funcao?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       producao_tarefas: {
         Row: {

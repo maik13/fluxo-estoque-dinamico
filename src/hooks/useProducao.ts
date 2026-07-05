@@ -3,8 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import type {
   FiltrosProducao,
   NovoApontamentoProducao,
+  NovoMembroProducao,
   ProducaoApontamento,
   ProducaoApontamentoMembro,
+  ProducaoMembro,
   ProducaoTarefa,
 } from '@/types/producao';
 
@@ -39,10 +41,15 @@ export const calcularDuracaoProducao = (inicio: string, termino: string) => {
     horarioEmSegundos(termino) - horarioEmSegundos(inicio);
 
   if (duracaoSegundos <= 0) {
-    throw new Error('O término deve ser maior que o início.');
+    throw new Error('O término deve ser pelo menos 1 minuto maior que o início.');
   }
 
-  return Math.ceil(duracaoSegundos / 60);
+  const duracaoMinutos = Math.ceil(duracaoSegundos / 60);
+  if (duracaoMinutos < 1) {
+    throw new Error('A duração mínima do apontamento é de 1 minuto.');
+  }
+
+  return duracaoMinutos;
 };
 
 const validarApontamento = (
@@ -64,6 +71,7 @@ const validarApontamento = (
 
 export const useProducao = () => {
   const [tarefas, setTarefas] = useState<ProducaoTarefa[]>([]);
+  const [membrosProducao, setMembrosProducao] = useState<ProducaoMembro[]>([]);
   const [apontamentos, setApontamentos] = useState<ProducaoApontamento[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -119,6 +127,99 @@ export const useProducao = () => {
     [],
   );
 
+  const listarMembrosProducao = useCallback(async (somenteAtivos = true) => {
+    let consulta = supabase
+      .from('producao_membros')
+      .select('*')
+      .order('nome', { ascending: true });
+
+    if (somenteAtivos) {
+      consulta = consulta.eq('ativo', true);
+    }
+
+    const { data, error } = await consulta;
+    if (error) throw error;
+
+    const resultado = (data ?? []) as ProducaoMembro[];
+    setMembrosProducao(resultado);
+    return resultado;
+  }, []);
+
+  const criarMembroProducao = useCallback(
+    async (nome: string, apelido?: string | null, funcao?: string | null) => {
+      const nomeNormalizado = nome.trim();
+      if (!nomeNormalizado) {
+        throw new Error('O nome do membro é obrigatório.');
+      }
+
+      const { data, error } = await supabase
+        .from('producao_membros')
+        .insert({
+          nome: nomeNormalizado,
+          apelido: apelido?.trim() || null,
+          funcao: funcao?.trim() || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      const membro = data as ProducaoMembro;
+      setMembrosProducao((atuais) =>
+        [...atuais, membro].sort((a, b) => a.nome.localeCompare(b.nome)),
+      );
+      return membro;
+    },
+    [],
+  );
+
+  const editarMembroProducao = useCallback(
+    async (id: string, dados: Partial<NovoMembroProducao>) => {
+      const alteracoes: Partial<NovoMembroProducao> = {};
+
+      if (dados.nome !== undefined) {
+        const nomeNormalizado = dados.nome.trim();
+        if (!nomeNormalizado) {
+          throw new Error('O nome do membro é obrigatório.');
+        }
+        alteracoes.nome = nomeNormalizado;
+      }
+      if (dados.apelido !== undefined) {
+        alteracoes.apelido = dados.apelido?.trim() || null;
+      }
+      if (dados.funcao !== undefined) {
+        alteracoes.funcao = dados.funcao?.trim() || null;
+      }
+
+      const { data, error } = await supabase
+        .from('producao_membros')
+        .update(alteracoes)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      const membro = data as ProducaoMembro;
+      setMembrosProducao((atuais) =>
+        atuais.map((atual) => (atual.id === id ? membro : atual)),
+      );
+      return membro;
+    },
+    [],
+  );
+
+  const inativarMembroProducao = useCallback(async (id: string) => {
+    const { data, error } = await supabase
+      .from('producao_membros')
+      .update({ ativo: false })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    setMembrosProducao((atuais) => atuais.filter((membro) => membro.id !== id));
+    return data as ProducaoMembro;
+  }, []);
+
   const listarApontamentos = useCallback(
     async (filtros: FiltrosProducao = {}) => {
       setLoading(true);
@@ -173,9 +274,10 @@ export const useProducao = () => {
     }
 
     const { data, error } = await supabase
-      .from('solicitantes')
+      .from('producao_membros')
       .select('id, nome')
-      .in('id', membrosUnicos);
+      .in('id', membrosUnicos)
+      .eq('ativo', true);
 
     if (error) throw error;
 
@@ -212,20 +314,20 @@ export const useProducao = () => {
       const { data: membrosAtuais, error: consultaMembrosError } =
         await supabase
           .from('producao_apontamento_membros')
-          .select('solicitante_id')
+          .select('membro_id')
           .eq('apontamento_id', apontamentoId);
 
       if (consultaMembrosError) throw consultaMembrosError;
 
       const idsDesejados = new Set(membros.map((membro) => membro.id));
       const idsAtuais = new Set(
-        (membrosAtuais ?? []).map((membro) => membro.solicitante_id),
+        (membrosAtuais ?? []).map((membro) => membro.membro_id),
       );
       const membrosParaAdicionar = membros.filter(
         (membro) => !idsAtuais.has(membro.id),
       );
       const idsParaRemover = [...idsAtuais].filter(
-        (solicitanteId) => !idsDesejados.has(solicitanteId),
+        (membroId) => !idsDesejados.has(membroId),
       );
 
       if (membrosParaAdicionar.length > 0) {
@@ -234,7 +336,7 @@ export const useProducao = () => {
           .insert(
             membrosParaAdicionar.map((membro) => ({
               apontamento_id: apontamentoId,
-              solicitante_id: membro.id,
+              membro_id: membro.id,
               nome_snapshot: membro.nome,
             })),
           );
@@ -247,7 +349,7 @@ export const useProducao = () => {
           .from('producao_apontamento_membros')
           .delete()
           .eq('apontamento_id', apontamentoId)
-          .in('solicitante_id', idsParaRemover);
+          .in('membro_id', idsParaRemover);
 
         if (exclusaoError) throw exclusaoError;
       }
@@ -452,10 +554,15 @@ export const useProducao = () => {
 
   return {
     tarefas,
+    membrosProducao,
     apontamentos,
     loading,
     listarTarefas,
     criarTarefa,
+    listarMembrosProducao,
+    criarMembroProducao,
+    editarMembroProducao,
+    inativarMembroProducao,
     listarApontamentos,
     criarApontamento,
     editarApontamento,

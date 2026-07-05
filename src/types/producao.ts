@@ -34,9 +34,45 @@ export interface ProducaoApontamento {
 export interface ProducaoApontamentoMembro {
   id: string;
   apontamento_id: string;
-  solicitante_id: string;
+  membro_id: string;
   nome_snapshot: string;
   created_at: string;
+}
+
+export interface ProducaoMembro {
+  id: string;
+  nome: string;
+  apelido: string | null;
+  funcao: string | null;
+  ativo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NovoMembroProducao {
+  nome: string;
+  apelido?: string | null;
+  funcao?: string | null;
+}
+
+export interface ProducaoApontamentoAnexo {
+  id: string;
+  apontamento_id: string;
+  file_path: string;
+  file_name: string;
+  mime_type: 'image/jpeg' | 'image/png' | 'image/webp';
+  size_bytes: number | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export interface NovoAnexoProducao {
+  apontamento_id: string;
+  file_path: string;
+  file_name: string;
+  mime_type: ProducaoApontamentoAnexo['mime_type'];
+  size_bytes?: number | null;
+  uploaded_by?: string | null;
 }
 
 export interface ProducaoMaterialProjeto {

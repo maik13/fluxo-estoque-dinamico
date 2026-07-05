@@ -9,12 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { LocalUtilizacaoConfig, SolicitanteConfig } from '@/hooks/useConfiguracoes';
+import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
 import type {
   NovoApontamentoProducao,
   ProducaoApontamento,
   ProducaoApontamentoMembro,
   ProducaoLocalTipo,
+  ProducaoMembro,
   ProducaoStatus,
   ProducaoTarefa,
 } from '@/types/producao';
@@ -24,7 +25,7 @@ interface HistoricoApontamentosProducaoProps {
   apontamentos: ProducaoApontamento[];
   tarefas: ProducaoTarefa[];
   locais: LocalUtilizacaoConfig[];
-  solicitantes: SolicitanteConfig[];
+  membros: ProducaoMembro[];
   loading: boolean;
   podeApontar: boolean;
   podeConferir: boolean;
@@ -64,7 +65,7 @@ export const HistoricoApontamentosProducao = ({
   apontamentos,
   tarefas,
   locais,
-  solicitantes,
+  membros,
   loading,
   podeApontar,
   podeConferir,
@@ -130,7 +131,7 @@ export const HistoricoApontamentosProducao = ({
           (projetoId === TODOS || apontamento.projeto_local_id === projetoId) &&
           (tarefaId === TODOS || apontamento.tarefa_id === tarefaId) &&
           (membroId === TODOS ||
-            membros.some((membro) => membro.solicitante_id === membroId)) &&
+            membros.some((membro) => membro.membro_id === membroId)) &&
           (status === TODOS || apontamento.status === status) &&
           (localTipo === TODOS || apontamento.local_tipo === localTipo)
         );
@@ -224,7 +225,7 @@ export const HistoricoApontamentosProducao = ({
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={TODOS}>Todos</SelectItem>
-                  {solicitantes.map((membro) => (
+                  {membros.map((membro) => (
                     <SelectItem key={membro.id} value={membro.id}>{membro.nome}</SelectItem>
                   ))}
                 </SelectContent>
@@ -362,13 +363,13 @@ export const HistoricoApontamentosProducao = ({
               compacto
               tarefas={tarefas}
               locais={locais}
-              solicitantes={solicitantes}
+              membros={membros}
               podeApontar={podeApontar}
               criarApontamento={criarApontamento}
               editarApontamento={editarApontamento}
               apontamentoInicial={editando}
               membrosIniciais={(membrosPorApontamento[editando.id] ?? []).map(
-                (membro) => membro.solicitante_id,
+                (membro) => membro.membro_id,
               )}
               onSuccess={async () => {
                 setEditando(null);

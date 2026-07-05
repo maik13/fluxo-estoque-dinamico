@@ -12,9 +12,11 @@ import { MateriaisProjetoProducao } from './MateriaisProjetoProducao';
 export const Producao = () => {
   const {
     tarefas,
+    membrosProducao,
     apontamentos,
     loading,
     listarTarefas,
+    listarMembrosProducao,
     listarApontamentos,
     criarApontamento,
     editarApontamento,
@@ -22,7 +24,7 @@ export const Producao = () => {
     conferirApontamento,
     listarMembros,
   } = useProducao();
-  const { locaisUtilizacao, solicitantes } = useConfiguracoes();
+  const { locaisUtilizacao } = useConfiguracoes();
   const {
     canApontarProducao,
     canConferirProducao,
@@ -39,8 +41,12 @@ export const Producao = () => {
     canConfigurarProducao();
 
   const carregarDados = useCallback(async () => {
-    await Promise.all([listarTarefas(), listarApontamentos()]);
-  }, [listarApontamentos, listarTarefas]);
+    await Promise.all([
+      listarTarefas(),
+      listarMembrosProducao(),
+      listarApontamentos(),
+    ]);
+  }, [listarApontamentos, listarMembrosProducao, listarTarefas]);
 
   useEffect(() => {
     void carregarDados();
@@ -94,7 +100,7 @@ export const Producao = () => {
           <FormApontamentoProducao
             tarefas={tarefas}
             locais={locaisUtilizacao}
-            solicitantes={solicitantes}
+            membros={membrosProducao}
             podeApontar={podeApontar}
             criarApontamento={criarApontamento}
             editarApontamento={editarApontamento}
@@ -107,7 +113,7 @@ export const Producao = () => {
             apontamentos={apontamentos}
             tarefas={tarefas}
             locais={locaisUtilizacao}
-            solicitantes={solicitantes}
+            membros={membrosProducao}
             loading={loading}
             podeApontar={podeApontar}
             podeConferir={podeConferir}
