@@ -14,9 +14,12 @@ import {
 } from 'lucide-react';
 import { exportarResumoGruposExcel, exportarItensGrupoExcel } from '@/utils/reportExport';
 import { Button } from '@/components/ui/button';
+import { PainelProducaoGerencial } from '@/components/producao/PainelProducaoGerencial';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export const PainelGerencial = () => {
   const { movimentacoes } = useEstoqueContext();
+  const { canViewBIProducao } = usePermissions();
   const { 
     locaisUtilizacao: locaisConfig, 
     gruposProjeto, 
@@ -600,6 +603,10 @@ export const PainelGerencial = () => {
           </CardContent>
         )}
       </Card>
+
+      {canViewBIProducao() && (
+        <PainelProducaoGerencial locais={locaisConfig} />
+      )}
     </div>
   );
 };
