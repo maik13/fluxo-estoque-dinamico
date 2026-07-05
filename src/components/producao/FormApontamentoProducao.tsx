@@ -98,7 +98,12 @@ type ErrosFormulario = Partial<Record<CampoErro, string>>;
 
 const hoje = () => new Date().toISOString().slice(0, 10);
 const MEMBROS_INICIAIS_VAZIOS: string[] = [];
-const HORARIOS_RAPIDOS = ['08:00', '12:00', '13:00', '17:30'];
+const horaAtual = () =>
+  new Date().toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
 
 const formatarDuracao = (minutos: number) => {
   const horas = Math.floor(minutos / 60);
@@ -556,25 +561,20 @@ export const FormApontamentoProducao = ({
                   disabled={!podeApontar}
                   className={cn(erros[horario.campo] && 'border-destructive')}
                 />
-                <div className="flex flex-wrap gap-1.5">
-                  {HORARIOS_RAPIDOS.map((hora) => (
-                    <Button
-                      key={`${horario.id}-${hora}`}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 px-2 text-xs"
-                      disabled={!podeApontar}
-                      onClick={() => {
-                        horario.alterar(hora);
-                        limparErro(horario.campo);
-                        if (horario.campo === 'inicio') limparErro('termino');
-                      }}
-                    >
-                      {hora}
-                    </Button>
-                  ))}
-                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!podeApontar}
+                  onClick={() => {
+                    horario.alterar(horaAtual());
+                    limparErro(horario.campo);
+                    if (horario.campo === 'inicio') limparErro('termino');
+                  }}
+                >
+                  <Clock className="mr-2 h-4 w-4" />
+                  Marcar {horario.label.toLocaleLowerCase('pt-BR')}
+                </Button>
                 <MensagemErro texto={erros[horario.campo]} />
               </div>
             ))}
