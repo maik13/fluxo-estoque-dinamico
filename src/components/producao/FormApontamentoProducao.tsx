@@ -1,9 +1,11 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   Check,
   ChevronsUpDown,
   Clock,
+  ImagePlus,
+  Loader2,
   Save,
   Search,
   Trash2,
@@ -40,6 +42,7 @@ import type {
   LocalUtilizacaoConfig,
 } from '@/hooks/useConfiguracoes';
 import { calcularDuracaoProducao } from '@/hooks/useProducao';
+import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
 import { cn } from '@/lib/utils';
 import type {
   NovoApontamentoProducao,
@@ -98,6 +101,8 @@ type ErrosFormulario = Partial<Record<CampoErro, string>>;
 
 const hoje = () => new Date().toISOString().slice(0, 10);
 const MEMBROS_INICIAIS_VAZIOS: string[] = [];
+const TIPOS_IMAGEM_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
+const TAMANHO_MAXIMO_IMAGEM = 10 * 1024 * 1024;
 const horaAtual = () =>
   new Date().toLocaleTimeString('pt-BR', {
     hour: '2-digit',
@@ -226,6 +231,16 @@ export const FormApontamentoProducao = ({
   const [observacoes, setObservacoes] = useState('');
   const [erros, setErros] = useState<ErrosFormulario>({});
   const [salvando, setSalvando] = useState(false);
+  const [imagensPendentes, setImagensPendentes] = useState<File[]>([]);
+  const [removendoAnexoId, setRemovendoAnexoId] = useState<string | null>(null);
+  const inputImagemRef = useRef<HTMLInputElement>(null);
+  const {
+    anexos,
+    loading: carregandoAnexos,
+    listarAnexos,
+    anexarImagem,
+    removerAnexo,
+  } = useProducaoAnexos();
 
   const editando = Boolean(apontamentoInicial);
   const locaisAtivos = useMemo(
@@ -279,6 +294,7 @@ export const FormApontamentoProducao = ({
       setBuscaMembro('');
       setObservacoes('');
       setErros({});
+      setImagensPendentes([]);
       return;
     }
 
@@ -297,7 +313,16 @@ export const FormApontamentoProducao = ({
     setBuscaMembro('');
     setObservacoes(apontamentoInicial.observacoes ?? '');
     setErros({});
+    setImagensPendentes([]);
   }, [apontamentoInicial, membrosIniciais]);
+
+  useEffect(() => {
+    if (!apontamentoInicial) return;
+
+    void listarAnexos(apontamentoInicial.id).catch(() => {
+      toast.error('Não foi possível carregar as imagens do apontamento.');
+    });
+  }, [apontamentoInicial, listarAnexos]);
 
   const duracao = useMemo(() => {
     if (!inicio || !termino) return null;
@@ -328,6 +353,57 @@ export const FormApontamentoProducao = ({
     setMembrosIds((atuais) => atuais.filter((id) => id !== membroId));
   };
 
+  const selecionarImagens = (arquivos: FileList | null) => {
+    if (!arquivos) return;
+
+    const validos: File[] = [];
+    Array.from(arquivos).forEach((arquivo) => {
+      if (!TIPOS_IMAGEM_PERMITIDOS.includes(arquivo.type)) {
+        toast.error(`${arquivo.name}: use uma imagem JPEG, PNG ou WebP.`);
+        return;
+      }
+      if (arquivo.size <= 0 || arquivo.size > TAMANHO_MAXIMO_IMAGEM) {
+        toast.error(`${arquivo.name}: a imagem deve ter entre 1 byte e 10 MB.`);
+        return;
+      }
+      validos.push(arquivo);
+    });
+
+    setImagensPendentes((atuais) => {
+      const chavesAtuais = new Set(
+        atuais.map(
+          (arquivo) =>
+            `${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`,
+        ),
+      );
+      return [
+        ...atuais,
+        ...validos.filter(
+          (arquivo) =>
+            !chavesAtuais.has(
+              `${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`,
+            ),
+        ),
+      ];
+    });
+  };
+
+  const excluirAnexoExistente = async (anexoId: string) => {
+    setRemovendoAnexoId(anexoId);
+    try {
+      await removerAnexo(anexoId);
+      toast.success('Imagem removida.');
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível remover a imagem.',
+      );
+    } finally {
+      setRemovendoAnexoId(null);
+    }
+  };
+
   const limparFormulario = () => {
     setData(hoje());
     setProjetoLocalId('');
@@ -340,6 +416,8 @@ export const FormApontamentoProducao = ({
     setBuscaMembro('');
     setObservacoes('');
     setErros({});
+    setImagensPendentes([]);
+    if (inputImagemRef.current) inputImagemRef.current.value = '';
   };
 
   const validarFormulario = () => {
@@ -399,16 +477,41 @@ export const FormApontamentoProducao = ({
 
     setSalvando(true);
     try {
+      let apontamentoSalvo: ProducaoApontamento;
       if (apontamentoInicial) {
         const { membros_ids: membros, ...alteracoes } = dados;
-        await editarApontamento(apontamentoInicial.id, alteracoes, membros);
-        toast.success('Apontamento atualizado.');
+        apontamentoSalvo = await editarApontamento(
+          apontamentoInicial.id,
+          alteracoes,
+          membros,
+        );
       } else {
-        await criarApontamento(dados);
-        toast.success('Apontamento salvo.');
-        limparFormulario();
+        apontamentoSalvo = await criarApontamento(dados);
       }
 
+      let imagensComErro = 0;
+      for (const imagem of imagensPendentes) {
+        try {
+          await anexarImagem(apontamentoSalvo.id, imagem);
+        } catch {
+          imagensComErro += 1;
+        }
+      }
+
+      if (imagensComErro > 0) {
+        toast.warning(
+          `Apontamento salvo, mas ${imagensComErro} imagem(ns) não foram enviadas.`,
+        );
+      } else {
+        toast.success(
+          apontamentoInicial
+            ? 'Apontamento atualizado.'
+            : 'Apontamento salvo.',
+        );
+      }
+
+      if (!apontamentoInicial) limparFormulario();
+      else setImagensPendentes([]);
       await onSuccess?.();
     } catch (error) {
       toast.error(
@@ -691,7 +794,114 @@ export const FormApontamentoProducao = ({
           </div>
         </SecaoFormulario>
 
-        <SecaoFormulario numero={4} titulo="Observações e confirmação">
+        <SecaoFormulario numero={4} titulo="Imagens">
+          <input
+            ref={inputImagemRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            className="hidden"
+            onChange={(event) => {
+              selecionarImagens(event.target.files);
+              event.target.value = '';
+            }}
+            disabled={!podeApontar || salvando}
+          />
+
+          <div className="rounded-lg border border-dashed bg-muted/10 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-medium">Fotos do serviço</p>
+                <p className="text-xs text-muted-foreground">
+                  JPEG, PNG ou WebP, com até 10 MB por imagem.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!podeApontar || salvando}
+                onClick={() => inputImagemRef.current?.click()}
+              >
+                <ImagePlus className="mr-2 h-4 w-4" />
+                Adicionar imagem
+              </Button>
+            </div>
+
+            {carregandoAnexos ? (
+              <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Carregando imagens...
+              </div>
+            ) : (
+              (anexos.length > 0 || imagensPendentes.length > 0) && (
+                <div className="mt-4 space-y-2">
+                  {anexos.map((anexo) => (
+                    <div
+                      key={anexo.id}
+                      className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2"
+                    >
+                      <span className="min-w-0 truncate text-sm">
+                        {anexo.file_name}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Remover ${anexo.file_name}`}
+                        disabled={
+                          !podeApontar || removendoAnexoId === anexo.id
+                        }
+                        onClick={() => void excluirAnexoExistente(anexo.id)}
+                      >
+                        {removendoAnexoId === anexo.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <X className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                  {imagensPendentes.map((imagem) => {
+                    const chave = `${imagem.name}-${imagem.size}-${imagem.lastModified}`;
+                    return (
+                      <div
+                        key={chave}
+                        className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm">{imagem.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Pronta para enviar ao salvar
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Remover ${imagem.name}`}
+                          disabled={!podeApontar || salvando}
+                          onClick={() =>
+                            setImagensPendentes((atuais) =>
+                              atuais.filter(
+                                (arquivo) =>
+                                  `${arquivo.name}-${arquivo.size}-${arquivo.lastModified}` !==
+                                  chave,
+                              ),
+                            )
+                          }
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+          </div>
+        </SecaoFormulario>
+
+        <SecaoFormulario numero={5} titulo="Observações e confirmação">
           <div className="space-y-2">
             <Label htmlFor="producao-observacoes">Observações</Label>
             <Textarea
