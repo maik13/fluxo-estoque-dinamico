@@ -6,6 +6,7 @@ import { TabelaMovimentacoes } from '@/components/gestao-estoque/TabelaMovimenta
 import { PainelGerencial } from '@/components/gestao-estoque/PainelGerencial';
 import { VisaoProjetos } from '@/components/gestao-estoque/VisaoProjetos';
 import { Mensagens } from '@/components/gestao-estoque/Mensagens';
+import { Producao } from '@/components/producao/Producao';
 import { Package, Menu, History, LogOut, BarChart3, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -19,7 +20,16 @@ const Index = () => {
   const [tabAtiva, setTabAtiva] = useState('menu');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const { session, loading, signOut } = useAuth();
-  const { canManageStock, canViewReports, canAccessManagerial, canAccessProjects } = usePermissions();
+  const {
+    canManageStock,
+    canViewReports,
+    canAccessManagerial,
+    canAccessProjects,
+    canApontarProducao,
+    canConferirProducao,
+    canViewBIProducao,
+    canConfigurarProducao,
+  } = usePermissions();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -120,6 +130,11 @@ const Index = () => {
             const showMovimentacoes = canManageStock(); // A Engenharia agora acessa Relatórios e Projetos via Menu Principal
             const showGerencial = canAccessManagerial();
             const showProjetos = canAccessProjects();
+            const showProducao =
+              canApontarProducao() ||
+              canConferirProducao() ||
+              canViewBIProducao() ||
+              canConfigurarProducao();
             
             // Filtra as abas que serão mostradas no topo
             const tabCount = 1 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
@@ -153,6 +168,7 @@ const Index = () => {
                     onAbrirGerencial={() => setTabAtiva('gerencial')} 
                     onAbrirProjetos={() => setTabAtiva('projetos')}
                     onAbrirMensagens={() => setTabAtiva('mensagens')}
+                    onAbrirProducao={() => setTabAtiva('producao')}
                   />
                 </TabsContent>
 
@@ -165,6 +181,12 @@ const Index = () => {
                 {showProjetos && (
                   <TabsContent value="projetos" className="space-y-6">
                     <VisaoProjetos />
+                  </TabsContent>
+                )}
+
+                {showProducao && (
+                  <TabsContent value="producao" className="space-y-6">
+                    <Producao />
                   </TabsContent>
                 )}
 

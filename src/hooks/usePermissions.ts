@@ -29,6 +29,10 @@ export interface PermissoesFuncionalidades {
   pode_editar_movimentacoes: boolean;
   pode_acessar_gerencial: boolean;
   pode_acessar_projetos: boolean;
+  pode_apontar_producao: boolean;
+  pode_conferir_producao: boolean;
+  pode_ver_bi_producao: boolean;
+  pode_configurar_producao: boolean;
 }
 
 const DEFAULT_PERMISSIONS: PermissoesFuncionalidades = {
@@ -49,6 +53,10 @@ const DEFAULT_PERMISSIONS: PermissoesFuncionalidades = {
   pode_editar_movimentacoes: false,
   pode_acessar_gerencial: false,
   pode_acessar_projetos: false,
+  pode_apontar_producao: false,
+  pode_conferir_producao: false,
+  pode_ver_bi_producao: false,
+  pode_configurar_producao: false,
 };
 
 export const usePermissions = () => {
@@ -152,6 +160,10 @@ export const usePermissions = () => {
           pode_editar_movimentacoes: (data as any).pode_editar_movimentacoes ?? false,
           pode_acessar_gerencial: (data as any).pode_acessar_gerencial ?? false,
           pode_acessar_projetos: (data as any).pode_acessar_projetos ?? false,
+          pode_apontar_producao: data.pode_apontar_producao ?? false,
+          pode_conferir_producao: data.pode_conferir_producao ?? false,
+          pode_ver_bi_producao: data.pode_ver_bi_producao ?? false,
+          pode_configurar_producao: data.pode_configurar_producao ?? false,
         });
         console.log(`[Permissions Debug] Perfil: ${tipoUsuario} | Projetos: ${(data as any).pode_acessar_projetos}`);
       }
@@ -189,6 +201,10 @@ export const usePermissions = () => {
   const canEditMovements = () => permissoesDinamicas.pode_editar_movimentacoes;
   const canAccessManagerial = () => isAdmin() || permissoesDinamicas.pode_acessar_gerencial;
   const canAccessProjects = () => isAdmin() || permissoesDinamicas.pode_acessar_projetos;
+  const canApontarProducao = () => isAdmin() || permissoesDinamicas.pode_apontar_producao;
+  const canConferirProducao = () => isAdmin() || permissoesDinamicas.pode_conferir_producao;
+  const canViewBIProducao = () => isAdmin() || permissoesDinamicas.pode_ver_bi_producao;
+  const canConfigurarProducao = () => isAdmin() || permissoesDinamicas.pode_configurar_producao;
 
   return {
     userProfile,
@@ -220,5 +236,9 @@ export const usePermissions = () => {
     canEditMovements,
     canAccessManagerial,
     canAccessProjects,
+    canApontarProducao,
+    canConferirProducao,
+    canViewBIProducao,
+    canConfigurarProducao,
   };
 };
