@@ -1,13 +1,16 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import {
+  AlertCircle,
   ClipboardPlus,
   FileDown,
   Loader2,
   Pencil,
   Plus,
+  Upload,
   UserRoundPlus,
   UserX,
 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -44,6 +47,13 @@ import type {
   ProducaoTarefa,
 } from '@/types/producao';
 import { exportarCadastrosProducaoExcel } from '@/utils/producaoExport';
+import {
+  lerCadastrosProducaoExcel,
+  normalizarNomeCadastro,
+  type MembroProducaoImportacao,
+  type ResultadoLeituraCadastrosProducao,
+  type TarefaProducaoImportacao,
+} from '@/utils/producaoImport';
 
 interface ConfiguracoesProducaoProps {
   membros: ProducaoMembro[];
@@ -68,6 +78,13 @@ interface ConfiguracoesProducaoProps {
 
 const mensagemErro = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
+
+interface ImportacaoPreparada extends ResultadoLeituraCadastrosProducao {
+  membros_novos: MembroProducaoImportacao[];
+  tarefas_novas: TarefaProducaoImportacao[];
+  membros_existentes: number;
+  tarefas_existentes: number;
+}
 
 export const ConfiguracoesProducao = ({
   membros,
@@ -95,6 +112,12 @@ export const ConfiguracoesProducao = ({
   const [nomeTarefa, setNomeTarefa] = useState('');
   const [categoriaTarefa, setCategoriaTarefa] = useState('');
   const [salvandoTarefa, setSalvandoTarefa] = useState(false);
+  const [lendoPlanilha, setLendoPlanilha] = useState(false);
+  const [importandoCadastros, setImportandoCadastros] = useState(false);
+  const [importacao, setImportacao] = useState<ImportacaoPreparada | null>(
+    null,
+  );
+  const inputImportacaoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void Promise.all([listarMembros(false), listarTarefas(false)]).catch(() => {
@@ -176,9 +199,121 @@ export const ConfiguracoesProducao = ({
     }
   };
 
+  const prepararImportacao = async (arquivo: File) => {
+    setLendoPlanilha(true);
+    try {
+      const resultado = await lerCadastrosProducaoExcel(arquivo);
+      const nomesMembrosExistentes = new Set(
+        membros.map((membro) => normalizarNomeCadastro(membro.nome)),
+      );
+      const nomesTarefasExistentes = new Set(
+        tarefas.map((tarefa) => normalizarNomeCadastro(tarefa.nome)),
+      );
+      const membrosNovos = resultado.membros.filter(
+        (membro) =>
+          !nomesMembrosExistentes.has(normalizarNomeCadastro(membro.nome)),
+      );
+      const tarefasNovas = resultado.tarefas.filter(
+        (tarefa) =>
+          !nomesTarefasExistentes.has(normalizarNomeCadastro(tarefa.nome)),
+      );
+
+      setImportacao({
+        ...resultado,
+        membros_novos: membrosNovos,
+        tarefas_novas: tarefasNovas,
+        membros_existentes: resultado.membros.length - membrosNovos.length,
+        tarefas_existentes: resultado.tarefas.length - tarefasNovas.length,
+      });
+    } catch (error) {
+      toast.error(
+        mensagemErro(error, 'Não foi possível ler a planilha de cadastros.'),
+      );
+    } finally {
+      setLendoPlanilha(false);
+    }
+  };
+
+  const importarCadastros = async () => {
+    if (!importacao) return;
+
+    setImportandoCadastros(true);
+    let membrosImportados = 0;
+    let tarefasImportadas = 0;
+    const falhas: string[] = [];
+
+    for (const membro of importacao.membros_novos) {
+      try {
+        await criarMembro(membro.nome, membro.apelido, membro.funcao);
+        membrosImportados += 1;
+      } catch (error) {
+        falhas.push(
+          `${membro.nome}: ${mensagemErro(error, 'erro ao cadastrar membro')}`,
+        );
+      }
+    }
+
+    for (const tarefa of importacao.tarefas_novas) {
+      try {
+        await criarTarefa(tarefa.nome, tarefa.categoria);
+        tarefasImportadas += 1;
+      } catch (error) {
+        falhas.push(
+          `${tarefa.nome}: ${mensagemErro(error, 'erro ao cadastrar tarefa')}`,
+        );
+      }
+    }
+
+    try {
+      await Promise.all([listarMembros(false), listarTarefas(false)]);
+    } catch {
+      falhas.push('Não foi possível atualizar as listas após a importação.');
+    }
+
+    if (membrosImportados + tarefasImportadas > 0) {
+      toast.success(
+        `${membrosImportados} membro(s) e ${tarefasImportadas} tarefa(s) importados.`,
+      );
+    }
+    if (falhas.length > 0) {
+      toast.warning(
+        `${falhas.length} cadastro(s) não foram importados. ${falhas
+          .slice(0, 2)
+          .join(' | ')}`,
+      );
+    }
+
+    setImportandoCadastros(false);
+    setImportacao(null);
+  };
+
   return (
     <div className="grid gap-5 xl:grid-cols-2">
-      <div className="flex justify-end xl:col-span-2">
+      <div className="flex flex-wrap justify-end gap-2 xl:col-span-2">
+        <input
+          ref={inputImportacaoRef}
+          type="file"
+          accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+          className="hidden"
+          onChange={(event) => {
+            const arquivo = event.target.files?.[0];
+            event.target.value = '';
+            if (arquivo) void prepararImportacao(arquivo);
+          }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          disabled={lendoPlanilha || importandoCadastros}
+          onClick={() => inputImportacaoRef.current?.click()}
+        >
+          {lendoPlanilha ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Upload className="mr-2 h-4 w-4" />
+          )}
+          Importar cadastros
+        </Button>
         <Button
           type="button"
           variant="outline"
@@ -446,6 +581,122 @@ export const ConfiguracoesProducao = ({
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(importacao)}
+        onOpenChange={(aberto) => {
+          if (!aberto && !importandoCadastros) setImportacao(null);
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Importar membros e tarefas</DialogTitle>
+            <DialogDescription>
+              Revise a prévia antes de criar os cadastros. A planilha exportada
+              pelo sistema pode ser usada como modelo.
+            </DialogDescription>
+          </DialogHeader>
+
+          {importacao && (
+            <div className="space-y-4">
+              <div className="rounded-lg border bg-muted/10 p-3 text-sm">
+                <p className="font-medium">{importacao.arquivo_nome}</p>
+                <p className="text-muted-foreground">
+                  Somente registros novos e ativos serão importados.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border p-4">
+                  <p className="text-sm text-muted-foreground">
+                    Membros novos
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {importacao.membros_novos.length}
+                  </p>
+                  {importacao.membros_existentes > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {importacao.membros_existentes} já cadastrado(s) serão
+                      ignorados
+                    </p>
+                  )}
+                </div>
+                <div className="rounded-lg border p-4">
+                  <p className="text-sm text-muted-foreground">
+                    Tarefas novas
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {importacao.tarefas_novas.length}
+                  </p>
+                  {importacao.tarefas_existentes > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {importacao.tarefas_existentes} já cadastrada(s) serão
+                      ignoradas
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {importacao.avisos.length > 0 && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Avisos da planilha</AlertTitle>
+                  <AlertDescription>
+                    <ul className="mt-2 list-disc space-y-1 pl-4">
+                      {importacao.avisos.slice(0, 6).map((aviso) => (
+                        <li key={aviso}>{aviso}</li>
+                      ))}
+                    </ul>
+                    {importacao.avisos.length > 6 && (
+                      <p className="mt-2">
+                        E mais {importacao.avisos.length - 6} aviso(s).
+                      </p>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {importacao.membros_novos.length === 0 &&
+                importacao.tarefas_novas.length === 0 && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Nenhum cadastro novo</AlertTitle>
+                    <AlertDescription>
+                      Todos os registros válidos da planilha já estão
+                      cadastrados.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={importandoCadastros}
+                  onClick={() => setImportacao(null)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  disabled={
+                    importandoCadastros ||
+                    importacao.membros_novos.length +
+                      importacao.tarefas_novas.length ===
+                      0
+                  }
+                  onClick={() => void importarCadastros()}
+                >
+                  {importandoCadastros && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Confirmar importação
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
