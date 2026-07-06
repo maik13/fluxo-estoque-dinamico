@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Edit, Filter, Loader2, XCircle } from 'lucide-react';
+import {
+  CheckCircle2,
+  Edit,
+  FileDown,
+  Filter,
+  Loader2,
+  Printer,
+  XCircle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +27,10 @@ import type {
   ProducaoStatus,
   ProducaoTarefa,
 } from '@/types/producao';
+import {
+  exportarApontamentosProducaoExcel,
+  imprimirSecaoProducao,
+} from '@/utils/producaoExport';
 import { FormApontamentoProducao } from './FormApontamentoProducao';
 
 interface HistoricoApontamentosProducaoProps {
@@ -149,6 +161,30 @@ export const HistoricoApontamentosProducao = ({
     ],
   );
 
+  const filtrosDescricao = () => {
+    const partes: string[] = [];
+    if (dataInicio) partes.push(`Data inicial: ${dataInicio}`);
+    if (dataFim) partes.push(`Data final: ${dataFim}`);
+    if (projetoId !== TODOS) {
+      partes.push(`Projeto/local: ${locaisPorId[projetoId] ?? projetoId}`);
+    }
+    if (tarefaId !== TODOS) {
+      partes.push(`Tarefa: ${tarefasPorId[tarefaId] ?? tarefaId}`);
+    }
+    if (membroId !== TODOS) {
+      partes.push(
+        `Membro: ${
+          membros.find((membro) => membro.id === membroId)?.nome ?? membroId
+        }`,
+      );
+    }
+    if (status !== TODOS) partes.push(`Status: ${statusConfig[status].label}`);
+    if (localTipo !== TODOS) {
+      partes.push(`Local de execução: ${localTipo}`);
+    }
+    return partes.length > 0 ? partes.join(' | ') : 'Sem filtros';
+  };
+
   const executarAcao = async (
     apontamentoId: string,
     acao: 'cancelar' | 'conferir',
@@ -173,15 +209,49 @@ export const HistoricoApontamentosProducao = ({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Histórico de Apontamentos</CardTitle>
-        <CardDescription>
-          Consulte, confira e acompanhe os registros produtivos.
-        </CardDescription>
+    <Card id="historico-producao-impressao">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <CardTitle>Histórico de Apontamentos</CardTitle>
+          <CardDescription>
+            Consulte, confira e acompanhe os registros produtivos.
+          </CardDescription>
+        </div>
+        <div className="flex flex-wrap gap-2 print:hidden">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              exportarApontamentosProducaoExcel(
+                filtrados,
+                tarefas,
+                locais,
+                membrosPorApontamento,
+                filtrosDescricao(),
+              )
+            }
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            Exportar Excel
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              imprimirSecaoProducao('historico-producao-impressao')
+            }
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Imprimir / PDF
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="rounded-lg border bg-muted/10 p-4">
+        <div className="producao-print-only text-sm">
+          <p>Gerado em: {new Date().toLocaleString('pt-BR')}</p>
+          <p>Filtros aplicados: {filtrosDescricao()}</p>
+        </div>
+        <div className="rounded-lg border bg-muted/10 p-4 print:hidden">
           <div className="mb-3 flex items-center gap-2 text-sm font-medium">
             <Filter className="h-4 w-4" />
             Filtros
@@ -270,7 +340,7 @@ export const HistoricoApontamentosProducao = ({
                 <TableHead>Quantidade</TableHead>
                 <TableHead>Membros</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead className="text-right print:hidden">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -305,7 +375,7 @@ export const HistoricoApontamentosProducao = ({
                       <TableCell className="min-w-48">
                         {membros.map((membro) => membro.nome_snapshot).join(', ') || '—'}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="print:hidden">
                         <Badge variant="outline" className={statusConfig[apontamento.status].className}>
                           {statusConfig[apontamento.status].label}
                         </Badge>

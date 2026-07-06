@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import {
   ClipboardPlus,
+  FileDown,
   Loader2,
   Pencil,
   Plus,
@@ -42,6 +43,7 @@ import type {
   ProducaoMembro,
   ProducaoTarefa,
 } from '@/types/producao';
+import { exportarCadastrosProducaoExcel } from '@/utils/producaoExport';
 
 interface ConfiguracoesProducaoProps {
   membros: ProducaoMembro[];
@@ -176,6 +178,16 @@ export const ConfiguracoesProducao = ({
 
   return (
     <div className="grid gap-5 xl:grid-cols-2">
+      <div className="flex justify-end xl:col-span-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => exportarCadastrosProducaoExcel(membros, tarefas)}
+        >
+          <FileDown className="mr-2 h-4 w-4" />
+          Exportar cadastros
+        </Button>
+      </div>
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">

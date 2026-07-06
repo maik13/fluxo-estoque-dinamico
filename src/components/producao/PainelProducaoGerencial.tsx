@@ -4,9 +4,11 @@ import {
   CheckCircle2,
   Clock3,
   Factory,
+  FileDown,
   Filter,
   Loader2,
   PackageCheck,
+  Printer,
   RefreshCcw,
   RotateCcw,
   Users,
@@ -41,6 +43,10 @@ import {
 import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
 import { useProducao } from '@/hooks/useProducao';
 import { useProducaoGerencial } from '@/hooks/useProducaoGerencial';
+import {
+  exportarBIProducaoExcel,
+  imprimirSecaoProducao,
+} from '@/utils/producaoExport';
 import type {
   FiltrosProducaoGerencial,
   ProducaoLocalTipo,
@@ -145,6 +151,40 @@ export const PainelProducaoGerencial = ({
   };
 
   const totalFiltrosAplicados = Object.values(filtros).filter(Boolean).length;
+  const filtrosDescricao = () => {
+    const partes: string[] = [];
+    if (filtros.data_inicio) partes.push(`Data inicial: ${filtros.data_inicio}`);
+    if (filtros.data_fim) partes.push(`Data final: ${filtros.data_fim}`);
+    if (filtros.projeto_local_id) {
+      partes.push(
+        `Projeto/local: ${
+          locais.find((local) => local.id === filtros.projeto_local_id)?.nome ??
+          filtros.projeto_local_id
+        }`,
+      );
+    }
+    if (filtros.tarefa_id) {
+      partes.push(
+        `Tarefa: ${
+          tarefas.find((tarefa) => tarefa.id === filtros.tarefa_id)?.nome ??
+          filtros.tarefa_id
+        }`,
+      );
+    }
+    if (filtros.membro_id) {
+      partes.push(
+        `Membro: ${
+          membrosProducao.find((membro) => membro.id === filtros.membro_id)
+            ?.nome ?? filtros.membro_id
+        }`,
+      );
+    }
+    if (filtros.status) partes.push(`Status: ${statusLabel[filtros.status]}`);
+    if (filtros.local_tipo) {
+      partes.push(`Local de execução: ${filtros.local_tipo}`);
+    }
+    return partes.length > 0 ? partes.join(' | ') : 'Sem filtros';
+  };
   const semDados =
     carregado &&
     !loading &&
@@ -191,7 +231,10 @@ export const PainelProducaoGerencial = ({
   ];
 
   return (
-    <section className="space-y-5 border-t pt-8">
+    <section
+      id="bi-producao-impressao"
+      className="space-y-5 border-t pt-8"
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -203,15 +246,45 @@ export const PainelProducaoGerencial = ({
             vinculados. Esta visão não movimenta estoque.
           </p>
         </div>
-        {totalFiltrosAplicados > 0 && (
-          <Badge variant="secondary">
-            {totalFiltrosAplicados}{' '}
-            {totalFiltrosAplicados === 1 ? 'filtro aplicado' : 'filtros aplicados'}
-          </Badge>
-        )}
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
+          {totalFiltrosAplicados > 0 && (
+            <Badge variant="secondary">
+              {totalFiltrosAplicados}{' '}
+              {totalFiltrosAplicados === 1
+                ? 'filtro aplicado'
+                : 'filtros aplicados'}
+            </Badge>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              exportarBIProducaoExcel(
+                dadosConsolidados,
+                filtrosDescricao(),
+              )
+            }
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            Exportar Excel
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => imprimirSecaoProducao('bi-producao-impressao')}
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Imprimir / PDF
+          </Button>
+        </div>
       </div>
 
-      <Card>
+      <div className="producao-print-only text-sm">
+        <p>Gerado em: {new Date().toLocaleString('pt-BR')}</p>
+        <p>Filtros aplicados: {filtrosDescricao()}</p>
+      </div>
+
+      <Card className="print:hidden">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Filter className="h-5 w-5 text-primary" />

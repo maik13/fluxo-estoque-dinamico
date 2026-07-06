@@ -1,5 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Link2, Loader2, PackageSearch } from 'lucide-react';
+import {
+  FileDown,
+  Link2,
+  Loader2,
+  PackageSearch,
+  Printer,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +21,10 @@ import {
   useProducaoMateriais,
 } from '@/hooks/useProducaoMateriais';
 import type { Json } from '@/integrations/supabase/types';
+import {
+  exportarMateriaisProducaoExcel,
+  imprimirSecaoProducao,
+} from '@/utils/producaoExport';
 
 interface MateriaisProjetoProducaoProps {
   locais: LocalUtilizacaoConfig[];
@@ -49,6 +59,18 @@ export const MateriaisProjetoProducao = ({
   const movementIdsVinculados = useMemo(
     () => new Set(materiaisVinculados.map((item) => item.movement_id)),
     [materiaisVinculados],
+  );
+  const projetoNome =
+    locais.find((local) => local.id === projetoId)?.nome ?? projetoId;
+  const materiaisParaExportar = useMemo(
+    () =>
+      materiaisVinculados.map((material) => ({
+        ...material,
+        projeto_nome:
+          locais.find((local) => local.id === material.projeto_local_id)?.nome ??
+          material.projeto_local_id,
+      })),
+    [locais, materiaisVinculados],
   );
 
   const carregarProjeto = async (novoProjetoId: string) => {
@@ -91,15 +113,45 @@ export const MateriaisProjetoProducao = ({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Materiais do Projeto</CardTitle>
-        <CardDescription>
-          Consulte movimentações oficiais e registre apenas uma referência operacional na Produção.
-        </CardDescription>
+    <Card id="materiais-producao-impressao">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <CardTitle>Materiais do Projeto</CardTitle>
+          <CardDescription>
+            Consulte movimentações oficiais e registre apenas uma referência
+            operacional na Produção.
+          </CardDescription>
+        </div>
+        <div className="flex flex-wrap gap-2 print:hidden">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={materiaisParaExportar.length === 0}
+            onClick={() =>
+              exportarMateriaisProducaoExcel(
+                materiaisParaExportar,
+                projetoId ? `Projeto/local: ${projetoNome}` : 'Sem filtros',
+              )
+            }
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            Exportar Excel
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={materiaisParaExportar.length === 0}
+            onClick={() =>
+              imprimirSecaoProducao('materiais-producao-impressao')
+            }
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Imprimir / PDF
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="max-w-xl space-y-2">
+        <div className="max-w-xl space-y-2 print:hidden">
           <Label>Projeto/local</Label>
           <Select value={projetoId} onValueChange={(valor) => void carregarProjeto(valor)}>
             <SelectTrigger>
@@ -116,12 +168,12 @@ export const MateriaisProjetoProducao = ({
         </div>
 
         {!projetoId ? (
-          <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
+          <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground print:hidden">
             <PackageSearch className="mx-auto mb-3 h-8 w-8" />
             Selecione um projeto para visualizar suas movimentações oficiais.
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-x-auto rounded-lg border print:hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -195,6 +247,57 @@ export const MateriaisProjetoProducao = ({
             </Table>
           </div>
         )}
+
+        <div className="producao-print-only space-y-3">
+          <div className="text-sm">
+            <p>Gerado em: {new Date().toLocaleString('pt-BR')}</p>
+            <p>
+              Filtros aplicados:{' '}
+              {projetoId ? `Projeto/local: ${projetoNome}` : 'Sem filtros'}
+            </p>
+            <p>
+              Materiais exibidos aqui são referências a movimentações oficiais
+              já existentes.
+            </p>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Projeto/local</TableHead>
+                <TableHead>Movimento oficial</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Item</TableHead>
+                <TableHead>Quantidade</TableHead>
+                <TableHead>Observação</TableHead>
+                <TableHead>Data do vínculo</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {materiaisParaExportar.map((material) => {
+                const snapshot = snapshotComoObjeto(material.item_snapshot);
+                return (
+                  <TableRow key={material.id}>
+                    <TableCell>{material.projeto_nome}</TableCell>
+                    <TableCell>{material.movement_id}</TableCell>
+                    <TableCell>{material.tipo}</TableCell>
+                    <TableCell>
+                      {String(
+                        snapshot.nome ?? snapshot.name ?? material.item_id,
+                      )}
+                    </TableCell>
+                    <TableCell>{material.quantidade}</TableCell>
+                    <TableCell>
+                      {material.observacoes_producao ?? '—'}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(material.created_at).toLocaleString('pt-BR')}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
 
       <Dialog
