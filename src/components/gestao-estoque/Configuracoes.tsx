@@ -12,14 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Database, Wrench, Tag, Pencil, X, CheckCircle, XCircle } from 'lucide-react';
 import { userCreationSchema } from '@/schemas/validation';
 import { supabase } from '@/integrations/supabase/client';
-import { gerarRelatorioPDF } from '@/utils/pdfExport';
-import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { GuiaImportacaoExcel } from './GuiaImportacaoExcel';
 import { UsuariosList } from './UsuariosList';
-import { RelatoriosComFiltros } from './RelatoriosComFiltros';
 import { PermissoesPanel } from './PermissoesPanel';
 import { AuditLogViewer } from './AuditLogViewer';
 import { useToast } from '@/hooks/use-toast';
@@ -30,7 +27,6 @@ interface ConfiguracoesProps {
 
 export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
   const { toast } = useToast();
-  const { obterEstoque } = useEstoqueContext();
   const { canCreateUsers } = usePermissions();
   const {
     estoques,
@@ -587,48 +583,6 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     carregarLogo();
   }, []);
 
-  const handleGerarRelatorio = async (tipo: string) => {
-    try {
-      const itensEstoque = obterEstoque();
-      let itensFiltrados = itensEstoque;
-      let titulo = '';
-
-      switch (tipo) {
-        case 'Estoque Atual':
-          titulo = 'RELATÓRIO DE ESTOQUE ATUAL';
-          break;
-        case 'Movimentações':
-          titulo = 'RELATÓRIO DE MOVIMENTAÇÕES';
-          // Para relatório de movimentações, seria necessário dados específicos
-          break;
-        case 'Itens Baixo Estoque':
-          titulo = 'RELATÓRIO DE ITENS COM BAIXO ESTOQUE';
-          itensFiltrados = itensEstoque.filter(item => 
-            item.quantidadeMinima && item.estoqueAtual <= item.quantidadeMinima
-          );
-          break;
-      }
-
-      await gerarRelatorioPDF({
-        titulo,
-        nomeEstoque: `Relatório: ${tipo}`,
-        itens: itensFiltrados
-      });
-
-      toast({
-        title: "Relatório gerado!",
-        description: `Relatório de ${tipo} foi gerado com sucesso.`,
-      });
-    } catch (error) {
-      console.error('Erro ao gerar relatório:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível gerar o relatório.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const itensFiltrados = useMemo(() => {
     if (!itensParaCorrigir) return null;
     if (filtroCategoria === 'Todos') return itensParaCorrigir;
@@ -813,7 +767,7 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
         </DialogHeader>
         
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="grid w-full grid-cols-12 gap-1">
+          <TabsList className="grid w-full grid-cols-11 gap-1">
             {canCreateUsers() && <TabsTrigger value="usuarios" className="text-xs">Usuários</TabsTrigger>}
             <TabsTrigger value="solicitantes" className="text-xs">Solicitantes</TabsTrigger>
             <TabsTrigger value="grupos" className="text-xs">Grupos</TabsTrigger>
@@ -824,7 +778,6 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
             <TabsTrigger value="importacao" className="text-xs">Importação</TabsTrigger>
             <TabsTrigger value="logo" className="text-xs">Logo</TabsTrigger>
             <TabsTrigger value="tema" className="text-xs">Tema</TabsTrigger>
-            <TabsTrigger value="relatorios" className="text-xs">Relatórios</TabsTrigger>
             <TabsTrigger value="auditoria" className="text-xs text-info">Auditoria</TabsTrigger>
           </TabsList>
 
@@ -1864,113 +1817,6 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
             </Card>
           </TabsContent>
 
-          {/* Aba Relatórios */}
-          <TabsContent value="relatorios" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Relatórios do Sistema
-                </CardTitle>
-                <CardDescription>
-                  Gere e exporte relatórios do estoque e configurações da empresa
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Relatórios Filtrados */}
-                <div className="space-y-4">
-                  <h4 className="font-medium">Relatórios Avançados</h4>
-                  <RelatoriosComFiltros />
-                </div>
-
-                <Separator />
-
-                {/* Relatórios Básicos */}
-                <div className="space-y-4">
-                  <h4 className="font-medium">Relatórios Básicos</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Button onClick={() => handleGerarRelatorio('Estoque Atual')} variant="outline">
-                      <Download className="h-4 w-4 mr-2" />
-                      Relatório de Estoque
-                    </Button>
-                    <Button onClick={() => handleGerarRelatorio('Movimentações')} variant="outline">
-                      <Download className="h-4 w-4 mr-2" />
-                      Relatório de Movimentações
-                    </Button>
-                    <Button onClick={() => handleGerarRelatorio('Itens Baixo Estoque')} variant="outline">
-                      <Download className="h-4 w-4 mr-2" />
-                      Itens com Baixo Estoque
-                    </Button>
-                    <Button onClick={() => handleGerarRelatorio('Resumo Mensal')} variant="outline">
-                      <Download className="h-4 w-4 mr-2" />
-                      Resumo Mensal
-                    </Button>
-                  </div>
-                </div>
-                
-                <Separator />
-                
-                {/* Configuração da Empresa */}
-                <div className="space-y-4">
-                  <h4 className="font-medium">Configuração da Empresa</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card className="p-4">
-                      <h5 className="font-medium mb-2">Logo da Empresa</h5>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        Faça upload do logo da sua empresa (PNG, JPG, SVG)
-                      </p>
-                      <Input 
-                        type="file" 
-                        accept="image/*"
-                        className="mb-2"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          try {
-                            const filePath = 'logo.png';
-                            const { error: upErr } = await supabase.storage
-                              .from('branding')
-                              .upload(filePath, file, { upsert: true, contentType: file.type });
-                            if (upErr) throw upErr;
-
-                            const { data: pub } = supabase.storage.from('branding').getPublicUrl(filePath);
-                            if (pub?.publicUrl) {
-                              localStorage.setItem('empresa_logo_url', pub.publicUrl);
-                              toast({ title: 'Logo atualizado!', description: 'O logo foi enviado com sucesso.' });
-                            }
-                          } catch (err: any) {
-                            toast({ title: 'Falha no upload', description: err?.message || 'Não foi possível enviar o logo.', variant: 'destructive' });
-                          }
-                        }}
-                      />
-                      <Button size="sm" className="w-full" onClick={() => (document.getElementById('logo-upload-input') as HTMLInputElement)?.click()}>
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload Logo
-                      </Button>
-                    </Card>
-                  </div>
-                </div>
-
-                <Separator />
-                
-                {/* Backup e Importação */}
-                <div className="space-y-4">
-                  <h4 className="font-medium">Backup e Importação</h4>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Button onClick={handleExportarDados} className="flex-1">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Exportar Dados
-                    </Button>
-                    <Button onClick={handleImportarDados} variant="outline" className="flex-1">
-                      <Download className="h-4 w-4 mr-2" />
-                      Importar Dados
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
           {/* Aba Auditoria */}
           <TabsContent value="auditoria" className="space-y-4">
             <Card className="border-destructive/20 bg-destructive/5 mb-4">
