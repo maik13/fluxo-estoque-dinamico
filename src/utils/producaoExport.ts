@@ -17,10 +17,13 @@ export type MaterialProducaoExportavel = ProducaoMaterialProjeto & {
 };
 
 const statusLabel: Record<ProducaoStatus, string> = {
-  lancado: 'Lançado',
-  conferido: 'Conferido',
+  lancado: 'Pendente',
+  conferido: 'Registrado',
   cancelado: 'Cancelado',
 };
+
+const valorOuIncompleto = (valor: number | null | undefined) =>
+  valor === null || valor === undefined ? 'Custo incompleto' : valor;
 
 const dataArquivo = () => new Date().toISOString().slice(0, 10);
 
@@ -75,20 +78,34 @@ export const exportarBIProducaoExcel = (
   const resumo = [
     {
       'Total de apontamentos': dados.total_apontamentos,
-      'Apontamentos lançados': dados.total_apontamentos_lancados,
-      'Apontamentos conferidos': dados.total_apontamentos_conferidos,
+      'Apontamentos pendentes': dados.total_apontamentos_lancados,
+      'Apontamentos registrados': dados.total_apontamentos_conferidos,
       'Apontamentos cancelados': dados.total_apontamentos_cancelados,
       'Total de minutos': dados.total_minutos,
-      'Total de horas': dados.total_horas,
+      'Horas-relógio': dados.horas_relogio,
+      'Horas-homem': dados.horas_homem,
+      'Horas produtivas': dados.horas_produtivas,
+      'Horas improdutivas': dados.horas_improdutivas,
+      Eficiência: `${dados.eficiencia_percentual}%`,
+      'Custo total mão de obra': valorOuIncompleto(dados.custo_total_mao_obra),
+      'Custo produtivo mão de obra': valorOuIncompleto(
+        dados.custo_produtivo_mao_obra,
+      ),
+      'Custo improdutivo mão de obra': valorOuIncompleto(
+        dados.custo_improdutivo_mao_obra,
+      ),
+      'Apontamentos com custo incompleto':
+        dados.apontamentos_custo_incompleto,
+      'Membros sem valor/hora': dados.membros_sem_valor_hora.join(', ') || '—',
       'Quantidade produzida': dados.quantidade_total_produzida,
       'Média de horas por apontamento': dados.media_horas_por_apontamento,
-      'Pendentes de conferência': dados.apontamentos_pendentes_conferencia,
+      'Pendentes de registro': dados.apontamentos_pendentes_conferencia,
     },
   ];
   XLSX.utils.book_append_sheet(
     workbook,
     criarPlanilha(resumo, Object.keys(resumo[0]), [
-      22, 22, 24, 23, 18, 16, 22, 31, 25,
+      22, 22, 24, 23, 18, 16, 16, 18, 20, 18, 24, 24, 26, 34, 22, 31, 25,
     ]),
     'Resumo',
   );
@@ -98,6 +115,15 @@ export const exportarBIProducaoExcel = (
     Apontamentos: item.total_apontamentos,
     Minutos: item.total_minutos,
     Horas: item.total_horas,
+    'Horas-homem': item.horas_homem,
+    'Horas produtivas': item.horas_produtivas,
+    'Horas improdutivas': item.horas_improdutivas,
+    Eficiência: `${item.eficiencia_percentual}%`,
+    'Custo total': valorOuIncompleto(item.custo_total),
+    'Custo produtivo': valorOuIncompleto(item.custo_produtivo),
+    'Custo improdutivo': valorOuIncompleto(item.custo_improdutivo),
+    'Custo incompleto': item.custo_incompleto ? 'Sim' : 'Não',
+    'Quantidade de fotos': item.quantidade_fotos,
     'Quantidade produzida': item.quantidade_total_produzida,
     'Membros distintos': item.total_membros_distintos,
     'Status predominante': item.status_predominante
@@ -116,6 +142,15 @@ export const exportarBIProducaoExcel = (
         'Apontamentos',
         'Minutos',
         'Horas',
+        'Horas-homem',
+        'Horas produtivas',
+        'Horas improdutivas',
+        'Eficiência',
+        'Custo total',
+        'Custo produtivo',
+        'Custo improdutivo',
+        'Custo incompleto',
+        'Quantidade de fotos',
         'Quantidade produzida',
         'Membros distintos',
         'Status predominante',
@@ -123,7 +158,7 @@ export const exportarBIProducaoExcel = (
         'Conferidos',
         'Cancelados',
       ],
-      [34, 15, 14, 14, 22, 19, 22, 13, 13, 13],
+      [34, 15, 14, 14, 16, 18, 20, 14, 18, 18, 20, 18, 22, 19, 22, 13, 13, 13],
     ),
     'Produção por Projeto',
   );
@@ -134,6 +169,14 @@ export const exportarBIProducaoExcel = (
     Apontamentos: item.total_apontamentos,
     Minutos: item.total_minutos,
     Horas: item.total_horas,
+    'Horas-homem': item.horas_homem,
+    'Horas produtivas': item.horas_produtivas,
+    'Horas improdutivas': item.horas_improdutivas,
+    Eficiência: `${item.eficiencia_percentual}%`,
+    'Custo total': valorOuIncompleto(item.custo_total),
+    'Custo produtivo': valorOuIncompleto(item.custo_produtivo),
+    'Custo improdutivo': valorOuIncompleto(item.custo_improdutivo),
+    'Custo incompleto': item.custo_incompleto ? 'Sim' : 'Não',
     'Quantidade produzida': item.quantidade_total_produzida,
   }));
   XLSX.utils.book_append_sheet(
@@ -146,9 +189,17 @@ export const exportarBIProducaoExcel = (
         'Apontamentos',
         'Minutos',
         'Horas',
+        'Horas-homem',
+        'Horas produtivas',
+        'Horas improdutivas',
+        'Eficiência',
+        'Custo total',
+        'Custo produtivo',
+        'Custo improdutivo',
+        'Custo incompleto',
         'Quantidade produzida',
       ],
-      [36, 24, 15, 14, 14, 22],
+      [36, 24, 15, 14, 14, 16, 18, 20, 14, 18, 18, 20, 22],
     ),
     'Produção por Tarefa',
   );
@@ -158,6 +209,15 @@ export const exportarBIProducaoExcel = (
     Apontamentos: item.total_apontamentos,
     Minutos: item.total_minutos,
     Horas: item.total_horas,
+    'Horas produtivas': item.horas_produtivas,
+    'Horas improdutivas': item.horas_improdutivas,
+    Eficiência: `${item.eficiencia_percentual}%`,
+    'Custo total': valorOuIncompleto(item.custo_total),
+    'Custo produtivo': valorOuIncompleto(item.custo_produtivo),
+    'Custo improdutivo': valorOuIncompleto(item.custo_improdutivo),
+    'Custo incompleto': item.custo_incompleto ? 'Sim' : 'Não',
+    'Valor/hora mínimo': item.valor_hora_minimo ?? '—',
+    'Valor/hora máximo': item.valor_hora_maximo ?? '—',
     'Projetos distintos': item.projetos_distintos,
     'Tarefas distintas': item.tarefas_distintas,
   }));
@@ -170,10 +230,19 @@ export const exportarBIProducaoExcel = (
         'Apontamentos',
         'Minutos',
         'Horas',
+        'Horas produtivas',
+        'Horas improdutivas',
+        'Eficiência',
+        'Custo total',
+        'Custo produtivo',
+        'Custo improdutivo',
+        'Custo incompleto',
+        'Valor/hora mínimo',
+        'Valor/hora máximo',
         'Projetos distintos',
         'Tarefas distintas',
       ],
-      [34, 15, 14, 14, 19, 18],
+      [34, 15, 14, 14, 18, 20, 14, 18, 18, 20, 18, 18, 18, 19, 18],
     ),
     'Produção por Membro',
   );
@@ -183,6 +252,14 @@ export const exportarBIProducaoExcel = (
     Apontamentos: item.total_apontamentos,
     Minutos: item.total_minutos,
     Horas: item.total_horas,
+    'Horas-homem': item.horas_homem,
+    'Horas produtivas': item.horas_produtivas,
+    'Horas improdutivas': item.horas_improdutivas,
+    Eficiência: `${item.eficiencia_percentual}%`,
+    'Custo total': valorOuIncompleto(item.custo_total),
+    'Custo produtivo': valorOuIncompleto(item.custo_produtivo),
+    'Custo improdutivo': valorOuIncompleto(item.custo_improdutivo),
+    'Custo incompleto': item.custo_incompleto ? 'Sim' : 'Não',
     'Quantidade produzida': item.quantidade_total_produzida,
   }));
   XLSX.utils.book_append_sheet(
@@ -194,9 +271,17 @@ export const exportarBIProducaoExcel = (
         'Apontamentos',
         'Minutos',
         'Horas',
+        'Horas-homem',
+        'Horas produtivas',
+        'Horas improdutivas',
+        'Eficiência',
+        'Custo total',
+        'Custo produtivo',
+        'Custo improdutivo',
+        'Custo incompleto',
         'Quantidade produzida',
       ],
-      [24, 15, 14, 14, 22],
+      [24, 15, 14, 14, 16, 18, 20, 14, 18, 18, 20, 22],
     ),
     'Produção por Local de Execução',
   );
@@ -248,6 +333,7 @@ export const exportarApontamentosProducaoExcel = (
   locais: LocalUtilizacaoConfig[],
   membros: MembrosPorApontamento,
   filtrosDescricao: string,
+  fotosPorApontamento: Record<string, number> = {},
 ) => {
   const tarefasPorId = new Map(tarefas.map((item) => [item.id, item.nome]));
   const locaisPorId = new Map(locais.map((item) => [item.id, item.nome]));
@@ -261,9 +347,22 @@ export const exportarApontamentosProducaoExcel = (
     Término: item.termino.slice(0, 5),
     'Duração em minutos': item.duracao_minutos,
     'Duração em horas': Number((item.duracao_minutos / 60).toFixed(2)),
+    'Minutos produtivos': item.minutos_produtivos,
+    'Minutos improdutivos': item.minutos_improdutivos,
+    Eficiência: `${item.duracao_minutos > 0 ? ((item.minutos_produtivos / item.duracao_minutos) * 100).toFixed(1) : '0'}%`,
+    'Motivo da perda': item.motivo_improdutivo ?? '—',
+    'Quantidade de fotos': fotosPorApontamento[item.id] ?? 0,
     'Quantidade produzida': item.quantidade_produzida ?? 0,
     Membros:
       membros[item.id]?.map((membro) => membro.nome_snapshot).join(', ') || '—',
+    'Valores/hora históricos':
+      membros[item.id]
+        ?.map((membro) =>
+          membro.valor_hora_snapshot === null
+            ? `${membro.nome_snapshot}: não informado`
+            : `${membro.nome_snapshot}: ${membro.valor_hora_snapshot}`,
+        )
+        .join(' | ') || '—',
     Status: statusLabel[item.status],
     Observações: item.observacoes ?? '—',
   }));
@@ -281,12 +380,18 @@ export const exportarApontamentosProducaoExcel = (
         'Término',
         'Duração em minutos',
         'Duração em horas',
+        'Minutos produtivos',
+        'Minutos improdutivos',
+        'Eficiência',
+        'Motivo da perda',
+        'Quantidade de fotos',
         'Quantidade produzida',
         'Membros',
+        'Valores/hora históricos',
         'Status',
         'Observações',
       ],
-      [14, 34, 34, 20, 10, 10, 20, 18, 22, 42, 14, 50],
+      [14, 34, 34, 20, 10, 10, 20, 18, 20, 22, 14, 36, 20, 22, 42, 50, 14, 50],
     ),
     'Apontamentos',
   );
@@ -351,6 +456,7 @@ export const exportarCadastrosProducaoExcel = (
     Nome: membro.nome,
     Apelido: membro.apelido ?? '—',
     Função: membro.funcao ?? '—',
+    'Valor da hora': membro.valor_hora ?? '—',
     Status: membro.ativo ? 'Ativo' : 'Inativo',
     'Criado em': formatarDataHora(membro.created_at),
   }));
@@ -358,8 +464,8 @@ export const exportarCadastrosProducaoExcel = (
     workbook,
     criarPlanilha(
       equipe,
-      ['Nome', 'Apelido', 'Função', 'Status', 'Criado em'],
-      [36, 24, 28, 14, 22],
+      ['Nome', 'Apelido', 'Função', 'Valor da hora', 'Status', 'Criado em'],
+      [36, 24, 28, 18, 14, 22],
     ),
     'Equipe de Produção',
   );

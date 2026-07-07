@@ -4,6 +4,7 @@ export interface MembroProducaoImportacao {
   nome: string;
   apelido: string | null;
   funcao: string | null;
+  valor_hora: number | null;
 }
 
 export interface TarefaProducaoImportacao {
@@ -46,6 +47,22 @@ const valorColuna = (
     aliases.has(chave(nome)),
   );
   return texto(entrada?.[1]);
+};
+
+export const parseValorHoraProducao = (valor: unknown) => {
+  const bruto = texto(valor);
+  if (!bruto) return null;
+  const semMoeda = bruto
+    .replace(/R\$/gi, '')
+    .replace(/\s/g, '');
+  const normalizado = semMoeda.includes(',')
+    ? semMoeda.replace(/\./g, '').replace(',', '.')
+    : semMoeda;
+  const numero = Number(normalizado);
+  if (!Number.isFinite(numero) || numero < 0) {
+    throw new Error(`Valor da hora inválido: ${bruto}`);
+  }
+  return Number(numero.toFixed(2));
 };
 
 const encontrarAba = (workbook: XLSX.WorkBook, nomes: string[]) => {
@@ -132,11 +149,27 @@ export const lerCadastrosProducaoExcel = async (
       return;
     }
     nomesMembros.add(nomeNormalizado);
-    membros.push({
-      nome,
-      apelido: valorColuna(linha, ['Apelido']) || null,
-      funcao: valorColuna(linha, ['Função', 'Funcao', 'Cargo']) || null,
-    });
+    try {
+      membros.push({
+        nome,
+        apelido: valorColuna(linha, ['Apelido']) || null,
+        funcao: valorColuna(linha, ['Função', 'Funcao', 'Cargo']) || null,
+        valor_hora: parseValorHoraProducao(
+          valorColuna(linha, [
+            'Valor da hora',
+            'Valor/hora',
+            'Valor Hora',
+            'Valor hora',
+          ]),
+        ),
+      });
+    } catch (error) {
+      avisos.push(
+        `Equipe, linha ${indice + 2}: ${
+          error instanceof Error ? error.message : 'valor da hora inválido'
+        }; linha ignorada.`,
+      );
+    }
   });
 
   lerLinhas(abaTarefas).forEach((linha, indice) => {
@@ -201,7 +234,7 @@ export const baixarModeloImportacaoCadastrosProducao = () => {
         {
           Orientação: 'Aba “Equipe de Produção”',
           Detalhe:
-            'Preencha Nome obrigatoriamente. Apelido e Função são opcionais.',
+            'Preencha Nome obrigatoriamente. Apelido, Função e Valor da hora são opcionais.',
         },
         {
           Orientação: 'Aba “Tarefas de Produção”',
@@ -236,16 +269,18 @@ export const baixarModeloImportacaoCadastrosProducao = () => {
           Nome: 'Exemplo: João da Silva',
           Apelido: 'João',
           Função: 'Montador',
+          'Valor da hora': '14,21',
           Status: 'Ativo',
         },
         {
           Nome: '',
           Apelido: '',
           Função: '',
+          'Valor da hora': '',
           Status: 'Ativo',
         },
       ],
-      [36, 24, 28, 16],
+      [36, 24, 28, 18, 16],
     ),
     'Equipe de Produção',
   );

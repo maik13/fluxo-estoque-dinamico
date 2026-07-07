@@ -59,6 +59,7 @@ interface FormApontamentoProducaoProps {
   locais: LocalUtilizacaoConfig[];
   membros: ProducaoMembro[];
   podeApontar: boolean;
+  podeConferir?: boolean;
   criarApontamento: (
     dados: NovoApontamentoProducao,
   ) => Promise<ProducaoApontamento>;
@@ -67,6 +68,7 @@ interface FormApontamentoProducaoProps {
     dados: Partial<Omit<NovoApontamentoProducao, 'membros_ids'>>,
     membrosIds?: string[],
   ) => Promise<ProducaoApontamento>;
+  conferirApontamento?: (id: string) => Promise<ProducaoApontamento>;
   apontamentoInicial?: ProducaoApontamento | null;
   membrosIniciais?: string[];
   onSuccess?: () => void | Promise<void>;
@@ -96,6 +98,7 @@ type CampoErro =
   | 'localTipo'
   | 'inicio'
   | 'termino'
+  | 'tempos'
   | 'quantidade'
   | 'membros';
 
@@ -119,6 +122,27 @@ const formatarDuracao = (minutos: number) => {
   if (horas === 0) return `${restante}min`;
   if (restante === 0) return `${horas}h`;
   return `${horas}h${String(restante).padStart(2, '0')}`;
+};
+
+const formatarMoeda = (valor: number | null | undefined) =>
+  valor === null || valor === undefined
+    ? 'Custo incompleto'
+    : valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const mensagemErro = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
+const parseTempoHHmm = (valor: string) => {
+  if (!valor.trim()) return 0;
+  const match = /^(\d{1,3}):([0-5]\d)$/.exec(valor.trim());
+  if (!match) throw new Error('Informe o tempo no formato HH:mm.');
+  return Number(match[1]) * 60 + Number(match[2]);
+};
+
+const minutosParaHHmm = (minutos: number) => {
+  const horas = Math.floor(Math.max(0, minutos) / 60);
+  const resto = Math.max(0, minutos) % 60;
+  return `${String(horas).padStart(2, '0')}:${String(resto).padStart(2, '0')}`;
 };
 
 const SecaoFormulario = ({
@@ -263,8 +287,10 @@ export const FormApontamentoProducao = ({
   locais,
   membros,
   podeApontar,
+  podeConferir = false,
   criarApontamento,
   editarApontamento,
+  conferirApontamento,
   apontamentoInicial = null,
   membrosIniciais = MEMBROS_INICIAIS_VAZIOS,
   onSuccess,
@@ -278,6 +304,8 @@ export const FormApontamentoProducao = ({
   const [inicio, setInicio] = useState('');
   const [termino, setTermino] = useState('');
   const [quantidade, setQuantidade] = useState('');
+  const [tempoImprodutivo, setTempoImprodutivo] = useState('00:00');
+  const [motivoImprodutivo, setMotivoImprodutivo] = useState('');
   const [membrosIds, setMembrosIds] = useState<string[]>([]);
   const [buscaMembro, setBuscaMembro] = useState('');
   const [observacoes, setObservacoes] = useState('');
@@ -343,6 +371,8 @@ export const FormApontamentoProducao = ({
       setInicio('');
       setTermino('');
       setQuantidade('');
+      setTempoImprodutivo('00:00');
+      setMotivoImprodutivo('');
       setMembrosIds([]);
       setBuscaMembro('');
       setObservacoes('');
@@ -362,6 +392,10 @@ export const FormApontamentoProducao = ({
         ? ''
         : String(apontamentoInicial.quantidade_produzida),
     );
+    setTempoImprodutivo(
+      minutosParaHHmm(apontamentoInicial.minutos_improdutivos ?? 0),
+    );
+    setMotivoImprodutivo(apontamentoInicial.motivo_improdutivo ?? '');
     setMembrosIds(membrosIniciais);
     setBuscaMembro('');
     setObservacoes(apontamentoInicial.observacoes ?? '');
@@ -386,6 +420,42 @@ export const FormApontamentoProducao = ({
       return null;
     }
   }, [inicio, termino]);
+
+  const resumoCustos = useMemo(() => {
+    if (!duracao) return null;
+    let minutosImprodutivos = 0;
+    try {
+      minutosImprodutivos = parseTempoHHmm(tempoImprodutivo);
+    } catch {
+      minutosImprodutivos = 0;
+    }
+    const minutosProdutivos = Math.max(0, duracao - minutosImprodutivos);
+    const eficiencia =
+      duracao > 0 ? Number(((minutosProdutivos / duracao) * 100).toFixed(1)) : 0;
+    const membrosSemValor = membrosSelecionados
+      .filter((membro) => membro.valor_hora === null || membro.valor_hora === undefined)
+      .map((membro) => membro.nome);
+    const custoIncompleto = membrosSemValor.length > 0;
+    const somarCusto = (minutos: number) =>
+      membrosSelecionados.reduce((total, membro) => {
+        if (membro.valor_hora === null || membro.valor_hora === undefined) {
+          return total;
+        }
+        return total + (membro.valor_hora * minutos) / 60;
+      }, 0);
+
+    return {
+      minutosProdutivos,
+      minutosImprodutivos,
+      eficiencia,
+      horasHomem: (duracao / 60) * membrosSelecionados.length,
+      custoIncompleto,
+      membrosSemValor,
+      custoTotal: custoIncompleto ? null : somarCusto(duracao),
+      custoProdutivo: custoIncompleto ? null : somarCusto(minutosProdutivos),
+      custoImprodutivo: custoIncompleto ? null : somarCusto(minutosImprodutivos),
+    };
+  }, [duracao, membrosSelecionados, tempoImprodutivo]);
 
   const limparErro = (campo: CampoErro) => {
     setErros((atuais) => {
@@ -465,6 +535,8 @@ export const FormApontamentoProducao = ({
     setInicio('');
     setTermino('');
     setQuantidade('');
+    setTempoImprodutivo('00:00');
+    setMotivoImprodutivo('');
     setMembrosIds([]);
     setBuscaMembro('');
     setObservacoes('');
@@ -485,6 +557,25 @@ export const FormApontamentoProducao = ({
     if (inicio && termino && !duracao) {
       novosErros.termino = 'O término deve ser maior que o início.';
     }
+    let minutosImprodutivos = 0;
+    if (duracao) {
+      try {
+        minutosImprodutivos = parseTempoHHmm(tempoImprodutivo);
+        if (minutosImprodutivos > duracao) {
+          novosErros.tempos =
+            'O tempo improdutivo não pode ser maior que a duração total.';
+        }
+        if (minutosImprodutivos > 0 && !motivoImprodutivo.trim()) {
+          novosErros.tempos =
+            'Informe o motivo quando houver tempo improdutivo.';
+        }
+      } catch (error) {
+        novosErros.tempos = mensagemErro(
+          error,
+          'Informe o tempo improdutivo no formato HH:mm.',
+        );
+      }
+    }
     if (membrosIds.length === 0) {
       novosErros.membros = 'Selecione pelo menos um membro da equipe.';
     }
@@ -503,6 +594,7 @@ export const FormApontamentoProducao = ({
     return {
       valido: Object.keys(novosErros).length === 0,
       quantidadeProduzida,
+      minutosImprodutivos,
     };
   };
 
@@ -524,6 +616,12 @@ export const FormApontamentoProducao = ({
       quantidade_produzida: validacao.quantidadeProduzida,
       inicio,
       termino,
+      minutos_produtivos: duracao ? duracao - validacao.minutosImprodutivos : 0,
+      minutos_improdutivos: validacao.minutosImprodutivos,
+      motivo_improdutivo:
+        validacao.minutosImprodutivos > 0
+          ? motivoImprodutivo.trim()
+          : null,
       observacoes: observacoes.trim() || null,
       membros_ids: membrosIds,
     };
@@ -555,11 +653,14 @@ export const FormApontamentoProducao = ({
         toast.warning(
           `Apontamento salvo, mas ${imagensComErro} imagem(ns) não foram enviadas.`,
         );
+      } else if (podeConferir && conferirApontamento) {
+        await conferirApontamento(apontamentoSalvo.id);
+        toast.success('Apontamento registrado com sucesso.');
       } else {
         toast.success(
           apontamentoInicial
             ? 'Apontamento atualizado.'
-            : 'Apontamento salvo.',
+            : 'Apontamento salvo como pendente.',
         );
       }
 
@@ -752,6 +853,48 @@ export const FormApontamentoProducao = ({
             </span>
           </div>
 
+          {duracao && (
+            <div className="grid gap-4 rounded-lg border bg-muted/10 p-4 lg:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="tempo-produtivo">Tempo efetivamente produtivo</Label>
+                <Input
+                  id="tempo-produtivo"
+                  value={minutosParaHHmm(resumoCustos?.minutosProdutivos ?? duracao)}
+                  disabled
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tempo-improdutivo">Tempo improdutivo/perdido</Label>
+                <Input
+                  id="tempo-improdutivo"
+                  value={tempoImprodutivo}
+                  onChange={(event) => {
+                    setTempoImprodutivo(event.target.value);
+                    limparErro('tempos');
+                  }}
+                  placeholder="00:00"
+                  disabled={!podeApontar}
+                  className={cn(erros.tempos && 'border-destructive')}
+                />
+              </div>
+              <div className="space-y-2 lg:col-span-3">
+                <Label htmlFor="motivo-improdutivo">Motivo da perda</Label>
+                <Input
+                  id="motivo-improdutivo"
+                  value={motivoImprodutivo}
+                  onChange={(event) => {
+                    setMotivoImprodutivo(event.target.value);
+                    limparErro('tempos');
+                  }}
+                  placeholder="Ex.: espera de material"
+                  disabled={!podeApontar}
+                  className={cn(erros.tempos && 'border-destructive')}
+                />
+                <MensagemErro texto={erros.tempos} />
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="producao-quantidade">
               Quantidade produzida, quando aplicável
@@ -816,7 +959,10 @@ export const FormApontamentoProducao = ({
               <div className="flex flex-wrap gap-2 pt-1">
                 {membrosSelecionados.map((membro) => (
                   <Badge key={membro.id} variant="secondary" className="gap-1 py-1 pl-2.5">
-                    {membro.nome}
+                    {membro.nome} ·{' '}
+                    {membro.valor_hora === null || membro.valor_hora === undefined
+                      ? 'sem valor/h'
+                      : `${formatarMoeda(membro.valor_hora)}/h`}
                     <button
                       type="button"
                       onClick={() => removerMembro(membro.id)}
@@ -848,7 +994,62 @@ export const FormApontamentoProducao = ({
           </div>
         </SecaoFormulario>
 
-        <SecaoFormulario numero={4} titulo="Imagens">
+        {resumoCustos && (
+          <SecaoFormulario numero={4} titulo="Prévia de mão de obra">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Horas-relógio</p>
+                <p className="text-lg font-semibold">{formatarDuracao(duracao ?? 0)}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Horas-homem</p>
+                <p className="text-lg font-semibold">
+                  {resumoCustos.horasHomem.toLocaleString('pt-BR', {
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Eficiência</p>
+                <p className="text-lg font-semibold">{resumoCustos.eficiencia}%</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Membros</p>
+                <p className="text-lg font-semibold">{membrosSelecionados.length}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Custo total</p>
+                <p className="text-lg font-semibold">{formatarMoeda(resumoCustos.custoTotal)}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Custo produtivo</p>
+                <p className="text-lg font-semibold">{formatarMoeda(resumoCustos.custoProdutivo)}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Custo desperdiçado</p>
+                <p className="text-lg font-semibold">{formatarMoeda(resumoCustos.custoImprodutivo)}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Tempo perdido</p>
+                <p className="text-lg font-semibold">
+                  {formatarDuracao(resumoCustos.minutosImprodutivos)}
+                </p>
+              </div>
+            </div>
+            {resumoCustos.custoIncompleto && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Custo incompleto</AlertTitle>
+                <AlertDescription>
+                  Membros sem valor/hora:{' '}
+                  {resumoCustos.membrosSemValor.join(', ')}.
+                </AlertDescription>
+              </Alert>
+            )}
+          </SecaoFormulario>
+        )}
+
+        <SecaoFormulario numero={5} titulo="Imagens">
           <input
             ref={inputImagemRef}
             type="file"
@@ -968,7 +1169,7 @@ export const FormApontamentoProducao = ({
           </div>
         </SecaoFormulario>
 
-        <SecaoFormulario numero={5} titulo="Observações e confirmação">
+        <SecaoFormulario numero={6} titulo="Observações e confirmação">
           <div className="space-y-2">
             <Label htmlFor="producao-observacoes">Observações</Label>
             <Textarea

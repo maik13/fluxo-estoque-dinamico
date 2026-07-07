@@ -46,6 +46,23 @@ export const useProducaoAnexos = () => {
     }
   }, []);
 
+  const listarAnexosPorApontamentos = useCallback(
+    async (apontamentoIds: string[]) => {
+      const ids = [...new Set(apontamentoIds.filter(Boolean))];
+      if (ids.length === 0) return [] as ProducaoApontamentoAnexo[];
+
+      const { data, error } = await supabase
+        .from('producao_apontamento_anexos')
+        .select('*')
+        .in('apontamento_id', ids)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return (data ?? []) as ProducaoApontamentoAnexo[];
+    },
+    [],
+  );
+
   const anexarImagem = useCallback(
     async (apontamentoId: string, file: File) => {
       if (!apontamentoId?.trim()) {
@@ -139,12 +156,30 @@ export const useProducaoAnexos = () => {
     return data.signedUrl;
   }, []);
 
+  const baixarAnexo = useCallback(async (anexo: ProducaoApontamentoAnexo) => {
+    const { data, error } = await supabase.storage
+      .from(BUCKET_PRODUCAO)
+      .download(anexo.file_path);
+
+    if (error) throw error;
+    const url = URL.createObjectURL(data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = anexo.file_name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }, []);
+
   return {
     anexos,
     loading,
     listarAnexos,
+    listarAnexosPorApontamentos,
     anexarImagem,
     removerAnexo,
     obterUrlAnexo,
+    baixarAnexo,
   };
 };

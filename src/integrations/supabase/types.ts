@@ -607,6 +607,7 @@ export type Database = {
           id: string
           membro_id: string
           nome_snapshot: string
+          valor_hora_snapshot: number | null
         }
         Insert: {
           apontamento_id: string
@@ -614,6 +615,7 @@ export type Database = {
           id?: string
           membro_id: string
           nome_snapshot: string
+          valor_hora_snapshot?: number | null
         }
         Update: {
           apontamento_id?: string
@@ -621,6 +623,7 @@ export type Database = {
           id?: string
           membro_id?: string
           nome_snapshot?: string
+          valor_hora_snapshot?: number | null
         }
         Relationships: [
           {
@@ -650,6 +653,9 @@ export type Database = {
           id: string
           inicio: string
           local_tipo: string
+          minutos_improdutivos: number
+          minutos_produtivos: number
+          motivo_improdutivo: string | null
           observacoes: string | null
           projeto_local_id: string
           quantidade_produzida: number | null
@@ -668,6 +674,9 @@ export type Database = {
           id?: string
           inicio: string
           local_tipo: string
+          minutos_improdutivos?: number
+          minutos_produtivos: number
+          motivo_improdutivo?: string | null
           observacoes?: string | null
           projeto_local_id: string
           quantidade_produzida?: number | null
@@ -686,6 +695,9 @@ export type Database = {
           id?: string
           inicio?: string
           local_tipo?: string
+          minutos_improdutivos?: number
+          minutos_produtivos?: number
+          motivo_improdutivo?: string | null
           observacoes?: string | null
           projeto_local_id?: string
           quantidade_produzida?: number | null
@@ -788,6 +800,7 @@ export type Database = {
           id: string
           nome: string
           updated_at: string
+          valor_hora: number | null
         }
         Insert: {
           apelido?: string | null
@@ -797,6 +810,7 @@ export type Database = {
           id?: string
           nome: string
           updated_at?: string
+          valor_hora?: number | null
         }
         Update: {
           apelido?: string | null
@@ -806,6 +820,7 @@ export type Database = {
           id?: string
           nome?: string
           updated_at?: string
+          valor_hora?: number | null
         }
         Relationships: []
       }

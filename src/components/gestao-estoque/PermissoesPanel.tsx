@@ -88,7 +88,7 @@ const PERMISSOES_GRUPOS: PermissaoGrupo[] = [
     titulo: '🏭 Produção',
     campos: [
       { key: 'pode_apontar_producao', label: 'Apontar Produção' },
-      { key: 'pode_conferir_producao', label: 'Conferir Produção' },
+      { key: 'pode_conferir_producao', label: 'Registrar/Finalizar Produção' },
       { key: 'pode_ver_bi_producao', label: 'Ver BI de Produção' },
       { key: 'pode_configurar_producao', label: 'Configurar Produção' },
     ],
