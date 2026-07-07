@@ -22,6 +22,9 @@ export interface ProducaoApontamento {
   inicio: string;
   termino: string;
   duracao_minutos: number;
+  minutos_produtivos: number;
+  minutos_improdutivos: number;
+  motivo_improdutivo: string | null;
   observacoes: string | null;
   status: ProducaoStatus;
   criado_por_id: string | null;
@@ -36,6 +39,7 @@ export interface ProducaoApontamentoMembro {
   apontamento_id: string;
   membro_id: string;
   nome_snapshot: string;
+  valor_hora_snapshot: number | null;
   created_at: string;
 }
 
@@ -44,6 +48,7 @@ export interface ProducaoMembro {
   nome: string;
   apelido: string | null;
   funcao: string | null;
+  valor_hora: number | null;
   ativo: boolean;
   created_at: string;
   updated_at: string;
@@ -53,6 +58,7 @@ export interface NovoMembroProducao {
   nome: string;
   apelido?: string | null;
   funcao?: string | null;
+  valor_hora?: number | null;
 }
 
 export interface ProducaoApontamentoAnexo {
@@ -96,8 +102,26 @@ export interface NovoApontamentoProducao {
   quantidade_produzida?: number | null;
   inicio: string;
   termino: string;
+  minutos_produtivos?: number | null;
+  minutos_improdutivos?: number | null;
+  motivo_improdutivo?: string | null;
   observacoes?: string | null;
   membros_ids: string[];
+}
+
+export interface ResumoCustosProducao {
+  horas_relogio: number;
+  horas_homem: number;
+  minutos_produtivos: number;
+  minutos_improdutivos: number;
+  horas_produtivas: number;
+  horas_improdutivas: number;
+  eficiencia_percentual: number;
+  custo_total: number | null;
+  custo_produtivo: number | null;
+  custo_improdutivo: number | null;
+  custo_incompleto: boolean;
+  membros_sem_valor_hora: string[];
 }
 
 export interface FiltrosProducao {
@@ -125,6 +149,15 @@ export interface IndicadorProducaoPorProjeto {
   total_apontamentos: number;
   total_minutos: number;
   total_horas: number;
+  horas_homem: number;
+  horas_produtivas: number;
+  horas_improdutivas: number;
+  eficiencia_percentual: number;
+  custo_total: number | null;
+  custo_produtivo: number | null;
+  custo_improdutivo: number | null;
+  custo_incompleto: boolean;
+  quantidade_fotos: number;
   quantidade_total_produzida: number;
   total_membros_distintos: number;
   status_predominante: ProducaoStatus | null;
@@ -138,6 +171,14 @@ export interface IndicadorProducaoPorTarefa {
   total_apontamentos: number;
   total_minutos: number;
   total_horas: number;
+  horas_homem: number;
+  horas_produtivas: number;
+  horas_improdutivas: number;
+  eficiencia_percentual: number;
+  custo_total: number | null;
+  custo_produtivo: number | null;
+  custo_improdutivo: number | null;
+  custo_incompleto: boolean;
   quantidade_total_produzida: number;
 }
 
@@ -147,6 +188,15 @@ export interface IndicadorProducaoPorMembro {
   total_apontamentos: number;
   total_minutos: number;
   total_horas: number;
+  horas_produtivas: number;
+  horas_improdutivas: number;
+  eficiencia_percentual: number;
+  custo_total: number | null;
+  custo_produtivo: number | null;
+  custo_improdutivo: number | null;
+  custo_incompleto: boolean;
+  valor_hora_minimo: number | null;
+  valor_hora_maximo: number | null;
   projetos_distintos: number;
   tarefas_distintas: number;
 }
@@ -156,6 +206,14 @@ export interface IndicadorProducaoPorLocalTipo {
   total_apontamentos: number;
   total_minutos: number;
   total_horas: number;
+  horas_homem: number;
+  horas_produtivas: number;
+  horas_improdutivas: number;
+  eficiencia_percentual: number;
+  custo_total: number | null;
+  custo_produtivo: number | null;
+  custo_improdutivo: number | null;
+  custo_incompleto: boolean;
   quantidade_total_produzida: number;
 }
 
@@ -188,6 +246,16 @@ export interface IndicadoresProducaoGerencial {
   total_apontamentos_cancelados: number;
   total_horas: number;
   total_minutos: number;
+  horas_relogio: number;
+  horas_homem: number;
+  horas_produtivas: number;
+  horas_improdutivas: number;
+  eficiencia_percentual: number;
+  custo_total_mao_obra: number | null;
+  custo_produtivo_mao_obra: number | null;
+  custo_improdutivo_mao_obra: number | null;
+  apontamentos_custo_incompleto: number;
+  membros_sem_valor_hora: string[];
   quantidade_total_produzida: number;
   media_horas_por_apontamento: number;
   apontamentos_pendentes_conferencia: number;

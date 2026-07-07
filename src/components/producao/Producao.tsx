@@ -125,8 +125,10 @@ export const Producao = () => {
             locais={locaisUtilizacao}
             membros={membrosProducao}
             podeApontar={podeApontar}
+            podeConferir={podeConferir}
             criarApontamento={criarApontamento}
             editarApontamento={editarApontamento}
+            conferirApontamento={conferirApontamento}
             onSuccess={carregarDados}
           />
         </TabsContent>

@@ -52,6 +52,7 @@ import {
   baixarModeloImportacaoCadastrosProducao,
   lerCadastrosProducaoExcel,
   normalizarNomeCadastro,
+  parseValorHoraProducao,
   type MembroProducaoImportacao,
   type ResultadoLeituraCadastrosProducao,
   type TarefaProducaoImportacao,
@@ -65,6 +66,7 @@ interface ConfiguracoesProducaoProps {
     nome: string,
     apelido?: string | null,
     funcao?: string | null,
+    valorHora?: number | null,
   ) => Promise<ProducaoMembro>;
   editarMembro: (
     id: string,
@@ -80,6 +82,14 @@ interface ConfiguracoesProducaoProps {
 
 const mensagemErro = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
+
+const formatarMoedaHora = (valor: number | null | undefined) =>
+  valor === null || valor === undefined
+    ? 'Valor/hora não informado'
+    : `${valor.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      })}/h`;
 
 interface ImportacaoPreparada extends ResultadoLeituraCadastrosProducao {
   membros_novos: MembroProducaoImportacao[];
@@ -101,6 +111,7 @@ export const ConfiguracoesProducao = ({
   const [nomeMembro, setNomeMembro] = useState('');
   const [apelidoMembro, setApelidoMembro] = useState('');
   const [funcaoMembro, setFuncaoMembro] = useState('');
+  const [valorHoraMembro, setValorHoraMembro] = useState('');
   const [salvandoMembro, setSalvandoMembro] = useState(false);
   const [membroEditando, setMembroEditando] =
     useState<ProducaoMembro | null>(null);
@@ -109,6 +120,7 @@ export const ConfiguracoesProducao = ({
   const [nomeEdicao, setNomeEdicao] = useState('');
   const [apelidoEdicao, setApelidoEdicao] = useState('');
   const [funcaoEdicao, setFuncaoEdicao] = useState('');
+  const [valorHoraEdicao, setValorHoraEdicao] = useState('');
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
   const [inativando, setInativando] = useState(false);
   const [nomeTarefa, setNomeTarefa] = useState('');
@@ -131,10 +143,16 @@ export const ConfiguracoesProducao = ({
     event.preventDefault();
     setSalvandoMembro(true);
     try {
-      await criarMembro(nomeMembro, apelidoMembro, funcaoMembro);
+      await criarMembro(
+        nomeMembro,
+        apelidoMembro,
+        funcaoMembro,
+        parseValorHoraProducao(valorHoraMembro),
+      );
       setNomeMembro('');
       setApelidoMembro('');
       setFuncaoMembro('');
+      setValorHoraMembro('');
       toast.success('Membro cadastrado.');
     } catch (error) {
       toast.error(mensagemErro(error, 'Não foi possível cadastrar o membro.'));
@@ -148,6 +166,11 @@ export const ConfiguracoesProducao = ({
     setNomeEdicao(membro.nome);
     setApelidoEdicao(membro.apelido ?? '');
     setFuncaoEdicao(membro.funcao ?? '');
+    setValorHoraEdicao(
+      membro.valor_hora === null || membro.valor_hora === undefined
+        ? ''
+        : String(membro.valor_hora).replace('.', ','),
+    );
   };
 
   const salvarEdicao = async (event: FormEvent) => {
@@ -160,6 +183,7 @@ export const ConfiguracoesProducao = ({
         nome: nomeEdicao,
         apelido: apelidoEdicao,
         funcao: funcaoEdicao,
+        valor_hora: parseValorHoraProducao(valorHoraEdicao),
       });
       setMembroEditando(null);
       toast.success('Membro atualizado.');
@@ -246,7 +270,12 @@ export const ConfiguracoesProducao = ({
 
     for (const membro of importacao.membros_novos) {
       try {
-        await criarMembro(membro.nome, membro.apelido, membro.funcao);
+        await criarMembro(
+          membro.nome,
+          membro.apelido,
+          membro.funcao,
+          membro.valor_hora,
+        );
         membrosImportados += 1;
       } catch (error) {
         falhas.push(
@@ -322,7 +351,7 @@ export const ConfiguracoesProducao = ({
           ) : (
             <Upload className="mr-2 h-4 w-4" />
           )}
-          Importar cadastros
+          Importar equipe e tarefas
         </Button>
         <Button
           type="button"
@@ -333,6 +362,9 @@ export const ConfiguracoesProducao = ({
           Exportar cadastros
         </Button>
       </div>
+      <p className="-mt-2 text-sm text-muted-foreground xl:col-span-2">
+        A planilha pode importar membros da equipe e tarefas de Produção.
+      </p>
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
@@ -382,6 +414,16 @@ export const ConfiguracoesProducao = ({
                   placeholder="Ex.: Montador"
                 />
               </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="novo-membro-valor-hora">Valor da hora</Label>
+                <Input
+                  id="novo-membro-valor-hora"
+                  inputMode="decimal"
+                  value={valorHoraMembro}
+                  onChange={(event) => setValorHoraMembro(event.target.value)}
+                  placeholder="Ex.: 14,21"
+                />
+              </div>
             </div>
             <Button type="submit" disabled={salvandoMembro || !nomeMembro.trim()}>
               {salvandoMembro ? (
@@ -417,6 +459,9 @@ export const ConfiguracoesProducao = ({
                     <p className="text-sm text-muted-foreground">
                       {[membro.apelido, membro.funcao].filter(Boolean).join(' · ') ||
                         'Sem apelido ou função informados'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatarMoedaHora(membro.valor_hora)}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -569,6 +614,18 @@ export const ConfiguracoesProducao = ({
                   id="editar-membro-funcao"
                   value={funcaoEdicao}
                   onChange={(event) => setFuncaoEdicao(event.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="editar-membro-valor-hora">
+                  Valor da hora
+                </Label>
+                <Input
+                  id="editar-membro-valor-hora"
+                  inputMode="decimal"
+                  value={valorHoraEdicao}
+                  onChange={(event) => setValorHoraEdicao(event.target.value)}
+                  placeholder="Ex.: 14,21"
                 />
               </div>
             </div>

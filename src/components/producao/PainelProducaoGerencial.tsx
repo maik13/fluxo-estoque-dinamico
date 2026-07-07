@@ -43,6 +43,7 @@ import {
 import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
 import { useProducao } from '@/hooks/useProducao';
 import { useProducaoGerencial } from '@/hooks/useProducaoGerencial';
+import { CalendarioFotosProducao } from './CalendarioFotosProducao';
 import {
   exportarBIProducaoExcel,
   imprimirSecaoProducao,
@@ -63,10 +64,14 @@ const numero = (valor: number) =>
   valor.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 
 const horas = (valor: number) => `${numero(valor)} h`;
+const moeda = (valor: number | null | undefined) =>
+  valor === null || valor === undefined
+    ? 'Incompleto'
+    : valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const statusLabel: Record<ProducaoStatus, string> = {
-  lancado: 'Lançado',
-  conferido: 'Conferido',
+  lancado: 'Pendente',
+  conferido: 'Registrado',
   cancelado: 'Cancelado',
 };
 
@@ -199,10 +204,40 @@ export const PainelProducaoGerencial = ({
       icon: Factory,
     },
     {
-      titulo: 'Horas totais',
-      valor: horas(dadosConsolidados.total_horas),
-      descricao: `${numero(dadosConsolidados.total_minutos)} minutos produtivos`,
+      titulo: 'Horas-relógio',
+      valor: horas(dadosConsolidados.horas_relogio),
+      descricao: `${numero(dadosConsolidados.total_minutos)} minutos totais`,
       icon: Clock3,
+    },
+    {
+      titulo: 'Horas-homem',
+      valor: horas(dadosConsolidados.horas_homem),
+      descricao: 'Duração × quantidade de membros',
+      icon: Users,
+    },
+    {
+      titulo: 'Horas produtivas',
+      valor: horas(dadosConsolidados.horas_produtivas),
+      descricao: `${horas(dadosConsolidados.horas_improdutivas)} improdutivas`,
+      icon: CheckCircle2,
+    },
+    {
+      titulo: 'Eficiência',
+      valor: `${numero(dadosConsolidados.eficiencia_percentual)}%`,
+      descricao: 'Tempo produtivo / duração total',
+      icon: Factory,
+    },
+    {
+      titulo: 'Custo mão de obra',
+      valor: moeda(dadosConsolidados.custo_total_mao_obra),
+      descricao: `${moeda(dadosConsolidados.custo_improdutivo_mao_obra)} desperdiçado`,
+      icon: Users,
+    },
+    {
+      titulo: 'Custo incompleto',
+      valor: numero(dadosConsolidados.apontamentos_custo_incompleto),
+      descricao: 'Apontamentos com membro sem valor/hora',
+      icon: AlertCircle,
     },
     {
       titulo: 'Quantidade produzida',
@@ -211,15 +246,15 @@ export const PainelProducaoGerencial = ({
       icon: PackageCheck,
     },
     {
-      titulo: 'Pendentes de conferência',
+      titulo: 'Pendentes de registro',
       valor: numero(dadosConsolidados.apontamentos_pendentes_conferencia),
-      descricao: 'Apontamentos lançados',
+      descricao: 'Apontamentos pendentes',
       icon: AlertCircle,
     },
     {
-      titulo: 'Conferidos',
+      titulo: 'Registrados',
       valor: numero(dadosConsolidados.total_apontamentos_conferidos),
-      descricao: 'Apontamentos validados',
+      descricao: 'Apontamentos finalizados',
       icon: CheckCircle2,
     },
     {
@@ -382,8 +417,8 @@ export const PainelProducaoGerencial = ({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={TODOS}>Todos os status</SelectItem>
-                    <SelectItem value="lancado">Lançado</SelectItem>
-                    <SelectItem value="conferido">Conferido</SelectItem>
+                    <SelectItem value="lancado">Pendente</SelectItem>
+                    <SelectItem value="conferido">Registrado</SelectItem>
                     <SelectItem value="cancelado">Cancelado</SelectItem>
                   </SelectContent>
                 </Select>
@@ -469,6 +504,19 @@ export const PainelProducaoGerencial = ({
             })}
           </div>
 
+          {dadosConsolidados.membros_sem_valor_hora.length > 0 && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Mão de obra com custo incompleto</AlertTitle>
+              <AlertDescription>
+                Membros sem valor/hora em snapshots históricos:{' '}
+                {dadosConsolidados.membros_sem_valor_hora.join(', ')}.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <CalendarioFotosProducao filtros={filtros} />
+
           {semDados && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
@@ -527,6 +575,10 @@ export const PainelProducaoGerencial = ({
                     <TableHead>Projeto/local</TableHead>
                     <TableHead className="text-right">Apontamentos</TableHead>
                     <TableHead className="text-right">Horas</TableHead>
+                    <TableHead className="text-right">Horas-homem</TableHead>
+                    <TableHead className="text-right">Eficiência</TableHead>
+                    <TableHead className="text-right">Custo</TableHead>
+                    <TableHead className="text-right">Fotos</TableHead>
                     <TableHead className="text-right">Quantidade</TableHead>
                     <TableHead className="text-right">Membros</TableHead>
                     <TableHead>Status predominante</TableHead>
@@ -536,7 +588,7 @@ export const PainelProducaoGerencial = ({
                   {dadosConsolidados.por_projeto.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={6}
+                        colSpan={10}
                         className="py-8 text-center text-muted-foreground"
                       >
                         Nenhum projeto encontrado.
@@ -553,6 +605,18 @@ export const PainelProducaoGerencial = ({
                         </TableCell>
                         <TableCell className="text-right">
                           {horas(projeto.total_horas)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {horas(projeto.horas_homem)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {numero(projeto.eficiencia_percentual)}%
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {moeda(projeto.custo_total)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {numero(projeto.quantidade_fotos)}
                         </TableCell>
                         <TableCell className="text-right">
                           {numero(projeto.quantidade_total_produzida)}
@@ -595,6 +659,9 @@ export const PainelProducaoGerencial = ({
                       <TableHead>Categoria</TableHead>
                       <TableHead className="text-right">Apontamentos</TableHead>
                       <TableHead className="text-right">Horas</TableHead>
+                      <TableHead className="text-right">Prod.</TableHead>
+                      <TableHead className="text-right">Improd.</TableHead>
+                      <TableHead className="text-right">Custo</TableHead>
                       <TableHead className="text-right">Quantidade</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -602,7 +669,7 @@ export const PainelProducaoGerencial = ({
                     {dadosConsolidados.por_tarefa.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={5}
+                          colSpan={8}
                           className="py-8 text-center text-muted-foreground"
                         >
                           Nenhuma tarefa encontrada.
@@ -620,6 +687,15 @@ export const PainelProducaoGerencial = ({
                           </TableCell>
                           <TableCell className="text-right">
                             {horas(tarefa.total_horas)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {horas(tarefa.horas_produtivas)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {horas(tarefa.horas_improdutivas)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {moeda(tarefa.custo_total)}
                           </TableCell>
                           <TableCell className="text-right">
                             {numero(tarefa.quantidade_total_produzida)}
@@ -646,6 +722,10 @@ export const PainelProducaoGerencial = ({
                       <TableHead>Membro</TableHead>
                       <TableHead className="text-right">Apontamentos</TableHead>
                       <TableHead className="text-right">Horas</TableHead>
+                      <TableHead className="text-right">Prod.</TableHead>
+                      <TableHead className="text-right">Improd.</TableHead>
+                      <TableHead className="text-right">Custo</TableHead>
+                      <TableHead className="text-right">Valor/h</TableHead>
                       <TableHead className="text-right">Projetos</TableHead>
                       <TableHead className="text-right">Tarefas</TableHead>
                     </TableRow>
@@ -654,7 +734,7 @@ export const PainelProducaoGerencial = ({
                     {dadosConsolidados.por_membro.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={5}
+                          colSpan={9}
                           className="py-8 text-center text-muted-foreground"
                         >
                           Nenhum membro encontrado.
@@ -671,6 +751,22 @@ export const PainelProducaoGerencial = ({
                           </TableCell>
                           <TableCell className="text-right">
                             {horas(membro.total_horas)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {horas(membro.horas_produtivas)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {horas(membro.horas_improdutivas)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {moeda(membro.custo_total)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {membro.valor_hora_minimo === null
+                              ? '—'
+                              : membro.valor_hora_minimo === membro.valor_hora_maximo
+                                ? moeda(membro.valor_hora_minimo)
+                                : `${moeda(membro.valor_hora_minimo)}–${moeda(membro.valor_hora_maximo)}`}
                           </TableCell>
                           <TableCell className="text-right">
                             {numero(membro.projetos_distintos)}

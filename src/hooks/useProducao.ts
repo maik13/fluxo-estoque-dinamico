@@ -69,6 +69,46 @@ const validarApontamento = (
   return calcularDuracaoProducao(apontamento.inicio, apontamento.termino);
 };
 
+const normalizarValorHora = (valor?: number | null) => {
+  if (valor === undefined || valor === null) return null;
+  if (!Number.isFinite(valor) || valor < 0) {
+    throw new Error('O valor da hora deve ser maior ou igual a zero.');
+  }
+  return Number(valor.toFixed(2));
+};
+
+const normalizarTemposApontamento = (
+  duracaoMinutos: number,
+  minutosProdutivos?: number | null,
+  minutosImprodutivos?: number | null,
+  motivoImprodutivo?: string | null,
+) => {
+  const improdutivos = Math.max(0, Number(minutosImprodutivos ?? 0));
+  const produtivos =
+    minutosProdutivos === undefined || minutosProdutivos === null
+      ? duracaoMinutos - improdutivos
+      : Math.max(0, Number(minutosProdutivos));
+
+  if (!Number.isInteger(produtivos) || !Number.isInteger(improdutivos)) {
+    throw new Error('Os tempos produtivo e improdutivo devem estar em minutos inteiros.');
+  }
+  if (produtivos + improdutivos !== duracaoMinutos) {
+    throw new Error(
+      'A soma do tempo produtivo e improdutivo deve ser igual à duração total.',
+    );
+  }
+  if (improdutivos > 0 && !motivoImprodutivo?.trim()) {
+    throw new Error('Informe o motivo quando houver tempo improdutivo.');
+  }
+
+  return {
+    minutos_produtivos: produtivos,
+    minutos_improdutivos: improdutivos,
+    motivo_improdutivo:
+      improdutivos > 0 ? motivoImprodutivo?.trim() || null : null,
+  };
+};
+
 export const useProducao = () => {
   const [tarefas, setTarefas] = useState<ProducaoTarefa[]>([]);
   const [membrosProducao, setMembrosProducao] = useState<ProducaoMembro[]>([]);
@@ -146,7 +186,12 @@ export const useProducao = () => {
   }, []);
 
   const criarMembroProducao = useCallback(
-    async (nome: string, apelido?: string | null, funcao?: string | null) => {
+    async (
+      nome: string,
+      apelido?: string | null,
+      funcao?: string | null,
+      valorHora?: number | null,
+    ) => {
       const nomeNormalizado = nome.trim();
       if (!nomeNormalizado) {
         throw new Error('O nome do membro é obrigatório.');
@@ -158,6 +203,7 @@ export const useProducao = () => {
           nome: nomeNormalizado,
           apelido: apelido?.trim() || null,
           funcao: funcao?.trim() || null,
+          valor_hora: normalizarValorHora(valorHora),
         })
         .select()
         .single();
@@ -188,6 +234,9 @@ export const useProducao = () => {
       }
       if (dados.funcao !== undefined) {
         alteracoes.funcao = dados.funcao?.trim() || null;
+      }
+      if (dados.valor_hora !== undefined) {
+        alteracoes.valor_hora = normalizarValorHora(dados.valor_hora);
       }
 
       const { data, error } = await supabase
@@ -275,7 +324,7 @@ export const useProducao = () => {
 
     const { data, error } = await supabase
       .from('producao_membros')
-      .select('id, nome')
+      .select('id, nome, valor_hora')
       .in('id', membrosUnicos)
       .eq('ativo', true);
 
@@ -338,6 +387,7 @@ export const useProducao = () => {
               apontamento_id: apontamentoId,
               membro_id: membro.id,
               nome_snapshot: membro.nome,
+              valor_hora_snapshot: membro.valor_hora ?? null,
             })),
           );
 
@@ -376,6 +426,12 @@ export const useProducao = () => {
     async (novo: NovoApontamentoProducao) => {
       const duracaoMinutos = validarApontamento(novo);
       await obterMembrosValidos(novo.membros_ids);
+      const tempos = normalizarTemposApontamento(
+        duracaoMinutos,
+        novo.minutos_produtivos,
+        novo.minutos_improdutivos,
+        novo.motivo_improdutivo,
+      );
 
       const {
         data: { user },
@@ -392,6 +448,7 @@ export const useProducao = () => {
           inicio: novo.inicio,
           termino: novo.termino,
           duracao_minutos: duracaoMinutos,
+          ...tempos,
           observacoes: novo.observacoes?.trim() || null,
           criado_por_id: user?.id ?? null,
         })
@@ -451,6 +508,12 @@ export const useProducao = () => {
         inicio,
         termino,
       });
+      const tempos = normalizarTemposApontamento(
+        duracaoMinutos,
+        alteracoes.minutos_produtivos ?? atual.minutos_produtivos,
+        alteracoes.minutos_improdutivos ?? atual.minutos_improdutivos,
+        alteracoes.motivo_improdutivo ?? atual.motivo_improdutivo,
+      );
 
       const { data, error } = await supabase
         .from('producao_apontamentos')
@@ -459,6 +522,7 @@ export const useProducao = () => {
           inicio,
           termino,
           duracao_minutos: duracaoMinutos,
+          ...tempos,
           observacoes:
             alteracoes.observacoes === undefined
               ? atual.observacoes
