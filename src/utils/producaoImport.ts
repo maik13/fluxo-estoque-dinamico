@@ -20,6 +20,8 @@ export interface ResultadoLeituraCadastrosProducao {
 
 const TAMANHO_MAXIMO_ARQUIVO = 5 * 1024 * 1024;
 
+const dataArquivo = () => new Date().toISOString().slice(0, 10);
+
 export const normalizarNomeCadastro = (valor: string) =>
   valor
     .normalize('NFD')
@@ -174,4 +176,102 @@ export const lerCadastrosProducaoExcel = async (
     tarefas,
     avisos,
   };
+};
+
+const criarPlanilhaModelo = (
+  linhas: Record<string, string>[],
+  larguras: number[],
+) => {
+  const planilha = XLSX.utils.json_to_sheet(linhas);
+  planilha['!cols'] = larguras.map((wch) => ({ wch }));
+  return planilha;
+};
+
+export const baixarModeloImportacaoCadastrosProducao = () => {
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    criarPlanilhaModelo(
+      [
+        {
+          Orientação: 'Use esta planilha para importar cadastros da Produção.',
+          Detalhe: 'Não remova nem renomeie as abas ou os cabeçalhos.',
+        },
+        {
+          Orientação: 'Aba “Equipe de Produção”',
+          Detalhe:
+            'Preencha Nome obrigatoriamente. Apelido e Função são opcionais.',
+        },
+        {
+          Orientação: 'Aba “Tarefas de Produção”',
+          Detalhe: 'Preencha Nome obrigatoriamente. Categoria é opcional.',
+        },
+        {
+          Orientação: 'Status',
+          Detalhe:
+            'Use Ativo para importar. Linhas com Inativo/Inativa serão ignoradas.',
+        },
+        {
+          Orientação: 'Duplicidades',
+          Detalhe:
+            'Nomes repetidos na planilha ou já cadastrados serão ignorados na importação.',
+        },
+        {
+          Orientação: 'Estoque',
+          Detalhe:
+            'Esta importação cria apenas cadastros de Produção e não movimenta estoque.',
+        },
+      ],
+      [32, 88],
+    ),
+    'Instruções',
+  );
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    criarPlanilhaModelo(
+      [
+        {
+          Nome: 'Exemplo: João da Silva',
+          Apelido: 'João',
+          Função: 'Montador',
+          Status: 'Ativo',
+        },
+        {
+          Nome: '',
+          Apelido: '',
+          Função: '',
+          Status: 'Ativo',
+        },
+      ],
+      [36, 24, 28, 16],
+    ),
+    'Equipe de Produção',
+  );
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    criarPlanilhaModelo(
+      [
+        {
+          Nome: 'Exemplo: Montagem de estrutura',
+          Categoria: 'Fabricação',
+          Status: 'Ativa',
+        },
+        {
+          Nome: '',
+          Categoria: '',
+          Status: 'Ativa',
+        },
+      ],
+      [44, 28, 16],
+    ),
+    'Tarefas de Produção',
+  );
+
+  XLSX.writeFile(
+    workbook,
+    `modelo-importacao-cadastros-producao-${dataArquivo()}.xlsx`,
+  );
 };

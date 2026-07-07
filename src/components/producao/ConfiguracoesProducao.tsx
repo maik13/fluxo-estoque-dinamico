@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   ClipboardPlus,
+  Download,
   FileDown,
   Loader2,
   Pencil,
@@ -48,6 +49,7 @@ import type {
 } from '@/types/producao';
 import { exportarCadastrosProducaoExcel } from '@/utils/producaoExport';
 import {
+  baixarModeloImportacaoCadastrosProducao,
   lerCadastrosProducaoExcel,
   normalizarNomeCadastro,
   type MembroProducaoImportacao,
@@ -301,6 +303,14 @@ export const ConfiguracoesProducao = ({
             if (arquivo) void prepararImportacao(arquivo);
           }}
         />
+        <Button
+          type="button"
+          variant="outline"
+          onClick={baixarModeloImportacaoCadastrosProducao}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Baixar modelo
+        </Button>
         <Button
           type="button"
           variant="outline"
