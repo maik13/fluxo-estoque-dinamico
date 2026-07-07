@@ -45,6 +45,7 @@ export const PainelGerencial = () => {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isResponsaveisExpanded, setIsResponsaveisExpanded] = useState(false);
   const [visaoGerencial, setVisaoGerencial] = useState<'almoxarifado' | 'producao'>('almoxarifado');
+  const [secaoAlmoxarifado, setSecaoAlmoxarifado] = useState<'resumo' | 'grupos' | 'responsaveis'>('resumo');
 
   // Preparar filtros para o hook
   const filtros: ConsolidacaoFiltros = useMemo(() => ({
@@ -221,6 +222,47 @@ export const PainelGerencial = () => {
 
       {visaoGerencial === 'almoxarifado' && (
         <>
+      <div className="grid gap-4 md:grid-cols-3">
+        <button
+          type="button"
+          onClick={() => setSecaoAlmoxarifado('resumo')}
+          className={`rounded-xl border p-4 text-left transition hover:border-primary ${
+            secaoAlmoxarifado === 'resumo' ? 'border-primary bg-primary/10' : 'bg-card'
+          }`}
+        >
+          <p className="font-semibold">Resumo do almoxarifado</p>
+          <p className="text-sm text-muted-foreground">
+            Filtros e indicadores principais.
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setSecaoAlmoxarifado('grupos')}
+          className={`rounded-xl border p-4 text-left transition hover:border-primary ${
+            secaoAlmoxarifado === 'grupos' ? 'border-primary bg-primary/10' : 'bg-card'
+          }`}
+        >
+          <p className="font-semibold">Grupos com pendência</p>
+          <p className="text-sm text-muted-foreground">
+            Tabela consolidada por grupo/projeto.
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setSecaoAlmoxarifado('responsaveis')}
+          className={`rounded-xl border p-4 text-left transition hover:border-primary ${
+            secaoAlmoxarifado === 'responsaveis' ? 'border-primary bg-primary/10' : 'bg-card'
+          }`}
+        >
+          <p className="font-semibold">Responsáveis</p>
+          <p className="text-sm text-muted-foreground">
+            Ranking de pendências por pessoa.
+          </p>
+        </button>
+      </div>
+
+      {secaoAlmoxarifado === 'resumo' && (
+        <>
       {/* Filtros Superiores */}
       <Card className="border-muted">
         <CardHeader className="pb-3">
@@ -358,8 +400,11 @@ export const PainelGerencial = () => {
           </CardContent>
         </Card>
       </div>
+        </>
+      )}
 
       {/* Tabela de Grupos */}
+      {secaoAlmoxarifado === 'grupos' && (
       <Card className="print-section">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
           <div>
@@ -587,8 +632,10 @@ export const PainelGerencial = () => {
           </Table>
         </CardContent>
       </Card>
+      )}
 
       {/* Tabela de Responsáveis com maior pendência */}
+      {secaoAlmoxarifado === 'responsaveis' && (
       <Card className="border-muted">
         <CardHeader 
           className="flex flex-row items-center justify-between space-y-0 pb-3 cursor-pointer hover:bg-muted/30 transition-colors"
@@ -661,6 +708,7 @@ export const PainelGerencial = () => {
           </CardContent>
         )}
       </Card>
+      )}
         </>
       )}
 

@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { Fragment, FormEvent, useCallback, useEffect, useState } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
@@ -112,6 +112,9 @@ export const PainelProducaoGerencial = ({
     ProducaoLocalTipo | typeof TODOS
   >(TODOS);
   const [subAbaBI, setSubAbaBI] = useState('producao');
+  const [localExecucaoAberto, setLocalExecucaoAberto] =
+    useState<ProducaoLocalTipo | null>(null);
+  const [mostrarCustoIncompleto, setMostrarCustoIncompleto] = useState(false);
   const [carregado, setCarregado] = useState(false);
 
   const carregar = useCallback(
@@ -521,17 +524,6 @@ export const PainelProducaoGerencial = ({
             })}
           </div>
 
-          {dadosConsolidados.membros_sem_valor_hora.length > 0 && (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Mão de obra com custo incompleto</AlertTitle>
-              <AlertDescription>
-                Membros sem valor/hora em snapshots históricos:{' '}
-                {dadosConsolidados.membros_sem_valor_hora.join(', ')}.
-              </AlertDescription>
-            </Alert>
-          )}
-
             </>
           )}
 
@@ -553,7 +545,20 @@ export const PainelProducaoGerencial = ({
 
           <div className="grid gap-4 md:grid-cols-2">
             {dadosConsolidados.por_local_tipo.map((local) => (
-              <Card key={local.local_tipo}>
+              <button
+                key={local.local_tipo}
+                type="button"
+                onClick={() =>
+                  setLocalExecucaoAberto((atual) =>
+                    atual === local.local_tipo ? null : local.local_tipo,
+                  )
+                }
+                className={`rounded-xl border p-4 text-left transition hover:border-primary ${
+                  localExecucaoAberto === local.local_tipo
+                    ? 'border-primary bg-primary/10'
+                    : 'bg-card'
+                }`}
+              >
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Factory className="h-5 w-5 text-primary" />
@@ -580,9 +585,44 @@ export const PainelProducaoGerencial = ({
                     <p className="text-xs text-muted-foreground">Produzido</p>
                   </div>
                 </CardContent>
-              </Card>
+              </button>
             ))}
           </div>
+
+          {localExecucaoAberto && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Detalhes — {localExecucaoAberto}</CardTitle>
+                <CardDescription>
+                  Informações do local de execução selecionado.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {dadosConsolidados.por_local_tipo
+                  .filter((local) => local.local_tipo === localExecucaoAberto)
+                  .map((local) => (
+                    <Fragment key={local.local_tipo}>
+                      <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">Horas-homem</p>
+                        <p className="text-xl font-bold">{horas(local.horas_homem)}</p>
+                      </div>
+                      <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">Horas produtivas</p>
+                        <p className="text-xl font-bold">{horas(local.horas_produtivas)}</p>
+                      </div>
+                      <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">Eficiência</p>
+                        <p className="text-xl font-bold">{numero(local.eficiencia_percentual)}%</p>
+                      </div>
+                      <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">Custo total</p>
+                        <p className="text-xl font-bold">{moeda(local.custo_total)}</p>
+                      </div>
+                    </Fragment>
+                  ))}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -812,14 +852,33 @@ export const PainelProducaoGerencial = ({
           {subAbaBI === 'mao-obra' && (
             <div className="space-y-5">
               {dadosConsolidados.membros_sem_valor_hora.length > 0 && (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Mão de obra com custo incompleto</AlertTitle>
-                  <AlertDescription>
-                    Membros sem valor/hora em snapshots históricos:{' '}
-                    {dadosConsolidados.membros_sem_valor_hora.join(', ')}.
-                  </AlertDescription>
-                </Alert>
+                <Card>
+                  <CardHeader
+                    className="cursor-pointer"
+                    onClick={() =>
+                      setMostrarCustoIncompleto((atual) => !atual)
+                    }
+                  >
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <AlertCircle className="h-4 w-4" />
+                      Mão de obra com custo incompleto
+                    </CardTitle>
+                    <CardDescription>
+                      Clique para ver os membros sem valor/hora histórico.
+                    </CardDescription>
+                  </CardHeader>
+                  {mostrarCustoIncompleto && (
+                    <CardContent>
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Membros sem valor/hora</AlertTitle>
+                        <AlertDescription>
+                          {dadosConsolidados.membros_sem_valor_hora.join(', ')}.
+                        </AlertDescription>
+                      </Alert>
+                    </CardContent>
+                  )}
+                </Card>
               )}
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <Card>
