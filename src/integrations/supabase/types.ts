@@ -448,7 +448,10 @@ export type Database = {
           id: string
           pode_acessar_gerencial: boolean | null
           pode_acessar_projetos: boolean | null
+          pode_apontar_producao: boolean
           pode_cadastrar_itens: boolean
+          pode_configurar_producao: boolean
+          pode_conferir_producao: boolean
           pode_devolver_material: boolean
           pode_editar_itens: boolean
           pode_editar_movimentacoes: boolean
@@ -462,6 +465,7 @@ export type Database = {
           pode_solicitacao_material: boolean
           pode_solicitar_material: boolean
           pode_transferir: boolean
+          pode_ver_bi_producao: boolean
           pode_ver_relatorios: boolean
           tipo_usuario: string
           updated_at: string
@@ -471,7 +475,10 @@ export type Database = {
           id?: string
           pode_acessar_gerencial?: boolean | null
           pode_acessar_projetos?: boolean | null
+          pode_apontar_producao?: boolean
           pode_cadastrar_itens?: boolean
+          pode_configurar_producao?: boolean
+          pode_conferir_producao?: boolean
           pode_devolver_material?: boolean
           pode_editar_itens?: boolean
           pode_editar_movimentacoes?: boolean
@@ -485,6 +492,7 @@ export type Database = {
           pode_solicitacao_material?: boolean
           pode_solicitar_material?: boolean
           pode_transferir?: boolean
+          pode_ver_bi_producao?: boolean
           pode_ver_relatorios?: boolean
           tipo_usuario: string
           updated_at?: string
@@ -494,7 +502,10 @@ export type Database = {
           id?: string
           pode_acessar_gerencial?: boolean | null
           pode_acessar_projetos?: boolean | null
+          pode_apontar_producao?: boolean
           pode_cadastrar_itens?: boolean
+          pode_configurar_producao?: boolean
+          pode_conferir_producao?: boolean
           pode_devolver_material?: boolean
           pode_editar_itens?: boolean
           pode_editar_movimentacoes?: boolean
@@ -508,6 +519,7 @@ export type Database = {
           pode_solicitacao_material?: boolean
           pode_solicitar_material?: boolean
           pode_transferir?: boolean
+          pode_ver_bi_producao?: boolean
           pode_ver_relatorios?: boolean
           tipo_usuario?: string
           updated_at?: string
@@ -544,6 +556,283 @@ export type Database = {
           tipo_usuario?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      producao_apontamento_anexos: {
+        Row: {
+          apontamento_id: string
+          created_at: string
+          file_name: string
+          file_path: string
+          id: string
+          mime_type: string
+          size_bytes: number | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          apontamento_id: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          id?: string
+          mime_type: string
+          size_bytes?: number | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          apontamento_id?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          mime_type?: string
+          size_bytes?: number | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_apontamento_anexos_apontamento_id_fkey"
+            columns: ["apontamento_id"]
+            isOneToOne: false
+            referencedRelation: "producao_apontamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producao_apontamento_membros: {
+        Row: {
+          apontamento_id: string
+          created_at: string
+          id: string
+          membro_id: string
+          nome_snapshot: string
+        }
+        Insert: {
+          apontamento_id: string
+          created_at?: string
+          id?: string
+          membro_id: string
+          nome_snapshot: string
+        }
+        Update: {
+          apontamento_id?: string
+          created_at?: string
+          id?: string
+          membro_id?: string
+          nome_snapshot?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_apontamento_membros_apontamento_id_fkey"
+            columns: ["apontamento_id"]
+            isOneToOne: false
+            referencedRelation: "producao_apontamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_apontamento_membros_membro_id_fkey"
+            columns: ["membro_id"]
+            isOneToOne: false
+            referencedRelation: "producao_membros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producao_apontamentos: {
+        Row: {
+          conferido_em: string | null
+          conferido_por_id: string | null
+          created_at: string
+          criado_por_id: string | null
+          data: string
+          duracao_minutos: number
+          id: string
+          inicio: string
+          local_tipo: string
+          observacoes: string | null
+          projeto_local_id: string
+          quantidade_produzida: number | null
+          status: string
+          tarefa_id: string
+          termino: string
+          updated_at: string
+        }
+        Insert: {
+          conferido_em?: string | null
+          conferido_por_id?: string | null
+          created_at?: string
+          criado_por_id?: string | null
+          data: string
+          duracao_minutos: number
+          id?: string
+          inicio: string
+          local_tipo: string
+          observacoes?: string | null
+          projeto_local_id: string
+          quantidade_produzida?: number | null
+          status?: string
+          tarefa_id: string
+          termino: string
+          updated_at?: string
+        }
+        Update: {
+          conferido_em?: string | null
+          conferido_por_id?: string | null
+          created_at?: string
+          criado_por_id?: string | null
+          data?: string
+          duracao_minutos?: number
+          id?: string
+          inicio?: string
+          local_tipo?: string
+          observacoes?: string | null
+          projeto_local_id?: string
+          quantidade_produzida?: number | null
+          status?: string
+          tarefa_id?: string
+          termino?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_apontamentos_projeto_local_id_fkey"
+            columns: ["projeto_local_id"]
+            isOneToOne: false
+            referencedRelation: "locais_utilizacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_apontamentos_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "producao_tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producao_materiais_projeto: {
+        Row: {
+          apontamento_id: string | null
+          created_at: string
+          id: string
+          item_id: string
+          item_snapshot: Json
+          movement_id: string
+          observacoes_producao: string | null
+          projeto_local_id: string
+          quantidade: number
+          tipo: string
+        }
+        Insert: {
+          apontamento_id?: string | null
+          created_at?: string
+          id?: string
+          item_id: string
+          item_snapshot: Json
+          movement_id: string
+          observacoes_producao?: string | null
+          projeto_local_id: string
+          quantidade: number
+          tipo: string
+        }
+        Update: {
+          apontamento_id?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_snapshot?: Json
+          movement_id?: string
+          observacoes_producao?: string | null
+          projeto_local_id?: string
+          quantidade?: number
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_materiais_projeto_apontamento_id_fkey"
+            columns: ["apontamento_id"]
+            isOneToOne: false
+            referencedRelation: "producao_apontamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_materiais_projeto_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_materiais_projeto_movement_id_fkey"
+            columns: ["movement_id"]
+            isOneToOne: true
+            referencedRelation: "movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_materiais_projeto_projeto_local_id_fkey"
+            columns: ["projeto_local_id"]
+            isOneToOne: false
+            referencedRelation: "locais_utilizacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producao_membros: {
+        Row: {
+          apelido: string | null
+          ativo: boolean
+          created_at: string
+          funcao: string | null
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          apelido?: string | null
+          ativo?: boolean
+          created_at?: string
+          funcao?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          apelido?: string | null
+          ativo?: boolean
+          created_at?: string
+          funcao?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      producao_tarefas: {
+        Row: {
+          ativo: boolean
+          categoria: string | null
+          created_at: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria?: string | null
+          created_at?: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string | null
+          created_at?: string
+          id?: string
+          nome?: string
+          updated_at?: string
         }
         Relationships: []
       }

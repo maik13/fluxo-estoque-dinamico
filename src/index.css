@@ -194,6 +194,10 @@
 }
 
 /* ─── Print Styles ──────────────────────────────────────────────────── */
+.producao-print-only {
+  display: none;
+}
+
 @media print {
   nav, aside, header, .sidebar, .print-hidden, .print\:hidden, button, .filters-section, .lucide {
     display: none !important;
@@ -208,4 +212,24 @@
   }
   table { width: 100% !important; border-collapse: collapse !important; }
   th, td { border: 1px solid #eee !important; padding: 6px !important; text-align: left !important; font-size: 9pt !important; color: black !important; }
+
+  .producao-print-only {
+    display: block !important;
+  }
+
+  body.imprimir-producao * {
+    visibility: hidden !important;
+  }
+  body.imprimir-producao [data-producao-print-ativa],
+  body.imprimir-producao [data-producao-print-ativa] * {
+    visibility: visible !important;
+  }
+  body.imprimir-producao [data-producao-print-ativa] {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
 }

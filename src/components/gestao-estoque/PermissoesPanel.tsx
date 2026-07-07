@@ -29,6 +29,10 @@ interface PermissaoTipoUsuario {
   pode_editar_movimentacoes: boolean;
   pode_acessar_gerencial: boolean;
   pode_acessar_projetos: boolean;
+  pode_apontar_producao: boolean;
+  pode_conferir_producao: boolean;
+  pode_ver_bi_producao: boolean;
+  pode_configurar_producao: boolean;
 }
 
 const TIPOS_USUARIO_LABELS: Record<string, string> = {
@@ -81,6 +85,15 @@ const PERMISSOES_GRUPOS: PermissaoGrupo[] = [
     ],
   },
   {
+    titulo: '🏭 Produção',
+    campos: [
+      { key: 'pode_apontar_producao', label: 'Apontar Produção' },
+      { key: 'pode_conferir_producao', label: 'Conferir Produção' },
+      { key: 'pode_ver_bi_producao', label: 'Ver BI de Produção' },
+      { key: 'pode_configurar_producao', label: 'Configurar Produção' },
+    ],
+  },
+  {
     titulo: '⚙️ Administração',
     campos: [
       { key: 'pode_gerenciar_configuracoes', label: 'Gerenciar Configurações' },
@@ -125,7 +138,11 @@ export const PermissoesPanel = () => {
         ...d, 
         pode_editar_movimentacoes: d.pode_editar_movimentacoes ?? false,
         pode_acessar_gerencial: d.pode_acessar_gerencial ?? false,
-        pode_acessar_projetos: d.pode_acessar_projetos ?? false
+        pode_acessar_projetos: d.pode_acessar_projetos ?? false,
+        pode_apontar_producao: d.pode_apontar_producao ?? false,
+        pode_conferir_producao: d.pode_conferir_producao ?? false,
+        pode_ver_bi_producao: d.pode_ver_bi_producao ?? false,
+        pode_configurar_producao: d.pode_configurar_producao ?? false
       })));
     } catch (error) {
       console.error('Erro ao carregar permissões:', error);

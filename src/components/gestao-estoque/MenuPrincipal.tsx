@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X, BarChart3, MessageCircle } from 'lucide-react';
+import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X, BarChart3, MessageCircle, Factory } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Item, EstoqueItem } from '@/types/estoque';
@@ -34,11 +34,13 @@ import { toast } from 'sonner';
 export const MenuPrincipal = ({ 
   onAbrirGerencial, 
   onAbrirProjetos,
-  onAbrirMensagens
+  onAbrirMensagens,
+  onAbrirProducao
 }: { 
   onAbrirGerencial?: () => void;
   onAbrirProjetos?: () => void;
   onAbrirMensagens?: () => void;
+  onAbrirProducao?: () => void;
 }) => {
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoqueContext();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria, obterSubcategoriasDaCategoria, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
@@ -55,7 +57,11 @@ export const MenuPrincipal = ({
     canPedidoCompra, 
     canSolicitacaoMaterial, 
     canAccessManagerial,
-    canAccessProjects
+    canAccessProjects,
+    canApontarProducao,
+    canConferirProducao,
+    canViewBIProducao,
+    canConfigurarProducao
   } = usePermissions();
   
   // Estados para controlar os diálogos
@@ -144,6 +150,11 @@ export const MenuPrincipal = ({
   const estoqueAtivoInfo = obterEstoqueAtivoInfo();
   const podeUsarCadastro = canCreateItems();
   const podeMovimentar = canManageStock();
+  const podeAcessarProducao =
+    canApontarProducao() ||
+    canConferirProducao() ||
+    canViewBIProducao() ||
+    canConfigurarProducao();
 
   // Buscar próximo código disponível quando o dialog de cadastro abrir
   useEffect(() => {
@@ -870,6 +881,24 @@ export const MenuPrincipal = ({
               <CardTitle className="text-warning">Projetos</CardTitle>
               <CardDescription>
                 Resumo e saldo de materiais por projeto/local
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+
+        {podeAcessarProducao && (
+          <Card
+            className="group cursor-pointer hover:scale-105 transition-all duration-300 border-emerald-500/20 hover:border-emerald-500/40 shadow-sm hover:shadow-emerald-500/10 overflow-hidden relative"
+            onClick={onAbrirProducao}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <CardHeader className="text-center relative z-10">
+              <div className="mx-auto w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-emerald-500/20 transition-colors">
+                <Factory className="h-8 w-8 text-emerald-500" />
+              </div>
+              <CardTitle className="text-emerald-500">Produção</CardTitle>
+              <CardDescription>
+                Lançamentos e acompanhamento de apontamentos produtivos
               </CardDescription>
             </CardHeader>
           </Card>
