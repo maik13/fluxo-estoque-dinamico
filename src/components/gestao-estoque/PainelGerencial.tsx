@@ -10,12 +10,19 @@ import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { useConsolidacao, ConsolidacaoFiltros } from '@/hooks/useConsolidacao';
 import { 
   BarChart3, Package, Truck, RotateCcw, Search, Filter, 
-  ChevronRight, ChevronDown, FileDown, Printer, AlertTriangle 
+  ChevronRight, ChevronDown, FileDown, Printer, AlertTriangle, Factory 
 } from 'lucide-react';
 import { exportarResumoGruposExcel, exportarItensGrupoExcel } from '@/utils/reportExport';
 import { Button } from '@/components/ui/button';
 import { PainelProducaoGerencial } from '@/components/producao/PainelProducaoGerencial';
 import { usePermissions } from '@/hooks/usePermissions';
+
+interface ResponsavelPendente {
+  nome: string;
+  totalItensPendentes?: number;
+  saldoTotalPendente?: number;
+  gruposEnvolvidos?: string[];
+}
 
 export const PainelGerencial = () => {
   const { movimentacoes } = useEstoqueContext();
@@ -37,6 +44,7 @@ export const PainelGerencial = () => {
   const [buscaGrupo, setBuscaGrupo] = useState<string>('');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isResponsaveisExpanded, setIsResponsaveisExpanded] = useState(false);
+  const [visaoGerencial, setVisaoGerencial] = useState<'almoxarifado' | 'producao'>('almoxarifado');
 
   // Preparar filtros para o hook
   const filtros: ConsolidacaoFiltros = useMemo(() => ({
@@ -163,6 +171,56 @@ export const PainelGerencial = () => {
 
   return (
     <div className="space-y-6">
+      <div className={`grid gap-4 ${canViewBIProducao() ? 'md:grid-cols-2' : 'md:grid-cols-1'}`}>
+        <button
+          type="button"
+          onClick={() => setVisaoGerencial('almoxarifado')}
+          className={`rounded-xl border p-5 text-left transition hover:border-primary ${
+            visaoGerencial === 'almoxarifado'
+              ? 'border-primary bg-primary/10'
+              : 'bg-card'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-emerald-500/10 p-2">
+              <Package className="h-5 w-5 text-emerald-500" />
+            </div>
+            <div>
+              <p className="font-semibold">Gerencial Almoxarifado</p>
+              <p className="text-sm text-muted-foreground">
+                Pendências, grupos, saldos, devoluções e responsáveis.
+              </p>
+            </div>
+          </div>
+        </button>
+
+        {canViewBIProducao() && (
+          <button
+            type="button"
+            onClick={() => setVisaoGerencial('producao')}
+            className={`rounded-xl border p-5 text-left transition hover:border-primary ${
+              visaoGerencial === 'producao'
+                ? 'border-primary bg-primary/10'
+                : 'bg-card'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-blue-500/10 p-2">
+                <Factory className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="font-semibold">BI de Produção</p>
+                <p className="text-sm text-muted-foreground">
+                  Apontamentos, fotos, materiais vinculados e mão de obra.
+                </p>
+              </div>
+            </div>
+          </button>
+        )}
+      </div>
+
+      {visaoGerencial === 'almoxarifado' && (
+        <>
       {/* Filtros Superiores */}
       <Card className="border-muted">
         <CardHeader className="pb-3">
@@ -572,7 +630,7 @@ export const PainelGerencial = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  responsaveisAgrupados.map((resp: any) => (
+                  (responsaveisAgrupados as ResponsavelPendente[]).map((resp) => (
                     <TableRow key={resp.nome} className="hover:bg-muted/50">
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
@@ -603,8 +661,10 @@ export const PainelGerencial = () => {
           </CardContent>
         )}
       </Card>
+        </>
+      )}
 
-      {canViewBIProducao() && (
+      {canViewBIProducao() && visaoGerencial === 'producao' && (
         <PainelProducaoGerencial locais={locaisConfig} />
       )}
     </div>

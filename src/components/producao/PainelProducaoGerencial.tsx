@@ -33,6 +33,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import {
   Table,
   TableBody,
   TableCell,
@@ -106,6 +111,7 @@ export const PainelProducaoGerencial = ({
   const [localTipo, setLocalTipo] = useState<
     ProducaoLocalTipo | typeof TODOS
   >(TODOS);
+  const [subAbaBI, setSubAbaBI] = useState('producao');
   const [carregado, setCarregado] = useState(false);
 
   const carregar = useCallback(
@@ -482,6 +488,17 @@ export const PainelProducaoGerencial = ({
         </Card>
       ) : (
         <>
+          <Tabs value={subAbaBI} onValueChange={setSubAbaBI} className="print:hidden">
+            <TabsList className="grid h-auto w-full grid-cols-1 gap-1 md:grid-cols-4">
+              <TabsTrigger value="producao">Produção</TabsTrigger>
+              <TabsTrigger value="imagens">Imagens</TabsTrigger>
+              <TabsTrigger value="materiais">Materiais vinculados</TabsTrigger>
+              <TabsTrigger value="mao-obra">Valor de mão de obra</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {subAbaBI === 'producao' && (
+            <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {kpis.map((kpi) => {
               const Icone = kpi.icon;
@@ -515,7 +532,13 @@ export const PainelProducaoGerencial = ({
             </Alert>
           )}
 
-          <CalendarioFotosProducao filtros={filtros} />
+            </>
+          )}
+
+          {subAbaBI === 'imagens' && <CalendarioFotosProducao filtros={filtros} />}
+
+          {subAbaBI === 'producao' && (
+            <>
 
           {semDados && (
             <Alert>
@@ -783,6 +806,119 @@ export const PainelProducaoGerencial = ({
             </Card>
           </div>
 
+            </>
+          )}
+
+          {subAbaBI === 'mao-obra' && (
+            <div className="space-y-5">
+              {dadosConsolidados.membros_sem_valor_hora.length > 0 && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Mão de obra com custo incompleto</AlertTitle>
+                  <AlertDescription>
+                    Membros sem valor/hora em snapshots históricos:{' '}
+                    {dadosConsolidados.membros_sem_valor_hora.join(', ')}.
+                  </AlertDescription>
+                </Alert>
+              )}
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Custo total</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">
+                      {moeda(dadosConsolidados.custo_total_mao_obra)}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Custo produtivo</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">
+                      {moeda(dadosConsolidados.custo_produtivo_mao_obra)}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Custo improdutivo</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">
+                      {moeda(dadosConsolidados.custo_improdutivo_mao_obra)}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Horas-homem</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">
+                      {horas(dadosConsolidados.horas_homem)}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Valor de mão de obra por membro</CardTitle>
+                  <CardDescription>
+                    Usa sempre o valor/hora histórico salvo no apontamento.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Membro</TableHead>
+                        <TableHead className="text-right">Valor/h histórico</TableHead>
+                        <TableHead className="text-right">Horas</TableHead>
+                        <TableHead className="text-right">Produtivas</TableHead>
+                        <TableHead className="text-right">Improdutivas</TableHead>
+                        <TableHead className="text-right">Custo total</TableHead>
+                        <TableHead className="text-right">Custo desperdiçado</TableHead>
+                        <TableHead className="text-right">Eficiência</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dadosConsolidados.por_membro.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                            Nenhum membro encontrado.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        dadosConsolidados.por_membro.map((membro) => (
+                          <TableRow key={membro.membro_id}>
+                            <TableCell className="font-medium">{membro.membro_nome}</TableCell>
+                            <TableCell className="text-right">
+                              {membro.valor_hora_minimo === null
+                                ? 'Não informado'
+                                : membro.valor_hora_minimo === membro.valor_hora_maximo
+                                  ? moeda(membro.valor_hora_minimo)
+                                  : `${moeda(membro.valor_hora_minimo)}–${moeda(membro.valor_hora_maximo)}`}
+                            </TableCell>
+                            <TableCell className="text-right">{horas(membro.total_horas)}</TableCell>
+                            <TableCell className="text-right">{horas(membro.horas_produtivas)}</TableCell>
+                            <TableCell className="text-right">{horas(membro.horas_improdutivas)}</TableCell>
+                            <TableCell className="text-right">{moeda(membro.custo_total)}</TableCell>
+                            <TableCell className="text-right">{moeda(membro.custo_improdutivo)}</TableCell>
+                            <TableCell className="text-right">{numero(membro.eficiencia_percentual)}%</TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {subAbaBI === 'materiais' && (
           <Card>
             <CardHeader>
               <CardTitle>Materiais vinculados à Produção</CardTitle>
@@ -911,6 +1047,7 @@ export const PainelProducaoGerencial = ({
               </div>
             </CardContent>
           </Card>
+          )}
         </>
       )}
     </section>
