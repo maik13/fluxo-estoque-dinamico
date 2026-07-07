@@ -64,6 +64,7 @@ const numero = (valor: number) =>
   valor.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 
 const horas = (valor: number) => `${numero(valor)} h`;
+const minutosDeHoras = (valor: number) => Math.round(valor * 60);
 const moeda = (valor: number | null | undefined) =>
   valor === null || valor === undefined
     ? 'Incompleto'
@@ -222,8 +223,8 @@ export const PainelProducaoGerencial = ({
     },
     {
       titulo: 'Horas-homem',
-      valor: horas(dadosConsolidados.horas_homem),
-      descricao: 'Duração × quantidade de membros',
+      valor: `${numero(minutosDeHoras(dadosConsolidados.horas_homem))} min-homem`,
+      descricao: `${horas(dadosConsolidados.horas_homem)} em hora decimal (duração × membros)`,
       icon: Users,
     },
     {
@@ -705,7 +706,12 @@ export const PainelProducaoGerencial = ({
                       </div>
                       <div className="rounded-lg border p-3">
                         <p className="text-xs text-muted-foreground">Horas-homem</p>
-                        <p className="text-xl font-bold">{horas(local.horas_homem)}</p>
+                        <p className="text-xl font-bold">
+                          {numero(minutosDeHoras(local.horas_homem))} min-homem
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {horas(local.horas_homem)} em hora decimal
+                        </p>
                       </div>
                       <div className="rounded-lg border p-3">
                         <p className="text-xs text-muted-foreground">Horas produtivas</p>
