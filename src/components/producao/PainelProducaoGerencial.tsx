@@ -33,11 +33,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
-import {
   Table,
   TableBody,
   TableCell,
@@ -111,10 +106,17 @@ export const PainelProducaoGerencial = ({
   const [localTipo, setLocalTipo] = useState<
     ProducaoLocalTipo | typeof TODOS
   >(TODOS);
-  const [subAbaBI, setSubAbaBI] = useState('producao');
+  const [subAbaBI, setSubAbaBI] = useState<
+    'producao' | 'imagens' | 'materiais' | 'mao-obra' | null
+  >(null);
+  const [secaoProducaoAberta, setSecaoProducaoAberta] = useState<
+    'resumo' | 'local' | 'projeto' | 'tarefa' | 'membro' | null
+  >(null);
+  const [secaoMaoObraAberta, setSecaoMaoObraAberta] = useState<
+    'resumo' | 'incompletos' | 'membros' | null
+  >(null);
   const [localExecucaoAberto, setLocalExecucaoAberto] =
     useState<ProducaoLocalTipo | null>(null);
-  const [mostrarCustoIncompleto, setMostrarCustoIncompleto] = useState(false);
   const [carregado, setCarregado] = useState(false);
 
   const carregar = useCallback(
@@ -491,17 +493,118 @@ export const PainelProducaoGerencial = ({
         </Card>
       ) : (
         <>
-          <Tabs value={subAbaBI} onValueChange={setSubAbaBI} className="print:hidden">
-            <TabsList className="grid h-auto w-full grid-cols-1 gap-1 md:grid-cols-4">
-              <TabsTrigger value="producao">Produção</TabsTrigger>
-              <TabsTrigger value="imagens">Imagens</TabsTrigger>
-              <TabsTrigger value="materiais">Materiais vinculados</TabsTrigger>
-              <TabsTrigger value="mao-obra">Valor de mão de obra</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="grid gap-4 print:hidden md:grid-cols-2 xl:grid-cols-4">
+            {[
+              {
+                id: 'producao' as const,
+                titulo: 'Produção',
+                descricao: 'Resumo, locais, projetos, tarefas e membros.',
+                icon: Factory,
+              },
+              {
+                id: 'imagens' as const,
+                titulo: 'Imagens',
+                descricao: 'Fotos vinculadas aos apontamentos.',
+                icon: FileDown,
+              },
+              {
+                id: 'materiais' as const,
+                titulo: 'Materiais vinculados',
+                descricao: 'Referências a movimentos oficiais existentes.',
+                icon: PackageCheck,
+              },
+              {
+                id: 'mao-obra' as const,
+                titulo: 'Valor de mão de obra',
+                descricao: 'Custos, valores/hora e eficiência por membro.',
+                icon: Users,
+              },
+            ].map((pasta) => {
+              const Icone = pasta.icon;
+              return (
+                <button
+                  key={pasta.id}
+                  type="button"
+                  onClick={() => {
+                    setSubAbaBI((atual) => (atual === pasta.id ? null : pasta.id));
+                    setSecaoProducaoAberta(null);
+                    setSecaoMaoObraAberta(null);
+                    setLocalExecucaoAberto(null);
+                  }}
+                  className={`rounded-xl border p-5 text-left transition hover:border-primary ${
+                    subAbaBI === pasta.id ? 'border-primary bg-primary/10' : 'bg-card'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-lg bg-primary/10 p-2">
+                      <Icone className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">{pasta.titulo}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {pasta.descricao}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
 
           {subAbaBI === 'producao' && (
             <>
+          <div className="grid gap-4 print:hidden md:grid-cols-2 xl:grid-cols-5">
+            {[
+              {
+                id: 'resumo' as const,
+                titulo: 'Resumo da produção',
+                descricao: 'Apontamentos, horas, eficiência e quantidade.',
+              },
+              {
+                id: 'local' as const,
+                titulo: 'Local de execução',
+                descricao: 'Abra Fábrica ou Execução separadamente.',
+              },
+              {
+                id: 'projeto' as const,
+                titulo: 'Produção por projeto',
+                descricao: 'Horas, equipe e status por projeto/local.',
+              },
+              {
+                id: 'tarefa' as const,
+                titulo: 'Produção por tarefa',
+                descricao: 'Consolidado por etapa/tarefa.',
+              },
+              {
+                id: 'membro' as const,
+                titulo: 'Produção por membro',
+                descricao: 'Horas e participação por executor.',
+              },
+            ].map((secao) => (
+              <button
+                key={secao.id}
+                type="button"
+                onClick={() => {
+                  setSecaoProducaoAberta((atual) =>
+                    atual === secao.id ? null : secao.id,
+                  );
+                  setLocalExecucaoAberto(null);
+                }}
+                className={`rounded-xl border p-4 text-left transition hover:border-primary ${
+                  secaoProducaoAberta === secao.id
+                    ? 'border-primary bg-primary/10'
+                    : 'bg-card'
+                }`}
+              >
+                <p className="font-semibold">{secao.titulo}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {secao.descricao}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          {secaoProducaoAberta === 'resumo' && (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {kpis.map((kpi) => {
               const Icone = kpi.icon;
@@ -523,6 +626,7 @@ export const PainelProducaoGerencial = ({
               );
             })}
           </div>
+          )}
 
             </>
           )}
@@ -532,7 +636,7 @@ export const PainelProducaoGerencial = ({
           {subAbaBI === 'producao' && (
             <>
 
-          {semDados && (
+          {secaoProducaoAberta && semDados && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Nenhum dado encontrado</AlertTitle>
@@ -543,6 +647,8 @@ export const PainelProducaoGerencial = ({
             </Alert>
           )}
 
+          {secaoProducaoAberta === 'local' && (
+          <>
           <div className="grid gap-4 md:grid-cols-2">
             {dadosConsolidados.por_local_tipo.map((local) => (
               <button
@@ -564,27 +670,10 @@ export const PainelProducaoGerencial = ({
                     <Factory className="h-5 w-5 text-primary" />
                     {local.local_tipo}
                   </CardTitle>
+                  <CardDescription>
+                    Clique para ver os indicadores deste local de execução.
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="grid grid-cols-3 gap-3 text-center">
-                  <div>
-                    <p className="text-xl font-bold">
-                      {numero(local.total_apontamentos)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Apontamentos</p>
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold">
-                      {horas(local.total_horas)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Horas</p>
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold">
-                      {numero(local.quantidade_total_produzida)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Produzido</p>
-                  </div>
-                </CardContent>
               </button>
             ))}
           </div>
@@ -602,6 +691,18 @@ export const PainelProducaoGerencial = ({
                   .filter((local) => local.local_tipo === localExecucaoAberto)
                   .map((local) => (
                     <Fragment key={local.local_tipo}>
+                      <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">Apontamentos</p>
+                        <p className="text-xl font-bold">{numero(local.total_apontamentos)}</p>
+                      </div>
+                      <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">Horas</p>
+                        <p className="text-xl font-bold">{horas(local.total_horas)}</p>
+                      </div>
+                      <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">Produzido</p>
+                        <p className="text-xl font-bold">{numero(local.quantidade_total_produzida)}</p>
+                      </div>
                       <div className="rounded-lg border p-3">
                         <p className="text-xs text-muted-foreground">Horas-homem</p>
                         <p className="text-xl font-bold">{horas(local.horas_homem)}</p>
@@ -623,7 +724,10 @@ export const PainelProducaoGerencial = ({
               </CardContent>
             </Card>
           )}
+          </>
+          )}
 
+          {secaoProducaoAberta === 'projeto' && (
           <Card>
             <CardHeader>
               <CardTitle>Produção por projeto/local</CardTitle>
@@ -708,8 +812,11 @@ export const PainelProducaoGerencial = ({
               </Table>
             </CardContent>
           </Card>
+          )}
 
+          {(secaoProducaoAberta === 'tarefa' || secaoProducaoAberta === 'membro') && (
           <div className="grid gap-5 xl:grid-cols-2">
+            {secaoProducaoAberta === 'tarefa' && (
             <Card>
               <CardHeader>
                 <CardTitle>Produção por tarefa</CardTitle>
@@ -770,7 +877,9 @@ export const PainelProducaoGerencial = ({
                 </Table>
               </CardContent>
             </Card>
+            )}
 
+            {secaoProducaoAberta === 'membro' && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -844,31 +953,68 @@ export const PainelProducaoGerencial = ({
                 </Table>
               </CardContent>
             </Card>
+            )}
           </div>
+          )}
 
             </>
           )}
 
           {subAbaBI === 'mao-obra' && (
             <div className="space-y-5">
-              {dadosConsolidados.membros_sem_valor_hora.length > 0 && (
-                <Card>
-                  <CardHeader
-                    className="cursor-pointer"
+              <div className="grid gap-4 print:hidden md:grid-cols-3">
+                {[
+                  {
+                    id: 'resumo' as const,
+                    titulo: 'Resumo financeiro',
+                    descricao: 'Custo total, produtivo, improdutivo e horas-homem.',
+                  },
+                  {
+                    id: 'incompletos' as const,
+                    titulo: 'Custos incompletos',
+                    descricao: 'Membros sem valor/hora histórico.',
+                  },
+                  {
+                    id: 'membros' as const,
+                    titulo: 'Valores por membro',
+                    descricao: 'Tabela individual de valor/hora e eficiência.',
+                  },
+                ].map((secao) => (
+                  <button
+                    key={secao.id}
+                    type="button"
                     onClick={() =>
-                      setMostrarCustoIncompleto((atual) => !atual)
+                      setSecaoMaoObraAberta((atual) =>
+                        atual === secao.id ? null : secao.id,
+                      )
                     }
+                    className={`rounded-xl border p-4 text-left transition hover:border-primary ${
+                      secaoMaoObraAberta === secao.id
+                        ? 'border-primary bg-primary/10'
+                        : 'bg-card'
+                    }`}
                   >
+                    <p className="font-semibold">{secao.titulo}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {secao.descricao}
+                    </p>
+                  </button>
+                ))}
+              </div>
+
+              {secaoMaoObraAberta === 'incompletos' && (
+                <Card>
+                  <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-base">
                       <AlertCircle className="h-4 w-4" />
                       Mão de obra com custo incompleto
                     </CardTitle>
                     <CardDescription>
-                      Clique para ver os membros sem valor/hora histórico.
+                      Membros sem valor/hora histórico salvo em apontamentos.
                     </CardDescription>
                   </CardHeader>
-                  {mostrarCustoIncompleto && (
-                    <CardContent>
+                  <CardContent>
+                    {dadosConsolidados.membros_sem_valor_hora.length > 0 ? (
                       <Alert>
                         <AlertCircle className="h-4 w-4" />
                         <AlertTitle>Membros sem valor/hora</AlertTitle>
@@ -876,10 +1022,16 @@ export const PainelProducaoGerencial = ({
                           {dadosConsolidados.membros_sem_valor_hora.join(', ')}.
                         </AlertDescription>
                       </Alert>
-                    </CardContent>
-                  )}
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Nenhum membro com custo incompleto nos filtros atuais.
+                      </p>
+                    )}
+                  </CardContent>
                 </Card>
               )}
+
+              {secaoMaoObraAberta === 'resumo' && (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <Card>
                   <CardHeader className="pb-2">
@@ -922,6 +1074,9 @@ export const PainelProducaoGerencial = ({
                   </CardContent>
                 </Card>
               </div>
+              )}
+
+              {secaoMaoObraAberta === 'membros' && (
               <Card>
                 <CardHeader>
                   <CardTitle>Valor de mão de obra por membro</CardTitle>
@@ -974,6 +1129,7 @@ export const PainelProducaoGerencial = ({
                   </Table>
                 </CardContent>
               </Card>
+              )}
             </div>
           )}
 
