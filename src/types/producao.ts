@@ -2,8 +2,9 @@ import type { Json } from '@/integrations/supabase/types';
 
 export type ProducaoLocalTipo = 'Fábrica' | 'Execução';
 export type ProducaoStatus = 'lancado' | 'conferido' | 'cancelado';
-export type ProducaoProjetoStatus = 'ativo' | 'concluido' | 'cancelado';
-export type ProducaoProcessoStatus = 'planejado' | 'em_andamento' | 'pausado' | 'finalizado' | 'cancelado';
+export type ProducaoProcessoStatus = 'planejado' | 'em_andamento' | 'pausado' | 'bloqueado' | 'finalizado' | 'cancelado';
+export type ProducaoPrioridade = 'baixa' | 'normal' | 'alta' | 'urgente';
+export type ProducaoMembroOrigem = 'solicitante' | 'producao' | 'legado_pendente';
 
 export interface ProducaoTarefa {
   id: string;
@@ -18,37 +19,59 @@ export interface ProducaoProjeto {
   id: string;
   nome: string;
   descricao: string | null;
-  cliente_id: string | null;
-  status: ProducaoProjetoStatus;
+  cliente: string | null;
   cidade: string | null;
-  estado: string | null;
+  uf: string | null;
+  local_execucao: string | null;
+  endereco_execucao: string | null;
   data_inicio_prevista: string | null;
   data_fim_prevista: string | null;
+  responsavel_id: string | null;
+  responsavel_nome_snapshot: string | null;
+  observacoes: string | null;
+  ativo: boolean;
   criado_por_id: string | null;
+  criado_por_nome_snapshot: string | null;
+  atualizado_por_id: string | null;
+  atualizado_por_nome_snapshot: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface ProducaoProcesso {
   id: string;
+  codigo: string;
   projeto_id: string;
   nome: string;
   descricao: string | null;
+  produto_entregavel: string | null;
+  unidade_medida: string | null;
+  quantidade_planejada: number | null;
   status: ProducaoProcessoStatus;
-  prioridade: number;
+  prioridade: ProducaoPrioridade;
+  responsavel_id: string | null;
+  responsavel_nome_snapshot: string | null;
   data_inicio_prevista: string | null;
   data_fim_prevista: string | null;
   data_inicio_real: string | null;
   data_fim_real: string | null;
+  motivo_pausa: string | null;
+  motivo_bloqueio: string | null;
+  motivo_cancelamento: string | null;
+  observacoes: string | null;
   criado_por_id: string | null;
+  criado_por_nome_snapshot: string | null;
   atualizado_por_id: string | null;
   atualizado_por_nome_snapshot: string | null;
   finalizado_por_id: string | null;
   finalizado_por_nome_snapshot: string | null;
   finalizado_em: string | null;
+  cancelado_por_id: string | null;
+  cancelado_por_nome_snapshot: string | null;
+  cancelado_em: string | null;
   created_at: string;
   updated_at: string;
-  projeto?: { nome: string } | null;
+  projeto?: { nome: string; cidade: string | null; uf: string | null } | null;
 }
 
 export interface ProducaoProcessoEvento {
@@ -58,16 +81,18 @@ export interface ProducaoProcessoEvento {
   status_anterior: ProducaoProcessoStatus | null;
   novo_status: ProducaoProcessoStatus | null;
   usuario_responsavel_id: string | null;
-  nome_usuario_snapshot: string | null;
+  nome_usuario_snapshot: string;
+  data_hora: string;
   justificativa: string | null;
-  dados_adicionais: Json | null;
-  created_at: string;
+  dados_complementares: Json | null;
+  valores_anteriores: Json | null;
+  valores_posteriores: Json | null;
 }
 
 export interface ProducaoApontamento {
   id: string;
   data: string;
-  projeto_local_id: string;
+  projeto_local_id: string | null;
   processo_id: string | null;
   tarefa_id: string;
   local_tipo: ProducaoLocalTipo;
@@ -81,8 +106,17 @@ export interface ProducaoApontamento {
   observacoes: string | null;
   status: ProducaoStatus;
   criado_por_id: string | null;
+  criado_por_nome_snapshot: string | null;
+  ultima_edicao_por_id: string | null;
+  ultima_edicao_por_nome_snapshot: string | null;
+  ultima_edicao_em: string | null;
   conferido_por_id: string | null;
+  conferido_por_nome_snapshot: string | null;
   conferido_em: string | null;
+  cancelado_por_id: string | null;
+  cancelado_por_nome_snapshot: string | null;
+  cancelado_em: string | null;
+  motivo_cancelamento: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -99,6 +133,9 @@ export interface ProducaoApontamentoMembro {
 export interface ProducaoMembro {
   id: string;
   nome: string;
+  nome_snapshot: string;
+  solicitante_id: string | null;
+  origem: ProducaoMembroOrigem;
   apelido: string | null;
   funcao: string | null;
   valor_hora: number | null;
@@ -112,6 +149,7 @@ export interface NovoMembroProducao {
   apelido?: string | null;
   funcao?: string | null;
   valor_hora?: number | null;
+  ativo?: boolean;
 }
 
 export interface ProducaoApontamentoAnexo {
@@ -136,11 +174,11 @@ export interface NovoAnexoProducao {
 
 export interface ProducaoMaterialProjeto {
   id: string;
-  movement_id: string;
-  projeto_local_id: string;
+  movement_id: string | null;
+  projeto_local_id: string | null;
   apontamento_id: string | null;
   tipo: string;
-  item_id: string;
+  item_id: string | null;
   quantidade: number;
   item_snapshot: Json;
   observacoes_producao: string | null;
@@ -149,7 +187,8 @@ export interface ProducaoMaterialProjeto {
 
 export interface NovoApontamentoProducao {
   data: string;
-  projeto_local_id: string;
+  projeto_local_id: string | null;
+  processo_id?: string | null;
   tarefa_id: string;
   local_tipo: ProducaoLocalTipo;
   quantidade_produzida?: number | null;
@@ -161,6 +200,19 @@ export interface NovoApontamentoProducao {
   observacoes?: string | null;
   membros_ids: string[];
 }
+
+export interface FiltrosProducao {
+  data_inicio?: string;
+  data_fim?: string;
+  projeto_local_id?: string;
+  processo_id?: string;
+  tarefa_id?: string;
+  status?: ProducaoStatus;
+  local_tipo?: ProducaoLocalTipo;
+}
+
+export interface FiltrosProducaoGerencial extends FiltrosProducao { membro_id?: string; }
+export interface DistribuicaoStatusProducao { lancado: number; conferido: number; cancelado: number; }
 
 export interface ResumoCustosProducao {
   horas_relogio: number;
@@ -175,25 +227,6 @@ export interface ResumoCustosProducao {
   custo_improdutivo: number | null;
   custo_incompleto: boolean;
   membros_sem_valor_hora: string[];
-}
-
-export interface FiltrosProducao {
-  data_inicio?: string;
-  data_fim?: string;
-  projeto_local_id?: string;
-  tarefa_id?: string;
-  status?: ProducaoStatus;
-  local_tipo?: ProducaoLocalTipo;
-}
-
-export interface FiltrosProducaoGerencial extends FiltrosProducao {
-  membro_id?: string;
-}
-
-export interface DistribuicaoStatusProducao {
-  lancado: number;
-  conferido: number;
-  cancelado: number;
 }
 
 export interface IndicadorProducaoPorProjeto {
@@ -259,62 +292,4 @@ export interface IndicadorProducaoPorLocalTipo {
   total_apontamentos: number;
   total_minutos: number;
   total_horas: number;
-  horas_homem: number;
-  horas_produtivas: number;
-  horas_improdutivas: number;
-  eficiencia_percentual: number;
-  custo_total: number | null;
-  custo_produtivo: number | null;
-  custo_improdutivo: number | null;
-  custo_incompleto: boolean;
-  quantidade_total_produzida: number;
-}
-
-export interface IndicadorQuantidadeMaterialPorItem {
-  item_id: string;
-  item_nome: string;
-  quantidade: number;
-  total_movimentacoes: number;
-}
-
-export interface IndicadorQuantidadeMaterialPorTipo {
-  tipo: string;
-  quantidade: number;
-  total_movimentacoes: number;
-}
-
-export interface IndicadorProducaoMateriais {
-  total_movimentacoes_vinculadas: number;
-  total_saida: number;
-  total_entrada: number;
-  itens_distintos: number;
-  quantidade_por_item: IndicadorQuantidadeMaterialPorItem[];
-  quantidade_por_tipo_movimento: IndicadorQuantidadeMaterialPorTipo[];
-}
-
-export interface IndicadoresProducaoGerencial {
-  total_apontamentos: number;
-  total_apontamentos_lancados: number;
-  total_apontamentos_conferidos: number;
-  total_apontamentos_cancelados: number;
-  total_horas: number;
-  total_minutos: number;
-  horas_relogio: number;
-  horas_homem: number;
-  horas_produtivas: number;
-  horas_improdutivas: number;
-  eficiencia_percentual: number;
-  custo_total_mao_obra: number | null;
-  custo_produtivo_mao_obra: number | null;
-  custo_improdutivo_mao_obra: number | null;
-  apontamentos_custo_incompleto: number;
-  membros_sem_valor_hora: string[];
-  quantidade_total_produzida: number;
-  media_horas_por_apontamento: number;
-  apontamentos_pendentes_conferencia: number;
-  por_projeto: IndicadorProducaoPorProjeto[];
-  por_tarefa: IndicadorProducaoPorTarefa[];
-  por_membro: IndicadorProducaoPorMembro[];
-  por_local_tipo: IndicadorProducaoPorLocalTipo[];
-  materiais: IndicadorProducaoMateriais;
 }
