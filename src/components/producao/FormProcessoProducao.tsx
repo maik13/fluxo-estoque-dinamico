@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
   Dialog,
@@ -12,7 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Search, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useProcessosProducao } from '@/hooks/useProcessosProducao';
 import { useProjetosProducao } from '@/hooks/useProjetosProducao';
 import type { ProducaoPrioridade } from '@/types/producao';
@@ -31,18 +32,30 @@ interface FormData {
 
 export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
   const [aberto, setAberto] = useState(false);
+  const [buscaProjeto, setBuscaProjeto] = useState('');
   const { criarProcesso } = useProcessosProducao();
-  const { projetos, listarProjetos } = useProjetosProducao();
+  const { projetos, listarProjetos, loading: carregandoProjetos, erro } = useProjetosProducao();
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     defaultValues: { prioridade: 'normal' },
   });
 
   useEffect(() => {
-    if (aberto) void listarProjetos(true);
+    if (!aberto) return;
+    setBuscaProjeto('');
+    void listarProjetos(true).catch(() => undefined);
   }, [aberto, listarProjetos]);
 
   const projetoLocalId = watch('projeto_local_id');
   const prioridade = watch('prioridade');
+  const projetosFiltrados = useMemo(() => {
+    const termo = buscaProjeto.trim().toLocaleLowerCase('pt-BR');
+    if (!termo) return projetos;
+    return projetos.filter((projeto) =>
+      [projeto.nome, projeto.grupo_nome, projeto.cliente, projeto.cidade, projeto.uf]
+        .filter(Boolean)
+        .some((valor) => String(valor).toLocaleLowerCase('pt-BR').includes(termo)),
+    );
+  }, [buscaProjeto, projetos]);
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -63,6 +76,7 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
         quantidade_planejada: quantidade,
       });
       reset({ prioridade: 'normal' });
+      setBuscaProjeto('');
       setAberto(false);
       onSuccess();
     } catch (error) {
@@ -73,7 +87,7 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild><Button className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" />Novo Processo</Button></DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[620px]">
         <DialogHeader>
           <DialogTitle>Novo Processo de Produção</DialogTitle>
           <DialogDescription>
@@ -82,17 +96,48 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
           <div className="space-y-2">
+            <Label htmlFor="busca-projeto-processo">Buscar projeto/local existente</Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="busca-projeto-processo"
+                className="pl-9"
+                value={buscaProjeto}
+                onChange={(event) => setBuscaProjeto(event.target.value)}
+                placeholder="Digite o nome do projeto, local, grupo ou cidade"
+                disabled={carregandoProjetos}
+              />
+            </div>
+          </div>
+
+          {erro && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Não foi possível consultar os projetos existentes: {erro}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="space-y-2">
             <Label>Projeto/local existente *</Label>
             <Select value={projetoLocalId} onValueChange={(value) => setValue('projeto_local_id', value, { shouldValidate: true })}>
-              <SelectTrigger><SelectValue placeholder="Selecione um projeto/local" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder={carregandoProjetos ? 'Carregando projetos...' : 'Selecione um projeto/local'} />
+              </SelectTrigger>
               <SelectContent>
-                {projetos.map((projeto) => (
+                {projetosFiltrados.map((projeto) => (
                   <SelectItem key={projeto.local_utilizacao_id} value={projeto.local_utilizacao_id}>
                     {projeto.grupo_nome ? `${projeto.grupo_nome} · ` : ''}{projeto.nome}{projeto.cidade ? ` · ${projeto.cidade}/${projeto.uf ?? ''}` : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {!carregandoProjetos && projetosFiltrados.length === 0 && !erro && (
+              <p className="text-sm text-amber-500">
+                Nenhum projeto/local ativo corresponde à busca. Confira o cadastro em Configurações → Locais de utilização.
+              </p>
+            )}
             <input type="hidden" {...register('projeto_local_id', { required: true })} />
             {errors.projeto_local_id && <span className="text-sm text-destructive">Projeto/local obrigatório</span>}
           </div>
@@ -118,7 +163,7 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
             <div className="space-y-2"><Label htmlFor="unidade_medida">Unidade</Label><Input id="unidade_medida" placeholder="peças, m²..." {...register('unidade_medida')} /></div>
           </div>
           <div className="space-y-2"><Label htmlFor="quantidade_planejada">Quantidade planejada</Label><Input id="quantidade_planejada" inputMode="decimal" {...register('quantidade_planejada')} /></div>
-          <div className="flex justify-end pt-4"><Button type="submit" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar Processo</Button></div>
+          <div className="flex justify-end pt-4"><Button type="submit" disabled={isSubmitting || carregandoProjetos || projetos.length === 0}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar Processo</Button></div>
         </form>
       </DialogContent>
     </Dialog>
