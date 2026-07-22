@@ -55,37 +55,54 @@ interface ConfigRow {
 export const useProjetosProducao = () => {
   const [projetos, setProjetos] = useState<ProducaoProjeto[]>([]);
   const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   const listarProjetos = useCallback(async (somenteAtivos = false) => {
     setLoading(true);
+    setErro(null);
+
     try {
       let locaisQuery = supabase
         .from('locais_utilizacao')
         .select('id,nome,ativo,group_id,created_at')
         .order('nome', { ascending: true });
+
       if (somenteAtivos) locaisQuery = locaisQuery.eq('ativo', true);
 
-      const [locaisResult, gruposResult, configsResult] = await Promise.all([
-        locaisQuery,
-        supabase.from('project_groups').select('id,nome').eq('ativo', true),
-        supabase.from('producao_projetos').select('*'),
-      ]);
-
+      // A fonte obrigatória são os projetos/locais já existentes no aplicativo.
+      // As consultas de grupo e configuração são complementares e nunca podem
+      // apagar a lista principal quando houver falha de RLS ou migration pendente.
+      const locaisResult = await locaisQuery;
       if (locaisResult.error) throw locaisResult.error;
-      if (gruposResult.error) throw gruposResult.error;
-      if (configsResult.error) throw configsResult.error;
+
+      const gruposResult = await supabase
+        .from('project_groups')
+        .select('id,nome')
+        .eq('ativo', true);
+
+      const configsResult = await supabase
+        .from('producao_projetos')
+        .select('*');
+
+      if (gruposResult.error) {
+        console.warn('Não foi possível carregar os grupos dos projetos:', gruposResult.error);
+      }
+      if (configsResult.error) {
+        console.warn('Não foi possível carregar a configuração complementar da Produção:', configsResult.error);
+      }
 
       const grupos = new Map(
         ((gruposResult.data ?? []) as GrupoRow[]).map((grupo) => [grupo.id, grupo.nome]),
       );
       const configs = new Map(
         ((configsResult.data ?? []) as ConfigRow[])
-          .filter((config) => config.local_utilizacao_id)
+          .filter((config) => Boolean(config.local_utilizacao_id))
           .map((config) => [config.local_utilizacao_id as string, config]),
       );
 
       const resultado = ((locaisResult.data ?? []) as LocalRow[]).map((local) => {
         const config = configs.get(local.id);
+
         return {
           id: local.id,
           config_id: config?.id ?? null,
@@ -117,6 +134,13 @@ export const useProjetosProducao = () => {
 
       setProjetos(resultado);
       return resultado;
+    } catch (error) {
+      const mensagem = error instanceof Error
+        ? error.message
+        : 'Não foi possível carregar os projetos/locais existentes.';
+      setProjetos([]);
+      setErro(mensagem);
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -135,6 +159,7 @@ export const useProjetosProducao = () => {
       p_responsavel_nome: dados.responsavel_nome ?? null,
       p_ativo: dados.ativo ?? true,
     });
+
     if (error) throw error;
     await listarProjetos();
     return id as string;
@@ -143,6 +168,7 @@ export const useProjetosProducao = () => {
   return {
     projetos,
     loading,
+    erro,
     listarProjetos,
     criarProjeto: salvarConfiguracao,
     atualizarProjeto: async (_id: string, dados: ProjetoProducaoInput) => salvarConfiguracao(dados),
