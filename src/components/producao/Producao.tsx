@@ -16,7 +16,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useProducao } from '@/hooks/useProducao';
 import { ConfiguracoesProducao } from './ConfiguracoesProducao';
 import { FormApontamentoProducaoV2 } from './FormApontamentoProducaoV2';
-import { HistoricoApontamentosProducao } from './HistoricoApontamentosProducao';
+import { HistoricoApontamentosProducaoV2 } from './HistoricoApontamentosProducaoV2';
 import { PainelProducaoGerencial } from './PainelProducaoGerencial';
 import { ProjetosProducao } from './ProjetosProducao';
 import { ProcessosProducao } from './ProcessosProducao';
@@ -35,7 +35,6 @@ export const Producao = () => {
     inativarMembroProducao,
     listarApontamentos,
     criarApontamento,
-    editarApontamento,
     cancelarApontamento,
     conferirApontamento,
     listarMembros,
@@ -110,17 +109,14 @@ export const Producao = () => {
         </TabsContent>
 
         <TabsContent value="historico" className="mt-5">
-          <HistoricoApontamentosProducao
+          <HistoricoApontamentosProducaoV2
             apontamentos={apontamentos}
             tarefas={tarefas}
             locais={locaisUtilizacao}
             membros={membrosProducao}
             loading={loading}
-            podeApontar={podeApontar}
             podeConferir={podeConferir}
             listarMembros={listarMembros}
-            editarApontamento={editarApontamento}
-            criarApontamento={criarApontamento}
             cancelarApontamento={cancelarApontamento}
             conferirApontamento={conferirApontamento}
             recarregar={carregarDados}
