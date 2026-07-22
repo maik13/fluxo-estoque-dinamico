@@ -11,6 +11,13 @@ export interface ProcessoProducaoInput {
   produto_entregavel?: string | null;
   unidade_medida?: string | null;
   quantidade_planejada?: number | null;
+  data_inicio_prevista?: string | null;
+  data_fim_prevista?: string | null;
+  grupo_cronograma?: string | null;
+  sequencia?: number;
+  capacidade_diaria?: number | null;
+  pessoas_necessarias?: number | null;
+  aceita_producao_proporcional?: boolean;
 }
 
 const PROCESSO_SELECT = '*, projeto:producao_projetos(nome,cidade,uf,local_utilizacao_id)';
@@ -49,6 +56,19 @@ export const useProcessosProducao = () => {
       p_quantidade_planejada: dados.quantidade_planejada ?? null,
     });
     if (error) throw error;
+
+    const { error: planejamentoError } = await supabase.rpc('configurar_planejamento_etapa_producao', {
+      p_processo_id: id,
+      p_data_inicio_prevista: dados.data_inicio_prevista ?? null,
+      p_data_fim_prevista: dados.data_fim_prevista ?? null,
+      p_grupo_cronograma: dados.grupo_cronograma ?? null,
+      p_sequencia: dados.sequencia ?? 0,
+      p_capacidade_diaria: dados.capacidade_diaria ?? null,
+      p_pessoas_necessarias: dados.pessoas_necessarias ?? null,
+      p_aceita_producao_proporcional: dados.aceita_producao_proporcional ?? false,
+    });
+    if (planejamentoError) throw planejamentoError;
+
     const { data, error: readError } = await supabase
       .from('producao_processos')
       .select(PROCESSO_SELECT)
