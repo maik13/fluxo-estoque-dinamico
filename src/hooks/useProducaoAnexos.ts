@@ -1,9 +1,6 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type {
-  NovoAnexoProducao,
-  ProducaoApontamentoAnexo,
-} from '@/types/producao';
+import type { ProducaoApontamentoAnexo } from '@/types/producao';
 
 const BUCKET_PRODUCAO = 'producao-apontamentos';
 const TAMANHO_MAXIMO = 10 * 1024 * 1024;
@@ -25,9 +22,7 @@ export const useProducaoAnexos = () => {
   const [loading, setLoading] = useState(false);
 
   const listarAnexos = useCallback(async (apontamentoId: string) => {
-    if (!apontamentoId?.trim()) {
-      throw new Error('O apontamento é obrigatório.');
-    }
+    if (!apontamentoId?.trim()) throw new Error('O apontamento é obrigatório.');
 
     setLoading(true);
     try {
@@ -46,104 +41,72 @@ export const useProducaoAnexos = () => {
     }
   }, []);
 
-  const listarAnexosPorApontamentos = useCallback(
-    async (apontamentoIds: string[]) => {
-      const ids = [...new Set(apontamentoIds.filter(Boolean))];
-      if (ids.length === 0) return [] as ProducaoApontamentoAnexo[];
+  const listarAnexosPorApontamentos = useCallback(async (apontamentoIds: string[]) => {
+    const ids = [...new Set(apontamentoIds.filter(Boolean))];
+    if (ids.length === 0) return [] as ProducaoApontamentoAnexo[];
 
-      const { data, error } = await supabase
-        .from('producao_apontamento_anexos')
-        .select('*')
-        .in('apontamento_id', ids)
-        .order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('producao_apontamento_anexos')
+      .select('*')
+      .in('apontamento_id', ids)
+      .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return (data ?? []) as ProducaoApontamentoAnexo[];
-    },
-    [],
-  );
+    if (error) throw error;
+    return (data ?? []) as ProducaoApontamentoAnexo[];
+  }, []);
 
-  const anexarImagem = useCallback(
-    async (apontamentoId: string, file: File) => {
-      if (!apontamentoId?.trim()) {
-        throw new Error('O apontamento é obrigatório.');
-      }
-      if (!mimePermitido(file.type)) {
-        throw new Error('Envie uma imagem JPEG, PNG ou WebP.');
-      }
-      if (file.size <= 0) {
-        throw new Error('O arquivo está vazio.');
-      }
-      if (file.size > TAMANHO_MAXIMO) {
-        throw new Error('A imagem deve ter no máximo 10 MB.');
-      }
+  const anexarImagem = useCallback(async (apontamentoId: string, file: File) => {
+    if (!apontamentoId?.trim()) throw new Error('O apontamento é obrigatório.');
+    if (!mimePermitido(file.type)) throw new Error('Envie uma imagem JPEG, PNG ou WebP.');
+    if (file.size <= 0) throw new Error('O arquivo está vazio.');
+    if (file.size > TAMANHO_MAXIMO) throw new Error('A imagem deve ter no máximo 10 MB.');
 
-      const {
-        data: { user },
-        error: usuarioError,
-      } = await supabase.auth.getUser();
+    const filePath = `${apontamentoId}/${crypto.randomUUID()}.${extensaoPorMime[file.type]}`;
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKET_PRODUCAO)
+      .upload(filePath, file, { contentType: file.type, upsert: false });
 
-      if (usuarioError) throw usuarioError;
-      if (!user) throw new Error('É necessário estar autenticado para anexar.');
+    if (uploadError) throw uploadError;
 
-      const filePath = `${apontamentoId}/${crypto.randomUUID()}.${extensaoPorMime[file.type]}`;
-      const { error: uploadError } = await supabase.storage
-        .from(BUCKET_PRODUCAO)
-        .upload(filePath, file, {
-          contentType: file.type,
-          upsert: false,
-        });
+    const { data: anexoId, error: rpcError } = await supabase.rpc('registrar_anexo_producao', {
+      p_apontamento_id: apontamentoId,
+      p_file_path: filePath,
+      p_file_name: file.name,
+      p_mime_type: file.type,
+      p_size_bytes: file.size,
+    });
 
-      if (uploadError) throw uploadError;
+    if (rpcError) {
+      await supabase.storage.from(BUCKET_PRODUCAO).remove([filePath]);
+      throw rpcError;
+    }
 
-      const novoAnexo: NovoAnexoProducao = {
-        apontamento_id: apontamentoId,
-        file_path: filePath,
-        file_name: file.name,
-        mime_type: file.type,
-        size_bytes: file.size,
-        uploaded_by: user.id,
-      };
-
-      const { data, error } = await supabase
-        .from('producao_apontamento_anexos')
-        .insert(novoAnexo)
-        .select()
-        .single();
-
-      if (error) {
-        await supabase.storage.from(BUCKET_PRODUCAO).remove([filePath]);
-        throw error;
-      }
-
-      const anexo = data as ProducaoApontamentoAnexo;
-      setAnexos((atuais) => [anexo, ...atuais]);
-      return anexo;
-    },
-    [],
-  );
-
-  const removerAnexo = useCallback(async (anexoId: string) => {
-    const { data: anexo, error: consultaError } = await supabase
+    const { data, error } = await supabase
       .from('producao_apontamento_anexos')
       .select('*')
       .eq('id', anexoId)
       .single();
 
-    if (consultaError) throw consultaError;
-
-    const { error: storageError } = await supabase.storage
-      .from(BUCKET_PRODUCAO)
-      .remove([anexo.file_path]);
-
-    if (storageError) throw storageError;
-
-    const { error } = await supabase
-      .from('producao_apontamento_anexos')
-      .delete()
-      .eq('id', anexoId);
-
     if (error) throw error;
+    const anexo = data as ProducaoApontamentoAnexo;
+    setAnexos((atuais) => [anexo, ...atuais]);
+    return anexo;
+  }, []);
+
+  const removerAnexo = useCallback(async (anexoId: string) => {
+    const { data, error: rpcError } = await supabase.rpc('remover_anexo_producao', {
+      p_anexo_id: anexoId,
+    });
+
+    if (rpcError) throw rpcError;
+    const filePath = data?.[0]?.file_path as string | undefined;
+    if (filePath) {
+      const { error: storageError } = await supabase.storage
+        .from(BUCKET_PRODUCAO)
+        .remove([filePath]);
+      if (storageError) throw storageError;
+    }
+
     setAnexos((atuais) => atuais.filter((item) => item.id !== anexoId));
   }, []);
 
