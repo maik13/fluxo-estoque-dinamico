@@ -2,6 +2,8 @@ import type { Json } from '@/integrations/supabase/types';
 
 export type ProducaoLocalTipo = 'Fábrica' | 'Execução';
 export type ProducaoStatus = 'lancado' | 'conferido' | 'cancelado';
+export type ProducaoProjetoStatus = 'ativo' | 'concluido' | 'cancelado';
+export type ProducaoProcessoStatus = 'planejado' | 'em_andamento' | 'pausado' | 'finalizado' | 'cancelado';
 
 export interface ProducaoTarefa {
   id: string;
@@ -12,10 +14,61 @@ export interface ProducaoTarefa {
   updated_at: string;
 }
 
+export interface ProducaoProjeto {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  cliente_id: string | null;
+  status: ProducaoProjetoStatus;
+  cidade: string | null;
+  estado: string | null;
+  data_inicio_prevista: string | null;
+  data_fim_prevista: string | null;
+  criado_por_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProducaoProcesso {
+  id: string;
+  projeto_id: string;
+  nome: string;
+  descricao: string | null;
+  status: ProducaoProcessoStatus;
+  prioridade: number;
+  data_inicio_prevista: string | null;
+  data_fim_prevista: string | null;
+  data_inicio_real: string | null;
+  data_fim_real: string | null;
+  criado_por_id: string | null;
+  atualizado_por_id: string | null;
+  atualizado_por_nome_snapshot: string | null;
+  finalizado_por_id: string | null;
+  finalizado_por_nome_snapshot: string | null;
+  finalizado_em: string | null;
+  created_at: string;
+  updated_at: string;
+  projeto?: { nome: string } | null;
+}
+
+export interface ProducaoProcessoEvento {
+  id: string;
+  processo_id: string;
+  tipo_evento: string;
+  status_anterior: ProducaoProcessoStatus | null;
+  novo_status: ProducaoProcessoStatus | null;
+  usuario_responsavel_id: string | null;
+  nome_usuario_snapshot: string | null;
+  justificativa: string | null;
+  dados_adicionais: Json | null;
+  created_at: string;
+}
+
 export interface ProducaoApontamento {
   id: string;
   data: string;
   projeto_local_id: string;
+  processo_id: string | null;
   tarefa_id: string;
   local_tipo: ProducaoLocalTipo;
   quantidade_produzida: number | null;

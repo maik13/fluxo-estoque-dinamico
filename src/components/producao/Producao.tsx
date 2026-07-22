@@ -6,6 +6,9 @@ import {
   History,
   PackageSearch,
   Settings,
+  FolderOpen,
+  Activity,
+  BarChart
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,6 +19,8 @@ import { ConfiguracoesProducao } from './ConfiguracoesProducao';
 import { FormApontamentoProducao } from './FormApontamentoProducao';
 import { HistoricoApontamentosProducao } from './HistoricoApontamentosProducao';
 import { MateriaisProjetoProducao } from './MateriaisProjetoProducao';
+import { ProjetosProducao } from './ProjetosProducao';
+import { ProcessosProducao } from './ProcessosProducao';
 
 export const Producao = () => {
   const {
@@ -93,31 +98,45 @@ export const Producao = () => {
         </div>
       </div>
 
-      <Tabs defaultValue={podeApontar ? 'apontamento' : 'historico'} className="w-full">
+      <Tabs defaultValue="processos" className="w-full">
         <TabsList
-          className={`grid h-auto w-full grid-cols-1 gap-1 ${
-            podeConfigurar ? 'sm:grid-cols-4' : 'sm:grid-cols-3'
+          className={`flex flex-wrap sm:grid h-auto w-full gap-1 ${
+            podeConfigurar ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-6' : 'grid-cols-2 sm:grid-cols-5'
           }`}
         >
+          <TabsTrigger value="processos" className="gap-2">
+            <Activity className="h-4 w-4" />
+            <span className="hidden sm:inline">Processos</span>
+          </TabsTrigger>
           <TabsTrigger value="apontamento" className="gap-2">
             <ClipboardList className="h-4 w-4" />
-            Apontamento
+            <span className="hidden sm:inline">Apontamentos</span>
           </TabsTrigger>
           <TabsTrigger value="historico" className="gap-2">
             <History className="h-4 w-4" />
-            Histórico
+            <span className="hidden sm:inline">Histórico</span>
           </TabsTrigger>
-          <TabsTrigger value="materiais" className="gap-2">
-            <PackageSearch className="h-4 w-4" />
-            Materiais do Projeto
+          <TabsTrigger value="projetos" className="gap-2">
+            <FolderOpen className="h-4 w-4" />
+            <span className="hidden sm:inline">Projetos</span>
           </TabsTrigger>
+          {canViewBIProducao() && (
+            <TabsTrigger value="indicadores" className="gap-2">
+              <BarChart className="h-4 w-4" />
+              <span className="hidden sm:inline">Indicadores</span>
+            </TabsTrigger>
+          )}
           {podeConfigurar && (
             <TabsTrigger value="configuracoes" className="gap-2">
               <Settings className="h-4 w-4" />
-              Configurações
+              <span className="hidden sm:inline">Configurações</span>
             </TabsTrigger>
           )}
         </TabsList>
+
+        <TabsContent value="processos" className="mt-5">
+          <ProcessosProducao />
+        </TabsContent>
 
         <TabsContent value="apontamento" className="mt-5">
           <FormApontamentoProducao
@@ -151,12 +170,17 @@ export const Producao = () => {
           />
         </TabsContent>
 
-        <TabsContent value="materiais" className="mt-5">
-          <MateriaisProjetoProducao
-            locais={locaisUtilizacao}
-            podeRegistrar={podeApontar}
-          />
+        <TabsContent value="projetos" className="mt-5">
+          <ProjetosProducao />
         </TabsContent>
+
+        {canViewBIProducao() && (
+          <TabsContent value="indicadores" className="mt-5">
+            <div className="rounded-md border p-8 text-center text-muted-foreground">
+              <p>Os indicadores de produção serão exibidos aqui.</p>
+            </div>
+          </TabsContent>
+        )}
 
         {podeConfigurar && (
           <TabsContent value="configuracoes" className="mt-5">

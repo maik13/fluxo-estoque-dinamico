@@ -437,37 +437,34 @@ export const useProducao = () => {
         data: { user },
       } = await supabase.auth.getUser();
 
-      const { data, error } = await supabase
-        .from('producao_apontamentos')
-        .insert({
-          data: novo.data,
-          projeto_local_id: novo.projeto_local_id,
-          tarefa_id: novo.tarefa_id,
-          local_tipo: novo.local_tipo,
-          quantidade_produzida: novo.quantidade_produzida ?? null,
-          inicio: novo.inicio,
-          termino: novo.termino,
-          duracao_minutos: duracaoMinutos,
-          ...tempos,
-          observacoes: novo.observacoes?.trim() || null,
-          criado_por_id: user?.id ?? null,
-        })
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('criar_apontamento_producao', {
+        p_processo_id: novo.processo_id || null,
+        p_projeto_local_id: novo.projeto_local_id || null,
+        p_tarefa_id: novo.tarefa_id,
+        p_local_tipo: novo.local_tipo,
+        p_quantidade_produzida: novo.quantidade_produzida ?? null,
+        p_inicio: novo.inicio,
+        p_termino: novo.termino,
+        p_duracao_minutos: duracaoMinutos,
+        p_minutos_produtivos: tempos.minutos_produtivos,
+        p_minutos_improdutivos: tempos.minutos_improdutivos,
+        p_motivo_improdutivo: tempos.motivo_improdutivo,
+        p_observacoes: novo.observacoes?.trim() || null,
+        p_membros: novo.membros_ids,
+      });
 
       if (error) throw error;
 
-      try {
-        await salvarMembrosInterno(data.id, novo.membros_ids, false);
-      } catch (membrosError) {
-        await supabase
-          .from('producao_apontamentos')
-          .delete()
-          .eq('id', data.id);
-        throw membrosError;
-      }
-
-      const apontamento = data as ProducaoApontamento;
+      // Buscar os dados do apontamento recém-criado para adicionar na lista local
+      const { data: apontamentoDB, error: fetchError } = await supabase
+        .from('producao_apontamentos')
+        .select('*')
+        .eq('id', data)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      
+      const apontamento = apontamentoDB as ProducaoApontamento;
       setApontamentos((atuais) => [apontamento, ...atuais]);
       return apontamento;
     },
