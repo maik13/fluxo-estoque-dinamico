@@ -1,0 +1,49 @@
+name: Production validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [agent/finaliza-producao]
+
+jobs:
+  static-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run test
+
+  integration-validation:
+    if: ${{ secrets.VITE_SUPABASE_URL != '' && secrets.VITE_SUPABASE_PUBLISHABLE_KEY != '' }}
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      TEST_PRODUCAO_EMAIL: ${{ secrets.TEST_PRODUCAO_EMAIL }}
+      TEST_PRODUCAO_PASSWORD: ${{ secrets.TEST_PRODUCAO_PASSWORD }}
+      E2E_PRODUCAO_EMAIL: ${{ secrets.TEST_PRODUCAO_EMAIL }}
+      E2E_PRODUCAO_PASSWORD: ${{ secrets.TEST_PRODUCAO_PASSWORD }}
+      E2E_ESTOQUE_EMAIL: ${{ secrets.E2E_ESTOQUE_EMAIL }}
+      E2E_ESTOQUE_PASSWORD: ${{ secrets.E2E_ESTOQUE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:db
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report

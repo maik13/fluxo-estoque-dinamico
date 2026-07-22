@@ -44,6 +44,7 @@ import type {
 } from '@/hooks/useConfiguracoes';
 import { calcularDuracaoProducao } from '@/hooks/useProducao';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
+import { useProcessosProducao } from '@/hooks/useProcessosProducao';
 import { cn } from '@/lib/utils';
 import type {
   NovoApontamentoProducao,
@@ -306,6 +307,7 @@ export const FormApontamentoProducao = ({
   const [quantidade, setQuantidade] = useState('');
   const [tempoImprodutivo, setTempoImprodutivo] = useState('00:00');
   const [motivoImprodutivo, setMotivoImprodutivo] = useState('');
+  const [processoId, setProcessoId] = useState('');
   const [membrosIds, setMembrosIds] = useState<string[]>([]);
   const [buscaMembro, setBuscaMembro] = useState('');
   const [observacoes, setObservacoes] = useState('');
@@ -322,6 +324,11 @@ export const FormApontamentoProducao = ({
     removerAnexo,
     obterUrlAnexo,
   } = useProducaoAnexos();
+  const { processos, listarProcessos } = useProcessosProducao();
+
+  useEffect(() => {
+    void listarProcessos('em_andamento');
+  }, [listarProcessos]);
 
   const editando = Boolean(apontamentoInicial);
   const locaisAtivos = useMemo(
@@ -373,6 +380,7 @@ export const FormApontamentoProducao = ({
       setQuantidade('');
       setTempoImprodutivo('00:00');
       setMotivoImprodutivo('');
+      setProcessoId('');
       setMembrosIds([]);
       setBuscaMembro('');
       setObservacoes('');
@@ -396,6 +404,7 @@ export const FormApontamentoProducao = ({
       minutosParaHHmm(apontamentoInicial.minutos_improdutivos ?? 0),
     );
     setMotivoImprodutivo(apontamentoInicial.motivo_improdutivo ?? '');
+    setProcessoId(apontamentoInicial.processo_id ?? '');
     setMembrosIds(membrosIniciais);
     setBuscaMembro('');
     setObservacoes(apontamentoInicial.observacoes ?? '');
@@ -537,6 +546,7 @@ export const FormApontamentoProducao = ({
     setQuantidade('');
     setTempoImprodutivo('00:00');
     setMotivoImprodutivo('');
+    setProcessoId('');
     setMembrosIds([]);
     setBuscaMembro('');
     setObservacoes('');
@@ -611,6 +621,7 @@ export const FormApontamentoProducao = ({
     const dados: NovoApontamentoProducao = {
       data,
       projeto_local_id: projetoLocalId,
+      processo_id: processoId || null,
       tarefa_id: tarefaId,
       local_tipo: localTipo,
       quantidade_produzida: validacao.quantidadeProduzida,
@@ -727,7 +738,20 @@ export const FormApontamentoProducao = ({
               <MensagemErro texto={erros.projeto} />
             </div>
 
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2">
+              <Label>Processo (Opcional)</Label>
+              <CampoPesquisavel
+                opcoes={processos.map(p => ({ id: p.id, nome: p.nome }))}
+                valor={processoId}
+                onChange={(valor) => setProcessoId(valor)}
+                placeholder="Vincular a processo em andamento"
+                buscaPlaceholder="Buscar processo..."
+                vazioTexto="Nenhum processo em andamento."
+                disabled={!podeApontar}
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-1">
               <Label>Tarefa</Label>
               {tarefasAtivas.length > 0 ? (
                 <>
