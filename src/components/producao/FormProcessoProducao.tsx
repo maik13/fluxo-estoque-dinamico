@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -18,7 +19,7 @@ import type { ProducaoPrioridade } from '@/types/producao';
 
 interface FormProps { onSuccess: () => void; }
 interface FormData {
-  projeto_id: string;
+  projeto_local_id: string;
   codigo: string;
   nome: string;
   descricao: string;
@@ -40,7 +41,7 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
     if (aberto) void listarProjetos(true);
   }, [aberto, listarProjetos]);
 
-  const projetoId = watch('projeto_id');
+  const projetoLocalId = watch('projeto_local_id');
   const prioridade = watch('prioridade');
 
   const onSubmit = async (data: FormData) => {
@@ -52,7 +53,7 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
         throw new Error('Quantidade planejada inválida.');
       }
       await criarProcesso({
-        projeto_id: data.projeto_id,
+        projeto_local_id: data.projeto_local_id,
         codigo: data.codigo || null,
         nome: data.nome,
         descricao: data.descricao || null,
@@ -72,23 +73,34 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild><Button className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" />Novo Processo</Button></DialogTrigger>
-      <DialogContent className="sm:max-w-[560px]">
-        <DialogHeader><DialogTitle>Novo Processo de Produção</DialogTitle></DialogHeader>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>Novo Processo de Produção</DialogTitle>
+          <DialogDescription>
+            O processo é uma frente macro de trabalho vinculada a um projeto/local já existente no aplicativo.
+          </DialogDescription>
+        </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label>Projeto *</Label>
-            <Select value={projetoId} onValueChange={(v) => setValue('projeto_id', v, { shouldValidate: true })}>
-              <SelectTrigger><SelectValue placeholder="Selecione um projeto" /></SelectTrigger>
-              <SelectContent>{projetos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}{p.cidade ? ` · ${p.cidade}/${p.uf ?? ''}` : ''}</SelectItem>)}</SelectContent>
+            <Label>Projeto/local existente *</Label>
+            <Select value={projetoLocalId} onValueChange={(value) => setValue('projeto_local_id', value, { shouldValidate: true })}>
+              <SelectTrigger><SelectValue placeholder="Selecione um projeto/local" /></SelectTrigger>
+              <SelectContent>
+                {projetos.map((projeto) => (
+                  <SelectItem key={projeto.local_utilizacao_id} value={projeto.local_utilizacao_id}>
+                    {projeto.grupo_nome ? `${projeto.grupo_nome} · ` : ''}{projeto.nome}{projeto.cidade ? ` · ${projeto.cidade}/${projeto.uf ?? ''}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
-            <input type="hidden" {...register('projeto_id', { required: true })} />
-            {errors.projeto_id && <span className="text-sm text-destructive">Projeto obrigatório</span>}
+            <input type="hidden" {...register('projeto_local_id', { required: true })} />
+            {errors.projeto_local_id && <span className="text-sm text-destructive">Projeto/local obrigatório</span>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2"><Label htmlFor="codigo">Código opcional</Label><Input id="codigo" placeholder="Gerado automaticamente" {...register('codigo')} /></div>
             <div className="space-y-2">
               <Label>Prioridade</Label>
-              <Select value={prioridade} onValueChange={(v) => setValue('prioridade', v as ProducaoPrioridade)}>
+              <Select value={prioridade} onValueChange={(value) => setValue('prioridade', value as ProducaoPrioridade)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="baixa">Baixa</SelectItem>
@@ -99,7 +111,7 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
               </Select>
             </div>
           </div>
-          <div className="space-y-2"><Label htmlFor="nome">Nome *</Label><Input id="nome" {...register('nome', { required: 'Nome obrigatório' })} />{errors.nome && <span className="text-sm text-destructive">{errors.nome.message}</span>}</div>
+          <div className="space-y-2"><Label htmlFor="nome">Nome do processo *</Label><Input id="nome" placeholder="Ex.: Montagem dos painéis" {...register('nome', { required: 'Nome obrigatório' })} />{errors.nome && <span className="text-sm text-destructive">{errors.nome.message}</span>}</div>
           <div className="space-y-2"><Label htmlFor="descricao">Descrição</Label><Input id="descricao" {...register('descricao')} /></div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2"><Label htmlFor="produto_entregavel">Produto/entregável</Label><Input id="produto_entregavel" {...register('produto_entregavel')} /></div>

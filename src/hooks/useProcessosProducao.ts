@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { ProducaoProcesso, ProducaoProcessoStatus, ProducaoPrioridade } from '@/types/producao';
 
 export interface ProcessoProducaoInput {
-  projeto_id: string;
+  projeto_local_id: string;
   nome: string;
   descricao?: string | null;
   prioridade: ProducaoPrioridade;
@@ -12,6 +12,8 @@ export interface ProcessoProducaoInput {
   unidade_medida?: string | null;
   quantidade_planejada?: number | null;
 }
+
+const PROCESSO_SELECT = '*, projeto:producao_projetos(nome,cidade,uf,local_utilizacao_id)';
 
 export const useProcessosProducao = () => {
   const [processos, setProcessos] = useState<ProducaoProcesso[]>([]);
@@ -22,7 +24,7 @@ export const useProcessosProducao = () => {
     try {
       let consulta = supabase
         .from('producao_processos')
-        .select('*, projeto:producao_projetos(nome,cidade,uf)')
+        .select(PROCESSO_SELECT)
         .order('created_at', { ascending: false });
       if (status) consulta = consulta.eq('status', status);
       const { data, error } = await consulta;
@@ -37,7 +39,7 @@ export const useProcessosProducao = () => {
 
   const criarProcesso = useCallback(async (dados: ProcessoProducaoInput) => {
     const { data: id, error } = await supabase.rpc('criar_processo_producao', {
-      p_projeto_id: dados.projeto_id,
+      p_projeto_id: dados.projeto_local_id,
       p_nome: dados.nome,
       p_descricao: dados.descricao ?? null,
       p_prioridade: dados.prioridade,
@@ -49,7 +51,7 @@ export const useProcessosProducao = () => {
     if (error) throw error;
     const { data, error: readError } = await supabase
       .from('producao_processos')
-      .select('*, projeto:producao_projetos(nome,cidade,uf)')
+      .select(PROCESSO_SELECT)
       .eq('id', id)
       .single();
     if (readError) throw readError;

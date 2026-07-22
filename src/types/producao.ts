@@ -17,6 +17,10 @@ export interface ProducaoTarefa {
 
 export interface ProducaoProjeto {
   id: string;
+  config_id: string | null;
+  local_utilizacao_id: string;
+  group_id: string | null;
+  grupo_nome: string | null;
   nome: string;
   descricao: string | null;
   cliente: string | null;
@@ -30,12 +34,20 @@ export interface ProducaoProjeto {
   responsavel_nome_snapshot: string | null;
   observacoes: string | null;
   ativo: boolean;
+  configurado: boolean;
   criado_por_id: string | null;
   criado_por_nome_snapshot: string | null;
   atualizado_por_id: string | null;
   atualizado_por_nome_snapshot: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProducaoProcessoProjetoResumo {
+  nome: string;
+  cidade: string | null;
+  uf: string | null;
+  local_utilizacao_id: string | null;
 }
 
 export interface ProducaoProcesso {
@@ -71,7 +83,7 @@ export interface ProducaoProcesso {
   cancelado_em: string | null;
   created_at: string;
   updated_at: string;
-  projeto?: { nome: string; cidade: string | null; uf: string | null } | null;
+  projeto?: ProducaoProcessoProjetoResumo | null;
 }
 
 export interface ProducaoProcessoEvento {
@@ -119,6 +131,7 @@ export interface ProducaoApontamento {
   motivo_cancelamento: string | null;
   created_at: string;
   updated_at: string;
+  processo?: (Pick<ProducaoProcesso, 'id' | 'codigo' | 'nome'> & { projeto?: ProducaoProcessoProjetoResumo | null }) | null;
 }
 
 export interface ProducaoApontamentoMembro {

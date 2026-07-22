@@ -4,11 +4,10 @@ import {
   ClipboardList,
   Factory,
   History,
-  PackageSearch,
   Settings,
   FolderOpen,
   Activity,
-  BarChart
+  BarChart,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,9 +15,9 @@ import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useProducao } from '@/hooks/useProducao';
 import { ConfiguracoesProducao } from './ConfiguracoesProducao';
-import { FormApontamentoProducao } from './FormApontamentoProducao';
-import { HistoricoApontamentosProducao } from './HistoricoApontamentosProducao';
-import { MateriaisProjetoProducao } from './MateriaisProjetoProducao';
+import { FormApontamentoProducaoV2 } from './FormApontamentoProducaoV2';
+import { HistoricoApontamentosProducaoV2 } from './HistoricoApontamentosProducaoV2';
+import { PainelProducaoGerencial } from './PainelProducaoGerencial';
 import { ProjetosProducao } from './ProjetosProducao';
 import { ProcessosProducao } from './ProcessosProducao';
 
@@ -36,7 +35,6 @@ export const Producao = () => {
     inativarMembroProducao,
     listarApontamentos,
     criarApontamento,
-    editarApontamento,
     cancelarApontamento,
     conferirApontamento,
     listarMembros,
@@ -52,11 +50,8 @@ export const Producao = () => {
   const podeApontar = canApontarProducao();
   const podeConferir = canConferirProducao();
   const podeConfigurar = canConfigurarProducao();
-  const podeAcessar =
-    podeApontar ||
-    podeConferir ||
-    canViewBIProducao() ||
-    podeConfigurar;
+  const podeVerBI = canViewBIProducao();
+  const podeAcessar = podeApontar || podeConferir || podeVerBI || podeConfigurar;
 
   const carregarDados = useCallback(async () => {
     await Promise.all([
@@ -75,112 +70,61 @@ export const Producao = () => {
       <Alert>
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Acesso não autorizado</AlertTitle>
-        <AlertDescription>
-          Seu perfil não possui permissões para acessar o Módulo de Produção.
-        </AlertDescription>
+        <AlertDescription>Seu perfil não possui permissões para acessar o Módulo de Produção.</AlertDescription>
       </Alert>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-primary/10 p-2.5">
-            <Factory className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold">Produção</h2>
-            <p className="text-sm text-muted-foreground">
-              Apontamentos produtivos e referências operacionais por projeto.
-            </p>
-          </div>
+      <div className="flex items-center gap-3">
+        <div className="rounded-xl bg-primary/10 p-2.5"><Factory className="h-6 w-6 text-primary" /></div>
+        <div>
+          <h2 className="text-2xl font-bold">Produção</h2>
+          <p className="text-sm text-muted-foreground">Processos, apontamentos, rastreabilidade e BI Produção por projeto.</p>
         </div>
       </div>
 
       <Tabs defaultValue="processos" className="w-full">
-        <TabsList
-          className={`flex flex-wrap sm:grid h-auto w-full gap-1 ${
-            podeConfigurar ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-6' : 'grid-cols-2 sm:grid-cols-5'
-          }`}
-        >
-          <TabsTrigger value="processos" className="gap-2">
-            <Activity className="h-4 w-4" />
-            <span className="hidden sm:inline">Processos</span>
-          </TabsTrigger>
-          <TabsTrigger value="apontamento" className="gap-2">
-            <ClipboardList className="h-4 w-4" />
-            <span className="hidden sm:inline">Apontamentos</span>
-          </TabsTrigger>
-          <TabsTrigger value="historico" className="gap-2">
-            <History className="h-4 w-4" />
-            <span className="hidden sm:inline">Histórico</span>
-          </TabsTrigger>
-          <TabsTrigger value="projetos" className="gap-2">
-            <FolderOpen className="h-4 w-4" />
-            <span className="hidden sm:inline">Projetos</span>
-          </TabsTrigger>
-          {canViewBIProducao() && (
-            <TabsTrigger value="indicadores" className="gap-2">
-              <BarChart className="h-4 w-4" />
-              <span className="hidden sm:inline">Indicadores</span>
-            </TabsTrigger>
-          )}
-          {podeConfigurar && (
-            <TabsTrigger value="configuracoes" className="gap-2">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Configurações</span>
-            </TabsTrigger>
-          )}
+        <TabsList className={`flex h-auto w-full flex-wrap gap-1 sm:grid ${podeConfigurar ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-6' : 'grid-cols-2 sm:grid-cols-5'}`}>
+          <TabsTrigger value="processos" className="gap-2"><Activity className="h-4 w-4" /><span className="hidden sm:inline">Processos</span></TabsTrigger>
+          <TabsTrigger value="apontamento" className="gap-2"><ClipboardList className="h-4 w-4" /><span className="hidden sm:inline">Apontamentos</span></TabsTrigger>
+          <TabsTrigger value="historico" className="gap-2"><History className="h-4 w-4" /><span className="hidden sm:inline">Histórico</span></TabsTrigger>
+          <TabsTrigger value="projetos" className="gap-2"><FolderOpen className="h-4 w-4" /><span className="hidden sm:inline">Projetos</span></TabsTrigger>
+          {podeVerBI && <TabsTrigger value="bi-producao" className="gap-2"><BarChart className="h-4 w-4" /><span className="hidden sm:inline">BI Produção</span></TabsTrigger>}
+          {podeConfigurar && <TabsTrigger value="configuracoes" className="gap-2"><Settings className="h-4 w-4" /><span className="hidden sm:inline">Configurações</span></TabsTrigger>}
         </TabsList>
 
-        <TabsContent value="processos" className="mt-5">
-          <ProcessosProducao />
-        </TabsContent>
+        <TabsContent value="processos" className="mt-5"><ProcessosProducao /></TabsContent>
 
         <TabsContent value="apontamento" className="mt-5">
-          <FormApontamentoProducao
+          <FormApontamentoProducaoV2
             tarefas={tarefas}
             locais={locaisUtilizacao}
             membros={membrosProducao}
             podeApontar={podeApontar}
-            podeConferir={podeConferir}
             criarApontamento={criarApontamento}
-            editarApontamento={editarApontamento}
-            conferirApontamento={conferirApontamento}
             onSuccess={carregarDados}
           />
         </TabsContent>
 
         <TabsContent value="historico" className="mt-5">
-          <HistoricoApontamentosProducao
+          <HistoricoApontamentosProducaoV2
             apontamentos={apontamentos}
             tarefas={tarefas}
             locais={locaisUtilizacao}
             membros={membrosProducao}
             loading={loading}
-            podeApontar={podeApontar}
             podeConferir={podeConferir}
             listarMembros={listarMembros}
-            editarApontamento={editarApontamento}
-            criarApontamento={criarApontamento}
             cancelarApontamento={cancelarApontamento}
             conferirApontamento={conferirApontamento}
             recarregar={carregarDados}
           />
         </TabsContent>
 
-        <TabsContent value="projetos" className="mt-5">
-          <ProjetosProducao />
-        </TabsContent>
-
-        {canViewBIProducao() && (
-          <TabsContent value="indicadores" className="mt-5">
-            <div className="rounded-md border p-8 text-center text-muted-foreground">
-              <p>Os indicadores de produção serão exibidos aqui.</p>
-            </div>
-          </TabsContent>
-        )}
+        <TabsContent value="projetos" className="mt-5"><ProjetosProducao /></TabsContent>
+        {podeVerBI && <TabsContent value="bi-producao" className="mt-5"><PainelProducaoGerencial locais={locaisUtilizacao} /></TabsContent>}
 
         {podeConfigurar && (
           <TabsContent value="configuracoes" className="mt-5">
