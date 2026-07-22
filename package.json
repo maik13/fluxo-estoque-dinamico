@@ -8,6 +8,10 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
+    "lint:strict": "eslint . --max-warnings=0",
+    "test": "vitest run",
+    "test:db": "vitest run tests/producao_rls.test.ts",
+    "test:e2e": "playwright test",
     "preview": "vite preview"
   },
   "dependencies": {
