@@ -13,9 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Loader2, Search, AlertCircle } from 'lucide-react';
+import { Plus, Loader2, Search, AlertCircle, Trash2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useProcessosProducao } from '@/hooks/useProcessosProducao';
+import { useProcessosProducao, type DependenciaEtapaInput } from '@/hooks/useProcessosProducao';
 import { useProjetosProducao } from '@/hooks/useProjetosProducao';
 import type { ProducaoPrioridade } from '@/types/producao';
 
@@ -48,7 +48,10 @@ const numeroOpcional = (valor: string) => {
 export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
   const [aberto, setAberto] = useState(false);
   const [buscaProjeto, setBuscaProjeto] = useState('');
-  const { criarProcesso } = useProcessosProducao();
+  const [dependencias, setDependencias] = useState<DependenciaEtapaInput[]>([]);
+  const [novaDependenciaId, setNovaDependenciaId] = useState('');
+  const [novoTipoDependencia, setNovoTipoDependencia] = useState<'fim_inicio' | 'inicio_inicio'>('fim_inicio');
+  const { criarProcesso, processos, listarProcessos } = useProcessosProducao();
   const { projetos, listarProjetos, loading: carregandoProjetos, erro } = useProjetosProducao();
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     defaultValues: { prioridade: 'normal', sequencia: '0', aceita_producao_proporcional: false },
@@ -57,12 +60,17 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
   useEffect(() => {
     if (!aberto) return;
     setBuscaProjeto('');
-    void listarProjetos(true).catch(() => undefined);
-  }, [aberto, listarProjetos]);
+    setDependencias([]);
+    void Promise.all([
+      listarProjetos(true),
+      listarProcessos(),
+    ]).catch(() => undefined);
+  }, [aberto, listarProcessos, listarProjetos]);
 
   const projetoLocalId = watch('projeto_local_id');
   const prioridade = watch('prioridade');
   const proporcional = watch('aceita_producao_proporcional');
+
   const projetosFiltrados = useMemo(() => {
     const termo = buscaProjeto.trim().toLocaleLowerCase('pt-BR');
     if (!termo) return projetos;
@@ -73,10 +81,22 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
     );
   }, [buscaProjeto, projetos]);
 
+  const etapasMesmoProjeto = useMemo(() => processos.filter((processo) =>
+    processo.projeto?.local_utilizacao_id === projetoLocalId &&
+    !['cancelado'].includes(processo.status),
+  ), [processos, projetoLocalId]);
+
+  const adicionarDependencia = () => {
+    if (!novaDependenciaId || dependencias.some((item) => item.etapa_id === novaDependenciaId)) return;
+    setDependencias((atuais) => [...atuais, { etapa_id: novaDependenciaId, tipo: novoTipoDependencia }]);
+    setNovaDependenciaId('');
+    setNovoTipoDependencia('fim_inicio');
+  };
+
   const onSubmit = async (data: FormData) => {
     try {
       if (data.data_inicio_prevista && data.data_fim_prevista && data.data_fim_prevista < data.data_inicio_prevista) {
-        throw new Error('A data final não pode ser anterior à data inicial.');
+        throw new Error('A data limite não pode ser anterior à data inicial desejada.');
       }
       const quantidade = numeroOpcional(data.quantidade_planejada);
       const capacidade = numeroOpcional(data.capacidade_diaria);
@@ -102,9 +122,11 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
         capacidade_diaria: capacidade,
         pessoas_necessarias: pessoas,
         aceita_producao_proporcional: data.aceita_producao_proporcional,
+        dependencias,
       });
       reset({ prioridade: 'normal', sequencia: '0', aceita_producao_proporcional: false });
       setBuscaProjeto('');
+      setDependencias([]);
       setAberto(false);
       onSuccess();
     } catch (error) {
@@ -115,11 +137,11 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild><Button className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" />Nova Etapa</Button></DialogTrigger>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-[720px]">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-[760px]">
         <DialogHeader>
           <DialogTitle>Nova Etapa de Produção</DialogTitle>
           <DialogDescription>
-            A etapa é cadastrada uma única vez no projeto e passa a alimentar automaticamente o Gantt.
+            A etapa é cadastrada uma única vez no projeto. Gantt e Plano Diário são gerados automaticamente.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
@@ -135,7 +157,14 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
 
           <div className="space-y-2">
             <Label>Projeto/local existente *</Label>
-            <Select value={projetoLocalId} onValueChange={(value) => setValue('projeto_local_id', value, { shouldValidate: true })}>
+            <Select
+              value={projetoLocalId}
+              onValueChange={(value) => {
+                setValue('projeto_local_id', value, { shouldValidate: true });
+                setDependencias([]);
+                setNovaDependenciaId('');
+              }}
+            >
               <SelectTrigger><SelectValue placeholder={carregandoProjetos ? 'Carregando...' : 'Selecione um projeto/local'} /></SelectTrigger>
               <SelectContent>{projetosFiltrados.map((projeto) => <SelectItem key={projeto.local_utilizacao_id} value={projeto.local_utilizacao_id}>{projeto.grupo_nome ? `${projeto.grupo_nome} · ` : ''}{projeto.nome}{projeto.cidade ? ` · ${projeto.cidade}/${projeto.uf ?? ''}` : ''}</SelectItem>)}</SelectContent>
             </Select>
@@ -157,8 +186,8 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2"><Label>Data inicial planejada</Label><Input type="date" {...register('data_inicio_prevista')} /></div>
-            <div className="space-y-2"><Label>Data final planejada</Label><Input type="date" {...register('data_fim_prevista')} /></div>
+            <div className="space-y-2"><Label>Data inicial desejada</Label><Input type="date" {...register('data_inicio_prevista')} /></div>
+            <div className="space-y-2"><Label>Data limite</Label><Input type="date" {...register('data_fim_prevista')} /></div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
@@ -177,7 +206,35 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
             <span><span className="block text-sm font-medium">Aceita produção proporcional</span><span className="text-xs text-muted-foreground">Permite reduzir a meta diária quando houver menos pessoas disponíveis.</span></span>
           </label>
 
-          <div className="flex justify-end pt-4"><Button type="submit" disabled={isSubmitting || carregandoProjetos || projetos.length === 0}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar Etapa</Button></div>
+          <div className="space-y-3 rounded-lg border p-4">
+            <div>
+              <Label>Dependências da etapa</Label>
+              <p className="text-xs text-muted-foreground">Selecione etapas anteriores do mesmo projeto. O cronograma respeitará essa relação.</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[1fr_170px_auto]">
+              <Select value={novaDependenciaId} onValueChange={setNovaDependenciaId} disabled={!projetoLocalId || etapasMesmoProjeto.length === 0}>
+                <SelectTrigger><SelectValue placeholder="Etapa predecessora" /></SelectTrigger>
+                <SelectContent>{etapasMesmoProjeto.filter((etapa) => !dependencias.some((item) => item.etapa_id === etapa.id)).map((etapa) => <SelectItem key={etapa.id} value={etapa.id}>{etapa.codigo} · {etapa.nome}</SelectItem>)}</SelectContent>
+              </Select>
+              <Select value={novoTipoDependencia} onValueChange={(value) => setNovoTipoDependencia(value as 'fim_inicio' | 'inicio_inicio')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="fim_inicio">Fim → Início</SelectItem><SelectItem value="inicio_inicio">Início → Início</SelectItem></SelectContent>
+              </Select>
+              <Button type="button" variant="outline" onClick={adicionarDependencia} disabled={!novaDependenciaId}>Adicionar</Button>
+            </div>
+            {dependencias.map((dependencia) => {
+              const etapa = processos.find((item) => item.id === dependencia.etapa_id);
+              return (
+                <div key={dependencia.etapa_id} className="flex items-center justify-between gap-3 rounded-md bg-muted/50 px-3 py-2 text-sm">
+                  <span>{etapa?.codigo} · {etapa?.nome} — {dependencia.tipo === 'fim_inicio' ? 'Fim → Início' : 'Início → Início'}</span>
+                  <Button type="button" size="icon" variant="ghost" onClick={() => setDependencias((atuais) => atuais.filter((item) => item.etapa_id !== dependencia.etapa_id))}><Trash2 className="h-4 w-4" /></Button>
+                </div>
+              );
+            })}
+            {projetoLocalId && etapasMesmoProjeto.length === 0 && <p className="text-xs text-muted-foreground">Este será o primeiro processo produtivo do projeto; não há etapa predecessora disponível.</p>}
+          </div>
+
+          <div className="flex justify-end pt-4"><Button type="submit" disabled={isSubmitting || carregandoProjetos || projetos.length === 0}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar Etapa e Recalcular</Button></div>
         </form>
       </DialogContent>
     </Dialog>
