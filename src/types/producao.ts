@@ -63,10 +63,17 @@ export interface ProducaoProcesso {
   prioridade: ProducaoPrioridade;
   responsavel_id: string | null;
   responsavel_nome_snapshot: string | null;
+  data_inicio_desejada: string | null;
+  data_limite: string | null;
   data_inicio_prevista: string | null;
   data_fim_prevista: string | null;
   data_inicio_real: string | null;
   data_fim_real: string | null;
+  grupo_cronograma: string | null;
+  sequencia: number;
+  capacidade_diaria: number | null;
+  pessoas_necessarias: number | null;
+  aceita_producao_proporcional: boolean;
   motivo_pausa: string | null;
   motivo_bloqueio: string | null;
   motivo_cancelamento: string | null;
@@ -258,51 +265,4 @@ export interface IndicadorProducaoPorProjeto {
   custo_incompleto: boolean;
   quantidade_fotos: number;
   quantidade_total_produzida: number;
-  total_membros_distintos: number;
-  status_predominante: ProducaoStatus | null;
-  distribuicao_status: DistribuicaoStatusProducao;
-}
-
-export interface IndicadorProducaoPorTarefa {
-  tarefa_id: string;
-  tarefa_nome: string;
-  categoria: string | null;
-  total_apontamentos: number;
-  total_minutos: number;
-  total_horas: number;
-  horas_homem: number;
-  horas_produtivas: number;
-  horas_improdutivas: number;
-  eficiencia_percentual: number;
-  custo_total: number | null;
-  custo_produtivo: number | null;
-  custo_improdutivo: number | null;
-  custo_incompleto: boolean;
-  quantidade_total_produzida: number;
-}
-
-export interface IndicadorProducaoPorMembro {
-  membro_id: string;
-  membro_nome: string;
-  total_apontamentos: number;
-  total_minutos: number;
-  total_horas: number;
-  horas_produtivas: number;
-  horas_improdutivas: number;
-  eficiencia_percentual: number;
-  custo_total: number | null;
-  custo_produtivo: number | null;
-  custo_improdutivo: number | null;
-  custo_incompleto: boolean;
-  valor_hora_minimo: number | null;
-  valor_hora_maximo: number | null;
-  projetos_distintos: number;
-  tarefas_distintas: number;
-}
-
-export interface IndicadorProducaoPorLocalTipo {
-  local_tipo: ProducaoLocalTipo;
-  total_apontamentos: number;
-  total_minutos: number;
-  total_horas: number;
 }
