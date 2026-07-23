@@ -8,7 +8,8 @@ export interface DependenciaEtapaInput {
 }
 
 export interface ProcessoProducaoInput {
-  projeto_local_id: string;
+  projeto_id: string;
+  projeto_local_operacional_id: string;
   nome: string;
   descricao?: string | null;
   prioridade: ProducaoPrioridade;
@@ -26,7 +27,7 @@ export interface ProcessoProducaoInput {
   dependencias?: DependenciaEtapaInput[];
 }
 
-const PROCESSO_SELECT = '*, projeto:producao_projetos(nome,cidade,uf,local_utilizacao_id)';
+const PROCESSO_SELECT = '*, projeto:producao_projetos(nome,cidade,uf,local_utilizacao_id), local_operacional:producao_projeto_locais(id,nome,tipo,cidade,uf)';
 
 export const useProcessosProducao = () => {
   const [processos, setProcessos] = useState<ProducaoProcesso[]>([]);
@@ -53,7 +54,8 @@ export const useProcessosProducao = () => {
 
   const criarProcesso = useCallback(async (dados: ProcessoProducaoInput) => {
     const { data: id, error } = await supabase.rpc('criar_etapa_producao', {
-      p_projeto_local_id: dados.projeto_local_id,
+      p_projeto_id: dados.projeto_id,
+      p_projeto_local_operacional_id: dados.projeto_local_operacional_id,
       p_nome: dados.nome,
       p_descricao: dados.descricao ?? null,
       p_prioridade: dados.prioridade,
@@ -83,7 +85,7 @@ export const useProcessosProducao = () => {
     return processo;
   }, []);
 
-  const salvarPlanejamento = useCallback(async (id: string, dados: Omit<ProcessoProducaoInput, 'projeto_local_id' | 'nome' | 'prioridade'>) => {
+  const salvarPlanejamento = useCallback(async (id: string, dados: Omit<ProcessoProducaoInput, 'projeto_id' | 'projeto_local_operacional_id' | 'nome' | 'prioridade'>) => {
     const { error } = await supabase.rpc('salvar_planejamento_etapa_producao', {
       p_processo_id: id,
       p_data_inicio_desejada: dados.data_inicio_prevista ?? null,
@@ -114,9 +116,7 @@ export const useProcessosProducao = () => {
   }, [listarProcessos]);
 
   const obterResumoFinalizacao = useCallback(async (id: string) => {
-    const { data, error } = await supabase.rpc('obter_resumo_finalizacao_processo', {
-      p_processo_id: id,
-    });
+    const { data, error } = await supabase.rpc('obter_resumo_finalizacao_processo', { p_processo_id: id });
     if (error) throw error;
     return data?.[0] ?? null;
   }, []);
