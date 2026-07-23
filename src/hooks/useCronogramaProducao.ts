@@ -1,5 +1,8 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { ProducaoLocalOperacionalTipo } from '@/types/producao';
+
+const db = supabase as any;
 
 export interface AlocacaoGanttProducao {
   data: string;
@@ -15,6 +18,11 @@ export interface GanttEtapaProducao {
   projeto_nome: string;
   cidade: string | null;
   uf: string | null;
+  local_operacional_id: string | null;
+  local_operacional_nome: string | null;
+  local_operacional_tipo: ProducaoLocalOperacionalTipo | null;
+  local_operacional_cidade: string | null;
+  local_operacional_uf: string | null;
   grupo_cronograma: string | null;
   sequencia: number;
   unidade_medida: string | null;
@@ -40,6 +48,9 @@ export interface PlanoDiarioProducaoItem {
   etapa_nome: string;
   projeto_id: string;
   projeto_nome: string;
+  local_operacional_id: string | null;
+  local_operacional_nome: string | null;
+  local_operacional_tipo: ProducaoLocalOperacionalTipo | null;
   grupo_cronograma: string | null;
   unidade_medida: string | null;
   data: string;
@@ -79,9 +90,9 @@ export const useCronogramaProducao = () => {
     setErro(null);
     try {
       const [{ data, error }, configResult, alertasResult] = await Promise.all([
-        supabase.rpc('listar_gantt_producao'),
-        supabase.from('producao_cronograma_configuracoes').select('equipe_disponivel_por_dia,trabalha_sabado,trabalha_domingo,horizonte_dias').eq('id', 1).maybeSingle(),
-        supabase.from('producao_cronograma_alertas').select('id,processo_id,data,severidade,codigo,mensagem').order('created_at', { ascending: false }).limit(100),
+        db.rpc('listar_gantt_producao'),
+        db.from('producao_cronograma_configuracoes').select('equipe_disponivel_por_dia,trabalha_sabado,trabalha_domingo,horizonte_dias').eq('id', 1).maybeSingle(),
+        db.from('producao_cronograma_alertas').select('id,processo_id,data,severidade,codigo,mensagem').order('created_at', { ascending: false }).limit(100),
       ]);
       if (error) throw error;
       const resultado = ((data ?? []) as GanttEtapaProducao[]).map((item) => ({
@@ -103,7 +114,7 @@ export const useCronogramaProducao = () => {
   }, []);
 
   const listarPlanoDiario = useCallback(async (dataInicio: string, dias = 60) => {
-    const { data, error } = await supabase.rpc('listar_plano_diario_producao', {
+    const { data, error } = await db.rpc('listar_plano_diario_producao', {
       p_data_inicio: dataInicio,
       p_dias: dias,
     });
@@ -116,7 +127,7 @@ export const useCronogramaProducao = () => {
   const recalcularCronograma = useCallback(async () => {
     setRecalculando(true);
     try {
-      const { error } = await supabase.rpc('recalcular_cronograma_producao');
+      const { error } = await db.rpc('recalcular_cronograma_producao');
       if (error) throw error;
       await listarCronograma();
     } finally {
@@ -127,7 +138,7 @@ export const useCronogramaProducao = () => {
   const salvarConfiguracao = useCallback(async (dados: ConfiguracaoCronogramaProducao) => {
     setRecalculando(true);
     try {
-      const { error } = await supabase.rpc('salvar_configuracao_cronograma_producao', {
+      const { error } = await db.rpc('salvar_configuracao_cronograma_producao', {
         p_equipe_disponivel: dados.equipe_disponivel_por_dia,
         p_trabalha_sabado: dados.trabalha_sabado,
         p_trabalha_domingo: dados.trabalha_domingo,
