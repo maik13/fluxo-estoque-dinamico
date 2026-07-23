@@ -1,13 +1,16 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
+import { useEffect, useMemo, useState } from 'react';
+import { Check, Loader2, Search, Shield, SlidersHorizontal, UserCog, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Shield, Save, Loader2, Check, X } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
+import { PermissoesUsuarioDialog } from './PermissoesUsuarioDialog';
 
 interface PermissaoTipoUsuario {
   id: string;
@@ -35,6 +38,16 @@ interface PermissaoTipoUsuario {
   pode_configurar_producao: boolean;
 }
 
+interface UsuarioPermissoes {
+  id: string;
+  user_id: string;
+  nome: string;
+  email: string;
+  tipo_usuario: string;
+  ativo: boolean;
+  created_at: string;
+}
+
 const TIPOS_USUARIO_LABELS: Record<string, string> = {
   administrador: 'Administrador',
   gestor: 'Gestor',
@@ -44,11 +57,11 @@ const TIPOS_USUARIO_LABELS: Record<string, string> = {
 };
 
 const TIPOS_USUARIO_COLORS: Record<string, string> = {
-  administrador: 'bg-red-500/10 text-red-400 border-red-500/30',
-  gestor: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-  engenharia: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
-  mestre: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-  estoquista: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  administrador: 'bg-red-500/10 text-red-500 border-red-500/30',
+  gestor: 'bg-blue-500/10 text-blue-500 border-blue-500/30',
+  engenharia: 'bg-purple-500/10 text-purple-500 border-purple-500/30',
+  mestre: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+  estoquista: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
 };
 
 interface PermissaoGrupo {
@@ -58,268 +71,226 @@ interface PermissaoGrupo {
 
 const PERMISSOES_GRUPOS: PermissaoGrupo[] = [
   {
-    titulo: '📦 Gestão de Itens',
+    titulo: 'Gestão de Itens',
     campos: [
-      { key: 'pode_cadastrar_itens', label: 'Cadastrar Itens' },
-      { key: 'pode_editar_itens', label: 'Editar Itens' },
-      { key: 'pode_excluir_itens', label: 'Excluir Itens' },
+      { key: 'pode_cadastrar_itens', label: 'Cadastrar itens' },
+      { key: 'pode_editar_itens', label: 'Editar itens' },
+      { key: 'pode_excluir_itens', label: 'Excluir itens' },
     ],
   },
   {
-    titulo: '🔄 Movimentações',
+    titulo: 'Movimentações',
     campos: [
-      { key: 'pode_registrar_movimentacoes', label: 'Registrar Movimentações' },
-      { key: 'pode_solicitar_material', label: 'Solicitar Material (Retirada)' },
-      { key: 'pode_devolver_material', label: 'Devolver Material' },
-      { key: 'pode_registrar_entrada', label: 'Registrar Entrada' },
-      { key: 'pode_registrar_saida', label: 'Registrar Saída' },
-      { key: 'pode_transferir', label: 'Transferência entre Estoques' },
-      { key: 'pode_editar_movimentacoes', label: 'Editar Movimentações' },
+      { key: 'pode_registrar_movimentacoes', label: 'Registrar movimentações' },
+      { key: 'pode_solicitar_material', label: 'Solicitar material' },
+      { key: 'pode_devolver_material', label: 'Devolver material' },
+      { key: 'pode_registrar_entrada', label: 'Registrar entrada' },
+      { key: 'pode_registrar_saida', label: 'Registrar saída' },
+      { key: 'pode_transferir', label: 'Transferir entre estoques' },
+      { key: 'pode_editar_movimentacoes', label: 'Editar movimentações' },
     ],
   },
   {
-    titulo: '📋 Solicitações e Compras',
+    titulo: 'Solicitações e Compras',
     campos: [
-      { key: 'pode_solicitacao_material', label: 'Solicitação de Material' },
-      { key: 'pode_pedido_compra', label: 'Pedido de Compra' },
+      { key: 'pode_solicitacao_material', label: 'Gerenciar solicitações' },
+      { key: 'pode_pedido_compra', label: 'Pedido de compra' },
     ],
   },
   {
-    titulo: '🏭 Produção',
+    titulo: 'Produção',
     campos: [
       { key: 'pode_apontar_producao', label: 'Apontar Produção' },
-      { key: 'pode_conferir_producao', label: 'Registrar/Finalizar Produção' },
-      { key: 'pode_ver_bi_producao', label: 'Ver BI de Produção' },
+      { key: 'pode_conferir_producao', label: 'Conferir Produção' },
+      { key: 'pode_ver_bi_producao', label: 'Ver BI Produção' },
       { key: 'pode_configurar_producao', label: 'Configurar Produção' },
     ],
   },
   {
-    titulo: '⚙️ Administração',
+    titulo: 'Administração',
     campos: [
-      { key: 'pode_gerenciar_configuracoes', label: 'Gerenciar Configurações' },
-      { key: 'pode_gerenciar_usuarios', label: 'Gerenciar Usuários' },
-      { key: 'pode_ver_relatorios', label: 'Ver Relatórios' },
-      { key: 'pode_acessar_gerencial', label: 'Acessar Painel Gerencial' },
-      { key: 'pode_acessar_projetos', label: 'Acessar Visão de Projetos' },
+      { key: 'pode_gerenciar_configuracoes', label: 'Gerenciar configurações' },
+      { key: 'pode_gerenciar_usuarios', label: 'Gerenciar usuários' },
+      { key: 'pode_ver_relatorios', label: 'Ver relatórios' },
+      { key: 'pode_acessar_gerencial', label: 'Acessar painel gerencial' },
+      { key: 'pode_acessar_projetos', label: 'Acessar projetos' },
     ],
   },
 ];
 
 export const PermissoesPanel = () => {
   const { toast } = useToast();
-  const { isAdmin } = usePermissions();
+  const { isAdmin, hasPermission } = usePermissions();
+  const podeGerenciar = isAdmin() || hasPermission('administracao.permissoes.gerenciar');
   const [permissoes, setPermissoes] = useState<PermissaoTipoUsuario[]>([]);
+  const [usuarios, setUsuarios] = useState<UsuarioPermissoes[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [busca, setBusca] = useState('');
+  const [usuarioSelecionado, setUsuarioSelecionado] = useState<UsuarioPermissoes | null>(null);
 
-  useEffect(() => {
-    carregarPermissoes();
-
-    const channel = supabase
-      .channel('permissoes-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'permissoes_tipo_usuario' }, () => {
-        carregarPermissoes();
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, []);
-
-  const carregarPermissoes = async () => {
+  const carregarDados = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('permissoes_tipo_usuario')
-        .select('*')
-        .order('tipo_usuario');
+      const [permissoesResult, usuariosResult] = await Promise.all([
+        supabase.from('permissoes_tipo_usuario').select('*').order('tipo_usuario'),
+        supabase.from('profiles').select('id,user_id,nome,email,tipo_usuario,ativo,created_at').order('nome'),
+      ]);
+      if (permissoesResult.error) throw permissoesResult.error;
+      if (usuariosResult.error) throw usuariosResult.error;
 
-      if (error) throw error;
-      setPermissoes((data || []).map((d: any) => ({ 
-        ...d, 
-        pode_editar_movimentacoes: d.pode_editar_movimentacoes ?? false,
-        pode_acessar_gerencial: d.pode_acessar_gerencial ?? false,
-        pode_acessar_projetos: d.pode_acessar_projetos ?? false,
-        pode_apontar_producao: d.pode_apontar_producao ?? false,
-        pode_conferir_producao: d.pode_conferir_producao ?? false,
-        pode_ver_bi_producao: d.pode_ver_bi_producao ?? false,
-        pode_configurar_producao: d.pode_configurar_producao ?? false
-      })));
+      setPermissoes((permissoesResult.data ?? []).map((item: any) => ({
+        ...item,
+        pode_editar_movimentacoes: item.pode_editar_movimentacoes ?? false,
+        pode_acessar_gerencial: item.pode_acessar_gerencial ?? false,
+        pode_acessar_projetos: item.pode_acessar_projetos ?? false,
+        pode_apontar_producao: item.pode_apontar_producao ?? false,
+        pode_conferir_producao: item.pode_conferir_producao ?? false,
+        pode_ver_bi_producao: item.pode_ver_bi_producao ?? false,
+        pode_configurar_producao: item.pode_configurar_producao ?? false,
+      })) as PermissaoTipoUsuario[]);
+      setUsuarios((usuariosResult.data ?? []) as UsuarioPermissoes[]);
     } catch (error) {
       console.error('Erro ao carregar permissões:', error);
-      toast({ title: 'Erro', description: 'Não foi possível carregar as permissões.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Não foi possível carregar usuários e permissões.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleTogglePermissao = (tipoUsuario: string, campo: keyof PermissaoTipoUsuario) => {
-    if (!isAdmin()) {
-      toast({ title: 'Acesso negado', description: 'Apenas administradores podem alterar permissões.', variant: 'destructive' });
-      return;
-    }
+  useEffect(() => {
+    void carregarDados();
+  }, []);
 
-    setPermissoes((prev) =>
-      prev.map((p) => p.tipo_usuario === tipoUsuario ? { ...p, [campo]: !p[campo] } : p)
+  const usuariosFiltrados = useMemo(() => {
+    const termo = busca.trim().toLocaleLowerCase('pt-BR');
+    if (!termo) return usuarios;
+    return usuarios.filter((usuario) =>
+      [usuario.nome, usuario.email, usuario.tipo_usuario]
+        .some((valor) => valor.toLocaleLowerCase('pt-BR').includes(termo)),
     );
+  }, [busca, usuarios]);
+
+  const alternarPermissaoPerfil = (tipoUsuario: string, campo: keyof PermissaoTipoUsuario) => {
+    if (!podeGerenciar) return;
+    setPermissoes((atuais) => atuais.map((permissao) =>
+      permissao.tipo_usuario === tipoUsuario
+        ? { ...permissao, [campo]: !permissao[campo] }
+        : permissao,
+    ));
     setHasChanges(true);
   };
 
-  const handleSalvar = async () => {
-    if (!isAdmin()) return;
+  const salvarPerfis = async () => {
+    if (!podeGerenciar) return;
     setSaving(true);
     try {
-      const allCampos = PERMISSOES_GRUPOS.flatMap(g => g.campos.map(c => c.key));
+      const campos = PERMISSOES_GRUPOS.flatMap((grupo) => grupo.campos.map((campo) => campo.key));
       for (const permissao of permissoes) {
-        const upsertData: any = { id: permissao.id, tipo_usuario: permissao.tipo_usuario };
-        allCampos.forEach(campo => { upsertData[campo] = (permissao as any)[campo]; });
-
-        const { error } = await supabase
-          .from('permissoes_tipo_usuario')
-          .upsert(upsertData, { onConflict: 'id' });
-
-        if (error) {
-          console.error('Supabase error details:', {
-            message: error.message,
-            code: error.code,
-            details: error.details,
-            hint: error.hint,
-            tipo_usuario: permissao.tipo_usuario,
-          });
-          throw error;
-        }
+        const dados: Record<string, unknown> = { id: permissao.id, tipo_usuario: permissao.tipo_usuario };
+        campos.forEach((campo) => { dados[campo] = permissao[campo]; });
+        const { error } = await supabase.from('permissoes_tipo_usuario').upsert(dados as any, { onConflict: 'id' });
+        if (error) throw error;
       }
-      toast({ title: 'Permissões salvas!', description: 'As permissões foram atualizadas com sucesso.' });
+      toast({ title: 'Padrões salvos', description: 'Os perfis-base foram atualizados. Usuários em modo Herdar recebem os novos valores.' });
       setHasChanges(false);
-    } catch (error: any) {
-      console.error('Erro ao salvar permissões:', error);
-      toast({
-        title: 'Erro',
-        description: `Não foi possível salvar as permissões. ${error?.message || ''}`,
-        variant: 'destructive',
-      });
+    } catch (error) {
+      console.error('Erro ao salvar padrões:', error);
+      toast({ title: 'Erro', description: 'Não foi possível salvar os padrões por perfil.', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center p-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
-    );
+    return <Card><CardContent className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></CardContent></Card>;
   }
 
   return (
-    <Card className="border-border/50">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Shield className="h-5 w-5 text-primary" />
-          Permissões por Tipo de Usuário
-        </CardTitle>
-        <CardDescription>
-          Configure quais ações cada tipo de usuário pode realizar no sistema
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Header com tipos de usuário */}
-        <div className="rounded-lg border border-border/50 overflow-hidden">
-          <table className="w-full text-sm table-fixed">
-            <thead>
-              <tr className="border-b border-border/50 bg-muted/30">
-                <th className="bg-muted/30 px-3 py-3 text-left font-medium text-muted-foreground w-[30%]">
-                  Permissão
-                </th>
-                {permissoes.map((p) => (
-                  <th key={p.tipo_usuario} className="px-1 py-3 text-center">
-                    <Badge variant="outline" className={cn('text-xs font-medium', TIPOS_USUARIO_COLORS[p.tipo_usuario])}>
-                      {TIPOS_USUARIO_LABELS[p.tipo_usuario] || p.tipo_usuario}
-                    </Badge>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {PERMISSOES_GRUPOS.map((grupo, gIdx) => (
-                <>
-                  {/* Separador de grupo */}
-                  <tr key={`grupo-${gIdx}`} className="bg-muted/20">
-                    <td colSpan={permissoes.length + 1} className="px-4 py-2">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        {grupo.titulo}
-                      </span>
-                    </td>
-                  </tr>
-                  {grupo.campos.map((campo, cIdx) => (
-                    <tr
-                      key={campo.key}
-                      className={cn(
-                        'border-b border-border/30 transition-colors hover:bg-muted/20',
-                        cIdx === grupo.campos.length - 1 && 'border-b-0'
-                      )}
-                    >
-                      <td className="bg-card px-3 py-2.5 font-medium text-foreground text-xs">
-                        {campo.label}
-                      </td>
-                      {permissoes.map((p) => {
-                        const isChecked = p[campo.key] as boolean;
-                        return (
-                          <td key={`${p.tipo_usuario}-${campo.key}`} className="px-3 py-2.5 text-center">
-                            <div className="flex items-center justify-center">
-                              {isAdmin() ? (
-                                <Checkbox
-                                  checked={isChecked}
-                                  onCheckedChange={() => handleTogglePermissao(p.tipo_usuario, campo.key)}
-                                  className={cn(
-                                    'h-5 w-5 rounded transition-all',
-                                    isChecked
-                                      ? 'border-emerald-500 bg-emerald-500 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500'
-                                      : 'border-muted-foreground/30'
-                                  )}
-                                />
-                              ) : (
-                                <div className={cn(
-                                  'flex h-6 w-6 items-center justify-center rounded-full',
-                                  isChecked
-                                    ? 'bg-emerald-500/15 text-emerald-500'
-                                    : 'bg-muted text-muted-foreground/40'
-                                )}>
-                                  {isChecked ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        );
-                      })}
+    <>
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary" />Controle de acessos</CardTitle>
+          <CardDescription>Defina padrões por perfil e depois personalize cada usuário sem criar novos cargos.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="usuarios" className="space-y-5">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="usuarios" className="gap-2"><UserCog className="h-4 w-4" />Permissões por usuário</TabsTrigger>
+              <TabsTrigger value="perfis" className="gap-2"><SlidersHorizontal className="h-4 w-4" />Padrões por perfil</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="usuarios" className="space-y-4">
+              <div className="rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
+                O perfil-base continua sendo Engenharia, Gestor, Mestre, Estoquista ou Administrador. As permissões individuais podem <strong>herdar</strong>, <strong>permitir</strong> ou <strong>negar</strong> cada acesso.
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Pesquisar por nome, e-mail ou perfil..." className="pl-9" />
+              </div>
+              <div className="overflow-hidden rounded-lg border">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/40">
+                    <tr>
+                      <th className="px-4 py-3 text-left">Usuário</th>
+                      <th className="px-4 py-3 text-left">Perfil-base</th>
+                      <th className="px-4 py-3 text-left">Status</th>
+                      <th className="px-4 py-3 text-right">Acessos</th>
                     </tr>
-                  ))}
-                </>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </thead>
+                  <tbody>
+                    {usuariosFiltrados.map((usuario) => (
+                      <tr key={usuario.id} className="border-t hover:bg-muted/20">
+                        <td className="px-4 py-3"><p className="font-medium">{usuario.nome}</p><p className="text-xs text-muted-foreground">{usuario.email}</p></td>
+                        <td className="px-4 py-3"><Badge variant="outline" className={TIPOS_USUARIO_COLORS[usuario.tipo_usuario]}>{TIPOS_USUARIO_LABELS[usuario.tipo_usuario] ?? usuario.tipo_usuario}</Badge></td>
+                        <td className="px-4 py-3"><Badge variant={usuario.ativo ? 'default' : 'secondary'}>{usuario.ativo ? 'Ativo' : 'Inativo'}</Badge></td>
+                        <td className="px-4 py-3 text-right"><Button size="sm" variant="outline" disabled={!podeGerenciar || !usuario.user_id} onClick={() => setUsuarioSelecionado(usuario)}><Shield className="mr-2 h-4 w-4" />Configurar permissões</Button></td>
+                      </tr>
+                    ))}
+                    {usuariosFiltrados.length === 0 && <tr><td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">Nenhum usuário encontrado.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </TabsContent>
 
-        {/* Ações */}
-        {isAdmin() && (
-          <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/20 px-4 py-3">
-            <p className="text-xs text-muted-foreground">
-              {hasChanges ? '⚠️ Você tem alterações não salvas' : '✅ Todas as permissões estão salvas'}
-            </p>
-            <Button onClick={handleSalvar} disabled={!hasChanges || saving} size="sm">
-              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Salvar Alterações
-            </Button>
-          </div>
-        )}
+            <TabsContent value="perfis" className="space-y-4">
+              <div className="overflow-x-auto rounded-lg border">
+                <table className="w-full min-w-[800px] table-fixed text-sm">
+                  <thead><tr className="border-b bg-muted/30"><th className="w-[30%] px-3 py-3 text-left">Permissão padrão</th>{permissoes.map((item) => <th key={item.tipo_usuario} className="px-2 py-3 text-center"><Badge variant="outline" className={TIPOS_USUARIO_COLORS[item.tipo_usuario]}>{TIPOS_USUARIO_LABELS[item.tipo_usuario] ?? item.tipo_usuario}</Badge></th>)}</tr></thead>
+                  <tbody>
+                    {PERMISSOES_GRUPOS.map((grupo) => (
+                      <>
+                        <tr key={`grupo-${grupo.titulo}`} className="bg-muted/20"><td colSpan={permissoes.length + 1} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{grupo.titulo}</td></tr>
+                        {grupo.campos.map((campo) => (
+                          <tr key={String(campo.key)} className="border-t hover:bg-muted/20">
+                            <td className="px-3 py-2.5 text-xs font-medium">{campo.label}</td>
+                            {permissoes.map((item) => {
+                              const checked = Boolean(item[campo.key]);
+                              return <td key={`${item.tipo_usuario}-${String(campo.key)}`} className="px-3 py-2.5 text-center">{podeGerenciar ? <Checkbox checked={checked} onCheckedChange={() => alternarPermissaoPerfil(item.tipo_usuario, campo.key)} /> : <span className={cn('mx-auto flex h-6 w-6 items-center justify-center rounded-full', checked ? 'bg-emerald-500/15 text-emerald-600' : 'bg-muted text-muted-foreground/40')}>{checked ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}</span>}</td>;
+                            })}
+                          </tr>
+                        ))}
+                      </>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {podeGerenciar && <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3"><p className="text-xs text-muted-foreground">{hasChanges ? 'Existem alterações de perfil não salvas.' : 'Todos os padrões estão salvos.'}</p><Button onClick={salvarPerfis} disabled={!hasChanges || saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar padrões</Button></div>}
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
 
-        {!isAdmin() && (
-          <p className="text-sm text-muted-foreground text-center py-2">
-            Apenas administradores podem alterar as permissões.
-          </p>
-        )}
-      </CardContent>
-    </Card>
+      {usuarioSelecionado?.user_id && (
+        <PermissoesUsuarioDialog
+          open={Boolean(usuarioSelecionado)}
+          onOpenChange={(open) => { if (!open) setUsuarioSelecionado(null); }}
+          userId={usuarioSelecionado.user_id}
+          userName={usuarioSelecionado.nome}
+          userType={TIPOS_USUARIO_LABELS[usuarioSelecionado.tipo_usuario] ?? usuarioSelecionado.tipo_usuario}
+        />
+      )}
+    </>
   );
 };
