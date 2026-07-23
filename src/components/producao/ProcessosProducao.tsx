@@ -43,8 +43,8 @@ export const ProcessosProducao = () => {
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h3 className="text-lg font-medium">Processos de Produção</h3>
-          <p className="text-sm text-muted-foreground">Planejamento, execução e encerramento auditado.</p>
+          <h3 className="text-lg font-medium">Etapas de Produção</h3>
+          <p className="text-sm text-muted-foreground">Cadastre cada etapa uma única vez. Ela alimentará o Gantt, os apontamentos e o BI.</p>
         </div>
         <FormProcessoProducao onSuccess={() => void listarProcessos()} />
       </div>
@@ -52,17 +52,17 @@ export const ProcessosProducao = () => {
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por código, processo, projeto ou cidade..." className="pl-8" />
+          <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por código, etapa, projeto ou cidade..." className="pl-8" />
         </div>
         <Button variant="outline" onClick={() => setMostrarEncerrados((v) => !v)}>
-          {mostrarEncerrados ? 'Ocultar encerrados' : 'Mostrar encerrados'}
+          {mostrarEncerrados ? 'Ocultar encerradas' : 'Mostrar encerradas'}
         </Button>
       </div>
 
       {loading ? (
-        <div className="rounded-md border p-8 text-center text-muted-foreground">Carregando processos...</div>
+        <div className="rounded-md border p-8 text-center text-muted-foreground">Carregando etapas...</div>
       ) : processosFiltrados.length === 0 ? (
-        <div className="rounded-md border p-8 text-center text-muted-foreground"><Activity className="mx-auto mb-3 h-8 w-8 opacity-50" />Nenhum processo encontrado.</div>
+        <div className="rounded-md border p-8 text-center text-muted-foreground"><Activity className="mx-auto mb-3 h-8 w-8 opacity-50" />Nenhuma etapa encontrada.</div>
       ) : (
         <div className="grid gap-4">
           {processosFiltrados.map((processo) => (
@@ -80,8 +80,8 @@ export const ProcessosProducao = () => {
                 </p>
                 {processo.descricao && <p className="text-sm text-muted-foreground">{processo.descricao}</p>}
                 <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" />Criado em {new Date(processo.created_at).toLocaleString('pt-BR')}</span>
-                  {processo.data_inicio_real && <span>Iniciado em {new Date(`${processo.data_inicio_real}T12:00:00`).toLocaleDateString('pt-BR')}</span>}
+                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" />Criada em {new Date(processo.created_at).toLocaleString('pt-BR')}</span>
+                  {processo.data_inicio_real && <span>Iniciada em {new Date(`${processo.data_inicio_real}T12:00:00`).toLocaleDateString('pt-BR')}</span>}
                 </div>
               </div>
 
@@ -89,19 +89,15 @@ export const ProcessosProducao = () => {
                 {processo.status === 'planejado' && <Button size="sm" onClick={() => void transicaoProcesso(processo.id, 'iniciar')}><Play className="mr-2 h-4 w-4" />Iniciar</Button>}
                 {processo.status === 'em_andamento' && (
                   <>
-                    <Button size="sm" variant="outline" onClick={() => void executarComJustificativa(processo, 'pausar', 'Justificativa para pausar:')}><Pause className="mr-2 h-4 w-4" />Pausar</Button>
-                    <Button size="sm" variant="outline" onClick={() => void executarComJustificativa(processo, 'bloquear', 'Justificativa para bloquear:')}><Ban className="mr-2 h-4 w-4" />Bloquear</Button>
+                    <Button size="sm" variant="outline" onClick={() => void executarComJustificativa(processo, 'pausar', 'Justificativa para pausar a etapa:')}><Pause className="mr-2 h-4 w-4" />Pausar</Button>
+                    <Button size="sm" variant="outline" onClick={() => void executarComJustificativa(processo, 'bloquear', 'Justificativa para bloquear a etapa:')}><Ban className="mr-2 h-4 w-4" />Bloquear</Button>
                     <Button size="sm" onClick={() => setProcessoParaFinalizar(processo)}><CheckCircle className="mr-2 h-4 w-4" />Finalizar</Button>
                   </>
                 )}
                 {processo.status === 'pausado' && <Button size="sm" onClick={() => void transicaoProcesso(processo.id, 'retomar')}><Play className="mr-2 h-4 w-4" />Retomar</Button>}
-                {processo.status === 'bloqueado' && <Button size="sm" onClick={() => void executarComJustificativa(processo, 'desbloquear', 'Justificativa para desbloquear:')}><Unlock className="mr-2 h-4 w-4" />Desbloquear</Button>}
-                {['planejado', 'em_andamento', 'pausado', 'bloqueado'].includes(processo.status) && (
-                  <Button size="sm" variant="destructive" onClick={() => void executarComJustificativa(processo, 'cancelar', 'Justificativa para cancelar:')}>Cancelar</Button>
-                )}
-                {['finalizado', 'cancelado'].includes(processo.status) && (
-                  <Button size="sm" variant="outline" onClick={() => void executarComJustificativa(processo, 'reabrir', 'Justificativa para reabrir:')}><RotateCcw className="mr-2 h-4 w-4" />Reabrir</Button>
-                )}
+                {processo.status === 'bloqueado' && <Button size="sm" onClick={() => void executarComJustificativa(processo, 'desbloquear', 'Justificativa para desbloquear a etapa:')}><Unlock className="mr-2 h-4 w-4" />Desbloquear</Button>}
+                {['planejado', 'em_andamento', 'pausado', 'bloqueado'].includes(processo.status) && <Button size="sm" variant="destructive" onClick={() => void executarComJustificativa(processo, 'cancelar', 'Justificativa para cancelar a etapa:')}>Cancelar</Button>}
+                {['finalizado', 'cancelado'].includes(processo.status) && <Button size="sm" variant="outline" onClick={() => void executarComJustificativa(processo, 'reabrir', 'Justificativa para reabrir a etapa:')}><RotateCcw className="mr-2 h-4 w-4" />Reabrir</Button>}
               </div>
             </div>
           ))}
