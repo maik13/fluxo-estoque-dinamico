@@ -15,6 +15,13 @@ export interface ProjetoProducaoInput {
   ativo?: boolean;
 }
 
+export interface LocalDisponivelProducao {
+  id: string;
+  nome: string;
+  group_id: string | null;
+  grupo_nome: string | null;
+}
+
 interface LocalRow {
   id: string;
   nome: string;
@@ -62,88 +69,131 @@ export const useProjetosProducao = () => {
     setErro(null);
 
     try {
-      let locaisQuery = supabase
-        .from('locais_utilizacao')
-        .select('id,nome,ativo,group_id,created_at')
+      let configsQuery = supabase
+        .from('producao_projetos')
+        .select('*')
         .order('nome', { ascending: true });
 
-      if (somenteAtivos) locaisQuery = locaisQuery.eq('ativo', true);
+      if (somenteAtivos) configsQuery = configsQuery.eq('ativo', true);
 
-      // A fonte obrigatória são os projetos/locais já existentes no aplicativo.
-      // As consultas de grupo e configuração são complementares e nunca podem
-      // apagar a lista principal quando houver falha de RLS ou migration pendente.
-      const locaisResult = await locaisQuery;
-      if (locaisResult.error) throw locaisResult.error;
+      const configsResult = await configsQuery;
+      if (configsResult.error) throw configsResult.error;
 
-      const gruposResult = await supabase
-        .from('project_groups')
-        .select('id,nome')
-        .eq('ativo', true);
+      const configs = (configsResult.data ?? []) as ConfigRow[];
+      const localIds = configs
+        .map((config) => config.local_utilizacao_id)
+        .filter((id): id is string => Boolean(id));
 
-      const configsResult = await supabase
-        .from('producao_projetos')
-        .select('*');
+      const [locaisResult, gruposResult] = await Promise.all([
+        localIds.length > 0
+          ? supabase
+              .from('locais_utilizacao')
+              .select('id,nome,ativo,group_id,created_at')
+              .in('id', localIds)
+          : Promise.resolve({ data: [], error: null }),
+        supabase.from('project_groups').select('id,nome').eq('ativo', true),
+      ]);
 
+      if (locaisResult.error) {
+        console.warn('Não foi possível complementar os projetos com os locais originais:', locaisResult.error);
+      }
       if (gruposResult.error) {
         console.warn('Não foi possível carregar os grupos dos projetos:', gruposResult.error);
       }
-      if (configsResult.error) {
-        console.warn('Não foi possível carregar a configuração complementar da Produção:', configsResult.error);
-      }
 
+      const locais = new Map(
+        ((locaisResult.data ?? []) as LocalRow[]).map((local) => [local.id, local]),
+      );
       const grupos = new Map(
         ((gruposResult.data ?? []) as GrupoRow[]).map((grupo) => [grupo.id, grupo.nome]),
       );
-      const configs = new Map(
-        ((configsResult.data ?? []) as ConfigRow[])
-          .filter((config) => Boolean(config.local_utilizacao_id))
-          .map((config) => [config.local_utilizacao_id as string, config]),
-      );
 
-      const resultado = ((locaisResult.data ?? []) as LocalRow[]).map((local) => {
-        const config = configs.get(local.id);
+      // A aba Produção exibe somente os projetos efetivamente adicionados em
+      // producao_projetos. Os demais locais do aplicativo ficam disponíveis
+      // apenas no formulário "Adicionar Projeto".
+      const resultado = configs
+        .filter((config) => Boolean(config.local_utilizacao_id))
+        .map((config) => {
+          const localId = config.local_utilizacao_id as string;
+          const local = locais.get(localId);
 
-        return {
-          id: local.id,
-          config_id: config?.id ?? null,
-          local_utilizacao_id: local.id,
-          group_id: local.group_id,
-          grupo_nome: local.group_id ? grupos.get(local.group_id) ?? null : null,
-          nome: local.nome,
-          descricao: config?.descricao ?? null,
-          cliente: config?.cliente ?? null,
-          cidade: config?.cidade ?? null,
-          uf: config?.uf ?? null,
-          local_execucao: config?.local_execucao ?? local.nome,
-          endereco_execucao: config?.endereco_execucao ?? null,
-          data_inicio_prevista: config?.data_inicio_prevista ?? null,
-          data_fim_prevista: config?.data_fim_prevista ?? null,
-          responsavel_id: config?.responsavel_id ?? null,
-          responsavel_nome_snapshot: config?.responsavel_nome_snapshot ?? null,
-          observacoes: config?.observacoes ?? null,
-          ativo: local.ativo && (config?.ativo ?? true),
-          configurado: Boolean(config),
-          criado_por_id: config?.criado_por_id ?? null,
-          criado_por_nome_snapshot: config?.criado_por_nome_snapshot ?? null,
-          atualizado_por_id: config?.atualizado_por_id ?? null,
-          atualizado_por_nome_snapshot: config?.atualizado_por_nome_snapshot ?? null,
-          created_at: config?.created_at ?? local.created_at,
-          updated_at: config?.updated_at ?? local.created_at,
-        } satisfies ProducaoProjeto;
-      });
+          return {
+            id: localId,
+            config_id: config.id,
+            local_utilizacao_id: localId,
+            group_id: local?.group_id ?? null,
+            grupo_nome: local?.group_id ? grupos.get(local.group_id) ?? null : null,
+            nome: config.nome || local?.nome || 'Projeto sem nome',
+            descricao: config.descricao,
+            cliente: config.cliente,
+            cidade: config.cidade,
+            uf: config.uf,
+            local_execucao: config.local_execucao,
+            endereco_execucao: config.endereco_execucao,
+            data_inicio_prevista: config.data_inicio_prevista,
+            data_fim_prevista: config.data_fim_prevista,
+            responsavel_id: config.responsavel_id,
+            responsavel_nome_snapshot: config.responsavel_nome_snapshot,
+            observacoes: config.observacoes,
+            ativo: config.ativo && (local?.ativo ?? true),
+            configurado: true,
+            criado_por_id: config.criado_por_id,
+            criado_por_nome_snapshot: config.criado_por_nome_snapshot,
+            atualizado_por_id: config.atualizado_por_id,
+            atualizado_por_nome_snapshot: config.atualizado_por_nome_snapshot,
+            created_at: config.created_at,
+            updated_at: config.updated_at,
+          } satisfies ProducaoProjeto;
+        });
 
       setProjetos(resultado);
       return resultado;
     } catch (error) {
       const mensagem = error instanceof Error
         ? error.message
-        : 'Não foi possível carregar os projetos/locais existentes.';
+        : 'Não foi possível carregar os projetos adicionados à Produção.';
       setProjetos([]);
       setErro(mensagem);
       throw error;
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const listarLocaisDisponiveis = useCallback(async () => {
+    const [locaisResult, gruposResult, configsResult] = await Promise.all([
+      supabase
+        .from('locais_utilizacao')
+        .select('id,nome,ativo,group_id,created_at')
+        .eq('ativo', true)
+        .order('nome', { ascending: true }),
+      supabase.from('project_groups').select('id,nome').eq('ativo', true),
+      supabase.from('producao_projetos').select('local_utilizacao_id'),
+    ]);
+
+    if (locaisResult.error) throw locaisResult.error;
+    if (configsResult.error) throw configsResult.error;
+    if (gruposResult.error) {
+      console.warn('Não foi possível carregar os grupos dos locais:', gruposResult.error);
+    }
+
+    const configurados = new Set(
+      ((configsResult.data ?? []) as Array<{ local_utilizacao_id: string | null }>)
+        .map((item) => item.local_utilizacao_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+    const grupos = new Map(
+      ((gruposResult.data ?? []) as GrupoRow[]).map((grupo) => [grupo.id, grupo.nome]),
+    );
+
+    return ((locaisResult.data ?? []) as LocalRow[])
+      .filter((local) => !configurados.has(local.id))
+      .map((local) => ({
+        id: local.id,
+        nome: local.nome,
+        group_id: local.group_id,
+        grupo_nome: local.group_id ? grupos.get(local.group_id) ?? null : null,
+      } satisfies LocalDisponivelProducao));
   }, []);
 
   const salvarConfiguracao = useCallback(async (dados: ProjetoProducaoInput) => {
@@ -170,6 +220,7 @@ export const useProjetosProducao = () => {
     loading,
     erro,
     listarProjetos,
+    listarLocaisDisponiveis,
     criarProjeto: salvarConfiguracao,
     atualizarProjeto: async (_id: string, dados: ProjetoProducaoInput) => salvarConfiguracao(dados),
   };
