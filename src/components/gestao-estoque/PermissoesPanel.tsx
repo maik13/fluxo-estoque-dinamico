@@ -66,11 +66,16 @@ export const PERMISSOES_GRUPOS: PermissaoGrupo[] = [
     ],
   },
   {
-    titulo: 'Movimentações',
+    titulo: 'Retirada e devolução',
+    campos: [
+      { key: 'pode_solicitar_material', label: 'Retirada de Material' },
+      { key: 'pode_devolver_material', label: 'Devolver material' },
+    ],
+  },
+  {
+    titulo: 'Movimentações diretas',
     campos: [
       { key: 'pode_registrar_movimentacoes', label: 'Registrar movimentações' },
-      { key: 'pode_solicitar_material', label: 'Solicitar material' },
-      { key: 'pode_devolver_material', label: 'Devolver material' },
       { key: 'pode_registrar_entrada', label: 'Registrar entrada' },
       { key: 'pode_registrar_saida', label: 'Registrar saída' },
       { key: 'pode_transferir', label: 'Transferir entre estoques' },
@@ -80,7 +85,7 @@ export const PERMISSOES_GRUPOS: PermissaoGrupo[] = [
   {
     titulo: 'Solicitações e Compras',
     campos: [
-      { key: 'pode_solicitacao_material', label: 'Gerenciar solicitações' },
+      { key: 'pode_solicitacao_material', label: 'Solicitação de Material' },
       { key: 'pode_pedido_compra', label: 'Pedido de compra' },
     ],
   },
@@ -222,7 +227,7 @@ export const PermissoesPanel = () => {
           Padrões de acesso por perfil
         </CardTitle>
         <CardDescription>
-          Esta é a matriz padrão já existente. Para personalizar uma pessoa, use o ícone de escudo na tabela Usuários Cadastrados.
+          Retirada de Material e Solicitação de Material são acessos independentes. Para personalizar uma pessoa, use o ícone de escudo na tabela Usuários Cadastrados.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
