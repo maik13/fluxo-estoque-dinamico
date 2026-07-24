@@ -88,7 +88,7 @@ export const PermissoesUsuarioDialog = ({
 
     setPermissoes(linhas);
     setEstados(Object.fromEntries(linhas.map((item) => [item.chave, 'herdar'])));
-    setModulosAbertos(new Set(linhas.map((item) => item.modulo));
+    setModulosAbertos(new Set(linhas.map((item) => item.modulo)));
     setArmazenamentoIndividualDisponivel(false);
   };
 
@@ -109,7 +109,7 @@ export const PermissoesUsuarioDialog = ({
       setEstados(
         Object.fromEntries(linhas.map((item) => [item.chave, item.estado_individual])),
       );
-      setModulosAbertos(new Set(linhas.map((item) => item.modulo));
+      setModulosAbertos(new Set(linhas.map((item) => item.modulo)));
     } catch (error) {
       console.warn('Exceções individuais indisponíveis; exibindo a matriz do perfil:', error);
       try {
