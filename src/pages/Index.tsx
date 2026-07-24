@@ -3,11 +3,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MenuPrincipal } from '@/components/gestao-estoque/MenuPrincipal';
 import { TabelaEstoque } from '@/components/gestao-estoque/TabelaEstoque';
 import { TabelaMovimentacoes } from '@/components/gestao-estoque/TabelaMovimentacoes';
-import { PainelGerencial } from '@/components/gestao-estoque/PainelGerencial';
+import { PainelGerencialAcesso } from '@/components/gestao-estoque/PainelGerencialAcesso';
 import { VisaoProjetos } from '@/components/gestao-estoque/VisaoProjetos';
 import { Mensagens } from '@/components/gestao-estoque/Mensagens';
 import { Producao } from '@/components/producao/Producao';
-import { Package, Menu, History, LogOut, BarChart3, MessageCircle } from 'lucide-react';
+import { Package, Menu, History, LogOut, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,6 @@ const Index = () => {
   const { session, loading, signOut } = useAuth();
   const {
     canManageStock,
-    canViewReports,
     canAccessManagerial,
     canAccessProjects,
     canApontarProducao,
@@ -65,7 +64,6 @@ const Index = () => {
   return (
     <EstoqueProvider>
       <div className="min-h-screen bg-background overflow-x-hidden">
-        {/* Header Premium */}
         <div
           className="sticky top-0 z-40 border-b"
           style={{
@@ -75,7 +73,6 @@ const Index = () => {
           }}
         >
           <div className="px-6 py-3 flex items-center justify-between gap-4">
-            {/* Logo + Title */}
             <div className="flex items-center gap-3 min-w-0">
               {logoUrl && (
                 <img
@@ -101,12 +98,10 @@ const Index = () => {
               </div>
             </div>
 
-            {/* Right actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
               <SeletorEstoque />
               {session?.user?.email && (
-                <span className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground
-                  bg-muted/60 border border-border rounded-lg px-3 py-1.5">
+                <span className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/60 border border-border rounded-lg px-3 py-1.5">
                   <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
                   {session.user.email}
                 </span>
@@ -127,16 +122,16 @@ const Index = () => {
         <div className="w-full px-4 py-4">
           {(() => {
             const showEstoque = canManageStock();
-            const showMovimentacoes = canManageStock(); // A Engenharia agora acessa Relatórios e Projetos via Menu Principal
-            const showGerencial = canAccessManagerial();
+            const showMovimentacoes = canManageStock();
+            const podeVerGerencialAlmoxarifado = canAccessManagerial();
+            const podeVerBIProducao = canViewBIProducao();
+            const showGerencial = podeVerGerencialAlmoxarifado || podeVerBIProducao;
             const showProjetos = canAccessProjects();
             const showProducao =
               canApontarProducao() ||
               canConferirProducao() ||
-              canViewBIProducao() ||
               canConfigurarProducao();
-            
-            // Filtra as abas que serão mostradas no topo
+            const somenteBIProducao = podeVerBIProducao && !podeVerGerencialAlmoxarifado;
             const tabCount = 1 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
             
             return (
@@ -170,11 +165,31 @@ const Index = () => {
                     onAbrirMensagens={() => setTabAtiva('mensagens')}
                     onAbrirProducao={() => setTabAtiva('producao')}
                   />
+
+                  {somenteBIProducao && (
+                    <button
+                      type="button"
+                      onClick={() => setTabAtiva('gerencial')}
+                      className="w-full rounded-xl border border-blue-500/30 bg-blue-500/5 p-5 text-left transition hover:border-blue-500 hover:bg-blue-500/10"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-lg bg-blue-500/10 p-2">
+                          <BarChart3 className="h-5 w-5 text-blue-500" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-blue-500">BI Produção</p>
+                          <p className="text-sm text-muted-foreground">
+                            Acesso exclusivo aos indicadores gerenciais da produção.
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  )}
                 </TabsContent>
 
                 {showGerencial && (
                   <TabsContent value="gerencial" className="space-y-6">
-                    <PainelGerencial />
+                    <PainelGerencialAcesso />
                   </TabsContent>
                 )}
 

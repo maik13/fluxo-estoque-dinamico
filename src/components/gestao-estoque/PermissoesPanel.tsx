@@ -94,8 +94,14 @@ export const PERMISSOES_GRUPOS: PermissaoGrupo[] = [
     campos: [
       { key: 'pode_apontar_producao', label: 'Apontar Produção' },
       { key: 'pode_conferir_producao', label: 'Conferir Produção' },
-      { key: 'pode_ver_bi_producao', label: 'Ver BI Produção' },
       { key: 'pode_configurar_producao', label: 'Configurar Produção' },
+    ],
+  },
+  {
+    titulo: 'Gerencial',
+    campos: [
+      { key: 'pode_acessar_gerencial', label: 'Acessar Gerencial de Almoxarifado' },
+      { key: 'pode_ver_bi_producao', label: 'Ver somente BI Produção' },
     ],
   },
   {
@@ -104,7 +110,6 @@ export const PERMISSOES_GRUPOS: PermissaoGrupo[] = [
       { key: 'pode_gerenciar_configuracoes', label: 'Gerenciar configurações' },
       { key: 'pode_gerenciar_usuarios', label: 'Gerenciar usuários' },
       { key: 'pode_ver_relatorios', label: 'Ver relatórios' },
-      { key: 'pode_acessar_gerencial', label: 'Acessar painel gerencial' },
       { key: 'pode_acessar_projetos', label: 'Acessar projetos' },
     ],
   },
@@ -227,7 +232,7 @@ export const PermissoesPanel = () => {
           Padrões de acesso por perfil
         </CardTitle>
         <CardDescription>
-          Retirada de Material e Solicitação de Material são acessos independentes. Para personalizar uma pessoa, use o ícone de escudo na tabela Usuários Cadastrados.
+          O Gerencial de Almoxarifado e o BI Produção são acessos independentes. Para personalizar uma pessoa, use o ícone de escudo na tabela Usuários Cadastrados.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
