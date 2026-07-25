@@ -51,6 +51,12 @@ export const useProcessosProducao = () => {
     }
   }, []);
 
+  const obterProximoCodigo = useCallback(async () => {
+    const { data, error } = await supabase.rpc('obter_proximo_codigo_etapa_producao');
+    if (error) throw error;
+    return String(data ?? '');
+  }, []);
+
   const criarProcesso = useCallback(async (dados: ProcessoProducaoInput) => {
     const { data: id, error } = await supabase.rpc('criar_etapa_producao', {
       p_projeto_local_id: dados.projeto_local_id,
@@ -125,6 +131,7 @@ export const useProcessosProducao = () => {
     processos,
     loading,
     listarProcessos,
+    obterProximoCodigo,
     criarProcesso,
     salvarPlanejamento,
     transicaoProcesso,

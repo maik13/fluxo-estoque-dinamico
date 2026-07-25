@@ -13,16 +13,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Loader2, Search, AlertCircle, Trash2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Plus, Loader2, AlertCircle, Trash2, Check, ChevronsUpDown, Hash } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useProcessosProducao, type DependenciaEtapaInput } from '@/hooks/useProcessosProducao';
 import { useProjetosProducao } from '@/hooks/useProjetosProducao';
+import { cn } from '@/lib/utils';
 import type { ProducaoPrioridade } from '@/types/producao';
 
 interface FormProps { onSuccess: () => void; }
 interface FormData {
   projeto_local_id: string;
-  codigo: string;
   nome: string;
   descricao: string;
   prioridade: ProducaoPrioridade;
@@ -47,11 +49,12 @@ const numeroOpcional = (valor: string) => {
 
 export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
   const [aberto, setAberto] = useState(false);
-  const [buscaProjeto, setBuscaProjeto] = useState('');
+  const [seletorProjetoAberto, setSeletorProjetoAberto] = useState(false);
+  const [codigoPrevisto, setCodigoPrevisto] = useState('Carregando...');
   const [dependencias, setDependencias] = useState<DependenciaEtapaInput[]>([]);
   const [novaDependenciaId, setNovaDependenciaId] = useState('');
   const [novoTipoDependencia, setNovoTipoDependencia] = useState<'fim_inicio' | 'inicio_inicio'>('fim_inicio');
-  const { criarProcesso, processos, listarProcessos } = useProcessosProducao();
+  const { criarProcesso, processos, listarProcessos, obterProximoCodigo } = useProcessosProducao();
   const { projetos, listarProjetos, loading: carregandoProjetos, erro } = useProjetosProducao();
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     defaultValues: { prioridade: 'normal', sequencia: '0', aceita_producao_proporcional: false },
@@ -59,27 +62,19 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
 
   useEffect(() => {
     if (!aberto) return;
-    setBuscaProjeto('');
     setDependencias([]);
+    setCodigoPrevisto('Carregando...');
     void Promise.all([
       listarProjetos(true),
       listarProcessos(),
-    ]).catch(() => undefined);
-  }, [aberto, listarProcessos, listarProjetos]);
+      obterProximoCodigo().then(setCodigoPrevisto),
+    ]).catch(() => setCodigoPrevisto('Será definido ao salvar'));
+  }, [aberto, listarProcessos, listarProjetos, obterProximoCodigo]);
 
   const projetoLocalId = watch('projeto_local_id');
   const prioridade = watch('prioridade');
   const proporcional = watch('aceita_producao_proporcional');
-
-  const projetosFiltrados = useMemo(() => {
-    const termo = buscaProjeto.trim().toLocaleLowerCase('pt-BR');
-    if (!termo) return projetos;
-    return projetos.filter((projeto) =>
-      [projeto.nome, projeto.grupo_nome, projeto.cliente, projeto.cidade, projeto.uf]
-        .filter(Boolean)
-        .some((valor) => String(valor).toLocaleLowerCase('pt-BR').includes(termo)),
-    );
-  }, [buscaProjeto, projetos]);
+  const projetoSelecionado = projetos.find((projeto) => projeto.local_utilizacao_id === projetoLocalId) ?? null;
 
   const etapasMesmoProjeto = useMemo(() => processos.filter((processo) =>
     processo.projeto?.local_utilizacao_id === projetoLocalId &&
@@ -108,7 +103,7 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
 
       await criarProcesso({
         projeto_local_id: data.projeto_local_id,
-        codigo: data.codigo || null,
+        codigo: null,
         nome: data.nome,
         descricao: data.descricao || null,
         prioridade: data.prioridade,
@@ -125,7 +120,6 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
         dependencias,
       });
       reset({ prioridade: 'normal', sequencia: '0', aceita_producao_proporcional: false });
-      setBuscaProjeto('');
       setDependencias([]);
       setAberto(false);
       onSuccess();
@@ -133,6 +127,10 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
       alert(error instanceof Error ? error.message : 'Erro ao salvar etapa');
     }
   };
+
+  const rotuloProjeto = projetoSelecionado
+    ? `${projetoSelecionado.grupo_nome ? `${projetoSelecionado.grupo_nome} · ` : ''}${projetoSelecionado.nome}${projetoSelecionado.cidade ? ` · ${projetoSelecionado.cidade}/${projetoSelecionado.uf ?? ''}` : ''}`
+    : carregandoProjetos ? 'Carregando projetos...' : 'Selecione ou pesquise um projeto';
 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
@@ -145,35 +143,66 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
-          <div className="space-y-2">
-            <Label htmlFor="busca-projeto-processo">Buscar projeto/local existente</Label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input id="busca-projeto-processo" className="pl-9" value={buscaProjeto} onChange={(event) => setBuscaProjeto(event.target.value)} placeholder="Nome, local, grupo ou cidade" disabled={carregandoProjetos} />
-            </div>
-          </div>
-
           {erro && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>Não foi possível consultar os projetos: {erro}</AlertDescription></Alert>}
 
           <div className="space-y-2">
-            <Label>Projeto/local existente *</Label>
-            <Select
-              value={projetoLocalId}
-              onValueChange={(value) => {
-                setValue('projeto_local_id', value, { shouldValidate: true });
-                setDependencias([]);
-                setNovaDependenciaId('');
-              }}
-            >
-              <SelectTrigger><SelectValue placeholder={carregandoProjetos ? 'Carregando...' : 'Selecione um projeto/local'} /></SelectTrigger>
-              <SelectContent>{projetosFiltrados.map((projeto) => <SelectItem key={projeto.local_utilizacao_id} value={projeto.local_utilizacao_id}>{projeto.grupo_nome ? `${projeto.grupo_nome} · ` : ''}{projeto.nome}{projeto.cidade ? ` · ${projeto.cidade}/${projeto.uf ?? ''}` : ''}</SelectItem>)}</SelectContent>
-            </Select>
+            <Label>Projeto *</Label>
+            <Popover open={seletorProjetoAberto} onOpenChange={setSeletorProjetoAberto}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={seletorProjetoAberto}
+                  className="w-full justify-between font-normal"
+                  disabled={carregandoProjetos || projetos.length === 0}
+                >
+                  <span className="truncate">{rotuloProjeto}</span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar por nome, grupo, cliente ou cidade..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum projeto encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {projetos.map((projeto) => {
+                        const rotulo = `${projeto.grupo_nome ? `${projeto.grupo_nome} · ` : ''}${projeto.nome}${projeto.cidade ? ` · ${projeto.cidade}/${projeto.uf ?? ''}` : ''}`;
+                        return (
+                          <CommandItem
+                            key={projeto.local_utilizacao_id}
+                            value={`${rotulo} ${projeto.cliente ?? ''}`}
+                            onSelect={() => {
+                              setValue('projeto_local_id', projeto.local_utilizacao_id, { shouldValidate: true });
+                              setDependencias([]);
+                              setNovaDependenciaId('');
+                              setSeletorProjetoAberto(false);
+                            }}
+                          >
+                            <Check className={cn('mr-2 h-4 w-4', projetoLocalId === projeto.local_utilizacao_id ? 'opacity-100' : 'opacity-0')} />
+                            {rotulo}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <input type="hidden" {...register('projeto_local_id', { required: true })} />
-            {errors.projeto_local_id && <span className="text-sm text-destructive">Projeto/local obrigatório</span>}
+            {errors.projeto_local_id && <span className="text-sm text-destructive">Projeto obrigatório</span>}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2"><Label>Código opcional</Label><Input placeholder="Gerado automaticamente" {...register('codigo')} /></div>
+            <div className="space-y-2">
+              <Label>Código automático</Label>
+              <div className="relative">
+                <Hash className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input value={codigoPrevisto} readOnly className="pl-9 font-mono" aria-label="Próximo código automático da etapa" />
+              </div>
+              <p className="text-xs text-muted-foreground">O banco confirma o código sequencial definitivo ao salvar.</p>
+            </div>
             <div className="space-y-2"><Label>Prioridade</Label><Select value={prioridade} onValueChange={(value) => setValue('prioridade', value as ProducaoPrioridade)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="baixa">Baixa</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="alta">Alta</SelectItem><SelectItem value="urgente">Urgente</SelectItem></SelectContent></Select></div>
           </div>
 
@@ -182,7 +211,7 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2"><Label>Grupo do cronograma</Label><Input placeholder="Ex.: Painéis, Alumínio, Campo" {...register('grupo_cronograma')} /></div>
-            <div className="space-y-2"><Label>Sequência</Label><Input type="number" min="0" {...register('sequencia')} /></div>
+            <div className="space-y-2"><Label>Ordem no cronograma</Label><Input type="number" min="0" {...register('sequencia')} /><p className="text-xs text-muted-foreground">Define a posição relativa da etapa no planejamento.</p></div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -231,7 +260,7 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
                 </div>
               );
             })}
-            {projetoLocalId && etapasMesmoProjeto.length === 0 && <p className="text-xs text-muted-foreground">Este será o primeiro processo produtivo do projeto; não há etapa predecessora disponível.</p>}
+            {projetoLocalId && etapasMesmoProjeto.length === 0 && <p className="text-xs text-muted-foreground">Esta será a primeira etapa do projeto; não há predecessora disponível.</p>}
           </div>
 
           <div className="flex justify-end pt-4"><Button type="submit" disabled={isSubmitting || carregandoProjetos || projetos.length === 0}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar Etapa e Recalcular</Button></div>
