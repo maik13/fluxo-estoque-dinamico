@@ -37,6 +37,7 @@ export interface ProducaoApontamento {
   id: string; data: string; projeto_local_id: string | null; processo_id: string | null; tarefa_id: string; local_tipo: ProducaoLocalTipo;
   quantidade_produzida: number | null; inicio: string; termino: string; duracao_minutos: number; minutos_produtivos: number;
   minutos_improdutivos: number; motivo_improdutivo: string | null; observacoes: string | null; status: ProducaoStatus;
+  jornada_total_equipe_minutos_snapshot: number | null;
   criado_por_id: string | null; criado_por_nome_snapshot: string | null; ultima_edicao_por_id: string | null;
   ultima_edicao_por_nome_snapshot: string | null; ultima_edicao_em: string | null; conferido_por_id: string | null;
   conferido_por_nome_snapshot: string | null; conferido_em: string | null; cancelado_por_id: string | null;
@@ -44,9 +45,20 @@ export interface ProducaoApontamento {
   created_at: string; updated_at: string;
   processo?: (Pick<ProducaoProcesso, 'id' | 'codigo' | 'nome'> & { projeto?: ProducaoProcessoProjetoResumo | null }) | null;
 }
-export interface ProducaoApontamentoMembro { id: string; apontamento_id: string; membro_id: string; nome_snapshot: string; valor_hora_snapshot: number | null; created_at: string; }
-export interface ProducaoMembro { id: string; nome: string; nome_snapshot: string; solicitante_id: string | null; origem: ProducaoMembroOrigem; apelido: string | null; funcao: string | null; valor_hora: number | null; ativo: boolean; created_at: string; updated_at: string; }
-export interface NovoMembroProducao { nome: string; apelido?: string | null; funcao?: string | null; valor_hora?: number | null; ativo?: boolean; }
+export interface ProducaoApontamentoMembro {
+  id: string; apontamento_id: string; membro_id: string; nome_snapshot: string; valor_hora_snapshot: number | null;
+  jornada_diaria_minutos_snapshot: number | null; minutos_produtivos_snapshot: number | null; minutos_improdutivos_snapshot: number | null;
+  created_at: string;
+}
+export interface ProducaoMembro {
+  id: string; nome: string; nome_snapshot: string; solicitante_id: string | null; origem: ProducaoMembroOrigem;
+  apelido: string | null; funcao: string | null; valor_hora: number | null; jornada_diaria_minutos: number | null;
+  ativo: boolean; created_at: string; updated_at: string;
+}
+export interface NovoMembroProducao {
+  nome: string; apelido?: string | null; funcao?: string | null; valor_hora?: number | null;
+  jornada_diaria_minutos?: number | null; ativo?: boolean;
+}
 export interface ProducaoApontamentoAnexo { id: string; apontamento_id: string; file_path: string; file_name: string; mime_type: 'image/jpeg' | 'image/png' | 'image/webp'; size_bytes: number | null; uploaded_by: string | null; created_at: string; }
 export interface NovoAnexoProducao { apontamento_id: string; file_path: string; file_name: string; mime_type: ProducaoApontamentoAnexo['mime_type']; size_bytes?: number | null; uploaded_by?: string | null; }
 export interface ProducaoMaterialProjeto { id: string; movement_id: string | null; projeto_local_id: string | null; apontamento_id: string | null; tipo: string; item_id: string | null; quantidade: number; item_snapshot: Json; observacoes_producao: string | null; created_at: string; }
@@ -82,3 +94,9 @@ export interface IndicadorProducaoPorMembro {
   projetos_distintos: number; tarefas_distintas: number;
 }
 export interface IndicadorProducaoPorLocalTipo { local_tipo: ProducaoLocalTipo; total_apontamentos: number; total_minutos: number; total_horas: number; }
+
+export interface JornadaProducaoGerencialLinha {
+  membro_id: string; membro_nome: string; data: string; jornada_prevista_minutos: number | null; minutos_apontados: number;
+  minutos_produtivos: number; minutos_improdutivos: number; minutos_sem_apontamento: number | null; minutos_extras: number | null;
+  eficiencia_percentual: number; ocupacao_percentual: number | null; aproveitamento_percentual: number | null;
+}
