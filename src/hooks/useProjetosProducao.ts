@@ -108,9 +108,6 @@ export const useProjetosProducao = () => {
         ((gruposResult.data ?? []) as GrupoRow[]).map((grupo) => [grupo.id, grupo.nome]),
       );
 
-      // A aba Produção exibe somente os projetos efetivamente adicionados em
-      // producao_projetos. Os demais locais do aplicativo ficam disponíveis
-      // apenas no formulário "Adicionar Projeto".
       const resultado = configs
         .filter((config) => Boolean(config.local_utilizacao_id))
         .map((config) => {
@@ -196,54 +193,26 @@ export const useProjetosProducao = () => {
   }, []);
 
   const salvarConfiguracao = useCallback(async (dados: ProjetoProducaoInput) => {
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData?.user;
+    const { data, error } = await (supabase.rpc as any)('configurar_projeto_producao', {
+      p_local_utilizacao_id: dados.local_utilizacao_id,
+      p_descricao: dados.descricao ?? null,
+      p_cliente: dados.cliente ?? null,
+      p_cidade: dados.cidade ?? null,
+      p_uf: dados.uf ?? null,
+      p_local_execucao: dados.local_execucao ?? null,
+      p_endereco_execucao: dados.endereco_execucao ?? null,
+      p_responsavel_id: dados.responsavel_id ?? null,
+      p_responsavel_nome: dados.responsavel_nome ?? null,
+      p_ativo: dados.ativo ?? true,
+    });
 
-    let nomeSnapshot = 'Projeto';
-    if (dados.local_utilizacao_id) {
-      const { data: localData } = await supabase
-        .from('locais_utilizacao')
-        .select('nome')
-        .eq('id', dados.local_utilizacao_id)
-        .maybeSingle();
-      if (localData?.nome) nomeSnapshot = localData.nome;
+    if (error) {
+      const detalhe = error.message || error.details || 'Não foi possível adicionar o projeto à Produção.';
+      throw new Error(detalhe);
     }
 
-    let criadoPorNome: string | null = null;
-    if (user?.id) {
-      const { data: perfil } = await supabase
-        .from('profiles')
-        .select('nome')
-        .eq('id', user.id)
-        .maybeSingle();
-      criadoPorNome = perfil?.nome ?? user.email ?? null;
-    }
-
-    const { data, error } = await supabase
-      .from('producao_projetos')
-      .insert({
-        local_utilizacao_id: dados.local_utilizacao_id,
-        nome: nomeSnapshot,
-        descricao: dados.descricao ?? null,
-        cliente: dados.cliente ?? null,
-        cidade: dados.cidade ?? null,
-        uf: dados.uf ?? null,
-        local_execucao: dados.local_execucao ?? null,
-        endereco_execucao: dados.endereco_execucao ?? null,
-        responsavel_id: dados.responsavel_id ?? null,
-        responsavel_nome_snapshot: dados.responsavel_nome ?? null,
-        ativo: dados.ativo ?? true,
-        criado_por_id: user?.id ?? null,
-        criado_por_nome_snapshot: criadoPorNome,
-        atualizado_por_id: user?.id ?? null,
-        atualizado_por_nome_snapshot: criadoPorNome,
-      })
-      .select('id')
-      .single();
-
-    if (error) throw error;
     await listarProjetos();
-    return data.id as string;
+    return data as string;
   }, [listarProjetos]);
 
   return {
