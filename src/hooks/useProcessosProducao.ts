@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { ProducaoProcesso, ProducaoProcessoStatus, ProducaoPrioridade } from '@/types/producao';
+import { formatarErroSupabase } from '@/utils/supabaseError';
 
 export interface DependenciaEtapaInput {
   etapa_id: string;
@@ -42,7 +43,7 @@ export const useProcessosProducao = () => {
         .order('created_at', { ascending: true });
       if (status) consulta = consulta.eq('status', status);
       const { data, error } = await consulta;
-      if (error) throw error;
+      if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível carregar as etapas.'));
       const resultado = (data ?? []) as ProducaoProcesso[];
       setProcessos(resultado);
       return resultado;
@@ -53,7 +54,7 @@ export const useProcessosProducao = () => {
 
   const obterProximoCodigo = useCallback(async () => {
     const { data, error } = await supabase.rpc('obter_proximo_codigo_etapa_producao');
-    if (error) throw error;
+    if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível obter o próximo código da etapa.'));
     return String(data ?? '');
   }, []);
 
@@ -76,14 +77,14 @@ export const useProcessosProducao = () => {
       p_aceita_producao_proporcional: dados.aceita_producao_proporcional ?? false,
       p_dependencias: dados.dependencias ?? [],
     });
-    if (error) throw error;
+    if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível salvar a etapa.'));
 
     const { data, error: readError } = await supabase
       .from('producao_processos')
       .select(PROCESSO_SELECT)
       .eq('id', id)
       .single();
-    if (readError) throw readError;
+    if (readError) throw new Error(formatarErroSupabase(readError, 'A etapa foi criada, mas não pôde ser recarregada.'));
     const processo = data as ProducaoProcesso;
     setProcessos((atuais) => [...atuais, processo]);
     return processo;
@@ -101,7 +102,7 @@ export const useProcessosProducao = () => {
       p_aceita_producao_proporcional: dados.aceita_producao_proporcional ?? false,
       p_dependencias: dados.dependencias ?? [],
     });
-    if (error) throw error;
+    if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível atualizar o planejamento da etapa.'));
     await listarProcessos();
   }, [listarProcessos]);
 
@@ -115,7 +116,7 @@ export const useProcessosProducao = () => {
       p_acao: acao,
       p_justificativa: justificativa ?? null,
     });
-    if (error) throw error;
+    if (error) throw new Error(formatarErroSupabase(error, `Não foi possível ${acao} a etapa.`));
     await listarProcessos();
   }, [listarProcessos]);
 
@@ -123,7 +124,7 @@ export const useProcessosProducao = () => {
     const { data, error } = await supabase.rpc('obter_resumo_finalizacao_processo', {
       p_processo_id: id,
     });
-    if (error) throw error;
+    if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível preparar a finalização da etapa.'));
     return data?.[0] ?? null;
   }, []);
 
