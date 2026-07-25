@@ -165,7 +165,6 @@ export const useProjetosProducao = () => {
       supabase
         .from('locais_utilizacao')
         .select('id,nome,ativo,group_id,created_at')
-        .eq('ativo', true)
         .order('nome', { ascending: true }),
       supabase.from('project_groups').select('id,nome').eq('ativo', true),
       supabase.from('producao_projetos').select('local_utilizacao_id'),
