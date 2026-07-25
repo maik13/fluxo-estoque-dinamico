@@ -12,6 +12,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useDiagnosticoProducao } from '@/hooks/useDiagnosticoProducao';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useProducao } from '@/hooks/useProducao';
 import { ConfiguracoesProducao } from './ConfiguracoesProducao';
@@ -40,6 +41,7 @@ export const Producao = () => {
     listarMembros,
   } = useProducao();
   const { locaisUtilizacao } = useConfiguracoes();
+  const { diagnostico, verificar } = useDiagnosticoProducao();
   const {
     canApontarProducao,
     canConferirProducao,
@@ -60,8 +62,9 @@ export const Producao = () => {
   }, [listarApontamentos, listarMembrosProducao, listarTarefas]);
 
   useEffect(() => {
-    void carregarDados();
-  }, [carregarDados]);
+    void verificar();
+    void carregarDados().catch(() => undefined);
+  }, [carregarDados, verificar]);
 
   if (!podeAcessar) {
     return (
@@ -82,6 +85,20 @@ export const Producao = () => {
           <p className="text-sm text-muted-foreground">Projetos, etapas, cronograma e execução em uma única fonte de dados.</p>
         </div>
       </div>
+
+      {diagnostico && !diagnostico.ok && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Banco da Produção incompleto</AlertTitle>
+          <AlertDescription>
+            {diagnostico.erro ?? (
+              diagnostico.funcoes_ausentes.length > 0
+                ? `Funções ausentes no Supabase: ${diagnostico.funcoes_ausentes.join(', ')}.`
+                : 'Existem dependências ausentes no Supabase.'
+            )} As gravações podem falhar até a migration consolidada ser aplicada.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Tabs defaultValue="etapas" className="w-full">
         <TabsList className={`flex h-auto w-full flex-wrap gap-1 sm:grid ${podeConfigurar ? 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-6' : 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-5'}`}>
