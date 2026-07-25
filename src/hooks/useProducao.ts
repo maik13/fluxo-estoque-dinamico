@@ -91,24 +91,25 @@ export const useProducao = () => {
     if (somenteAtivos) consulta = consulta.eq('ativo', true);
     const { data, error } = await consulta;
     if (error) throw erro(error, 'Não foi possível carregar a equipe da Produção.');
-    const resultado = (data ?? []) as ProducaoMembro[];
+    const resultado = (data ?? []) as unknown as ProducaoMembro[];
     setMembrosProducao(resultado);
     return resultado;
   }, []);
 
   const salvarMembro = useCallback(async (id: string | null, dados: NovoMembroProducao) => {
-    const { data: membroId, error } = await supabase.rpc('salvar_membro_producao', {
+    const { data: membroId, error } = await (supabase.rpc as any)('salvar_membro_producao', {
       p_id: id,
       p_nome: dados.nome,
       p_apelido: dados.apelido ?? null,
       p_funcao: dados.funcao ?? null,
       p_valor_hora: dados.valor_hora ?? null,
+      p_jornada_diaria_minutos: dados.jornada_diaria_minutos ?? null,
       p_ativo: dados.ativo ?? true,
     });
     if (error) throw erro(error, 'Não foi possível salvar o membro da equipe.');
     const { data, error: readError } = await supabase.from('producao_membros').select('*').eq('id', membroId).single();
     if (readError) throw erro(readError, 'O membro foi salvo, mas não pôde ser recarregado.');
-    return data as ProducaoMembro;
+    return data as unknown as ProducaoMembro;
   }, []);
 
   const criarMembroProducao = useCallback(async (
@@ -116,8 +117,15 @@ export const useProducao = () => {
     apelido?: string | null,
     funcao?: string | null,
     valorHora?: number | null,
+    jornadaDiariaMinutos?: number | null,
   ) => {
-    const membro = await salvarMembro(null, { nome, apelido, funcao, valor_hora: valorHora });
+    const membro = await salvarMembro(null, {
+      nome,
+      apelido,
+      funcao,
+      valor_hora: valorHora,
+      jornada_diaria_minutos: jornadaDiariaMinutos,
+    });
     setMembrosProducao((atuais) => [...atuais, membro].sort((a, b) => a.nome.localeCompare(b.nome)));
     return membro;
   }, [salvarMembro]);
@@ -130,6 +138,9 @@ export const useProducao = () => {
       apelido: dados.apelido === undefined ? atual.apelido : dados.apelido,
       funcao: dados.funcao === undefined ? atual.funcao : dados.funcao,
       valor_hora: dados.valor_hora === undefined ? atual.valor_hora : dados.valor_hora,
+      jornada_diaria_minutos: dados.jornada_diaria_minutos === undefined
+        ? atual.jornada_diaria_minutos
+        : dados.jornada_diaria_minutos,
       ativo: dados.ativo ?? atual.ativo,
     });
     setMembrosProducao((atuais) => atuais.map((item) => item.id === id ? membro : item));
@@ -156,7 +167,7 @@ export const useProducao = () => {
       if (filtros.local_tipo) consulta = consulta.eq('local_tipo', filtros.local_tipo);
       const { data, error } = await consulta;
       if (error) throw erro(error, 'Não foi possível carregar os apontamentos.');
-      const resultado = (data ?? []) as ProducaoApontamento[];
+      const resultado = (data ?? []) as unknown as ProducaoApontamento[];
       setApontamentos(resultado);
       return resultado;
     } finally {
@@ -200,7 +211,7 @@ export const useProducao = () => {
   const recarregarApontamento = useCallback(async (id: string, fallback: string) => {
     const { data, error } = await supabase.from('producao_apontamentos').select('*').eq('id', id).single();
     if (error) throw erro(error, fallback);
-    return data as ProducaoApontamento;
+    return data as unknown as ProducaoApontamento;
   }, []);
 
   const criarApontamento = useCallback(async (novo: NovoApontamentoProducao) => {
@@ -214,7 +225,7 @@ export const useProducao = () => {
     const { data, error } = await supabase.from('producao_apontamento_membros')
       .select('*').eq('apontamento_id', apontamentoId).order('nome_snapshot');
     if (error) throw erro(error, 'Não foi possível carregar a equipe do apontamento.');
-    return (data ?? []) as ProducaoApontamentoMembro[];
+    return (data ?? []) as unknown as ProducaoApontamentoMembro[];
   }, []);
 
   const editarApontamento = useCallback(async (
