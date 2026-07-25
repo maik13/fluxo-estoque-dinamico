@@ -36,6 +36,7 @@ export const FormProjetoProducao = ({ onSuccess }: FormProps) => {
   const [aberto, setAberto] = useState(false);
   const [locaisDisponiveis, setLocaisDisponiveis] = useState<LocalDisponivelProducao[]>([]);
   const [carregandoLocais, setCarregandoLocais] = useState(false);
+  const [popoverAberto, setPopoverAberto] = useState(false);
   const { listarLocaisDisponiveis, criarProjeto } = useProjetosProducao();
   const {
     register,
