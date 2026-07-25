@@ -9,6 +9,7 @@ import type {
   ProducaoMembro,
   ProducaoTarefa,
 } from '@/types/producao';
+import { formatarErroSupabase } from '@/utils/supabaseError';
 
 type AtualizacaoApontamento = Partial<Omit<NovoApontamentoProducao, 'membros_ids'>>;
 
@@ -53,6 +54,9 @@ const normalizarTempos = (
   };
 };
 
+const erro = (value: unknown, fallback: string) =>
+  new Error(formatarErroSupabase(value, fallback));
+
 export const useProducao = () => {
   const [tarefas, setTarefas] = useState<ProducaoTarefa[]>([]);
   const [membrosProducao, setMembrosProducao] = useState<ProducaoMembro[]>([]);
@@ -63,7 +67,7 @@ export const useProducao = () => {
     let consulta = supabase.from('producao_tarefas').select('*').order('nome');
     if (somenteAtivas) consulta = consulta.eq('ativo', true);
     const { data, error } = await consulta;
-    if (error) throw error;
+    if (error) throw erro(error, 'Não foi possível carregar as tarefas da Produção.');
     const resultado = (data ?? []) as ProducaoTarefa[];
     setTarefas(resultado);
     return resultado;
@@ -74,10 +78,9 @@ export const useProducao = () => {
       p_nome: nome,
       p_categoria: categoria ?? null,
     });
-    if (error) throw error;
-    const { data, error: readError } = await supabase
-      .from('producao_tarefas').select('*').eq('id', id).single();
-    if (readError) throw readError;
+    if (error) throw erro(error, 'Não foi possível cadastrar a tarefa.');
+    const { data, error: readError } = await supabase.from('producao_tarefas').select('*').eq('id', id).single();
+    if (readError) throw erro(readError, 'A tarefa foi cadastrada, mas não pôde ser recarregada.');
     const tarefa = data as ProducaoTarefa;
     setTarefas((atuais) => [...atuais, tarefa].sort((a, b) => a.nome.localeCompare(b.nome)));
     return tarefa;
@@ -87,7 +90,7 @@ export const useProducao = () => {
     let consulta = supabase.from('producao_membros').select('*').order('nome');
     if (somenteAtivos) consulta = consulta.eq('ativo', true);
     const { data, error } = await consulta;
-    if (error) throw error;
+    if (error) throw erro(error, 'Não foi possível carregar a equipe da Produção.');
     const resultado = (data ?? []) as ProducaoMembro[];
     setMembrosProducao(resultado);
     return resultado;
@@ -102,10 +105,9 @@ export const useProducao = () => {
       p_valor_hora: dados.valor_hora ?? null,
       p_ativo: dados.ativo ?? true,
     });
-    if (error) throw error;
-    const { data, error: readError } = await supabase
-      .from('producao_membros').select('*').eq('id', membroId).single();
-    if (readError) throw readError;
+    if (error) throw erro(error, 'Não foi possível salvar o membro da equipe.');
+    const { data, error: readError } = await supabase.from('producao_membros').select('*').eq('id', membroId).single();
+    if (readError) throw erro(readError, 'O membro foi salvo, mas não pôde ser recarregado.');
     return data as ProducaoMembro;
   }, []);
 
@@ -153,7 +155,7 @@ export const useProducao = () => {
       if (filtros.status) consulta = consulta.eq('status', filtros.status);
       if (filtros.local_tipo) consulta = consulta.eq('local_tipo', filtros.local_tipo);
       const { data, error } = await consulta;
-      if (error) throw error;
+      if (error) throw erro(error, 'Não foi possível carregar os apontamentos.');
       const resultado = (data ?? []) as ProducaoApontamento[];
       setApontamentos(resultado);
       return resultado;
@@ -172,12 +174,7 @@ export const useProducao = () => {
     }
     if (!novo.membros_ids.length) throw new Error('Informe pelo menos um membro.');
     const duracao = calcularDuracaoProducao(novo.inicio, novo.termino);
-    const tempos = normalizarTempos(
-      duracao,
-      novo.minutos_produtivos,
-      novo.minutos_improdutivos,
-      novo.motivo_improdutivo,
-    );
+    const tempos = normalizarTempos(duracao, novo.minutos_produtivos, novo.minutos_improdutivos, novo.motivo_improdutivo);
     const parametros = {
       ...(apontamentoId ? { p_apontamento_id: apontamentoId } : {}),
       p_data: novo.data,
@@ -196,18 +193,29 @@ export const useProducao = () => {
       p_membros: [...new Set(novo.membros_ids)],
     };
     const { data, error } = await supabase.rpc(rpc, parametros);
-    if (error) throw error;
+    if (error) throw erro(error, rpc === 'criar_apontamento_producao' ? 'Não foi possível salvar o apontamento.' : 'Não foi possível editar o apontamento.');
     return (data as string | null) ?? apontamentoId!;
+  }, []);
+
+  const recarregarApontamento = useCallback(async (id: string, fallback: string) => {
+    const { data, error } = await supabase.from('producao_apontamentos').select('*').eq('id', id).single();
+    if (error) throw erro(error, fallback);
+    return data as ProducaoApontamento;
   }, []);
 
   const criarApontamento = useCallback(async (novo: NovoApontamentoProducao) => {
     const id = await executarApontamentoRpc('criar_apontamento_producao', novo);
-    const { data, error } = await supabase.from('producao_apontamentos').select('*').eq('id', id).single();
-    if (error) throw error;
-    const apontamento = data as ProducaoApontamento;
+    const apontamento = await recarregarApontamento(id, 'O apontamento foi salvo, mas não pôde ser recarregado.');
     setApontamentos((atuais) => [apontamento, ...atuais]);
     return apontamento;
-  }, [executarApontamentoRpc]);
+  }, [executarApontamentoRpc, recarregarApontamento]);
+
+  const listarMembros = useCallback(async (apontamentoId: string) => {
+    const { data, error } = await supabase.from('producao_apontamento_membros')
+      .select('*').eq('apontamento_id', apontamentoId).order('nome_snapshot');
+    if (error) throw erro(error, 'Não foi possível carregar a equipe do apontamento.');
+    return (data ?? []) as ProducaoApontamentoMembro[];
+  }, []);
 
   const editarApontamento = useCallback(async (
     id: string,
@@ -233,42 +241,26 @@ export const useProducao = () => {
       membros_ids: membrosAtuais,
     };
     await executarApontamentoRpc('editar_apontamento_producao', novo, id);
-    const { data, error } = await supabase.from('producao_apontamentos').select('*').eq('id', id).single();
-    if (error) throw error;
-    const apontamento = data as ProducaoApontamento;
+    const apontamento = await recarregarApontamento(id, 'O apontamento foi editado, mas não pôde ser recarregado.');
     setApontamentos((atuais) => atuais.map((item) => item.id === id ? apontamento : item));
     return apontamento;
-  }, [apontamentos, executarApontamentoRpc]);
+  }, [apontamentos, executarApontamentoRpc, listarMembros, recarregarApontamento]);
 
   const cancelarApontamento = useCallback(async (id: string, justificativa = 'Cancelado pelo usuário') => {
-    const { error } = await supabase.rpc('cancelar_apontamento_producao', {
-      p_apontamento_id: id,
-      p_justificativa: justificativa,
-    });
-    if (error) throw error;
-    const { data, error: readError } = await supabase.from('producao_apontamentos').select('*').eq('id', id).single();
-    if (readError) throw readError;
-    const apontamento = data as ProducaoApontamento;
+    const { error } = await supabase.rpc('cancelar_apontamento_producao', { p_apontamento_id: id, p_justificativa: justificativa });
+    if (error) throw erro(error, 'Não foi possível cancelar o apontamento.');
+    const apontamento = await recarregarApontamento(id, 'O apontamento foi cancelado, mas não pôde ser recarregado.');
     setApontamentos((atuais) => atuais.map((item) => item.id === id ? apontamento : item));
     return apontamento;
-  }, []);
+  }, [recarregarApontamento]);
 
   const conferirApontamento = useCallback(async (id: string) => {
     const { error } = await supabase.rpc('conferir_apontamento_producao', { p_apontamento_id: id });
-    if (error) throw error;
-    const { data, error: readError } = await supabase.from('producao_apontamentos').select('*').eq('id', id).single();
-    if (readError) throw readError;
-    const apontamento = data as ProducaoApontamento;
+    if (error) throw erro(error, 'Não foi possível conferir o apontamento.');
+    const apontamento = await recarregarApontamento(id, 'O apontamento foi conferido, mas não pôde ser recarregado.');
     setApontamentos((atuais) => atuais.map((item) => item.id === id ? apontamento : item));
     return apontamento;
-  }, []);
-
-  const listarMembros = useCallback(async (apontamentoId: string) => {
-    const { data, error } = await supabase.from('producao_apontamento_membros')
-      .select('*').eq('apontamento_id', apontamentoId).order('nome_snapshot');
-    if (error) throw error;
-    return (data ?? []) as ProducaoApontamentoMembro[];
-  }, []);
+  }, [recarregarApontamento]);
 
   const salvarMembros = useCallback(async (apontamentoId: string, membrosIds: string[]) => {
     const atual = apontamentos.find((item) => item.id === apontamentoId);

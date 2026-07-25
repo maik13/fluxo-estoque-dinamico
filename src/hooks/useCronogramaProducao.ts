@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { formatarErroSupabase } from '@/utils/supabaseError';
 
 export interface AlocacaoGanttProducao {
   data: string;
@@ -83,20 +84,23 @@ export const useCronogramaProducao = () => {
         supabase.from('producao_cronograma_configuracoes').select('equipe_disponivel_por_dia,trabalha_sabado,trabalha_domingo,horizonte_dias').eq('id', 1).maybeSingle(),
         supabase.from('producao_cronograma_alertas').select('id,processo_id,data,severidade,codigo,mensagem').order('created_at', { ascending: false }).limit(100),
       ]);
-      if (error) throw error;
+      if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível carregar o Gantt.'));
+      if (configResult.error) throw new Error(formatarErroSupabase(configResult.error, 'Não foi possível carregar a configuração do cronograma.'));
+      if (alertasResult.error) throw new Error(formatarErroSupabase(alertasResult.error, 'Não foi possível carregar os alertas do cronograma.'));
+
       const resultado = ((data ?? []) as GanttEtapaProducao[]).map((item) => ({
         ...item,
         alocacoes: Array.isArray(item.alocacoes) ? item.alocacoes : [],
       }));
       setEtapas(resultado);
-      if (!configResult.error && configResult.data) setConfiguracao(configResult.data as ConfiguracaoCronogramaProducao);
-      if (!alertasResult.error) setAlertas((alertasResult.data ?? []) as AlertaCronogramaProducao[]);
+      if (configResult.data) setConfiguracao(configResult.data as ConfiguracaoCronogramaProducao);
+      setAlertas((alertasResult.data ?? []) as AlertaCronogramaProducao[]);
       return resultado;
     } catch (error) {
-      const mensagem = error instanceof Error ? error.message : 'Não foi possível carregar o cronograma.';
+      const mensagem = formatarErroSupabase(error, 'Não foi possível carregar o cronograma.');
       setErro(mensagem);
       setEtapas([]);
-      throw error;
+      throw new Error(mensagem);
     } finally {
       setLoading(false);
     }
@@ -107,7 +111,7 @@ export const useCronogramaProducao = () => {
       p_data_inicio: dataInicio,
       p_dias: dias,
     });
-    if (error) throw error;
+    if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível carregar o Plano Diário.'));
     const resultado = (data ?? []) as PlanoDiarioProducaoItem[];
     setPlanoDiario(resultado);
     return resultado;
@@ -117,7 +121,7 @@ export const useCronogramaProducao = () => {
     setRecalculando(true);
     try {
       const { error } = await supabase.rpc('recalcular_cronograma_producao');
-      if (error) throw error;
+      if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível recalcular o cronograma.'));
       await listarCronograma();
     } finally {
       setRecalculando(false);
@@ -133,7 +137,7 @@ export const useCronogramaProducao = () => {
         p_trabalha_domingo: dados.trabalha_domingo,
         p_horizonte_dias: dados.horizonte_dias,
       });
-      if (error) throw error;
+      if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível salvar a configuração do cronograma.'));
       setConfiguracao(dados);
       await listarCronograma();
     } finally {
