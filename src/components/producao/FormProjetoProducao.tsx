@@ -101,30 +101,62 @@ export const FormProjetoProducao = ({ onSuccess }: FormProps) => {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
           <div className="space-y-2">
             <Label>Projeto/local disponível *</Label>
-            <Select
-              value={localId}
-              onValueChange={(value) => setValue('local_utilizacao_id', value, { shouldValidate: true })}
-              disabled={carregandoLocais || locaisDisponiveis.length === 0}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={
-                    carregandoLocais
-                      ? 'Carregando projetos disponíveis...'
-                      : locaisDisponiveis.length === 0
-                        ? 'Nenhum projeto disponível para adicionar'
-                        : 'Selecione o projeto que deseja adicionar'
+            <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={popoverAberto}
+                  className="w-full justify-between font-normal"
+                  disabled={carregandoLocais || locaisDisponiveis.length === 0}
+                >
+                  {(() => {
+                    const sel = locaisDisponiveis.find((l) => l.id === localId);
+                    if (sel) return `${sel.grupo_nome ? `${sel.grupo_nome} · ` : ''}${sel.nome}`;
+                    if (carregandoLocais) return 'Carregando projetos disponíveis...';
+                    if (locaisDisponiveis.length === 0) return 'Nenhum projeto disponível para adicionar';
+                    return 'Selecione ou digite o nome do projeto';
+                  })()}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command
+                  filter={(value, search) =>
+                    value.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')) ? 1 : 0
                   }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {locaisDisponiveis.map((local) => (
-                  <SelectItem key={local.id} value={local.id}>
-                    {local.grupo_nome ? `${local.grupo_nome} · ` : ''}{local.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                >
+                  <CommandInput placeholder="Digite para buscar..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum projeto encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {locaisDisponiveis.map((local) => {
+                        const label = `${local.grupo_nome ? `${local.grupo_nome} · ` : ''}${local.nome}`;
+                        return (
+                          <CommandItem
+                            key={local.id}
+                            value={label}
+                            onSelect={() => {
+                              setValue('local_utilizacao_id', local.id, { shouldValidate: true });
+                              setPopoverAberto(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                localId === local.id ? 'opacity-100' : 'opacity-0',
+                              )}
+                            />
+                            {label}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <input type="hidden" {...register('local_utilizacao_id', { required: true })} />
             {errors.local_utilizacao_id && (
               <span className="text-sm text-destructive">Selecione um projeto/local</span>
@@ -133,6 +165,7 @@ export const FormProjetoProducao = ({ onSuccess }: FormProps) => {
               Projetos já adicionados à Produção não aparecem novamente nesta lista.
             </p>
           </div>
+
 
           <div className="space-y-2">
             <Label htmlFor="descricao">Descrição operacional</Label>
