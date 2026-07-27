@@ -16,7 +16,7 @@ import { useDiagnosticoProducao } from '@/hooks/useDiagnosticoProducao';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useProducao } from '@/hooks/useProducao';
 import { ConfiguracoesProducao } from './ConfiguracoesProducao';
-import { CronogramaProducao } from './CronogramaProducao';
+import { CronogramaProducaoDiario } from './CronogramaProducaoDiario';
 import { FormApontamentoProducaoV2 } from './FormApontamentoProducaoV2';
 import { HistoricoApontamentosProducaoV2 } from './HistoricoApontamentosProducaoV2';
 import { ProjetosProducao } from './ProjetosProducao';
@@ -112,7 +112,7 @@ export const Producao = () => {
 
         <TabsContent value="projetos" className="mt-5"><ProjetosProducao /></TabsContent>
         <TabsContent value="etapas" className="mt-5"><ProcessosProducao /></TabsContent>
-        <TabsContent value="cronograma" className="mt-5"><CronogramaProducao /></TabsContent>
+        <TabsContent value="cronograma" className="mt-5"><CronogramaProducaoDiario /></TabsContent>
 
         <TabsContent value="apontamento" className="mt-5">
           <FormApontamentoProducaoV2
