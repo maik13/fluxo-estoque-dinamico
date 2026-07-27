@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Activity, Play, CheckCircle, Clock, Ban, RotateCcw, Unlock, Pause } from 'lucide-react';
+import { Search, Activity, Play, CheckCircle, Clock, Ban, RotateCcw, Unlock, Pause, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useProcessosProducao } from '@/hooks/useProcessosProducao';
+import { usePermissions } from '@/hooks/usePermissions';
+import { useProcessosProducao, type ResumoExclusaoProcessoProducao } from '@/hooks/useProcessosProducao';
 import { FormProcessoProducao } from './FormProcessoProducao';
 import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
+import { ModalExcluirProcesso } from './ModalExcluirProcesso';
 import type { ProducaoProcesso } from '@/types/producao';
 
 const pedirJustificativa = (texto: string) => {
@@ -12,11 +15,27 @@ const pedirJustificativa = (texto: string) => {
   return valor?.trim() || null;
 };
 
+const mensagemErro = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
 export const ProcessosProducao = () => {
   const [busca, setBusca] = useState('');
   const [mostrarEncerrados, setMostrarEncerrados] = useState(false);
   const [processoParaFinalizar, setProcessoParaFinalizar] = useState<ProducaoProcesso | null>(null);
-  const { processos, loading, listarProcessos, transicaoProcesso, obterResumoFinalizacao } = useProcessosProducao();
+  const [processoParaExcluir, setProcessoParaExcluir] = useState<ProducaoProcesso | null>(null);
+  const [resumoExclusao, setResumoExclusao] = useState<ResumoExclusaoProcessoProducao | null>(null);
+  const [carregandoResumoExclusao, setCarregandoResumoExclusao] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const { isAdmin } = usePermissions();
+  const {
+    processos,
+    loading,
+    listarProcessos,
+    transicaoProcesso,
+    obterResumoFinalizacao,
+    obterResumoExclusao,
+    excluirProcesso,
+  } = useProcessosProducao();
 
   useEffect(() => { void listarProcessos(); }, [listarProcessos]);
 
@@ -36,7 +55,41 @@ export const ProcessosProducao = () => {
   ) => {
     const justificativa = pedirJustificativa(pergunta);
     if (!justificativa) return;
-    await transicaoProcesso(processo.id, acao, justificativa);
+    try {
+      await transicaoProcesso(processo.id, acao, justificativa);
+    } catch (error) {
+      toast.error(mensagemErro(error, `Não foi possível ${acao} a etapa.`));
+    }
+  };
+
+  const abrirExclusao = async (processo: ProducaoProcesso) => {
+    setProcessoParaExcluir(processo);
+    setResumoExclusao(null);
+    setCarregandoResumoExclusao(true);
+    try {
+      const resumo = await obterResumoExclusao(processo.id);
+      setResumoExclusao(resumo);
+    } catch (error) {
+      toast.error(mensagemErro(error, 'Não foi possível preparar a exclusão da etapa.'));
+      setProcessoParaExcluir(null);
+    } finally {
+      setCarregandoResumoExclusao(false);
+    }
+  };
+
+  const confirmarExclusao = async (codigo: string, justificativa: string) => {
+    if (!processoParaExcluir) return;
+    setExcluindo(true);
+    try {
+      await excluirProcesso(processoParaExcluir.id, codigo, justificativa);
+      toast.success(`Etapa ${processoParaExcluir.codigo} excluída e registrada na auditoria.`);
+      setProcessoParaExcluir(null);
+      setResumoExclusao(null);
+    } catch (error) {
+      toast.error(mensagemErro(error, 'Não foi possível excluir a etapa.'));
+    } finally {
+      setExcluindo(false);
+    }
   };
 
   return (
@@ -98,6 +151,11 @@ export const ProcessosProducao = () => {
                 {processo.status === 'bloqueado' && <Button size="sm" onClick={() => void executarComJustificativa(processo, 'desbloquear', 'Justificativa para desbloquear a etapa:')}><Unlock className="mr-2 h-4 w-4" />Desbloquear</Button>}
                 {['planejado', 'em_andamento', 'pausado', 'bloqueado'].includes(processo.status) && <Button size="sm" variant="destructive" onClick={() => void executarComJustificativa(processo, 'cancelar', 'Justificativa para cancelar a etapa:')}>Cancelar</Button>}
                 {['finalizado', 'cancelado'].includes(processo.status) && <Button size="sm" variant="outline" onClick={() => void executarComJustificativa(processo, 'reabrir', 'Justificativa para reabrir a etapa:')}><RotateCcw className="mr-2 h-4 w-4" />Reabrir</Button>}
+                {isAdmin() && (
+                  <Button size="sm" variant="outline" className="border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => void abrirExclusao(processo)}>
+                    <Trash2 className="mr-2 h-4 w-4" />Excluir
+                  </Button>
+                )}
               </div>
             </div>
           ))}
@@ -113,6 +171,19 @@ export const ProcessosProducao = () => {
           await transicaoProcesso(processoParaFinalizar.id, 'finalizar', justificativa);
           setProcessoParaFinalizar(null);
         }}
+      />
+
+      <ModalExcluirProcesso
+        processo={processoParaExcluir}
+        resumo={resumoExclusao}
+        carregandoResumo={carregandoResumoExclusao}
+        excluindo={excluindo}
+        onClose={() => {
+          if (excluindo) return;
+          setProcessoParaExcluir(null);
+          setResumoExclusao(null);
+        }}
+        onConfirm={confirmarExclusao}
       />
     </div>
   );
