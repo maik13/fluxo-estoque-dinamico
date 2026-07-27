@@ -8,9 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
+import { useOrdensProducao, formatarNumeroOrdemProducao } from '@/hooks/useOrdensProducao';
 import { calcularDuracaoProducao } from '@/hooks/useProducao';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
-import { useProcessosProducao } from '@/hooks/useProcessosProducao';
 import type {
   NovoApontamentoProducao,
   ProducaoApontamento,
@@ -32,6 +32,7 @@ const hoje = () => new Date().toISOString().slice(0, 10);
 const horaAtual = () => new Date().toTimeString().slice(0, 5);
 const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
 const TAMANHO_MAXIMO = 10 * 1024 * 1024;
+const ORIGEM_AVULSA = '__avulso__';
 
 export const FormApontamentoProducaoV2 = ({
   tarefas,
@@ -42,7 +43,7 @@ export const FormApontamentoProducaoV2 = ({
   onSuccess,
 }: Props) => {
   const [data, setData] = useState(hoje());
-  const [processoId, setProcessoId] = useState('');
+  const [origem, setOrigem] = useState('');
   const [projetoLocalId, setProjetoLocalId] = useState('');
   const [tarefaId, setTarefaId] = useState('');
   const [localTipo, setLocalTipo] = useState<ProducaoLocalTipo>('Fábrica');
@@ -57,15 +58,24 @@ export const FormApontamentoProducaoV2 = ({
   const [fotos, setFotos] = useState<File[]>([]);
   const [salvando, setSalvando] = useState(false);
   const inputFotosRef = useRef<HTMLInputElement>(null);
-  const { processos, listarProcessos } = useProcessosProducao();
+  const { ordens, listarOrdens } = useOrdensProducao();
   const { anexarImagem } = useProducaoAnexos();
 
   useEffect(() => {
-    void listarProcessos('em_andamento');
-  }, [listarProcessos]);
+    void listarOrdens().catch(() => undefined);
+  }, [listarOrdens]);
 
-  const processoSelecionado = processos.find((processo) => processo.id === processoId) ?? null;
-  const projetoHerdado = processoSelecionado?.projeto?.local_utilizacao_id ?? null;
+  const ordensDisponiveis = useMemo(() => ordens.filter((ordem) =>
+    ordem.status === 'liberada' || ordem.status === 'em_execucao'), [ordens]);
+  const ordemSelecionada = ordensDisponiveis.find((ordem) => ordem.id === origem) ?? null;
+  const avulso = origem === ORIGEM_AVULSA;
+
+  useEffect(() => {
+    if (!ordemSelecionada) return;
+    setProjetoLocalId('');
+    setLocalTipo(ordemSelecionada.local_tipo);
+  }, [ordemSelecionada]);
+
   const duracao = useMemo(() => {
     if (!inicio || !termino) return null;
     try {
@@ -80,13 +90,15 @@ export const FormApontamentoProducaoV2 = ({
     if (!termo) return [];
     return membros
       .filter((membro) => membro.ativo && !membrosIds.includes(membro.id))
-      .filter((membro) => membro.nome.toLocaleLowerCase('pt-BR').includes(termo))
+      .filter((membro) => [membro.nome, membro.apelido, membro.funcao]
+        .filter(Boolean)
+        .some((valor) => String(valor).toLocaleLowerCase('pt-BR').includes(termo)))
       .slice(0, 8);
   }, [buscaMembro, membros, membrosIds]);
 
   const limpar = () => {
     setData(hoje());
-    setProcessoId('');
+    setOrigem('');
     setProjetoLocalId('');
     setTarefaId('');
     setLocalTipo('Fábrica');
@@ -125,12 +137,9 @@ export const FormApontamentoProducaoV2 = ({
   const salvar = async (event: FormEvent) => {
     event.preventDefault();
     if (!podeApontar) return;
-
-    if ((processoId ? 1 : 0) + (projetoLocalId ? 1 : 0) !== 1) {
-      toast.error('Selecione um processo em andamento ou um projeto/local avulso.');
-      return;
-    }
-    if (!tarefaId) return void toast.error('Selecione uma tarefa.');
+    if (!origem) return void toast.error('Selecione a Ordem de Produção ou a opção de atividade avulsa.');
+    if (avulso && !projetoLocalId) return void toast.error('Selecione o projeto/local da atividade avulsa.');
+    if (!tarefaId) return void toast.error('Selecione a atividade executada.');
     if (!duracao) return void toast.error('Informe horários válidos de início e término.');
     if (membrosIds.length === 0) return void toast.error('Selecione pelo menos um membro da equipe.');
 
@@ -154,10 +163,11 @@ export const FormApontamentoProducaoV2 = ({
     try {
       const apontamento = await criarApontamento({
         data,
-        processo_id: processoId || null,
-        projeto_local_id: processoId ? null : projetoLocalId,
+        ordem_producao_id: ordemSelecionada?.id ?? null,
+        processo_id: ordemSelecionada?.processo_id ?? null,
+        projeto_local_id: avulso ? projetoLocalId : null,
         tarefa_id: tarefaId,
-        local_tipo: localTipo,
+        local_tipo: ordemSelecionada?.local_tipo ?? localTipo,
         quantidade_produzida: quantidadeNormalizada,
         inicio,
         termino,
@@ -177,15 +187,16 @@ export const FormApontamentoProducaoV2 = ({
         }
       }
 
+      const contexto = ordemSelecionada
+        ? ` dentro da ${formatarNumeroOrdemProducao(ordemSelecionada.numero)}`
+        : ' como atividade avulsa';
       if (falhas > 0) {
-        toast.warning(`Apontamento salvo, mas ${falhas} foto(s) não foram enviadas.`);
+        toast.warning(`Apontamento salvo${contexto}, mas ${falhas} foto(s) não foram enviadas.`);
       } else {
-        toast.success(fotos.length > 0
-          ? `Apontamento salvo com ${fotos.length} foto(s), pendente de conferência.`
-          : 'Apontamento salvo como pendente de conferência.');
+        toast.success(`Apontamento salvo${contexto} e pendente de conferência.`);
       }
       limpar();
-      await onSuccess?.();
+      await Promise.all([onSuccess?.(), listarOrdens()]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível salvar o apontamento.');
     } finally {
@@ -197,19 +208,66 @@ export const FormApontamentoProducaoV2 = ({
     <form onSubmit={salvar} className="space-y-6 rounded-lg border bg-card p-5">
       <div>
         <h3 className="text-lg font-semibold">Novo Apontamento</h3>
-        <p className="text-sm text-muted-foreground">Registre a execução real, a equipe e as evidências fotográficas.</p>
+        <p className="text-sm text-muted-foreground">Registre a execução real dentro de uma OP já emitida.</p>
       </div>
 
-      <Alert><Info className="h-4 w-4" /><AlertDescription><strong>Processo</strong> é a frente macro. <strong>Tarefa</strong> é a atividade específica. O processo é opcional; a tarefa é obrigatória.</AlertDescription></Alert>
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Etapa</strong> é o planejamento. <strong>OP</strong> é a autorização de execução. <strong>Apontamento</strong> registra o que foi realmente feito dentro da OP. Atividade avulsa deve ser usada somente para trabalho não planejado.
+        </AlertDescription>
+      </Alert>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2"><Label>Data</Label><Input type="date" value={data} onChange={(event) => setData(event.target.value)} disabled={!podeApontar} /></div>
-        <div className="space-y-2"><Label>Vincular a processo em andamento — opcional</Label><Select value={processoId || '__nenhum__'} onValueChange={(value) => { const novo = value === '__nenhum__' ? '' : value; setProcessoId(novo); if (novo) setProjetoLocalId(''); }} disabled={!podeApontar}><SelectTrigger><SelectValue placeholder="Selecione um processo" /></SelectTrigger><SelectContent><SelectItem value="__nenhum__">Sem processo — apontamento avulso</SelectItem>{processos.map((processo) => <SelectItem key={processo.id} value={processo.id}>{processo.codigo} · {processo.nome} · {processo.projeto?.nome ?? 'Projeto não identificado'}</SelectItem>)}</SelectContent></Select>{processoSelecionado && <p className="text-xs text-muted-foreground">Projeto herdado: {processoSelecionado.projeto?.nome ?? '—'}{processoSelecionado.projeto?.cidade ? ` · ${processoSelecionado.projeto.cidade}/${processoSelecionado.projeto.uf ?? ''}` : ''}</p>}</div>
-        <div className="space-y-2"><Label>Projeto/local avulso {processoId ? '(herdado do processo)' : '*'}</Label><Select value={processoId ? projetoHerdado ?? '' : projetoLocalId} onValueChange={(value) => { setProjetoLocalId(value); if (value) setProcessoId(''); }} disabled={!podeApontar || Boolean(processoId)}><SelectTrigger><SelectValue placeholder={processoId ? 'Definido pelo processo' : 'Selecione o projeto/local'} /></SelectTrigger><SelectContent>{locais.filter((local) => local.ativo).map((local) => <SelectItem key={local.id} value={local.id}>{local.nome}</SelectItem>)}</SelectContent></Select></div>
-        <div className="space-y-2"><Label>Tarefa *</Label><Select value={tarefaId} onValueChange={setTarefaId} disabled={!podeApontar}><SelectTrigger><SelectValue placeholder="Selecione a atividade executada" /></SelectTrigger><SelectContent>{tarefas.filter((tarefa) => tarefa.ativo).map((tarefa) => <SelectItem key={tarefa.id} value={tarefa.id}>{tarefa.nome}</SelectItem>)}</SelectContent></Select></div>
-      </div>
+        <div className="space-y-2"><Label>Data *</Label><Input type="date" value={data} onChange={(event) => setData(event.target.value)} disabled={!podeApontar} /></div>
+        <div className="space-y-2">
+          <Label>Ordem de Produção *</Label>
+          <Select value={origem} onValueChange={setOrigem} disabled={!podeApontar}>
+            <SelectTrigger><SelectValue placeholder="Selecione a OP em execução" /></SelectTrigger>
+            <SelectContent>
+              {ordensDisponiveis.map((ordem) => (
+                <SelectItem key={ordem.id} value={ordem.id}>
+                  {formatarNumeroOrdemProducao(ordem.numero)} · {ordem.processo_nome} · {ordem.projeto_nome}
+                </SelectItem>
+              ))}
+              <SelectItem value={ORIGEM_AVULSA}>Atividade não planejada — sem OP</SelectItem>
+            </SelectContent>
+          </Select>
+          {ordensDisponiveis.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma OP está liberada ou em execução. Emita a OP dentro da Etapa.</p>}
+        </div>
 
-      <div className="space-y-2"><Label>Local de execução</Label><div className="flex gap-2">{(['Fábrica', 'Execução'] as ProducaoLocalTipo[]).map((tipo) => <Button key={tipo} type="button" variant={localTipo === tipo ? 'default' : 'outline'} onClick={() => setLocalTipo(tipo)} disabled={!podeApontar}>{tipo}</Button>)}</div></div>
+        {ordemSelecionada ? (
+          <div className="rounded-lg border bg-muted/20 p-4 text-sm md:col-span-2">
+            <p><strong>{formatarNumeroOrdemProducao(ordemSelecionada.numero)}</strong> · {ordemSelecionada.status === 'liberada' ? 'Liberada' : 'Em execução'}</p>
+            <p><strong>Projeto:</strong> {ordemSelecionada.projeto_nome}</p>
+            <p><strong>Etapa:</strong> {ordemSelecionada.processo_codigo} · {ordemSelecionada.processo_nome}</p>
+            <p><strong>Local:</strong> {ordemSelecionada.local_tipo}</p>
+            <p><strong>Progresso:</strong> {ordemSelecionada.quantidade_realizada} de {ordemSelecionada.quantidade_planejada} {ordemSelecionada.unidade_medida ?? ''} ({ordemSelecionada.percentual_realizado}%)</p>
+          </div>
+        ) : avulso ? (
+          <>
+            <div className="space-y-2">
+              <Label>Projeto/local da atividade avulsa *</Label>
+              <Select value={projetoLocalId} onValueChange={setProjetoLocalId} disabled={!podeApontar}>
+                <SelectTrigger><SelectValue placeholder="Selecione o projeto/local" /></SelectTrigger>
+                <SelectContent>{locais.filter((local) => local.ativo).map((local) => <SelectItem key={local.id} value={local.id}>{local.nome}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Local de execução *</Label>
+              <div className="flex gap-2">{(['Fábrica', 'Execução'] as ProducaoLocalTipo[]).map((tipo) => <Button key={tipo} type="button" variant={localTipo === tipo ? 'default' : 'outline'} onClick={() => setLocalTipo(tipo)} disabled={!podeApontar}>{tipo}</Button>)}</div>
+            </div>
+          </>
+        ) : null}
+
+        <div className="space-y-2 md:col-span-2">
+          <Label>Atividade executada *</Label>
+          <Select value={tarefaId} onValueChange={setTarefaId} disabled={!podeApontar}>
+            <SelectTrigger><SelectValue placeholder="Selecione corte, montagem, acabamento..." /></SelectTrigger>
+            <SelectContent>{tarefas.filter((tarefa) => tarefa.ativo).map((tarefa) => <SelectItem key={tarefa.id} value={tarefa.id}>{tarefa.nome}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2"><Label>Início *</Label><div className="flex gap-2"><Input type="time" value={inicio} onChange={(event) => setInicio(event.target.value)} /><Button type="button" variant="outline" onClick={() => setInicio(horaAtual())}><Clock className="mr-2 h-4 w-4" />Agora</Button></div></div>
@@ -223,7 +281,12 @@ export const FormApontamentoProducaoV2 = ({
         <div className="space-y-2"><Label>Motivo improdutivo</Label><Input value={motivoImprodutivo} onChange={(event) => setMotivoImprodutivo(event.target.value)} disabled={Number(minutosImprodutivos || 0) === 0} /></div>
       </div>
 
-      <div className="space-y-2"><Label>Equipe *</Label><div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={buscaMembro} onChange={(event) => setBuscaMembro(event.target.value)} placeholder="Buscar membro" /></div>{buscaMembro.trim() && <div className="max-h-40 overflow-y-auto rounded-md border p-1">{membrosFiltrados.map((membro) => <button key={membro.id} type="button" className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-accent" onClick={() => { setMembrosIds((atuais) => [...new Set([...atuais, membro.id])]); setBuscaMembro(''); }}>{membro.nome}</button>)}</div>}<div className="flex flex-wrap gap-2">{membrosIds.map((id) => { const membro = membros.find((item) => item.id === id); return <Button key={id} type="button" size="sm" variant="secondary" onClick={() => setMembrosIds((atuais) => atuais.filter((item) => item !== id))}>{membro?.nome ?? id} ×</Button>; })}</div></div>
+      <div className="space-y-2">
+        <Label>Equipe *</Label>
+        <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={buscaMembro} onChange={(event) => setBuscaMembro(event.target.value)} placeholder="Buscar membro" /></div>
+        {buscaMembro.trim() && <div className="max-h-40 overflow-y-auto rounded-md border p-1">{membrosFiltrados.map((membro) => <button key={membro.id} type="button" className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-accent" onClick={() => { setMembrosIds((atuais) => [...new Set([...atuais, membro.id])]); setBuscaMembro(''); }}>{membro.nome}{membro.funcao ? ` · ${membro.funcao}` : ''}</button>)}</div>}
+        <div className="flex flex-wrap gap-2">{membrosIds.map((id) => { const membro = membros.find((item) => item.id === id); return <Button key={id} type="button" size="sm" variant="secondary" onClick={() => setMembrosIds((atuais) => atuais.filter((item) => item !== id))}>{membro?.nome ?? id} ×</Button>; })}</div>
+      </div>
 
       <div className="space-y-3 rounded-lg border p-4">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
