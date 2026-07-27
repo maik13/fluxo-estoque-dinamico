@@ -27,6 +27,21 @@ export interface ProcessoProducaoInput {
   dependencias?: DependenciaEtapaInput[];
 }
 
+export interface ResumoExclusaoProcessoProducao {
+  processo_id: string;
+  codigo: string;
+  nome: string;
+  status: string;
+  total_apontamentos: number;
+  total_apontamentos_conferidos: number;
+  total_eventos: number;
+  total_dependencias: number;
+  total_alocacoes: number;
+  total_alertas: number;
+  pode_excluir: boolean;
+  motivo_bloqueio: string | null;
+}
+
 const PROCESSO_SELECT = '*, projeto:producao_projetos(nome,cidade,uf,local_utilizacao_id)';
 
 export const useProcessosProducao = () => {
@@ -128,6 +143,30 @@ export const useProcessosProducao = () => {
     return data?.[0] ?? null;
   }, []);
 
+  const obterResumoExclusao = useCallback(async (id: string) => {
+    const { data, error } = await (supabase.rpc as any)('obter_resumo_exclusao_processo_producao', {
+      p_processo_id: id,
+    });
+    if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível verificar os vínculos da etapa.'));
+    const resumo = (data?.[0] ?? null) as ResumoExclusaoProcessoProducao | null;
+    if (!resumo) throw new Error('Etapa não encontrada ou usuário sem permissão administrativa.');
+    return resumo;
+  }, []);
+
+  const excluirProcesso = useCallback(async (
+    id: string,
+    codigoConfirmacao: string,
+    justificativa: string,
+  ) => {
+    const { error } = await (supabase.rpc as any)('excluir_processo_producao', {
+      p_processo_id: id,
+      p_codigo_confirmacao: codigoConfirmacao,
+      p_justificativa: justificativa,
+    });
+    if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível excluir a etapa.'));
+    setProcessos((atuais) => atuais.filter((processo) => processo.id !== id));
+  }, []);
+
   return {
     processos,
     loading,
@@ -137,5 +176,7 @@ export const useProcessosProducao = () => {
     salvarPlanejamento,
     transicaoProcesso,
     obterResumoFinalizacao,
+    obterResumoExclusao,
+    excluirProcesso,
   };
 };
