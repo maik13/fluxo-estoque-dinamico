@@ -34,7 +34,7 @@ export interface ProducaoProcessoEvento {
   dados_complementares: Json | null; valores_anteriores: Json | null; valores_posteriores: Json | null;
 }
 export interface ProducaoApontamento {
-  id: string; data: string; projeto_local_id: string | null; processo_id: string | null; tarefa_id: string; local_tipo: ProducaoLocalTipo;
+  id: string; numero_op: number; data: string; projeto_local_id: string | null; processo_id: string | null; tarefa_id: string; local_tipo: ProducaoLocalTipo;
   quantidade_produzida: number | null; inicio: string; termino: string; duracao_minutos: number; minutos_produtivos: number;
   minutos_improdutivos: number; motivo_improdutivo: string | null; observacoes: string | null; status: ProducaoStatus;
   jornada_total_equipe_minutos_snapshot: number | null;
