@@ -156,18 +156,19 @@ export const useProducao = () => {
   const listarApontamentos = useCallback(async (filtros: FiltrosProducao = {}) => {
     setLoading(true);
     try {
-      let consulta = supabase.from('producao_apontamentos').select('*')
+      let consulta = (supabase.from('producao_apontamentos') as any).select('*')
         .order('data', { ascending: false }).order('inicio', { ascending: false });
       if (filtros.data_inicio) consulta = consulta.gte('data', filtros.data_inicio);
       if (filtros.data_fim) consulta = consulta.lte('data', filtros.data_fim);
       if (filtros.projeto_local_id) consulta = consulta.eq('projeto_local_id', filtros.projeto_local_id);
       if (filtros.processo_id) consulta = consulta.eq('processo_id', filtros.processo_id);
+      if (filtros.ordem_producao_id) consulta = consulta.eq('ordem_producao_id', filtros.ordem_producao_id);
       if (filtros.tarefa_id) consulta = consulta.eq('tarefa_id', filtros.tarefa_id);
       if (filtros.status) consulta = consulta.eq('status', filtros.status);
       if (filtros.local_tipo) consulta = consulta.eq('local_tipo', filtros.local_tipo);
       const { data, error } = await consulta;
       if (error) throw erro(error, 'Não foi possível carregar os apontamentos.');
-      const resultado = (data ?? []) as unknown as ProducaoApontamento[];
+      const resultado = (data ?? []) as ProducaoApontamento[];
       setApontamentos(resultado);
       return resultado;
     } finally {
@@ -180,13 +181,21 @@ export const useProducao = () => {
     novo: NovoApontamentoProducao,
     apontamentoId?: string,
   ) => {
-    if ((novo.processo_id ? 1 : 0) + (novo.projeto_local_id ? 1 : 0) !== 1) {
-      throw new Error('Selecione um processo ou um projeto/local.');
+    const planejado = Boolean(novo.ordem_producao_id);
+    if (!planejado && (!novo.projeto_local_id || novo.processo_id)) {
+      throw new Error('Selecione uma OP ou informe um projeto/local para o apontamento avulso.');
     }
     if (!novo.membros_ids.length) throw new Error('Informe pelo menos um membro.');
+
     const duracao = calcularDuracaoProducao(novo.inicio, novo.termino);
-    const tempos = normalizarTempos(duracao, novo.minutos_produtivos, novo.minutos_improdutivos, novo.motivo_improdutivo);
-    const parametros = {
+    const tempos = normalizarTempos(
+      duracao,
+      novo.minutos_produtivos,
+      novo.minutos_improdutivos,
+      novo.motivo_improdutivo,
+    );
+
+    const parametrosBase = {
       ...(apontamentoId ? { p_apontamento_id: apontamentoId } : {}),
       p_data: novo.data,
       p_processo_id: novo.processo_id ?? null,
@@ -203,15 +212,25 @@ export const useProducao = () => {
       p_observacoes: novo.observacoes?.trim() || null,
       p_membros: [...new Set(novo.membros_ids)],
     };
-    const { data, error } = await supabase.rpc(rpc, parametros);
-    if (error) throw erro(error, rpc === 'criar_apontamento_producao' ? 'Não foi possível salvar o apontamento.' : 'Não foi possível editar o apontamento.');
+
+    const parametros = rpc === 'criar_apontamento_producao'
+      ? { ...parametrosBase, p_ordem_producao_id: novo.ordem_producao_id ?? null }
+      : parametrosBase;
+
+    const { data, error } = await (supabase.rpc as any)(rpc, parametros);
+    if (error) throw erro(
+      error,
+      rpc === 'criar_apontamento_producao'
+        ? 'Não foi possível salvar o apontamento.'
+        : 'Não foi possível editar o apontamento.',
+    );
     return (data as string | null) ?? apontamentoId!;
   }, []);
 
   const recarregarApontamento = useCallback(async (id: string, fallback: string) => {
-    const { data, error } = await supabase.from('producao_apontamentos').select('*').eq('id', id).single();
+    const { data, error } = await (supabase.from('producao_apontamentos') as any).select('*').eq('id', id).single();
     if (error) throw erro(error, fallback);
-    return data as unknown as ProducaoApontamento;
+    return data as ProducaoApontamento;
   }, []);
 
   const criarApontamento = useCallback(async (novo: NovoApontamentoProducao) => {
@@ -238,6 +257,7 @@ export const useProducao = () => {
     const membrosAtuais = membrosIds ?? (await listarMembros(id)).map((item) => item.membro_id);
     const novo: NovoApontamentoProducao = {
       data: alteracoes.data ?? atual.data,
+      ordem_producao_id: atual.ordem_producao_id,
       processo_id: alteracoes.processo_id === undefined ? atual.processo_id : alteracoes.processo_id,
       projeto_local_id: alteracoes.projeto_local_id === undefined ? atual.projeto_local_id : alteracoes.projeto_local_id,
       tarefa_id: alteracoes.tarefa_id ?? atual.tarefa_id,
