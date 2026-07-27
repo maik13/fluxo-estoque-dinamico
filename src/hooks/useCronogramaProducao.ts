@@ -8,6 +8,21 @@ export interface AlocacaoGanttProducao {
   pessoas_planejadas: number;
 }
 
+export interface GanttOrdemProducao {
+  id: string;
+  numero: number;
+  status: string;
+  local_tipo: string;
+  quantidade_planejada: number;
+  quantidade_realizada: number;
+  percentual_realizado: number;
+  data_inicio_prevista: string;
+  data_fim_prevista: string;
+  data_inicio_real: string | null;
+  data_fim_real: string | null;
+  responsavel_nome: string | null;
+}
+
 export interface GanttEtapaProducao {
   etapa_id: string;
   codigo: string;
@@ -33,6 +48,7 @@ export interface GanttEtapaProducao {
   capacidade_diaria: number | null;
   pessoas_necessarias: number | null;
   alocacoes: AlocacaoGanttProducao[];
+  ordens: GanttOrdemProducao[];
 }
 
 export interface PlanoDiarioProducaoItem {
@@ -80,7 +96,7 @@ export const useCronogramaProducao = () => {
     setErro(null);
     try {
       const [{ data, error }, configResult, alertasResult] = await Promise.all([
-        supabase.rpc('listar_gantt_producao'),
+        (supabase.rpc as any)('listar_gantt_producao'),
         supabase.from('producao_cronograma_configuracoes').select('equipe_disponivel_por_dia,trabalha_sabado,trabalha_domingo,horizonte_dias').eq('id', 1).maybeSingle(),
         supabase.from('producao_cronograma_alertas').select('id,processo_id,data,severidade,codigo,mensagem').order('created_at', { ascending: false }).limit(100),
       ]);
@@ -91,6 +107,7 @@ export const useCronogramaProducao = () => {
       const resultado = ((data ?? []) as GanttEtapaProducao[]).map((item) => ({
         ...item,
         alocacoes: Array.isArray(item.alocacoes) ? item.alocacoes : [],
+        ordens: Array.isArray(item.ordens) ? item.ordens : [],
       }));
       setEtapas(resultado);
       if (configResult.data) setConfiguracao(configResult.data as ConfiguracaoCronogramaProducao);
