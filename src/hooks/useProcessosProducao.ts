@@ -27,6 +27,24 @@ export interface ProcessoProducaoInput {
   dependencias?: DependenciaEtapaInput[];
 }
 
+export interface RetificacaoEtapaProducaoInput {
+  nome: string;
+  descricao?: string | null;
+  prioridade: ProducaoPrioridade;
+  produto_entregavel?: string | null;
+  unidade_medida?: string | null;
+  quantidade_planejada?: number | null;
+  data_inicio_prevista?: string | null;
+  data_fim_prevista?: string | null;
+  grupo_cronograma?: string | null;
+  sequencia?: number;
+  capacidade_diaria?: number | null;
+  pessoas_necessarias?: number | null;
+  aceita_producao_proporcional?: boolean;
+  dependencias?: DependenciaEtapaInput[];
+  justificativa: string;
+}
+
 export interface ResumoExclusaoProcessoProducao {
   processo_id: string;
   codigo: string;
@@ -65,6 +83,18 @@ export const useProcessosProducao = () => {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const listarDependencias = useCallback(async (processoId: string) => {
+    const { data, error } = await (supabase.from as any)('producao_processo_dependencias')
+      .select('depende_de_processo_id,tipo')
+      .eq('processo_id', processoId)
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível carregar as dependências da etapa.'));
+    return (data ?? []).map((item: { depende_de_processo_id: string; tipo: 'fim_inicio' | 'inicio_inicio' }) => ({
+      etapa_id: item.depende_de_processo_id,
+      tipo: item.tipo,
+    })) as DependenciaEtapaInput[];
   }, []);
 
   const obterProximoCodigo = useCallback(async () => {
@@ -121,6 +151,32 @@ export const useProcessosProducao = () => {
     await listarProcessos();
   }, [listarProcessos]);
 
+  const retificarProcesso = useCallback(async (
+    id: string,
+    dados: RetificacaoEtapaProducaoInput,
+  ) => {
+    const { error } = await (supabase.rpc as any)('retificar_etapa_producao', {
+      p_processo_id: id,
+      p_nome: dados.nome,
+      p_descricao: dados.descricao ?? null,
+      p_prioridade: dados.prioridade,
+      p_produto_entregavel: dados.produto_entregavel ?? null,
+      p_unidade_medida: dados.unidade_medida ?? null,
+      p_quantidade_planejada: dados.quantidade_planejada ?? null,
+      p_data_inicio_desejada: dados.data_inicio_prevista ?? null,
+      p_data_limite: dados.data_fim_prevista ?? null,
+      p_grupo_cronograma: dados.grupo_cronograma ?? null,
+      p_sequencia: dados.sequencia ?? 0,
+      p_capacidade_diaria: dados.capacidade_diaria ?? null,
+      p_pessoas_necessarias: dados.pessoas_necessarias ?? null,
+      p_aceita_producao_proporcional: dados.aceita_producao_proporcional ?? false,
+      p_dependencias: dados.dependencias ?? [],
+      p_justificativa: dados.justificativa,
+    });
+    if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível retificar a etapa.'));
+    await listarProcessos();
+  }, [listarProcessos]);
+
   const transicaoProcesso = useCallback(async (
     id: string,
     acao: 'iniciar' | 'pausar' | 'retomar' | 'bloquear' | 'desbloquear' | 'finalizar' | 'cancelar' | 'reabrir',
@@ -171,9 +227,11 @@ export const useProcessosProducao = () => {
     processos,
     loading,
     listarProcessos,
+    listarDependencias,
     obterProximoCodigo,
     criarProcesso,
     salvarPlanejamento,
+    retificarProcesso,
     transicaoProcesso,
     obterResumoFinalizacao,
     obterResumoExclusao,
