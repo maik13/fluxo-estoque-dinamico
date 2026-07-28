@@ -18,6 +18,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useOrdensProducao, formatarNumeroOrdemProducao } from '@/hooks/useOrdensProducao';
 import { useProcessosProducao, type ResumoExclusaoProcessoProducao } from '@/hooks/useProcessosProducao';
 import { FormProcessoProducao } from './FormProcessoProducao';
+import { FormRetificarProcesso } from './FormRetificarProcesso';
 import { FormOrdemProducao } from './FormOrdemProducao';
 import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
 import { ModalExcluirProcesso } from './ModalExcluirProcesso';
@@ -47,7 +48,7 @@ export const ProcessosProducao = () => {
   const [resumoExclusao, setResumoExclusao] = useState<ResumoExclusaoProcessoProducao | null>(null);
   const [carregandoResumoExclusao, setCarregandoResumoExclusao] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
-  const { isAdmin } = usePermissions();
+  const { isAdmin, canConfigurarProducao } = usePermissions();
   const {
     processos,
     loading,
@@ -179,6 +180,7 @@ export const ProcessosProducao = () => {
         <div className="grid gap-4">
           {processosFiltrados.map((processo) => {
             const ordensDaEtapa = ordensPorProcesso[processo.id] ?? [];
+            const etapaAberta = ['planejado', 'em_andamento', 'pausado', 'bloqueado'].includes(processo.status);
             return (
               <div key={processo.id} className="rounded-lg border bg-card p-5 shadow-sm">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row">
@@ -202,7 +204,16 @@ export const ProcessosProducao = () => {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {['planejado', 'em_andamento', 'pausado', 'bloqueado'].includes(processo.status) && (
+                    {etapaAberta && canConfigurarProducao() && (
+                      <FormRetificarProcesso
+                        processo={processo}
+                        temOps={ordensDaEtapa.length > 0}
+                        onSuccess={async () => {
+                          await Promise.all([listarProcessos(), listarOrdens()]);
+                        }}
+                      />
+                    )}
+                    {etapaAberta && (
                       <FormOrdemProducao processo={processo} ordens={ordens} onEmitir={criarOrdem} />
                     )}
                     {processo.status === 'planejado' && <Button size="sm" onClick={() => void transicaoProcesso(processo.id, 'iniciar')}><Play className="mr-2 h-4 w-4" />Iniciar etapa</Button>}
@@ -215,7 +226,7 @@ export const ProcessosProducao = () => {
                     )}
                     {processo.status === 'pausado' && <Button size="sm" onClick={() => void transicaoProcesso(processo.id, 'retomar')}><Play className="mr-2 h-4 w-4" />Retomar</Button>}
                     {processo.status === 'bloqueado' && <Button size="sm" onClick={() => void executarComJustificativa(processo, 'desbloquear', 'Justificativa para desbloquear a etapa:')}><Unlock className="mr-2 h-4 w-4" />Desbloquear</Button>}
-                    {['planejado', 'em_andamento', 'pausado', 'bloqueado'].includes(processo.status) && <Button size="sm" variant="destructive" onClick={() => void executarComJustificativa(processo, 'cancelar', 'Justificativa para cancelar a etapa:')}>Cancelar</Button>}
+                    {etapaAberta && <Button size="sm" variant="destructive" onClick={() => void executarComJustificativa(processo, 'cancelar', 'Justificativa para cancelar a etapa:')}>Cancelar</Button>}
                     {['finalizado', 'cancelado'].includes(processo.status) && <Button size="sm" variant="outline" onClick={() => void executarComJustificativa(processo, 'reabrir', 'Justificativa para reabrir a etapa:')}><RotateCcw className="mr-2 h-4 w-4" />Reabrir</Button>}
                     {isAdmin() && (
                       <Button size="sm" variant="outline" className="border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => void abrirExclusao(processo)}>
