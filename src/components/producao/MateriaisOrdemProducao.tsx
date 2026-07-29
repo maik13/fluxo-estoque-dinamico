@@ -5,6 +5,7 @@ import {
   Clock3,
   Loader2,
   PackageCheck,
+  PackagePlus,
   Send,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -66,17 +67,24 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
   const [solicitacao, setSolicitacao] = useState<SolicitacaoMaterialOPResumo | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [gerando, setGerando] = useState(false);
+  const [incorporando, setIncorporando] = useState(false);
   const [confirmacaoAberta, setConfirmacaoAberta] = useState(false);
+  const [confirmacaoIncorporarAberta, setConfirmacaoIncorporarAberta] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const { obterEstoque } = useEstoqueContext();
   const { obterEstoqueAtivoInfo } = useConfiguracoes();
   const { canConfigurarProducao } = usePermissions();
-  const { listarMateriaisOrdem, gerarSolicitacaoMaterial } = useMateriaisProducao();
+  const {
+    listarMateriaisOrdem,
+    incorporarMateriaisPCP,
+    gerarSolicitacaoMaterial,
+  } = useMateriaisProducao();
 
   const itensEstoque = obterEstoque();
   const estoqueAtivo = obterEstoqueAtivoInfo();
   const opAberta = ordem.status === 'liberada' || ordem.status === 'em_execucao';
   const podeGerar = canConfigurarProducao() && opAberta && !solicitacao && materiais.length > 0;
+  const podeIncorporar = canConfigurarProducao() && opAberta && !solicitacao && materiais.length === 0;
 
   const totalItens = materiais.length;
   const itensSemSaldo = useMemo(() => materiais.filter((material) => {
@@ -104,6 +112,23 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
   // A OP é a unidade do carregamento; o hook possui funções estáveis.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ordem.id]);
+
+  const confirmarIncorporacao = async () => {
+    setIncorporando(true);
+    try {
+      const quantidade = await incorporarMateriaisPCP(ordem.id);
+      setConfirmacaoIncorporarAberta(false);
+      await carregar();
+      toast.success(
+        `${quantidade} item(ns) do PCP incorporado(s) à OP. Nenhuma solicitação, reserva ou baixa foi gerada.`,
+        { duration: 7000 },
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível incorporar o PCP à OP.');
+    } finally {
+      setIncorporando(false);
+    }
+  };
 
   const confirmarGeracao = async () => {
     if (!estoqueAtivo?.id) {
@@ -166,8 +191,36 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
       </div>
 
       {materiais.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-          Nenhum material foi incorporado a esta OP. Salve o PCP na Etapa antes de emitir a OP ou enquanto ela ainda estiver liberada e sem solicitação.
+        <div className="space-y-3 rounded-lg border border-dashed p-4">
+          <p className="text-sm text-muted-foreground">
+            Nenhum material foi incorporado a esta OP. O PCP pode ter sido salvo depois da emissão ou do início da OP.
+          </p>
+          {podeIncorporar ? (
+            <div className="flex flex-col justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 sm:flex-row sm:items-center">
+              <div>
+                <p className="text-sm font-semibold">O PCP atual da Etapa pode ser incorporado agora.</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  A incorporação apenas copia os materiais proporcionalmente para esta OP. Não gera solicitação, reserva ou baixa de estoque.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setConfirmacaoIncorporarAberta(true)}
+                disabled={incorporando}
+                className="shrink-0 border-amber-500/50 font-bold uppercase text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
+              >
+                {incorporando
+                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  : <PackagePlus className="mr-2 h-4 w-4" />}
+                Incorporar PCP nesta OP
+              </Button>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              A incorporação exige uma OP liberada ou em execução, sem solicitação ativa, e permissão para gerenciar a Produção.
+            </p>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border">
@@ -264,6 +317,51 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
           </div>
         </>
       ) : null}
+
+      <AlertDialog
+        open={confirmacaoIncorporarAberta}
+        onOpenChange={(open) => !incorporando && setConfirmacaoIncorporarAberta(open)}
+      >
+        <AlertDialogContent className="border-2 border-amber-500">
+          <AlertDialogHeader>
+            <div className="mx-auto mb-2 rounded-full bg-amber-500/10 p-3">
+              <PackagePlus className="h-8 w-8 text-amber-600" />
+            </div>
+            <AlertDialogTitle className="text-center text-xl font-black uppercase text-amber-700 dark:text-amber-400">
+              Incorporar PCP nesta OP
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 text-center text-sm text-foreground">
+              <span className="block font-bold uppercase">
+                Os materiais atuais do PCP da Etapa serão copiados proporcionalmente para esta Ordem de Produção.
+              </span>
+              <span className="block">
+                Esta ação não cria Solicitação de Material, não reserva e não baixa o estoque. Depois da incorporação, você deverá revisar os itens e gerar a solicitação oficial separadamente.
+              </span>
+              {ordem.status === 'em_execucao' && (
+                <span className="block rounded-md border border-amber-500/30 bg-amber-500/5 p-2 font-semibold">
+                  Esta OP já está em execução. O snapshot incorporado ficará preservado e mudanças posteriores no PCP não o substituirão automaticamente.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={incorporando}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmarIncorporacao();
+              }}
+              disabled={incorporando}
+              className="bg-amber-600 font-bold uppercase text-white hover:bg-amber-700"
+            >
+              {incorporando
+                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                : <PackagePlus className="mr-2 h-4 w-4" />}
+              Estou ciente — incorporar PCP
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={confirmacaoAberta} onOpenChange={(open) => !gerando && setConfirmacaoAberta(open)}>
         <AlertDialogContent className="border-2 border-red-500">
