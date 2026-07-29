@@ -20,6 +20,8 @@ import { useProcessosProducao, type ResumoExclusaoProcessoProducao } from '@/hoo
 import { FormProcessoProducao } from './FormProcessoProducao';
 import { FormRetificarProcesso } from './FormRetificarProcesso';
 import { FormOrdemProducao } from './FormOrdemProducao';
+import { MateriaisEtapaProducao } from './MateriaisEtapaProducao';
+import { MateriaisOrdemProducao } from './MateriaisOrdemProducao';
 import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
 import { ModalExcluirProcesso } from './ModalExcluirProcesso';
 import type { ProducaoOrdemProducao, ProducaoProcesso } from '@/types/producao';
@@ -236,6 +238,11 @@ export const ProcessosProducao = () => {
                   </div>
                 </div>
 
+                <MateriaisEtapaProducao
+                  processo={processo}
+                  podeEditar={etapaAberta && canConfigurarProducao()}
+                />
+
                 <div className="mt-4 border-t pt-4">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <p className="text-sm font-medium">Ordens de Produção da etapa</p>
@@ -272,6 +279,7 @@ export const ProcessosProducao = () => {
                           <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                             <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, ordem.percentual_realizado)}%` }} />
                           </div>
+                          <MateriaisOrdemProducao ordem={ordem} />
                         </div>
                       ))}
                     </div>
