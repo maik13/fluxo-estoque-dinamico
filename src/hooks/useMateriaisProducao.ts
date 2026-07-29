@@ -144,6 +144,25 @@ export const useMateriaisProducao = () => {
     };
   }, []);
 
+  const incorporarMateriaisPCP = useCallback(async (
+    ordemProducaoId: string,
+  ) => {
+    const { data, error } = await (supabase.rpc as any)('incorporar_materiais_pcp_op', {
+      p_ordem_producao_id: ordemProducaoId,
+    });
+
+    if (error) {
+      throw erro(error, 'Não foi possível incorporar o PCP à Ordem de Produção.');
+    }
+
+    const quantidade = Number(data ?? 0);
+    if (!Number.isFinite(quantidade) || quantidade <= 0) {
+      throw new Error('A incorporação foi processada, mas nenhum material foi identificado.');
+    }
+
+    return quantidade;
+  }, []);
+
   const gerarSolicitacaoMaterial = useCallback(async (
     ordemProducaoId: string,
     estoqueId: string,
@@ -179,6 +198,7 @@ export const useMateriaisProducao = () => {
     listarMateriaisEtapa,
     salvarMateriaisEtapa,
     listarMateriaisOrdem,
+    incorporarMateriaisPCP,
     gerarSolicitacaoMaterial,
   };
 };
