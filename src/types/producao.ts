@@ -6,8 +6,15 @@ export type ProducaoProcessoStatus = 'planejado' | 'em_andamento' | 'pausado' | 
 export type ProducaoPrioridade = 'baixa' | 'normal' | 'alta' | 'urgente';
 export type ProducaoMembroOrigem = 'solicitante' | 'producao' | 'legado_pendente';
 export type ProducaoOrdemStatus = 'rascunho' | 'liberada' | 'em_execucao' | 'concluida' | 'cancelada';
+export type ProducaoPinturaTipo = 'miolo' | 'casca' | 'painel';
 
 export interface ProducaoTarefa { id: string; nome: string; categoria: string | null; ativo: boolean; created_at: string; updated_at: string; }
+export interface ProducaoPresetPintura {
+  id: string; nome: string; comprimento_ripa_m: number; largura_ripa_cm: number; ripas_por_painel: number;
+  consumo_miolo_ml_por_ripa: number; consumo_casca_ml_por_ripa: number; ativo: boolean;
+  criado_por_id: string | null; criado_por_nome_snapshot: string | null; atualizado_por_id: string | null;
+  atualizado_por_nome_snapshot: string | null; created_at: string; updated_at: string;
+}
 export interface ProducaoProjeto {
   id: string; config_id: string | null; local_utilizacao_id: string; group_id: string | null; grupo_nome: string | null;
   nome: string; descricao: string | null; cliente: string | null; cidade: string | null; uf: string | null;
@@ -44,12 +51,18 @@ export interface ProducaoOrdemProducao {
   responsavel_id: string | null; responsavel_nome_snapshot: string | null; equipe_prevista: number | null;
   prioridade: ProducaoPrioridade; status: ProducaoOrdemStatus; motivo_cancelamento: string | null;
   criado_por_id: string | null; criado_por_nome_snapshot: string | null; created_at: string; updated_at: string;
+  pintura_tipo: ProducaoPinturaTipo | null; pintura_preset_id: string | null; pintura_preset_nome_snapshot: string | null;
+  pintura_comprimento_ripa_m_snapshot: number | null; pintura_largura_ripa_cm_snapshot: number | null;
+  pintura_ripas_por_painel_snapshot: number | null; pintura_consumo_ml_por_ripa_snapshot: number | null;
+  pintura_quantidade_ripas_calculada: number | null; pintura_consumo_ml_por_unidade: number | null;
+  pintura_consumo_total_ml: number | null;
 }
 
 export interface NovaOrdemProducao {
   processo_id: string; quantidade_planejada: number; data_inicio_prevista: string; data_fim_prevista: string;
   local_tipo: ProducaoLocalTipo; responsavel_id?: string | null; responsavel_nome?: string | null;
   equipe_prevista?: number | null; instrucoes?: string | null; descricao?: string | null; prioridade?: ProducaoPrioridade;
+  pintura_tipo?: ProducaoPinturaTipo | null; pintura_preset_id?: string | null;
 }
 
 export interface ProducaoApontamento {
