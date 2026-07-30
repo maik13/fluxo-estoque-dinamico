@@ -1,5 +1,12 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { ClipboardPlus, Loader2, Pencil, Plus, UserRoundPlus, UserX } from 'lucide-react';
+import {
+  ClipboardPlus,
+  Loader2,
+  Pencil,
+  Plus,
+  UserRoundPlus,
+  UserX,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -13,7 +20,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -24,8 +37,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { NovoMembroProducao, ProducaoMembro, ProducaoTarefa } from '@/types/producao';
+import type {
+  NovoMembroProducao,
+  ProducaoMembro,
+  ProducaoTarefa,
+} from '@/types/producao';
 import { parseValorHoraProducao } from '@/utils/producaoImport';
+import { ImportacaoCadastrosProducao } from './ImportacaoCadastrosProducao';
 
 interface ConfiguracoesProducaoProps {
   membros: ProducaoMembro[];
@@ -38,10 +56,16 @@ interface ConfiguracoesProducaoProps {
     valorHora?: number | null,
     jornadaDiariaMinutos?: number | null,
   ) => Promise<ProducaoMembro>;
-  editarMembro: (id: string, dados: Partial<NovoMembroProducao>) => Promise<ProducaoMembro>;
+  editarMembro: (
+    id: string,
+    dados: Partial<NovoMembroProducao>,
+  ) => Promise<ProducaoMembro>;
   inativarMembro: (id: string) => Promise<ProducaoMembro>;
   listarTarefas: (somenteAtivas?: boolean) => Promise<ProducaoTarefa[]>;
-  criarTarefa: (nome: string, categoria?: string | null) => Promise<ProducaoTarefa>;
+  criarTarefa: (
+    nome: string,
+    categoria?: string | null,
+  ) => Promise<ProducaoTarefa>;
 }
 
 const mensagemErro = (error: unknown, fallback: string) =>
@@ -63,13 +87,18 @@ const jornadaParaMinutos = (valor: string): number | null => {
 
 const minutosParaJornada = (minutos: number | null | undefined) => {
   if (!minutos) return '';
-  return `${String(Math.floor(minutos / 60)).padStart(2, '0')}:${String(minutos % 60).padStart(2, '0')}`;
+  return `${String(Math.floor(minutos / 60)).padStart(2, '0')}:${String(
+    minutos % 60,
+  ).padStart(2, '0')}`;
 };
 
 const formatarMoedaHora = (valor: number | null | undefined) =>
   valor === null || valor === undefined
     ? 'Valor/hora não informado'
-    : `${valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/h`;
+    : `${valor.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      })}/h`;
 
 export const ConfiguracoesProducao = ({
   membros,
@@ -88,8 +117,10 @@ export const ConfiguracoesProducao = ({
   const [jornadaMembro, setJornadaMembro] = useState('08:00');
   const [salvandoMembro, setSalvandoMembro] = useState(false);
 
-  const [membroEditando, setMembroEditando] = useState<ProducaoMembro | null>(null);
-  const [membroParaInativar, setMembroParaInativar] = useState<ProducaoMembro | null>(null);
+  const [membroEditando, setMembroEditando] =
+    useState<ProducaoMembro | null>(null);
+  const [membroParaInativar, setMembroParaInativar] =
+    useState<ProducaoMembro | null>(null);
   const [nomeEdicao, setNomeEdicao] = useState('');
   const [apelidoEdicao, setApelidoEdicao] = useState('');
   const [funcaoEdicao, setFuncaoEdicao] = useState('');
@@ -137,7 +168,11 @@ export const ConfiguracoesProducao = ({
     setNomeEdicao(membro.nome);
     setApelidoEdicao(membro.apelido ?? '');
     setFuncaoEdicao(membro.funcao ?? '');
-    setValorHoraEdicao(membro.valor_hora == null ? '' : String(membro.valor_hora).replace('.', ','));
+    setValorHoraEdicao(
+      membro.valor_hora == null
+        ? ''
+        : String(membro.valor_hora).replace('.', ','),
+    );
     setJornadaEdicao(minutosParaJornada(membro.jornada_diaria_minutos));
   };
 
@@ -194,68 +229,163 @@ export const ConfiguracoesProducao = ({
 
   return (
     <div className="grid gap-5 xl:grid-cols-2">
+      <div className="xl:col-span-2">
+        <ImportacaoCadastrosProducao
+          membros={membros}
+          tarefas={tarefas}
+          criarMembro={criarMembro}
+          criarTarefa={criarTarefa}
+          listarMembros={listarMembros}
+          listarTarefas={listarTarefas}
+        />
+      </div>
+
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2"><UserRoundPlus className="h-5 w-5 text-primary" /></div>
+            <div className="rounded-lg bg-primary/10 p-2">
+              <UserRoundPlus className="h-5 w-5 text-primary" />
+            </div>
             <div>
               <CardTitle>Equipe de Produção</CardTitle>
-              <CardDescription>Cadastre pessoas, custo e jornada diária para os cálculos do BI.</CardDescription>
+              <CardDescription>
+                Cadastre pessoas, custo e jornada diária para os cálculos do BI.
+              </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
-          <form onSubmit={cadastrarMembro} className="space-y-3 rounded-lg border bg-muted/10 p-4">
+          <form
+            onSubmit={cadastrarMembro}
+            className="space-y-3 rounded-lg border bg-muted/10 p-4"
+          >
             <p className="text-sm font-medium">Novo membro</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="novo-membro-nome">Nome *</Label>
-                <Input id="novo-membro-nome" value={nomeMembro} onChange={(e) => setNomeMembro(e.target.value)} placeholder="Nome completo" required />
+                <Input
+                  id="novo-membro-nome"
+                  value={nomeMembro}
+                  onChange={(event) => setNomeMembro(event.target.value)}
+                  placeholder="Nome completo"
+                  required
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="novo-membro-apelido">Apelido</Label>
-                <Input id="novo-membro-apelido" value={apelidoMembro} onChange={(e) => setApelidoMembro(e.target.value)} placeholder="Como é conhecido" />
+                <Input
+                  id="novo-membro-apelido"
+                  value={apelidoMembro}
+                  onChange={(event) => setApelidoMembro(event.target.value)}
+                  placeholder="Como é conhecido"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="novo-membro-funcao">Função</Label>
-                <Input id="novo-membro-funcao" value={funcaoMembro} onChange={(e) => setFuncaoMembro(e.target.value)} placeholder="Ex.: Montador" />
+                <Input
+                  id="novo-membro-funcao"
+                  value={funcaoMembro}
+                  onChange={(event) => setFuncaoMembro(event.target.value)}
+                  placeholder="Ex.: Montador"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="novo-membro-valor-hora">Valor da hora</Label>
-                <Input id="novo-membro-valor-hora" inputMode="decimal" value={valorHoraMembro} onChange={(e) => setValorHoraMembro(e.target.value)} placeholder="Ex.: 14,21" />
+                <Input
+                  id="novo-membro-valor-hora"
+                  inputMode="decimal"
+                  value={valorHoraMembro}
+                  onChange={(event) => setValorHoraMembro(event.target.value)}
+                  placeholder="Ex.: 14,21"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="novo-membro-jornada">Jornada diária *</Label>
-                <Input id="novo-membro-jornada" value={jornadaMembro} onChange={(e) => setJornadaMembro(e.target.value)} placeholder="08:00" inputMode="numeric" required />
-                <p className="text-xs text-muted-foreground">Formato HH:MM. Ex.: 08:00 para oito horas.</p>
+                <Input
+                  id="novo-membro-jornada"
+                  value={jornadaMembro}
+                  onChange={(event) => setJornadaMembro(event.target.value)}
+                  placeholder="08:00"
+                  inputMode="numeric"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Formato HH:MM. Ex.: 08:00 para oito horas.
+                </p>
               </div>
             </div>
-            <Button type="submit" disabled={salvandoMembro || !nomeMembro.trim() || !jornadaMembro.trim()}>
-              {salvandoMembro ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+            <Button
+              type="submit"
+              disabled={
+                salvandoMembro || !nomeMembro.trim() || !jornadaMembro.trim()
+              }
+            >
+              {salvandoMembro ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 h-4 w-4" />
+              )}
               Cadastrar membro
             </Button>
           </form>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium">Membros cadastrados ({membros.length})</p>
+            <p className="text-sm font-medium">
+              Membros cadastrados ({membros.length})
+            </p>
             {membros.length === 0 ? (
-              <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">Nenhum membro cadastrado.</p>
-            ) : membros.map((membro) => (
-              <div key={membro.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate font-medium">{membro.nome}</p>
-                    <Badge variant={membro.ativo ? 'secondary' : 'outline'}>{membro.ativo ? 'Ativo' : 'Inativo'}</Badge>
+              <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                Nenhum membro cadastrado.
+              </p>
+            ) : (
+              membros.map((membro) => (
+                <div
+                  key={membro.id}
+                  className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate font-medium">{membro.nome}</p>
+                      <Badge variant={membro.ativo ? 'secondary' : 'outline'}>
+                        {membro.ativo ? 'Ativo' : 'Inativo'}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {[membro.apelido, membro.funcao]
+                        .filter(Boolean)
+                        .join(' · ') || 'Sem apelido ou função'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatarMoedaHora(membro.valor_hora)} · Jornada:{' '}
+                      {minutosParaJornada(membro.jornada_diaria_minutos) ||
+                        'não informada'}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">{[membro.apelido, membro.funcao].filter(Boolean).join(' · ') || 'Sem apelido ou função'}</p>
-                  <p className="text-sm text-muted-foreground">{formatarMoedaHora(membro.valor_hora)} · Jornada: {minutosParaJornada(membro.jornada_diaria_minutos) || 'não informada'}</p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => abrirEdicao(membro)}
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Editar
+                    </Button>
+                    {membro.ativo && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setMembroParaInativar(membro)}
+                      >
+                        <UserX className="mr-2 h-4 w-4" />
+                        Inativar
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => abrirEdicao(membro)}><Pencil className="mr-2 h-4 w-4" />Editar</Button>
-                  {membro.ativo && <Button type="button" variant="outline" size="sm" onClick={() => setMembroParaInativar(membro)}><UserX className="mr-2 h-4 w-4" />Inativar</Button>}
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
@@ -263,51 +393,193 @@ export const ConfiguracoesProducao = ({
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2"><ClipboardPlus className="h-5 w-5 text-primary" /></div>
-            <div><CardTitle>Tarefas de Produção</CardTitle><CardDescription>Defina as atividades disponíveis nos apontamentos.</CardDescription></div>
+            <div className="rounded-lg bg-primary/10 p-2">
+              <ClipboardPlus className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Tarefas de Produção</CardTitle>
+              <CardDescription>
+                Defina as atividades disponíveis nos apontamentos.
+              </CardDescription>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
-          <form onSubmit={cadastrarTarefa} className="space-y-3 rounded-lg border bg-muted/10 p-4">
+          <form
+            onSubmit={cadastrarTarefa}
+            className="space-y-3 rounded-lg border bg-muted/10 p-4"
+          >
             <p className="text-sm font-medium">Nova tarefa</p>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5"><Label htmlFor="nova-tarefa-nome">Nome *</Label><Input id="nova-tarefa-nome" value={nomeTarefa} onChange={(e) => setNomeTarefa(e.target.value)} placeholder="Ex.: Montagem de estrutura" required /></div>
-              <div className="space-y-1.5"><Label htmlFor="nova-tarefa-categoria">Categoria</Label><Input id="nova-tarefa-categoria" value={categoriaTarefa} onChange={(e) => setCategoriaTarefa(e.target.value)} placeholder="Ex.: Fabricação" /></div>
-            </div>
-            <Button type="submit" disabled={salvandoTarefa || !nomeTarefa.trim()}>{salvandoTarefa ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Cadastrar tarefa</Button>
-          </form>
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Tarefas cadastradas ({tarefas.length})</p>
-            {tarefas.length === 0 ? <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">Nenhuma tarefa cadastrada.</p> : tarefas.map((tarefa) => (
-              <div key={tarefa.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                <div className="min-w-0"><p className="truncate font-medium">{tarefa.nome}</p><p className="text-sm text-muted-foreground">{tarefa.categoria || 'Sem categoria'}</p></div>
-                <Badge variant={tarefa.ativo ? 'secondary' : 'outline'}>{tarefa.ativo ? 'Ativa' : 'Inativa'}</Badge>
+              <div className="space-y-1.5">
+                <Label htmlFor="nova-tarefa-nome">Nome *</Label>
+                <Input
+                  id="nova-tarefa-nome"
+                  value={nomeTarefa}
+                  onChange={(event) => setNomeTarefa(event.target.value)}
+                  placeholder="Ex.: Montagem de estrutura"
+                  required
+                />
               </div>
-            ))}
+              <div className="space-y-1.5">
+                <Label htmlFor="nova-tarefa-categoria">Categoria</Label>
+                <Input
+                  id="nova-tarefa-categoria"
+                  value={categoriaTarefa}
+                  onChange={(event) => setCategoriaTarefa(event.target.value)}
+                  placeholder="Ex.: Fabricação"
+                />
+              </div>
+            </div>
+            <Button
+              type="submit"
+              disabled={salvandoTarefa || !nomeTarefa.trim()}
+            >
+              {salvandoTarefa ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 h-4 w-4" />
+              )}
+              Cadastrar tarefa
+            </Button>
+          </form>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">
+              Tarefas cadastradas ({tarefas.length})
+            </p>
+            {tarefas.length === 0 ? (
+              <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                Nenhuma tarefa cadastrada.
+              </p>
+            ) : (
+              tarefas.map((tarefa) => (
+                <div
+                  key={tarefa.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{tarefa.nome}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {tarefa.categoria || 'Sem categoria'}
+                    </p>
+                  </div>
+                  <Badge variant={tarefa.ativo ? 'secondary' : 'outline'}>
+                    {tarefa.ativo ? 'Ativa' : 'Inativa'}
+                  </Badge>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
 
-      <Dialog open={Boolean(membroEditando)} onOpenChange={(aberto) => !aberto && setMembroEditando(null)}>
+      <Dialog
+        open={Boolean(membroEditando)}
+        onOpenChange={(aberto) => !aberto && setMembroEditando(null)}
+      >
         <DialogContent>
-          <DialogHeader><DialogTitle>Editar membro</DialogTitle><DialogDescription>Atualize os dados usados nos próximos apontamentos. O histórico mantém snapshots.</DialogDescription></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Editar membro</DialogTitle>
+            <DialogDescription>
+              Atualize os dados usados nos próximos apontamentos. O histórico
+              mantém snapshots.
+            </DialogDescription>
+          </DialogHeader>
           <form onSubmit={salvarEdicao} className="space-y-4">
-            <div className="space-y-1.5"><Label htmlFor="editar-membro-nome">Nome *</Label><Input id="editar-membro-nome" value={nomeEdicao} onChange={(e) => setNomeEdicao(e.target.value)} required /></div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5"><Label htmlFor="editar-membro-apelido">Apelido</Label><Input id="editar-membro-apelido" value={apelidoEdicao} onChange={(e) => setApelidoEdicao(e.target.value)} /></div>
-              <div className="space-y-1.5"><Label htmlFor="editar-membro-funcao">Função</Label><Input id="editar-membro-funcao" value={funcaoEdicao} onChange={(e) => setFuncaoEdicao(e.target.value)} /></div>
-              <div className="space-y-1.5"><Label htmlFor="editar-membro-valor">Valor da hora</Label><Input id="editar-membro-valor" value={valorHoraEdicao} onChange={(e) => setValorHoraEdicao(e.target.value)} inputMode="decimal" /></div>
-              <div className="space-y-1.5"><Label htmlFor="editar-membro-jornada">Jornada diária</Label><Input id="editar-membro-jornada" value={jornadaEdicao} onChange={(e) => setJornadaEdicao(e.target.value)} placeholder="08:00" /></div>
+            <div className="space-y-1.5">
+              <Label htmlFor="editar-membro-nome">Nome *</Label>
+              <Input
+                id="editar-membro-nome"
+                value={nomeEdicao}
+                onChange={(event) => setNomeEdicao(event.target.value)}
+                required
+              />
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setMembroEditando(null)}>Cancelar</Button><Button type="submit" disabled={salvandoEdicao || !nomeEdicao.trim()}>{salvandoEdicao && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar alterações</Button></DialogFooter>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="editar-membro-apelido">Apelido</Label>
+                <Input
+                  id="editar-membro-apelido"
+                  value={apelidoEdicao}
+                  onChange={(event) => setApelidoEdicao(event.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="editar-membro-funcao">Função</Label>
+                <Input
+                  id="editar-membro-funcao"
+                  value={funcaoEdicao}
+                  onChange={(event) => setFuncaoEdicao(event.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="editar-membro-valor">Valor da hora</Label>
+                <Input
+                  id="editar-membro-valor"
+                  value={valorHoraEdicao}
+                  onChange={(event) => setValorHoraEdicao(event.target.value)}
+                  inputMode="decimal"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="editar-membro-jornada">Jornada diária</Label>
+                <Input
+                  id="editar-membro-jornada"
+                  value={jornadaEdicao}
+                  onChange={(event) => setJornadaEdicao(event.target.value)}
+                  placeholder="08:00"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setMembroEditando(null)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={salvandoEdicao || !nomeEdicao.trim()}
+              >
+                {salvandoEdicao && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Salvar alterações
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={Boolean(membroParaInativar)} onOpenChange={(aberto) => !aberto && setMembroParaInativar(null)}>
+      <AlertDialog
+        open={Boolean(membroParaInativar)}
+        onOpenChange={(aberto) => !aberto && setMembroParaInativar(null)}
+      >
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Inativar membro?</AlertDialogTitle><AlertDialogDescription>O membro deixa de aparecer em novos apontamentos. O histórico permanece preservado.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel disabled={inativando}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={confirmarInativacao} disabled={inativando}>{inativando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Inativar</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Inativar membro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O membro deixa de aparecer em novos apontamentos. O histórico
+              permanece preservado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={inativando}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmarInativacao}
+              disabled={inativando}
+            >
+              {inativando && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Inativar
+            </AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
