@@ -24,6 +24,7 @@ import { MateriaisEtapaProducao } from './MateriaisEtapaProducao';
 import { MateriaisOrdemProducao } from './MateriaisOrdemProducao';
 import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
 import { ModalExcluirProcesso } from './ModalExcluirProcesso';
+import { ResumoPinturaOrdem } from './ResumoPinturaOrdem';
 import type { ProducaoOrdemProducao, ProducaoProcesso } from '@/types/producao';
 
 const pedirJustificativa = (texto: string) => {
@@ -279,6 +280,7 @@ export const ProcessosProducao = () => {
                           <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                             <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, ordem.percentual_realizado)}%` }} />
                           </div>
+                          <ResumoPinturaOrdem ordem={ordem} />
                           <MateriaisOrdemProducao ordem={ordem} />
                         </div>
                       ))}

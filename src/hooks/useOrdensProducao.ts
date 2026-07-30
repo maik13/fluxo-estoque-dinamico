@@ -13,6 +13,21 @@ const erro = (value: unknown, fallback: string) =>
 export const formatarNumeroOrdemProducao = (numero: number | null | undefined) =>
   numero ? `OP ${String(numero).padStart(6, '0')}` : 'OP sem número';
 
+const normalizarOrdem = (item: any): ProducaoOrdemProducao => ({
+  ...item,
+  numero: Number(item.numero),
+  quantidade_planejada: Number(item.quantidade_planejada ?? 0),
+  quantidade_realizada: Number(item.quantidade_realizada ?? 0),
+  percentual_realizado: Number(item.percentual_realizado ?? 0),
+  pintura_comprimento_ripa_m_snapshot: item.pintura_comprimento_ripa_m_snapshot == null ? null : Number(item.pintura_comprimento_ripa_m_snapshot),
+  pintura_largura_ripa_cm_snapshot: item.pintura_largura_ripa_cm_snapshot == null ? null : Number(item.pintura_largura_ripa_cm_snapshot),
+  pintura_ripas_por_painel_snapshot: item.pintura_ripas_por_painel_snapshot == null ? null : Number(item.pintura_ripas_por_painel_snapshot),
+  pintura_consumo_ml_por_ripa_snapshot: item.pintura_consumo_ml_por_ripa_snapshot == null ? null : Number(item.pintura_consumo_ml_por_ripa_snapshot),
+  pintura_quantidade_ripas_calculada: item.pintura_quantidade_ripas_calculada == null ? null : Number(item.pintura_quantidade_ripas_calculada),
+  pintura_consumo_ml_por_unidade: item.pintura_consumo_ml_por_unidade == null ? null : Number(item.pintura_consumo_ml_por_unidade),
+  pintura_consumo_total_ml: item.pintura_consumo_total_ml == null ? null : Number(item.pintura_consumo_total_ml),
+});
+
 export const useOrdensProducao = () => {
   const [ordens, setOrdens] = useState<ProducaoOrdemProducao[]>([]);
   const [loading, setLoading] = useState(false);
@@ -28,7 +43,7 @@ export const useOrdensProducao = () => {
         p_status: status ?? null,
       });
       if (error) throw erro(error, 'Não foi possível carregar as Ordens de Produção.');
-      const resultado = (data ?? []) as ProducaoOrdemProducao[];
+      const resultado = (data ?? []).map(normalizarOrdem) as ProducaoOrdemProducao[];
       setOrdens(resultado);
       return resultado;
     } finally {
@@ -49,6 +64,8 @@ export const useOrdensProducao = () => {
       p_instrucoes: dados.instrucoes ?? null,
       p_descricao: dados.descricao ?? null,
       p_prioridade: dados.prioridade ?? 'normal',
+      p_pintura_tipo: dados.pintura_tipo ?? null,
+      p_pintura_preset_id: dados.pintura_preset_id ?? null,
     });
     if (error) throw erro(error, 'Não foi possível emitir a Ordem de Produção.');
     const atualizadas = await listarOrdens();
