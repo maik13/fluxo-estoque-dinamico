@@ -19,6 +19,7 @@ import { ConfiguracoesProducao } from './ConfiguracoesProducao';
 import { CronogramaProducaoDiario } from './CronogramaProducaoDiario';
 import { FormApontamentoProducaoV2 } from './FormApontamentoProducaoV2';
 import { HistoricoApontamentosProducaoV2 } from './HistoricoApontamentosProducaoV2';
+import { PresetsPinturaProducao } from './PresetsPinturaProducao';
 import { ProjetosProducao } from './ProjetosProducao';
 import { ProcessosProducao } from './ProcessosProducao';
 
@@ -141,7 +142,7 @@ export const Producao = () => {
         </TabsContent>
 
         {podeConfigurar && (
-          <TabsContent value="configuracoes" className="mt-5">
+          <TabsContent value="configuracoes" className="mt-5 space-y-5">
             <ConfiguracoesProducao
               membros={membrosProducao}
               tarefas={tarefas}
@@ -152,6 +153,7 @@ export const Producao = () => {
               listarTarefas={listarTarefas}
               criarTarefa={criarTarefa}
             />
+            <PresetsPinturaProducao />
           </TabsContent>
         )}
       </Tabs>
