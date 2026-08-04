@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Eye, Filter, ImageIcon, Loader2, Printer, XCircle } from 'lucide-react';
+import { CheckCircle2, Eye, Filter, ImageIcon, Loader2, Printer, Trash2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
 import { useOrdensProducao, formatarNumeroOrdemProducao } from '@/hooks/useOrdensProducao';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useProcessosProducao } from '@/hooks/useProcessosProducao';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
 import { useProjetosProducao } from '@/hooks/useProjetosProducao';
@@ -68,13 +69,16 @@ export const HistoricoApontamentosProducaoV2 = ({
   const [detalhes, setDetalhes] = useState<ProducaoApontamento | null>(null);
   const [galeria, setGaleria] = useState<ProducaoApontamento | null>(null);
   const [imprimindoId, setImprimindoId] = useState<string | null>(null);
+  const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [membrosPorApontamento, setMembrosPorApontamento] = useState<Record<string, ProducaoApontamentoMembro[]>>({});
   const [anexosPorApontamento, setAnexosPorApontamento] = useState<Record<string, ProducaoApontamentoAnexo[]>>({});
   const [urls, setUrls] = useState<Record<string, string>>({});
+  const { isAdmin } = usePermissions();
   const { processos, listarProcessos } = useProcessosProducao();
   const { projetos, listarProjetos } = useProjetosProducao();
   const { ordens, listarOrdens } = useOrdensProducao();
   const { listarAnexosPorApontamentos, obterUrlAnexo } = useProducaoAnexos();
+  const podeExcluir = isAdmin();
 
   useEffect(() => {
     void Promise.all([listarProcessos(), listarProjetos(), listarOrdens()]);
@@ -156,6 +160,40 @@ export const HistoricoApontamentosProducaoV2 = ({
       toast.success('Apontamento conferido. O progresso da OP foi atualizado.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível conferir.');
+    }
+  };
+
+  const excluir = async (apontamento: ProducaoApontamento) => {
+    const confirmado = window.confirm(
+      'Tem certeza de que deseja excluir este apontamento? Esta ação não poderá ser desfeita.',
+    );
+    if (!confirmado) return;
+
+    setExcluindoId(apontamento.id);
+    try {
+      const { error } = await (supabase.rpc as any)('excluir_apontamento_producao_admin', {
+        p_apontamento_id: apontamento.id,
+      });
+      if (error) {
+        throw new Error(
+          formatarErroSupabase(error, 'Não foi possível excluir o apontamento.'),
+        );
+      }
+
+      if (detalhes?.id === apontamento.id) setDetalhes(null);
+      if (galeria?.id === apontamento.id) {
+        setGaleria(null);
+        setUrls({});
+      }
+
+      await Promise.all([recarregar(), listarOrdens(), listarProcessos()]);
+      toast.success('Apontamento excluído do Histórico.');
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Não foi possível excluir o apontamento.',
+      );
+    } finally {
+      setExcluindoId(null);
     }
   };
 
@@ -248,6 +286,7 @@ export const HistoricoApontamentosProducaoV2 = ({
                       {ordem && <Button size="icon" variant="ghost" title={`Imprimir ${formatarNumeroOrdemProducao(ordem.numero)}`} disabled={imprimindoId === ordem.id} onClick={() => void imprimir(ordem.id)}>{imprimindoId === ordem.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}</Button>}
                       {podeConferir && apontamento.status === 'lancado' && <Button size="icon" variant="ghost" title="Conferir" onClick={() => void conferir(apontamento)}><CheckCircle2 className="h-4 w-4 text-emerald-500" /></Button>}
                       {apontamento.status === 'lancado' && <Button size="icon" variant="ghost" title="Cancelar" onClick={() => void cancelar(apontamento)}><XCircle className="h-4 w-4 text-red-500" /></Button>}
+                      {podeExcluir && <Button size="icon" variant="ghost" title="Excluir apontamento" disabled={excluindoId === apontamento.id} onClick={() => void excluir(apontamento)}>{excluindoId === apontamento.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 text-red-600" />}</Button>}
                       <Button size="icon" variant="ghost" title="Detalhes" onClick={() => setDetalhes(apontamento)}><Eye className="h-4 w-4" /></Button>
                     </div></TableCell>
                   </TableRow>
