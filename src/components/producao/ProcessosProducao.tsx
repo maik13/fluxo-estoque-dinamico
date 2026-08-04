@@ -4,7 +4,6 @@ import {
   Ban,
   CheckCircle,
   Clock,
-  Eraser,
   Pause,
   Play,
   RotateCcw,
@@ -15,10 +14,6 @@ import {
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  useExpurgoEtapaTeste,
-  type ResumoExpurgoEtapaTeste,
-} from '@/hooks/useExpurgoEtapaTeste';
 import { usePermissions } from '@/hooks/usePermissions';
 import {
   useOrdensProducao,
@@ -35,7 +30,6 @@ import { MateriaisEtapaProducao } from './MateriaisEtapaProducao';
 import { MateriaisOrdemProducao } from './MateriaisOrdemProducao';
 import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
 import { ModalExcluirProcesso } from './ModalExcluirProcesso';
-import { ModalExpurgarEtapaTeste } from './ModalExpurgarEtapaTeste';
 import type {
   ProducaoOrdemProducao,
   ProducaoProcesso,
@@ -69,13 +63,6 @@ export const ProcessosProducao = () => {
   const [carregandoResumoExclusao, setCarregandoResumoExclusao] =
     useState(false);
   const [excluindo, setExcluindo] = useState(false);
-  const [processoParaExpurgar, setProcessoParaExpurgar] =
-    useState<ProducaoProcesso | null>(null);
-  const [resumoExpurgo, setResumoExpurgo] =
-    useState<ResumoExpurgoEtapaTeste | null>(null);
-  const [carregandoResumoExpurgo, setCarregandoResumoExpurgo] =
-    useState(false);
-  const [expurgando, setExpurgando] = useState(false);
   const { isAdmin, canConfigurarProducao } = usePermissions();
   const {
     processos,
@@ -86,7 +73,6 @@ export const ProcessosProducao = () => {
     obterResumoExclusao,
     excluirProcesso,
   } = useProcessosProducao();
-  const { obterResumoExpurgo, expurgarEtapaTeste } = useExpurgoEtapaTeste();
   const { ordens, listarOrdens, criarOrdem, transicaoOrdem } =
     useOrdensProducao();
 
@@ -187,61 +173,14 @@ export const ProcessosProducao = () => {
     setExcluindo(true);
     try {
       await excluirProcesso(processoParaExcluir.id, codigo, justificativa);
-      toast.success(
-        `Etapa ${processoParaExcluir.codigo} excluída e registrada na auditoria.`,
-      );
+      await listarOrdens();
+      toast.success(`Etapa ${processoParaExcluir.codigo} excluída.`);
       setProcessoParaExcluir(null);
       setResumoExclusao(null);
     } catch (error) {
       toast.error(mensagemErro(error, 'Não foi possível excluir a etapa.'));
     } finally {
       setExcluindo(false);
-    }
-  };
-
-  const abrirExpurgo = async (processo: ProducaoProcesso) => {
-    setProcessoParaExpurgar(processo);
-    setResumoExpurgo(null);
-    setCarregandoResumoExpurgo(true);
-    try {
-      const resumo = await obterResumoExpurgo(processo.id);
-      setResumoExpurgo(resumo);
-    } catch (error) {
-      toast.error(
-        mensagemErro(error, 'Não foi possível preparar o expurgo da Etapa.'),
-      );
-      setProcessoParaExpurgar(null);
-    } finally {
-      setCarregandoResumoExpurgo(false);
-    }
-  };
-
-  const confirmarExpurgo = async (
-    codigo: string,
-    confirmacaoExpurgo: string,
-    justificativa: string,
-  ) => {
-    if (!processoParaExpurgar) return;
-    setExpurgando(true);
-    try {
-      await expurgarEtapaTeste(
-        processoParaExpurgar.id,
-        codigo,
-        confirmacaoExpurgo,
-        justificativa,
-      );
-      await Promise.all([listarProcessos(), listarOrdens()]);
-      toast.success(
-        `Etapa ${processoParaExpurgar.codigo} expurgada e registrada na auditoria.`,
-      );
-      setProcessoParaExpurgar(null);
-      setResumoExpurgo(null);
-    } catch (error) {
-      toast.error(
-        mensagemErro(error, 'Não foi possível expurgar a Etapa de teste.'),
-      );
-    } finally {
-      setExpurgando(false);
     }
   };
 
@@ -471,26 +410,15 @@ export const ProcessosProducao = () => {
                       </Button>
                     )}
                     {isAdmin() && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                          onClick={() => void abrirExclusao(processo)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Excluir
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-amber-500/50 text-amber-500 hover:bg-amber-500 hover:text-black"
-                          onClick={() => void abrirExpurgo(processo)}
-                        >
-                          <Eraser className="mr-2 h-4 w-4" />
-                          Expurgar teste
-                        </Button>
-                      </>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={() => void abrirExclusao(processo)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Excluir
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -654,19 +582,6 @@ export const ProcessosProducao = () => {
           setResumoExclusao(null);
         }}
         onConfirm={confirmarExclusao}
-      />
-
-      <ModalExpurgarEtapaTeste
-        processo={processoParaExpurgar}
-        resumo={resumoExpurgo}
-        carregandoResumo={carregandoResumoExpurgo}
-        expurgando={expurgando}
-        onClose={() => {
-          if (expurgando) return;
-          setProcessoParaExpurgar(null);
-          setResumoExpurgo(null);
-        }}
-        onConfirm={confirmarExpurgo}
       />
     </div>
   );
