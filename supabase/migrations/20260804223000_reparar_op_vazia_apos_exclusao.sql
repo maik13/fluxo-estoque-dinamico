@@ -4,6 +4,22 @@
 
 BEGIN;
 
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+      FROM public.profiles p
+     WHERE p.user_id = auth.uid()
+       AND COALESCE(p.ativo, FALSE) = TRUE
+       AND p.tipo_usuario = 'administrador'
+  );
+$$;
+
 CREATE OR REPLACE FUNCTION public.cancelar_ordem_vazia_producao_admin(
   p_ordem_producao_id UUID
 )
@@ -133,6 +149,9 @@ BEGIN
   END IF;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
 
 REVOKE ALL ON FUNCTION public.cancelar_ordem_vazia_producao_admin(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.cancelar_ordem_vazia_producao_admin(UUID) TO authenticated;
