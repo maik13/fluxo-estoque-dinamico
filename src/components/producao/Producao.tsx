@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   AlertCircle,
   ClipboardList,
@@ -23,6 +23,7 @@ import { ProjetosProducao } from './ProjetosProducao';
 import { ProcessosProducao } from './ProcessosProducao';
 
 export const Producao = () => {
+  const [abaAtiva, setAbaAtiva] = useState('etapas');
   const {
     tarefas,
     membrosProducao,
@@ -60,6 +61,16 @@ export const Producao = () => {
       listarApontamentos(),
     ]);
   }, [listarApontamentos, listarMembrosProducao, listarTarefas]);
+
+  const trocarAba = useCallback(
+    (novaAba: string) => {
+      setAbaAtiva(novaAba);
+      if (novaAba === 'historico') {
+        void carregarDados().catch(() => undefined);
+      }
+    },
+    [carregarDados],
+  );
 
   useEffect(() => {
     void verificar();
@@ -100,7 +111,7 @@ export const Producao = () => {
         </Alert>
       )}
 
-      <Tabs defaultValue="etapas" className="w-full">
+      <Tabs value={abaAtiva} onValueChange={trocarAba} className="w-full">
         <TabsList className={`flex h-auto w-full flex-wrap gap-1 sm:grid ${podeConfigurar ? 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-6' : 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-5'}`}>
           <TabsTrigger value="projetos" className="gap-2"><FolderOpen className="h-4 w-4" /><span className="hidden sm:inline">Projetos</span></TabsTrigger>
           <TabsTrigger value="etapas" className="gap-2"><Activity className="h-4 w-4" /><span className="hidden sm:inline">Etapas</span></TabsTrigger>
