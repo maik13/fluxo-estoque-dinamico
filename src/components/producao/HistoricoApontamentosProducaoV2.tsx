@@ -4,7 +4,14 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -68,6 +75,7 @@ export const HistoricoApontamentosProducaoV2 = ({
   const [ordemId, setOrdemId] = useState(TODOS);
   const [detalhes, setDetalhes] = useState<ProducaoApontamento | null>(null);
   const [galeria, setGaleria] = useState<ProducaoApontamento | null>(null);
+  const [apontamentoParaExcluir, setApontamentoParaExcluir] = useState<ProducaoApontamento | null>(null);
   const [imprimindoId, setImprimindoId] = useState<string | null>(null);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [membrosPorApontamento, setMembrosPorApontamento] = useState<Record<string, ProducaoApontamentoMembro[]>>({});
@@ -163,11 +171,9 @@ export const HistoricoApontamentosProducaoV2 = ({
     }
   };
 
-  const excluir = async (apontamento: ProducaoApontamento) => {
-    const confirmado = window.confirm(
-      'Tem certeza de que deseja excluir este apontamento? Esta ação não poderá ser desfeita.',
-    );
-    if (!confirmado) return;
+  const excluir = async () => {
+    const apontamento = apontamentoParaExcluir;
+    if (!apontamento) return;
 
     setExcluindoId(apontamento.id);
     try {
@@ -186,8 +192,9 @@ export const HistoricoApontamentosProducaoV2 = ({
         setUrls({});
       }
 
+      setApontamentoParaExcluir(null);
       await Promise.all([recarregar(), listarOrdens(), listarProcessos()]);
-      toast.success('Apontamento excluído do Histórico.');
+      toast.success('Apontamento excluído e saldo da Etapa atualizado.');
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : 'Não foi possível excluir o apontamento.',
@@ -240,6 +247,10 @@ export const HistoricoApontamentosProducaoV2 = ({
     }
   };
 
+  const ordemDaExclusao = apontamentoParaExcluir?.ordem_producao_id
+    ? ordensPorId[apontamentoParaExcluir.ordem_producao_id]
+    : null;
+
   return (
     <Card>
       <CardHeader>
@@ -286,7 +297,7 @@ export const HistoricoApontamentosProducaoV2 = ({
                       {ordem && <Button size="icon" variant="ghost" title={`Imprimir ${formatarNumeroOrdemProducao(ordem.numero)}`} disabled={imprimindoId === ordem.id} onClick={() => void imprimir(ordem.id)}>{imprimindoId === ordem.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}</Button>}
                       {podeConferir && apontamento.status === 'lancado' && <Button size="icon" variant="ghost" title="Conferir" onClick={() => void conferir(apontamento)}><CheckCircle2 className="h-4 w-4 text-emerald-500" /></Button>}
                       {apontamento.status === 'lancado' && <Button size="icon" variant="ghost" title="Cancelar" onClick={() => void cancelar(apontamento)}><XCircle className="h-4 w-4 text-red-500" /></Button>}
-                      {podeExcluir && <Button size="icon" variant="ghost" title="Excluir apontamento" disabled={excluindoId === apontamento.id} onClick={() => void excluir(apontamento)}>{excluindoId === apontamento.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 text-red-600" />}</Button>}
+                      {podeExcluir && <Button size="icon" variant="ghost" title="Excluir apontamento" disabled={excluindoId === apontamento.id} onClick={() => setApontamentoParaExcluir(apontamento)}>{excluindoId === apontamento.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 text-red-600" />}</Button>}
                       <Button size="icon" variant="ghost" title="Detalhes" onClick={() => setDetalhes(apontamento)}><Eye className="h-4 w-4" /></Button>
                     </div></TableCell>
                   </TableRow>
@@ -296,6 +307,58 @@ export const HistoricoApontamentosProducaoV2 = ({
           </Table>
         </div>
       </CardContent>
+
+      <Dialog
+        open={Boolean(apontamentoParaExcluir)}
+        onOpenChange={(open) => {
+          if (!open && !excluindoId) setApontamentoParaExcluir(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Excluir apontamento?</DialogTitle>
+            <DialogDescription>
+              Esta ação removerá permanentemente o registro do Histórico e recalculará o progresso da Ordem de Produção vinculada.
+            </DialogDescription>
+          </DialogHeader>
+
+          {apontamentoParaExcluir && (
+            <div className="space-y-3">
+              <div className="rounded-lg border bg-muted/20 p-4 text-sm">
+                <p><strong>Atividade:</strong> {tarefasPorId[apontamentoParaExcluir.tarefa_id] ?? 'Não identificada'}</p>
+                <p><strong>Data:</strong> {new Date(`${apontamentoParaExcluir.data}T12:00:00`).toLocaleDateString('pt-BR')}</p>
+                <p><strong>Ordem de Produção:</strong> {ordemDaExclusao ? formatarNumeroOrdemProducao(ordemDaExclusao.numero) : 'Atividade avulsa'}</p>
+              </div>
+              {ordemDaExclusao && (
+                <p className="text-sm text-muted-foreground">
+                  Se este for o último apontamento da OP, ela será cancelada automaticamente e o saldo retornará à Etapa para permitir uma nova emissão.
+                </p>
+              )}
+              <p className="text-sm font-medium text-destructive">Esta exclusão não poderá ser desfeita.</p>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={Boolean(excluindoId)}
+              onClick={() => setApontamentoParaExcluir(null)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={Boolean(excluindoId)}
+              onClick={() => void excluir()}
+            >
+              {excluindoId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              Excluir apontamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={Boolean(galeria)} onOpenChange={(open) => { if (!open) { setGaleria(null); setUrls({}); } }}>
         <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
