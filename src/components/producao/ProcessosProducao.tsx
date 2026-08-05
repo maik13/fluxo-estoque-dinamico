@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
+  AlertTriangle,
   Ban,
   CheckCircle,
   Clock,
+  Loader2,
   Pause,
   Play,
   RotateCcw,
@@ -13,7 +15,17 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { usePermissions } from '@/hooks/usePermissions';
 import {
   useOrdensProducao,
@@ -35,10 +47,34 @@ import type {
   ProducaoProcesso,
 } from '@/types/producao';
 
-const pedirJustificativa = (texto: string) => {
-  const valor = window.prompt(texto);
-  return valor?.trim() || null;
-};
+type AcaoEtapaComJustificativa =
+  | 'pausar'
+  | 'bloquear'
+  | 'desbloquear'
+  | 'cancelar'
+  | 'reabrir';
+
+type AcaoOpComJustificativa = 'concluir' | 'cancelar' | 'reabrir';
+
+type AcaoPendente =
+  | {
+      tipo: 'etapa';
+      processo: ProducaoProcesso;
+      acao: AcaoEtapaComJustificativa;
+      titulo: string;
+      descricao: string;
+      rotuloConfirmar: string;
+      destrutiva: boolean;
+    }
+  | {
+      tipo: 'op';
+      ordem: ProducaoOrdemProducao;
+      acao: AcaoOpComJustificativa;
+      titulo: string;
+      descricao: string;
+      rotuloConfirmar: string;
+      destrutiva: boolean;
+    };
 
 const mensagemErro = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
@@ -49,6 +85,97 @@ const statusOpLabel: Record<string, string> = {
   em_execucao: 'Em execução',
   concluida: 'Concluída',
   cancelada: 'Cancelada',
+};
+
+const configuracaoAcaoEtapa: Record<
+  AcaoEtapaComJustificativa,
+  Pick<
+    Extract<AcaoPendente, { tipo: 'etapa' }>,
+    'titulo' | 'descricao' | 'rotuloConfirmar' | 'destrutiva'
+  >
+> = {
+  pausar: {
+    titulo: 'Pausar etapa?',
+    descricao:
+      'A etapa ficará temporariamente interrompida. As OPs e os registros existentes serão preservados.',
+    rotuloConfirmar: 'Pausar etapa',
+    destrutiva: false,
+  },
+  bloquear: {
+    titulo: 'Bloquear etapa?',
+    descricao:
+      'Use o bloqueio quando houver um impedimento operacional que precise ser registrado e resolvido antes da continuidade.',
+    rotuloConfirmar: 'Bloquear etapa',
+    destrutiva: false,
+  },
+  desbloquear: {
+    titulo: 'Desbloquear etapa?',
+    descricao:
+      'A etapa voltará a ficar disponível para continuidade operacional.',
+    rotuloConfirmar: 'Desbloquear etapa',
+    destrutiva: false,
+  },
+  cancelar: {
+    titulo: 'Cancelar etapa?',
+    descricao:
+      'O cancelamento encerra a etapa. A operação só será concluída quando não houver Ordens de Produção abertas.',
+    rotuloConfirmar: 'Cancelar etapa',
+    destrutiva: true,
+  },
+  reabrir: {
+    titulo: 'Reabrir etapa?',
+    descricao:
+      'A etapa voltará ao fluxo operacional e poderá receber novas Ordens de Produção.',
+    rotuloConfirmar: 'Reabrir etapa',
+    destrutiva: false,
+  },
+};
+
+const configuracaoAcaoOp: Record<
+  AcaoOpComJustificativa,
+  Pick<
+    Extract<AcaoPendente, { tipo: 'op' }>,
+    'titulo' | 'descricao' | 'rotuloConfirmar' | 'destrutiva'
+  >
+> = {
+  concluir: {
+    titulo: 'Concluir OP com quantidade parcial?',
+    descricao:
+      'A quantidade apontada é menor que a quantidade planejada. Registre o motivo para encerrar a OP com saldo parcial.',
+    rotuloConfirmar: 'Concluir OP',
+    destrutiva: false,
+  },
+  cancelar: {
+    titulo: 'Cancelar Ordem de Produção?',
+    descricao:
+      'A OP será encerrada e deixará de consumir o saldo planejado da Etapa. Apontamentos ativos precisam ser cancelados ou excluídos antes.',
+    rotuloConfirmar: 'Cancelar OP',
+    destrutiva: true,
+  },
+  reabrir: {
+    titulo: 'Reabrir Ordem de Produção?',
+    descricao:
+      'A OP voltará para o fluxo operacional. Sem apontamentos ativos, ela será reaberta como Liberada.',
+    rotuloConfirmar: 'Reabrir OP',
+    destrutiva: false,
+  },
+};
+
+const proximoPassoOp = (ordem: ProducaoOrdemProducao) => {
+  switch (ordem.status) {
+    case 'rascunho':
+      return 'Revise os dados e libere a OP para iniciar a execução.';
+    case 'liberada':
+      return 'A OP já está criada e salva. Clique em “Iniciar OP”. Ela só aparecerá no Histórico depois do primeiro apontamento.';
+    case 'em_execucao':
+      return 'Registre a execução em Produção → Apontamentos. Cada registro passará a aparecer no Histórico.';
+    case 'concluida':
+      return 'A OP foi concluída. Consulte os registros na aba Histórico ou reabra a OP quando houver correção operacional.';
+    case 'cancelada':
+      return 'A OP está cancelada e não consome o saldo da Etapa. Reabra esta OP ou emita uma nova OP.';
+    default:
+      return 'Consulte o status da OP antes de prosseguir.';
+  }
 };
 
 export const ProcessosProducao = () => {
@@ -63,6 +190,10 @@ export const ProcessosProducao = () => {
   const [carregandoResumoExclusao, setCarregandoResumoExclusao] =
     useState(false);
   const [excluindo, setExcluindo] = useState(false);
+  const [acaoPendente, setAcaoPendente] = useState<AcaoPendente | null>(null);
+  const [justificativaAcao, setJustificativaAcao] = useState('');
+  const [executandoAcao, setExecutandoAcao] = useState(false);
+
   const { isAdmin, canConfigurarProducao } = usePermissions();
   const {
     processos,
@@ -92,60 +223,142 @@ export const ProcessosProducao = () => {
 
   const processosFiltrados = useMemo(
     () =>
-      processos.filter((p) => {
+      processos.filter((processo) => {
         const aberto = [
           'planejado',
           'em_andamento',
           'pausado',
           'bloqueado',
-        ].includes(p.status);
+        ].includes(processo.status);
         if (!mostrarEncerrados && !aberto) return false;
         const termo = busca.toLowerCase();
-        return [p.codigo, p.nome, p.projeto?.nome, p.projeto?.cidade, p.projeto?.uf]
+        return [
+          processo.codigo,
+          processo.nome,
+          processo.projeto?.nome,
+          processo.projeto?.cidade,
+          processo.projeto?.uf,
+        ]
           .filter(Boolean)
           .some((valor) => String(valor).toLowerCase().includes(termo));
       }),
     [busca, mostrarEncerrados, processos],
   );
 
-  const executarComJustificativa = async (
+  const fecharAcao = () => {
+    if (executandoAcao) return;
+    setAcaoPendente(null);
+    setJustificativaAcao('');
+  };
+
+  const abrirAcaoEtapa = (
     processo: ProducaoProcesso,
-    acao: 'pausar' | 'bloquear' | 'desbloquear' | 'cancelar' | 'reabrir',
-    pergunta: string,
+    acao: AcaoEtapaComJustificativa,
   ) => {
-    const justificativa = pedirJustificativa(pergunta);
-    if (!justificativa) return;
+    setJustificativaAcao('');
+    setAcaoPendente({
+      tipo: 'etapa',
+      processo,
+      acao,
+      ...configuracaoAcaoEtapa[acao],
+    });
+  };
+
+  const abrirAcaoOp = (
+    ordem: ProducaoOrdemProducao,
+    acao: AcaoOpComJustificativa,
+  ) => {
+    setJustificativaAcao('');
+    setAcaoPendente({
+      tipo: 'op',
+      ordem,
+      acao,
+      ...configuracaoAcaoOp[acao],
+    });
+  };
+
+  const confirmarAcao = async () => {
+    if (!acaoPendente) return;
+    const justificativa = justificativaAcao.trim();
+    if (!justificativa) {
+      toast.error('Informe a justificativa para continuar.');
+      return;
+    }
+
+    setExecutandoAcao(true);
     try {
-      await transicaoProcesso(processo.id, acao, justificativa);
+      if (acaoPendente.tipo === 'etapa') {
+        await transicaoProcesso(
+          acaoPendente.processo.id,
+          acaoPendente.acao,
+          justificativa,
+        );
+        toast.success(`Etapa ${acaoPendente.processo.codigo} atualizada.`);
+      } else {
+        await transicaoOrdem(
+          acaoPendente.ordem.id,
+          acaoPendente.acao,
+          justificativa,
+        );
+        toast.success(
+          `${formatarNumeroOrdemProducao(acaoPendente.ordem.numero)} atualizada.`,
+        );
+      }
+
+      await Promise.all([listarProcessos(), listarOrdens()]);
+      setAcaoPendente(null);
+      setJustificativaAcao('');
     } catch (error) {
-      toast.error(mensagemErro(error, `Não foi possível ${acao} a etapa.`));
+      toast.error(
+        mensagemErro(
+          error,
+          acaoPendente.tipo === 'etapa'
+            ? 'Não foi possível alterar a etapa.'
+            : 'Não foi possível alterar a OP.',
+        ),
+      );
+    } finally {
+      setExecutandoAcao(false);
     }
   };
 
-  const executarAcaoOp = async (
-    ordem: ProducaoOrdemProducao,
-    acao: 'iniciar' | 'concluir' | 'cancelar' | 'reabrir',
+  const executarEtapaDireta = async (
+    processo: ProducaoProcesso,
+    acao: 'iniciar' | 'retomar',
   ) => {
-    let justificativa: string | null = null;
-    if (acao === 'cancelar' || acao === 'reabrir') {
-      justificativa = pedirJustificativa(
-        `Justificativa para ${acao} ${formatarNumeroOrdemProducao(ordem.numero)}:`,
+    try {
+      await transicaoProcesso(processo.id, acao);
+      await Promise.all([listarProcessos(), listarOrdens()]);
+      toast.success(
+        acao === 'iniciar'
+          ? `Etapa ${processo.codigo} iniciada.`
+          : `Etapa ${processo.codigo} retomada.`,
       );
-      if (!justificativa) return;
+    } catch (error) {
+      toast.error(mensagemErro(error, 'Não foi possível alterar a etapa.'));
     }
+  };
+
+  const executarOpDireta = async (
+    ordem: ProducaoOrdemProducao,
+    acao: 'iniciar' | 'concluir',
+  ) => {
     if (
       acao === 'concluir' &&
       ordem.quantidade_realizada < ordem.quantidade_planejada
     ) {
-      justificativa = pedirJustificativa(
-        'A quantidade realizada é menor que a planejada. Informe a justificativa para concluir:',
-      );
-      if (!justificativa) return;
+      abrirAcaoOp(ordem, 'concluir');
+      return;
     }
+
     try {
-      await transicaoOrdem(ordem.id, acao, justificativa);
-      await listarProcessos();
-      toast.success(`${formatarNumeroOrdemProducao(ordem.numero)} atualizada.`);
+      await transicaoOrdem(ordem.id, acao, null);
+      await Promise.all([listarProcessos(), listarOrdens()]);
+      toast.success(
+        acao === 'iniciar'
+          ? `${formatarNumeroOrdemProducao(ordem.numero)} iniciada. Registre agora os apontamentos da execução.`
+          : `${formatarNumeroOrdemProducao(ordem.numero)} concluída.`,
+      );
     } catch (error) {
       toast.error(mensagemErro(error, 'Não foi possível alterar a OP.'));
     }
@@ -197,6 +410,36 @@ export const ProcessosProducao = () => {
         <FormProcessoProducao onSuccess={() => void listarProcessos()} />
       </div>
 
+      <div className="rounded-lg border bg-muted/10 p-4">
+        <p className="mb-3 text-sm font-semibold">Fluxo da Ordem de Produção</p>
+        <div className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+          <div>
+            <span className="font-semibold">1. Emitir nova OP</span>
+            <p className="text-xs text-muted-foreground">
+              Cria e salva a ordem com status Liberada.
+            </p>
+          </div>
+          <div>
+            <span className="font-semibold">2. Iniciar OP</span>
+            <p className="text-xs text-muted-foreground">
+              Marca o início real da execução.
+            </p>
+          </div>
+          <div>
+            <span className="font-semibold">3. Criar apontamentos</span>
+            <p className="text-xs text-muted-foreground">
+              Registre quantidades e equipe na aba Apontamentos.
+            </p>
+          </div>
+          <div>
+            <span className="font-semibold">4. Conferir e concluir</span>
+            <p className="text-xs text-muted-foreground">
+              O Histórico exibe os apontamentos, não a OP vazia.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -234,6 +477,7 @@ export const ProcessosProducao = () => {
               'pausado',
               'bloqueado',
             ].includes(processo.status);
+
             return (
               <div
                 key={processo.id}
@@ -306,7 +550,7 @@ export const ProcessosProducao = () => {
                       <Button
                         size="sm"
                         onClick={() =>
-                          void transicaoProcesso(processo.id, 'iniciar')
+                          void executarEtapaDireta(processo, 'iniciar')
                         }
                       >
                         <Play className="mr-2 h-4 w-4" />
@@ -318,30 +562,18 @@ export const ProcessosProducao = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() =>
-                            void executarComJustificativa(
-                              processo,
-                              'pausar',
-                              'Justificativa para pausar a etapa:',
-                            )
-                          }
+                          onClick={() => abrirAcaoEtapa(processo, 'pausar')}
                         >
                           <Pause className="mr-2 h-4 w-4" />
-                          Pausar
+                          Pausar etapa
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() =>
-                            void executarComJustificativa(
-                              processo,
-                              'bloquear',
-                              'Justificativa para bloquear a etapa:',
-                            )
-                          }
+                          onClick={() => abrirAcaoEtapa(processo, 'bloquear')}
                         >
                           <Ban className="mr-2 h-4 w-4" />
-                          Bloquear
+                          Bloquear etapa
                         </Button>
                         <Button
                           size="sm"
@@ -356,57 +588,39 @@ export const ProcessosProducao = () => {
                       <Button
                         size="sm"
                         onClick={() =>
-                          void transicaoProcesso(processo.id, 'retomar')
+                          void executarEtapaDireta(processo, 'retomar')
                         }
                       >
                         <Play className="mr-2 h-4 w-4" />
-                        Retomar
+                        Retomar etapa
                       </Button>
                     )}
                     {processo.status === 'bloqueado' && (
                       <Button
                         size="sm"
-                        onClick={() =>
-                          void executarComJustificativa(
-                            processo,
-                            'desbloquear',
-                            'Justificativa para desbloquear a etapa:',
-                          )
-                        }
+                        onClick={() => abrirAcaoEtapa(processo, 'desbloquear')}
                       >
                         <Unlock className="mr-2 h-4 w-4" />
-                        Desbloquear
+                        Desbloquear etapa
                       </Button>
                     )}
                     {etapaAberta && (
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={() =>
-                          void executarComJustificativa(
-                            processo,
-                            'cancelar',
-                            'Justificativa para cancelar a etapa:',
-                          )
-                        }
+                        onClick={() => abrirAcaoEtapa(processo, 'cancelar')}
                       >
-                        Cancelar
+                        Cancelar etapa
                       </Button>
                     )}
                     {['finalizado', 'cancelado'].includes(processo.status) && (
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() =>
-                          void executarComJustificativa(
-                            processo,
-                            'reabrir',
-                            'Justificativa para reabrir a etapa:',
-                          )
-                        }
+                        onClick={() => abrirAcaoEtapa(processo, 'reabrir')}
                       >
                         <RotateCcw className="mr-2 h-4 w-4" />
-                        Reabrir
+                        Reabrir etapa
                       </Button>
                     )}
                     {isAdmin() && (
@@ -437,10 +651,11 @@ export const ProcessosProducao = () => {
                       Os apontamentos alimentam o progresso de cada OP.
                     </p>
                   </div>
+
                   {ordensDaEtapa.length === 0 ? (
                     <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                      Nenhuma OP emitida. A etapa ainda não está liberada
-                      operacionalmente para apontamentos planejados.
+                      Nenhuma OP emitida. Clique em “Emitir nova OP” para criar e
+                      salvar a ordem antes de iniciar a execução.
                     </p>
                   ) : (
                     <div className="space-y-3">
@@ -449,8 +664,8 @@ export const ProcessosProducao = () => {
                           key={ordem.id}
                           className="rounded-lg border bg-muted/10 p-4"
                         >
-                          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                            <div>
+                          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                            <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="font-semibold">
                                   {formatarNumeroOrdemProducao(ordem.numero)}
@@ -480,13 +695,20 @@ export const ProcessosProducao = () => {
                                   ? ` · Responsável: ${ordem.responsavel_nome_snapshot}`
                                   : ''}
                               </p>
+                              <p className="mt-3 rounded-md border bg-background/50 px-3 py-2 text-xs text-muted-foreground">
+                                <strong className="text-foreground">
+                                  Próximo passo:
+                                </strong>{' '}
+                                {proximoPassoOp(ordem)}
+                              </p>
                             </div>
+
                             <div className="flex flex-wrap gap-2">
                               {ordem.status === 'liberada' && (
                                 <Button
                                   size="sm"
                                   onClick={() =>
-                                    void executarAcaoOp(ordem, 'iniciar')
+                                    void executarOpDireta(ordem, 'iniciar')
                                   }
                                 >
                                   <Play className="mr-2 h-4 w-4" />
@@ -497,7 +719,7 @@ export const ProcessosProducao = () => {
                                 <Button
                                   size="sm"
                                   onClick={() =>
-                                    void executarAcaoOp(ordem, 'concluir')
+                                    void executarOpDireta(ordem, 'concluir')
                                   }
                                 >
                                   <CheckCircle className="mr-2 h-4 w-4" />
@@ -510,9 +732,7 @@ export const ProcessosProducao = () => {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() =>
-                                    void executarAcaoOp(ordem, 'cancelar')
-                                  }
+                                  onClick={() => abrirAcaoOp(ordem, 'cancelar')}
                                 >
                                   Cancelar OP
                                 </Button>
@@ -523,9 +743,7 @@ export const ProcessosProducao = () => {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() =>
-                                    void executarAcaoOp(ordem, 'reabrir')
-                                  }
+                                  onClick={() => abrirAcaoOp(ordem, 'reabrir')}
                                 >
                                   <RotateCcw className="mr-2 h-4 w-4" />
                                   Reabrir OP
@@ -533,6 +751,7 @@ export const ProcessosProducao = () => {
                               )}
                             </div>
                           </div>
+
                           <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                             <div
                               className="h-full rounded-full bg-primary"
@@ -555,6 +774,97 @@ export const ProcessosProducao = () => {
           })}
         </div>
       )}
+
+      <Dialog
+        open={Boolean(acaoPendente)}
+        onOpenChange={(open) => {
+          if (!open) fecharAcao();
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{acaoPendente?.titulo}</DialogTitle>
+            <DialogDescription>{acaoPendente?.descricao}</DialogDescription>
+          </DialogHeader>
+
+          {acaoPendente && (
+            <div className="space-y-4">
+              <div className="rounded-lg border bg-muted/20 p-4 text-sm">
+                {acaoPendente.tipo === 'etapa' ? (
+                  <>
+                    <p>
+                      <strong>Etapa:</strong> {acaoPendente.processo.codigo} ·{' '}
+                      {acaoPendente.processo.nome}
+                    </p>
+                    <p>
+                      <strong>Projeto:</strong>{' '}
+                      {acaoPendente.processo.projeto?.nome ?? 'Não identificado'}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      <strong>Ordem de Produção:</strong>{' '}
+                      {formatarNumeroOrdemProducao(acaoPendente.ordem.numero)}
+                    </p>
+                    <p>
+                      <strong>Etapa:</strong>{' '}
+                      {acaoPendente.ordem.processo_codigo} ·{' '}
+                      {acaoPendente.ordem.processo_nome}
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {acaoPendente.destrutiva && (
+                <div className="flex gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                  <p>
+                    Esta ação altera o fluxo operacional e ficará registrada na
+                    rastreabilidade do sistema.
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="justificativa-acao-producao">
+                  Justificativa obrigatória
+                </Label>
+                <Textarea
+                  id="justificativa-acao-producao"
+                  value={justificativaAcao}
+                  onChange={(event) => setJustificativaAcao(event.target.value)}
+                  placeholder="Descreva o motivo desta alteração..."
+                  rows={4}
+                  disabled={executandoAcao}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={fecharAcao}
+              disabled={executandoAcao}
+            >
+              Voltar
+            </Button>
+            <Button
+              type="button"
+              variant={acaoPendente?.destrutiva ? 'destructive' : 'default'}
+              onClick={() => void confirmarAcao()}
+              disabled={executandoAcao || !justificativaAcao.trim()}
+            >
+              {executandoAcao && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {acaoPendente?.rotuloConfirmar ?? 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ModalFinalizarProcesso
         processo={processoParaFinalizar}
