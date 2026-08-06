@@ -38,6 +38,7 @@ import {
 import { FormProcessoProducao } from './FormProcessoProducao';
 import { FormRetificarProcesso } from './FormRetificarProcesso';
 import { FormOrdemProducao } from './FormOrdemProducao';
+import { FormEditarOrdemProducao } from './FormEditarOrdemProducao';
 import { MateriaisEtapaProducao } from './MateriaisEtapaProducao';
 import { MateriaisOrdemProducao } from './MateriaisOrdemProducao';
 import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
@@ -704,6 +705,20 @@ export const ProcessosProducao = () => {
                             </div>
 
                             <div className="flex flex-wrap gap-2">
+                              {['liberada', 'em_execucao'].includes(
+                                ordem.status,
+                              ) &&
+                                canConfigurarProducao() && (
+                                  <FormEditarOrdemProducao
+                                    ordem={ordem}
+                                    onSuccess={async () => {
+                                      await Promise.all([
+                                        listarProcessos(),
+                                        listarOrdens(),
+                                      ]);
+                                    }}
+                                  />
+                                )}
                               {ordem.status === 'liberada' && (
                                 <Button
                                   size="sm"
