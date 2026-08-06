@@ -1,21 +1,31 @@
 # Produção — Projeto, Etapa, OP e Apontamentos
 
-Implementação reconstruída sobre a `main` atual.
-
 ## Estrutura funcional
 
-1. **Projeto** — obra ou serviço completo, cadastrado uma única vez.
-2. **Local operacional** — frente onde o trabalho ocorre, como fábrica, processamento, logística, instalação ou manutenção.
-3. **Etapa** — pacote de trabalho planejado no cronograma, com quantidade, período, capacidade, equipe e dependências.
-4. **Ordem de Produção (OP)** — autorização numerada emitida dentro da Etapa antes da execução.
-5. **Apontamento** — registro real de data, horários, quantidade, equipe, tempos, atividade, observações e fotos dentro da OP.
-6. **Tarefa** — classificação da atividade específica realizada no apontamento, como corte, montagem ou acabamento.
+1. **Projeto** — obra ou serviço completo, cadastrado uma única vez, como `Caixa de Presente · Brusque/SC`.
+2. **Etapa** — fase do projeto, como `Laços`, `Painéis`, `Estrutura`, `Elétrica` ou `Acabamento`.
+3. **Ordem de Produção (OP)** — autorização numerada emitida dentro da Etapa antes da execução.
+4. **Apontamento** — registro real de data, horários, quantidade, equipe, atividade, observações e fotos dentro da OP.
+5. **Tarefa** — classificação da atividade específica realizada no apontamento, como corte, montagem ou acabamento.
 
 ## Momento de emissão da OP
 
-A OP é emitida na aba **Etapas**, pelo botão **Emitir OP**. Ela recebe número sequencial automático, iniciando em 1, e pode representar toda ou parte da quantidade planejada na Etapa.
+A OP é emitida na aba **Etapas**, pelo botão **Emitir nova OP**. Ela recebe número sequencial automático e é salva inicialmente com status `Liberada`.
 
-Uma Etapa pode ter várias OPs. A soma das OPs abertas não pode ultrapassar a quantidade planejada da Etapa.
+Uma Etapa aberta pode receber quantas OPs forem necessárias. A quantidade planejada informada na Etapa é uma **meta de referência gerencial** e não limita a soma das quantidades das OPs.
+
+Exemplo:
+
+```text
+Projeto: Caixa de Presente · Brusque/SC
+└── Etapa: Painéis
+    ├── OP 000001 — primeiro lote
+    ├── OP 000002 — segundo lote
+    ├── OP 000003 — correção ou complemento
+    └── novas OPs enquanto a Etapa estiver aberta
+```
+
+A emissão de novas OPs é bloqueada somente quando a Etapa estiver `finalizada` ou `cancelada`.
 
 ## Apontamentos
 
@@ -38,12 +48,11 @@ O Gantt apresenta a hierarquia:
 Projeto
 └── Etapa
     ├── OP 000001
-    └── OP 000002
+    ├── OP 000002
+    └── OP 000003
 ```
 
-A Etapa consolida o planejamento. Cada OP possui barra, período, status e percentual próprios. Os apontamentos não viram barras: eles alimentam o progresso da OP, que alimenta o progresso da Etapa.
-
-As visões **Semana** e **Mês** continuam exibindo colunas diárias.
+A Etapa consolida o planejamento. Cada OP possui período, status, quantidade e percentual próprios. Os apontamentos alimentam o progresso da OP, que alimenta o acompanhamento da Etapa.
 
 ## Impressão
 
@@ -61,9 +70,10 @@ A impressão principal é da OP completa. O documento contém:
 
 ## Regras de integridade
 
-- uma OP só pode ser emitida em Etapa aberta;
+- uma OP só pode ser emitida em Etapa não finalizada e não cancelada;
+- não existe limite de quantidade acumulada ou de quantidade de OPs por Etapa aberta;
+- cada OP exige quantidade própria maior que zero;
 - apontamento planejado exige OP;
-- a quantidade apontada não pode ultrapassar o saldo da OP;
+- a quantidade apontada não pode ultrapassar a quantidade da própria OP;
 - Etapa não pode ser concluída ou cancelada enquanto houver OP aberta;
-- Etapa com OP não pode ser excluída, preservando a rastreabilidade;
 - apontamentos históricos sem OP permanecem como atividades avulsas.
