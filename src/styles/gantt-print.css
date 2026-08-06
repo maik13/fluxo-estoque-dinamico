@@ -1,21 +1,15 @@
 /* Impressão dedicada ao Cronograma de Produção.
    Preserva barras, contraste e grade quando o navegador gera PDF. */
 
-@page {
+@page gantt-cronograma {
   size: A4 landscape;
   margin: 8mm;
 }
 
 @media print {
-  html,
-  body {
-    background: #ffffff !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* Quadro rolável do Gantt */
+  /* Quadro rolável do Gantt. O formato horizontal fica restrito a ele. */
   .max-h-\[70vh\] {
+    page: gantt-cronograma;
     max-height: none !important;
     overflow: visible !important;
     background: #ffffff !important;
