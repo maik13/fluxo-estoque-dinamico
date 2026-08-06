@@ -40,9 +40,6 @@ import {
   Check,
   ChevronsUpDown,
   Hash,
-  Factory,
-  Package,
-  Workflow,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
@@ -63,6 +60,7 @@ interface FormData {
   nome: string;
   descricao: string;
   prioridade: ProducaoPrioridade;
+  produto_entregavel: string;
   unidade_medida: string;
   quantidade_planejada: string;
   data_inicio_prevista: string;
@@ -74,14 +72,6 @@ interface FormData {
   aceita_producao_proporcional: boolean;
 }
 
-interface ObraDisponivel {
-  id: string;
-  nome: string;
-  quantidadePecas: number;
-}
-
-const OBRA_SEM_GRUPO = '__sem_obra_vinculada__';
-
 const numeroOpcional = (valor: string) => {
   if (!valor.trim()) return null;
   const numero = Number(valor.replace(',', '.'));
@@ -91,8 +81,7 @@ const numeroOpcional = (valor: string) => {
 
 export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
   const [aberto, setAberto] = useState(false);
-  const [obraId, setObraId] = useState('');
-  const [seletorPecaAberto, setSeletorPecaAberto] = useState(false);
+  const [seletorProjetoAberto, setSeletorProjetoAberto] = useState(false);
   const [codigoPrevisto, setCodigoPrevisto] = useState('Carregando...');
   const [dependencias, setDependencias] = useState<DependenciaEtapaInput[]>([]);
   const [novaDependenciaId, setNovaDependenciaId] = useState('');
@@ -112,7 +101,6 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
     loading: carregandoProjetos,
     erro,
   } = useProjetosProducao();
-
   const {
     register,
     handleSubmit,
@@ -131,10 +119,8 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
 
   useEffect(() => {
     if (!aberto) return;
-
     setDependencias([]);
     setCodigoPrevisto('Carregando...');
-
     void Promise.all([
       listarProjetos(true),
       listarProcessos(),
@@ -145,46 +131,12 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
   const projetoLocalId = watch('projeto_local_id');
   const prioridade = watch('prioridade');
   const proporcional = watch('aceita_producao_proporcional');
-
-  const obrasDisponiveis = useMemo<ObraDisponivel[]>(() => {
-    const obras = new Map<string, ObraDisponivel>();
-
-    projetos.forEach((projeto) => {
-      const id = projeto.group_id ?? OBRA_SEM_GRUPO;
-      const nome = projeto.grupo_nome?.trim() || 'Sem obra/evento vinculado';
-      const existente = obras.get(id);
-
-      if (existente) {
-        existente.quantidadePecas += 1;
-      } else {
-        obras.set(id, { id, nome, quantidadePecas: 1 });
-      }
-    });
-
-    return Array.from(obras.values()).sort((a, b) =>
-      a.nome.localeCompare(b.nome, 'pt-BR'),
-    );
-  }, [projetos]);
-
-  const pecasDaObra = useMemo(
-    () =>
-      projetos
-        .filter(
-          (projeto) =>
-            (projeto.group_id ?? OBRA_SEM_GRUPO) === obraId,
-        )
-        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
-    [obraId, projetos],
-  );
-
-  const obraSelecionada =
-    obrasDisponiveis.find((obra) => obra.id === obraId) ?? null;
-  const pecaSelecionada =
+  const projetoSelecionado =
     projetos.find(
       (projeto) => projeto.local_utilizacao_id === projetoLocalId,
     ) ?? null;
 
-  const etapasMesmaPeca = useMemo(
+  const etapasMesmoProjeto = useMemo(
     () =>
       processos.filter(
         (processo) =>
@@ -194,27 +146,6 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
     [processos, projetoLocalId],
   );
 
-  const selecionarObra = (novaObraId: string) => {
-    setObraId(novaObraId);
-    setValue('projeto_local_id', '', {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-    setDependencias([]);
-    setNovaDependenciaId('');
-    setSeletorPecaAberto(false);
-  };
-
-  const selecionarPeca = (localUtilizacaoId: string) => {
-    setValue('projeto_local_id', localUtilizacaoId, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-    setDependencias([]);
-    setNovaDependenciaId('');
-    setSeletorPecaAberto(false);
-  };
-
   const adicionarDependencia = () => {
     if (
       !novaDependenciaId ||
@@ -222,7 +153,6 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
     ) {
       return;
     }
-
     setDependencias((atuais) => [
       ...atuais,
       { etapa_id: novaDependenciaId, tipo: novoTipoDependencia },
@@ -233,12 +163,6 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
 
   const onSubmit = async (data: FormData) => {
     try {
-      if (!obraSelecionada) {
-        throw new Error('Selecione a obra ou evento desta Etapa.');
-      }
-      if (!pecaSelecionada) {
-        throw new Error('Selecione a peça ou produto que receberá esta Etapa.');
-      }
       if (
         data.data_inicio_prevista &&
         data.data_fim_prevista &&
@@ -270,7 +194,7 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
         nome: data.nome,
         descricao: data.descricao || null,
         prioridade: data.prioridade,
-        produto_entregavel: pecaSelecionada.nome,
+        produto_entregavel: data.produto_entregavel || null,
         unidade_medida: data.unidade_medida || null,
         quantidade_planejada: quantidade,
         data_inicio_prevista: data.data_inicio_prevista || null,
@@ -290,12 +214,9 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
         sequencia: '0',
         aceita_producao_proporcional: false,
       });
-      setObraId('');
       setDependencias([]);
       setAberto(false);
-      toast.success(
-        `Etapa criada para ${obraSelecionada.nome} · ${pecaSelecionada.nome}.`,
-      );
+      toast.success('Etapa criada no projeto selecionado.');
       onSuccess();
     } catch (error) {
       toast.error(
@@ -304,15 +225,15 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
     }
   };
 
-  const rotuloPeca = pecaSelecionada
-    ? `${pecaSelecionada.nome}${
-        pecaSelecionada.cidade
-          ? ` · ${pecaSelecionada.cidade}/${pecaSelecionada.uf ?? ''}`
+  const rotuloProjeto = projetoSelecionado
+    ? `${projetoSelecionado.nome}${
+        projetoSelecionado.cidade
+          ? ` · ${projetoSelecionado.cidade}/${projetoSelecionado.uf ?? ''}`
           : ''
       }`
-    : obraId
-      ? 'Selecione ou pesquise uma peça/produto'
-      : 'Selecione primeiro a obra/evento';
+    : carregandoProjetos
+      ? 'Carregando projetos...'
+      : 'Selecione ou pesquise um projeto';
 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
@@ -327,9 +248,9 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
         <DialogHeader>
           <DialogTitle>Nova Etapa de Produção</DialogTitle>
           <DialogDescription>
-            Escolha primeiro a obra, depois a peça. A Etapa descreve o que será
-            executado nessa peça; as Ordens de Produção serão emitidas dentro da
-            Etapa.
+            Selecione o projeto e cadastre uma fase de trabalho, como Laços,
+            Painéis, Estrutura ou Acabamento. Cada Etapa poderá receber quantas
+            Ordens de Produção forem necessárias enquanto estiver aberta.
           </DialogDescription>
         </DialogHeader>
 
@@ -338,147 +259,93 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Não foi possível consultar as obras e peças: {erro}
+                Não foi possível consultar os projetos: {erro}
               </AlertDescription>
             </Alert>
           )}
 
-          <div className="grid gap-3 rounded-lg border bg-muted/20 p-4 sm:grid-cols-4">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Factory className="h-4 w-4 text-primary" />
-              1. Obra
-            </div>
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Package className="h-4 w-4 text-primary" />
-              2. Peça
-            </div>
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Workflow className="h-4 w-4 text-primary" />
-              3. Etapa
-            </div>
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Hash className="h-4 w-4" />
-              4. OP
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Obra/Evento *</Label>
-              <Select
-                value={obraId}
-                onValueChange={selecionarObra}
-                disabled={carregandoProjetos || obrasDisponiveis.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a obra ou evento" />
-                </SelectTrigger>
-                <SelectContent>
-                  {obrasDisponiveis.map((obra) => (
-                    <SelectItem key={obra.id} value={obra.id}>
-                      {obra.nome} · {obra.quantidadePecas}{' '}
-                      {obra.quantidadePecas === 1 ? 'peça' : 'peças'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Ex.: Natal Brusque, Natal Cianorte ou obra arquitetônica.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Peça/Produto *</Label>
-              <Popover
-                open={seletorPecaAberto}
-                onOpenChange={setSeletorPecaAberto}
-              >
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={seletorPecaAberto}
-                    className="w-full justify-between font-normal"
-                    disabled={
-                      !obraId ||
-                      carregandoProjetos ||
-                      pecasDaObra.length === 0
-                    }
-                  >
-                    <span className="truncate">{rotuloPeca}</span>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-[--radix-popover-trigger-width] p-0"
-                  align="start"
+          <div className="space-y-2">
+            <Label>Projeto *</Label>
+            <Popover
+              open={seletorProjetoAberto}
+              onOpenChange={setSeletorProjetoAberto}
+            >
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={seletorProjetoAberto}
+                  className="w-full justify-between font-normal"
+                  disabled={carregandoProjetos || projetos.length === 0}
                 >
-                  <Command>
-                    <CommandInput placeholder="Buscar peça, cliente ou cidade..." />
-                    <CommandList>
-                      <CommandEmpty>Nenhuma peça encontrada.</CommandEmpty>
-                      <CommandGroup heading={obraSelecionada?.nome}>
-                        {pecasDaObra.map((projeto) => {
-                          const rotulo = `${projeto.nome}${
-                            projeto.cidade
-                              ? ` · ${projeto.cidade}/${projeto.uf ?? ''}`
-                              : ''
-                          }`;
-
-                          return (
-                            <CommandItem
-                              key={projeto.local_utilizacao_id}
-                              value={`${rotulo} ${projeto.cliente ?? ''} ${
-                                projeto.local_execucao ?? ''
-                              }`}
-                              onSelect={() =>
-                                selecionarPeca(projeto.local_utilizacao_id)
-                              }
-                            >
-                              <Check
-                                className={cn(
-                                  'mr-2 h-4 w-4',
-                                  projetoLocalId === projeto.local_utilizacao_id
-                                    ? 'opacity-100'
-                                    : 'opacity-0',
-                                )}
-                              />
-                              {rotulo}
-                            </CommandItem>
-                          );
-                        })}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              <input
-                type="hidden"
-                {...register('projeto_local_id', { required: true })}
-              />
-              {errors.projeto_local_id && (
-                <span className="text-sm text-destructive">
-                  Peça/produto obrigatório
-                </span>
-              )}
-            </div>
+                  <span className="truncate">{rotuloProjeto}</span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-[--radix-popover-trigger-width] p-0"
+                align="start"
+              >
+                <Command>
+                  <CommandInput placeholder="Buscar por projeto, cliente ou cidade..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum projeto encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {projetos.map((projeto) => {
+                        const rotulo = `${projeto.nome}${
+                          projeto.cidade
+                            ? ` · ${projeto.cidade}/${projeto.uf ?? ''}`
+                            : ''
+                        }`;
+                        return (
+                          <CommandItem
+                            key={projeto.local_utilizacao_id}
+                            value={`${rotulo} ${projeto.cliente ?? ''} ${
+                              projeto.grupo_nome ?? ''
+                            }`}
+                            onSelect={() => {
+                              setValue(
+                                'projeto_local_id',
+                                projeto.local_utilizacao_id,
+                                { shouldValidate: true },
+                              );
+                              setDependencias([]);
+                              setNovaDependenciaId('');
+                              setSeletorProjetoAberto(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                projetoLocalId === projeto.local_utilizacao_id
+                                  ? 'opacity-100'
+                                  : 'opacity-0',
+                              )}
+                            />
+                            {rotulo}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <input
+              type="hidden"
+              {...register('projeto_local_id', { required: true })}
+            />
+            {errors.projeto_local_id && (
+              <span className="text-sm text-destructive">
+                Projeto obrigatório
+              </span>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Ex.: Caixa de Presente · Brusque/SC. A Etapa será criada dentro
+              deste projeto.
+            </p>
           </div>
-
-          {pecaSelecionada && (
-            <Alert>
-              <Package className="h-4 w-4" />
-              <AlertDescription>
-                <strong>Contexto da Etapa:</strong>{' '}
-                {obraSelecionada?.nome ?? 'Obra não identificada'} →{' '}
-                {pecaSelecionada.nome}
-                {pecaSelecionada.local_execucao
-                  ? ` → ${pecaSelecionada.local_execucao}`
-                  : ''}
-                . O produto/entregável será herdado automaticamente desta peça.
-              </AlertDescription>
-            </Alert>
-          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
@@ -496,7 +363,6 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
                 O banco confirma o código sequencial definitivo ao salvar.
               </p>
             </div>
-
             <div className="space-y-2">
               <Label>Prioridade</Label>
               <Select
@@ -521,7 +387,7 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
           <div className="space-y-2">
             <Label>Nome da Etapa *</Label>
             <Input
-              placeholder="Ex.: Montagem da estrutura da Caixa de Presente"
+              placeholder="Ex.: Laços, Painéis ou Montagem da estrutura"
               {...register('nome', { required: 'Nome obrigatório' })}
             />
             {errors.nome && (
@@ -529,24 +395,18 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
                 {errors.nome.message}
               </span>
             )}
-            <p className="text-xs text-muted-foreground">
-              Descreva a atividade a executar, não repita apenas o nome da peça.
-            </p>
           </div>
 
           <div className="space-y-2">
             <Label>Descrição</Label>
-            <Input
-              placeholder="Detalhes técnicos e resultado esperado desta Etapa"
-              {...register('descricao')}
-            />
+            <Input {...register('descricao')} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Grupo do cronograma</Label>
               <Input
-                placeholder="Ex.: Estrutura, Elétrica, Acabamento"
+                placeholder="Ex.: Painéis, Alumínio, Campo"
                 {...register('grupo_cronograma')}
               />
             </div>
@@ -571,24 +431,26 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2 sm:col-span-1">
+            <div className="space-y-2">
               <Label>Produto/entregável</Label>
-              <Input
-                value={pecaSelecionada?.nome ?? ''}
-                placeholder="Preenchido ao selecionar a peça"
-                readOnly
-              />
-              <p className="text-xs text-muted-foreground">
-                Herdado da peça para manter a rastreabilidade.
-              </p>
+              <Input {...register('produto_entregavel')} />
             </div>
             <div className="space-y-2">
               <Label>Unidade</Label>
-              <Input placeholder="peças, m²..." {...register('unidade_medida')} />
+              <Input
+                placeholder="peças, m²..."
+                {...register('unidade_medida')}
+              />
             </div>
             <div className="space-y-2">
-              <Label>Quantidade planejada</Label>
-              <Input inputMode="decimal" {...register('quantidade_planejada')} />
+              <Label>Meta de referência</Label>
+              <Input
+                inputMode="decimal"
+                {...register('quantidade_planejada')}
+              />
+              <p className="text-xs text-muted-foreground">
+                A meta não limita a quantidade de OPs da Etapa.
+              </p>
             </div>
           </div>
 
@@ -633,22 +495,21 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
             <div>
               <Label>Dependências da Etapa</Label>
               <p className="text-xs text-muted-foreground">
-                Selecione Etapas anteriores da mesma peça. O cronograma
+                Selecione Etapas anteriores do mesmo projeto. O cronograma
                 respeitará essa relação.
               </p>
             </div>
-
             <div className="grid gap-2 sm:grid-cols-[1fr_170px_auto]">
               <Select
                 value={novaDependenciaId}
                 onValueChange={setNovaDependenciaId}
-                disabled={!projetoLocalId || etapasMesmaPeca.length === 0}
+                disabled={!projetoLocalId || etapasMesmoProjeto.length === 0}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Etapa predecessora" />
                 </SelectTrigger>
                 <SelectContent>
-                  {etapasMesmaPeca
+                  {etapasMesmoProjeto
                     .filter(
                       (etapa) =>
                         !dependencias.some(
@@ -662,7 +523,6 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
                     ))}
                 </SelectContent>
               </Select>
-
               <Select
                 value={novoTipoDependencia}
                 onValueChange={(value) =>
@@ -679,7 +539,6 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
                   <SelectItem value="inicio_inicio">Início → Início</SelectItem>
                 </SelectContent>
               </Select>
-
               <Button
                 type="button"
                 variant="outline"
@@ -694,7 +553,6 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
               const etapa = processos.find(
                 (item) => item.id === dependencia.etapa_id,
               );
-
               return (
                 <div
                   key={dependencia.etapa_id}
@@ -725,9 +583,9 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
               );
             })}
 
-            {projetoLocalId && etapasMesmaPeca.length === 0 && (
+            {projetoLocalId && etapasMesmoProjeto.length === 0 && (
               <p className="text-xs text-muted-foreground">
-                Esta será a primeira Etapa da peça; não há predecessora
+                Esta será a primeira Etapa do projeto; não há predecessora
                 disponível.
               </p>
             )}
@@ -739,9 +597,7 @@ export const FormProcessoProducao = ({ onSuccess }: FormProps) => {
               disabled={
                 isSubmitting ||
                 carregandoProjetos ||
-                projetos.length === 0 ||
-                !obraId ||
-                !projetoLocalId
+                projetos.length === 0
               }
             >
               {isSubmitting && (
