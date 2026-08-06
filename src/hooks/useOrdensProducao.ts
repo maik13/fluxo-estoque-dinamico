@@ -1,11 +1,15 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type {
   NovaOrdemProducao,
+  ProducaoLocalTipo,
   ProducaoOrdemProducao,
   ProducaoOrdemStatus,
+  ProducaoPrioridade,
 } from '@/types/producao';
 import { formatarErroSupabase } from '@/utils/supabaseError';
+
+const EVENTO_ORDENS_ALTERADAS = 'producao:ordens-alteradas';
 
 const erro = (value: unknown, fallback: string) =>
   new Error(formatarErroSupabase(value, fallback));
@@ -27,6 +31,67 @@ const erroRpcEmissao = (value: unknown) => {
   }
 
   return new Error(mensagem);
+};
+
+const erroRpcEdicao = (value: unknown) => {
+  const mensagem = formatarErroSupabase(
+    value,
+    'Não foi possível editar a Ordem de Produção.',
+  );
+
+  if (
+    /editar_ordem_producao_v1|schema cache|could not find the function/i.test(
+      mensagem,
+    )
+  ) {
+    return new Error(
+      'A atualização do banco para edição de OP ainda não foi aplicada neste ambiente. Execute a migration 20260806115500_editar_ordem_producao_v1.sql no Supabase conectado ao sistema.',
+    );
+  }
+
+  return new Error(mensagem);
+};
+
+export interface DadosEdicaoOrdemProducao {
+  ordem_producao_id: string;
+  quantidade_planejada: number;
+  data_inicio_prevista: string;
+  data_fim_prevista: string;
+  local_tipo: ProducaoLocalTipo;
+  responsavel_id?: string | null;
+  responsavel_nome?: string | null;
+  equipe_prevista?: number | null;
+  instrucoes?: string | null;
+  descricao?: string | null;
+  prioridade: ProducaoPrioridade;
+  justificativa: string;
+}
+
+export const editarOrdemProducao = async (
+  dados: DadosEdicaoOrdemProducao,
+) => {
+  const { error } = await (supabase.rpc as any)('editar_ordem_producao_v1', {
+    p_ordem_producao_id: dados.ordem_producao_id,
+    p_quantidade_planejada: dados.quantidade_planejada,
+    p_data_inicio_prevista: dados.data_inicio_prevista,
+    p_data_fim_prevista: dados.data_fim_prevista,
+    p_local_tipo: dados.local_tipo,
+    p_responsavel_id: dados.responsavel_id ?? null,
+    p_responsavel_nome: dados.responsavel_nome ?? null,
+    p_equipe_prevista: dados.equipe_prevista ?? null,
+    p_instrucoes: dados.instrucoes ?? null,
+    p_descricao: dados.descricao ?? null,
+    p_prioridade: dados.prioridade,
+    p_justificativa: dados.justificativa,
+  });
+
+  if (error) throw erroRpcEdicao(error);
+};
+
+export const notificarOrdensProducaoAlteradas = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(EVENTO_ORDENS_ALTERADAS));
+  }
 };
 
 export const formatarNumeroOrdemProducao = (numero: number | null | undefined) =>
@@ -54,6 +119,17 @@ export const useOrdensProducao = () => {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const recarregar = () => {
+      void listarOrdens();
+    };
+
+    window.addEventListener(EVENTO_ORDENS_ALTERADAS, recarregar);
+    return () => window.removeEventListener(EVENTO_ORDENS_ALTERADAS, recarregar);
+  }, [listarOrdens]);
 
   const criarOrdem = useCallback(async (dados: NovaOrdemProducao) => {
     const { data: id, error } = await (supabase.rpc as any)(
