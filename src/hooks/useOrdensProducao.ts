@@ -10,6 +10,25 @@ import { formatarErroSupabase } from '@/utils/supabaseError';
 const erro = (value: unknown, fallback: string) =>
   new Error(formatarErroSupabase(value, fallback));
 
+const erroRpcEmissao = (value: unknown) => {
+  const mensagem = formatarErroSupabase(
+    value,
+    'Não foi possível emitir a Ordem de Produção.',
+  );
+
+  if (
+    /criar_ordem_producao_sem_limite_v2|schema cache|could not find the function/i.test(
+      mensagem,
+    )
+  ) {
+    return new Error(
+      'A atualização do banco para emissão de múltiplas OPs ainda não foi aplicada neste ambiente. Execute a migration 20260806112000_criar_ordem_producao_sem_limite_v2.sql no Supabase conectado ao sistema.',
+    );
+  }
+
+  return new Error(mensagem);
+};
+
 export const formatarNumeroOrdemProducao = (numero: number | null | undefined) =>
   numero ? `OP ${String(numero).padStart(6, '0')}` : 'OP sem número';
 
@@ -37,20 +56,23 @@ export const useOrdensProducao = () => {
   }, []);
 
   const criarOrdem = useCallback(async (dados: NovaOrdemProducao) => {
-    const { data: id, error } = await (supabase.rpc as any)('criar_ordem_producao', {
-      p_processo_id: dados.processo_id,
-      p_quantidade_planejada: dados.quantidade_planejada,
-      p_data_inicio_prevista: dados.data_inicio_prevista,
-      p_data_fim_prevista: dados.data_fim_prevista,
-      p_local_tipo: dados.local_tipo,
-      p_responsavel_id: dados.responsavel_id ?? null,
-      p_responsavel_nome: dados.responsavel_nome ?? null,
-      p_equipe_prevista: dados.equipe_prevista ?? null,
-      p_instrucoes: dados.instrucoes ?? null,
-      p_descricao: dados.descricao ?? null,
-      p_prioridade: dados.prioridade ?? 'normal',
-    });
-    if (error) throw erro(error, 'Não foi possível emitir a Ordem de Produção.');
+    const { data: id, error } = await (supabase.rpc as any)(
+      'criar_ordem_producao_sem_limite_v2',
+      {
+        p_processo_id: dados.processo_id,
+        p_quantidade_planejada: dados.quantidade_planejada,
+        p_data_inicio_prevista: dados.data_inicio_prevista,
+        p_data_fim_prevista: dados.data_fim_prevista,
+        p_local_tipo: dados.local_tipo,
+        p_responsavel_id: dados.responsavel_id ?? null,
+        p_responsavel_nome: dados.responsavel_nome ?? null,
+        p_equipe_prevista: dados.equipe_prevista ?? null,
+        p_instrucoes: dados.instrucoes ?? null,
+        p_descricao: dados.descricao ?? null,
+        p_prioridade: dados.prioridade ?? 'normal',
+      },
+    );
+    if (error) throw erroRpcEmissao(error);
     const atualizadas = await listarOrdens();
     const ordem = atualizadas.find((item) => item.id === id);
     if (!ordem) throw new Error('A OP foi emitida, mas não pôde ser recarregada.');
