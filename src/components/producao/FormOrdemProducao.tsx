@@ -37,6 +37,11 @@ interface Props {
 
 const numero = (value: string) => Number(value.replace(',', '.'));
 
+const formatarQuantidade = (value: number) =>
+  new Intl.NumberFormat('pt-BR', {
+    maximumFractionDigits: 4,
+  }).format(value);
+
 export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
   const [aberto, setAberto] = useState(false);
   const [quantidade, setQuantidade] = useState('');
@@ -62,23 +67,44 @@ export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
   const [instrucoes, setInstrucoes] = useState('');
   const [salvando, setSalvando] = useState(false);
 
-  const ordensAtivasDaEtapa = useMemo(
-    () =>
-      ordens.filter(
-        (ordem) =>
-          ordem.processo_id === processo.id && ordem.status !== 'cancelada',
-      ),
+  const ordensDaEtapa = useMemo(
+    () => ordens.filter((ordem) => ordem.processo_id === processo.id),
     [ordens, processo.id],
   );
 
-  const quantidadeTotalPlanejadaNasOps = useMemo(
-    () =>
-      ordensAtivasDaEtapa.reduce(
-        (soma, ordem) => soma + Number(ordem.quantidade_planejada || 0),
-        0,
-      ),
-    [ordensAtivasDaEtapa],
-  );
+  const resumo = useMemo(() => {
+    const abertas = ordensDaEtapa.filter((ordem) =>
+      ['rascunho', 'liberada', 'em_execucao'].includes(ordem.status),
+    );
+    const concluidas = ordensDaEtapa.filter(
+      (ordem) => ordem.status === 'concluida',
+    );
+    const canceladas = ordensDaEtapa.filter(
+      (ordem) => ordem.status === 'cancelada',
+    );
+    const naoCanceladas = ordensDaEtapa.filter(
+      (ordem) => ordem.status !== 'cancelada',
+    );
+    const planejadoNaoCancelado = naoCanceladas.reduce(
+      (soma, ordem) => soma + Number(ordem.quantidade_planejada || 0),
+      0,
+    );
+    const confirmado = ordensDaEtapa.reduce(
+      (soma, ordem) => soma + Number(ordem.quantidade_realizada || 0),
+      0,
+    );
+    const meta = Number(processo.quantidade_planejada || 0);
+
+    return {
+      abertas: abertas.length,
+      concluidas: concluidas.length,
+      canceladas: canceladas.length,
+      planejadoNaoCancelado,
+      confirmado,
+      saldoMeta: meta > 0 ? Math.max(meta - confirmado, 0) : null,
+      excedenteMeta: meta > 0 ? Math.max(confirmado - meta, 0) : 0,
+    };
+  }, [ordensDaEtapa, processo.quantidade_planejada]);
 
   const abrir = (open: boolean) => {
     setAberto(open);
@@ -141,6 +167,8 @@ export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
     }
   };
 
+  const unidade = processo.unidade_medida ?? '';
+
   return (
     <Dialog open={aberto} onOpenChange={abrir}>
       <DialogTrigger asChild>
@@ -165,29 +193,62 @@ export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
         </DialogHeader>
 
         <form onSubmit={emitir} className="space-y-5">
-          <div className="rounded-lg border bg-muted/20 p-4 text-sm">
-            <p>
-              <strong>Projeto:</strong> {processo.projeto?.nome ?? '—'}
-            </p>
-            <p>
-              <strong>Etapa:</strong> {processo.codigo} · {processo.nome}
-            </p>
-            <p>
-              <strong>Meta de referência da Etapa:</strong>{' '}
-              {processo.quantidade_planejada ?? 'não informada'}{' '}
-              {processo.unidade_medida ?? ''}
-            </p>
-            <p>
-              <strong>OPs ativas já emitidas:</strong>{' '}
-              {ordensAtivasDaEtapa.length}
-            </p>
-            <p>
-              <strong>Quantidade planejada nas OPs:</strong>{' '}
-              {quantidadeTotalPlanejadaNasOps} {processo.unidade_medida ?? ''}
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              A meta da Etapa é apenas um indicador gerencial. Ela não bloqueia
-              novas OPs nem limita a quantidade acumulada entre elas.
+          <div className="space-y-4 rounded-lg border bg-muted/20 p-4 text-sm">
+            <div>
+              <p>
+                <strong>Projeto:</strong> {processo.projeto?.nome ?? '—'}
+              </p>
+              <p>
+                <strong>Etapa:</strong> {processo.codigo} · {processo.nome}
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-md border bg-background/40 p-3">
+                <p className="text-xs text-muted-foreground">Meta da Etapa</p>
+                <p className="font-semibold">
+                  {processo.quantidade_planejada == null
+                    ? 'Não informada'
+                    : `${formatarQuantidade(Number(processo.quantidade_planejada))} ${unidade}`}
+                </p>
+              </div>
+              <div className="rounded-md border bg-background/40 p-3">
+                <p className="text-xs text-muted-foreground">Produção confirmada</p>
+                <p className="font-semibold text-emerald-500">
+                  {formatarQuantidade(resumo.confirmado)} {unidade}
+                </p>
+              </div>
+              <div className="rounded-md border bg-background/40 p-3">
+                <p className="text-xs text-muted-foreground">
+                  {resumo.excedenteMeta > 0 ? 'Excedente da meta' : 'Saldo da meta'}
+                </p>
+                <p className="font-semibold">
+                  {resumo.excedenteMeta > 0
+                    ? formatarQuantidade(resumo.excedenteMeta)
+                    : resumo.saldoMeta == null
+                      ? 'Não calculado'
+                      : formatarQuantidade(resumo.saldoMeta)}{' '}
+                  {unidade}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-2 text-xs sm:grid-cols-2">
+              <p><strong>OPs abertas:</strong> {resumo.abertas}</p>
+              <p><strong>OPs concluídas:</strong> {resumo.concluidas}</p>
+              <p><strong>OPs canceladas:</strong> {resumo.canceladas}</p>
+              <p>
+                <strong>Planejado em OPs não canceladas:</strong>{' '}
+                {formatarQuantidade(resumo.planejadoNaoCancelado)} {unidade}
+              </p>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Produção confirmada soma somente apontamentos com status
+              “Conferido”. Apontamentos cancelados permanecem no Histórico para
+              auditoria, mas não entram no realizado nem no saldo da meta. A
+              quantidade planejada nas OPs é uma previsão e não representa
+              produção executada.
             </p>
           </div>
 
