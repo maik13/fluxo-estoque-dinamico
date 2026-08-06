@@ -7,19 +7,53 @@
 }
 
 @media print {
-  /* Quadro rolável do Gantt. O formato horizontal fica restrito a ele. */
-  .max-h-\[70vh\] {
+  /*
+   * A orientação é aplicada ao documento inteiro quando o Gantt está presente.
+   * Aplicar a página nomeada diretamente ao quadro criava uma quebra antes dele,
+   * deixando a primeira folha praticamente vazia.
+   */
+  body:has(.max-h-\[70vh\]) {
     page: gantt-cronograma;
+  }
+
+  /* O Card que contém o Gantt deve poder quebrar naturalmente entre páginas. */
+  div:has(> .max-h-\[70vh\]) {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+    box-shadow: none !important;
+  }
+
+  /* Quadro rolável do Gantt */
+  .max-h-\[70vh\] {
+    page: auto;
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
     background: #ffffff !important;
+    break-before: auto !important;
+    page-break-before: auto !important;
+    break-inside: auto !important;
+    page-break-inside: auto !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
+  /*
+   * Não impedir a quebra do quadro inteiro. Essa trava era a responsável por
+   * jogar todo o conteúdo para a segunda página.
+   */
   .max-h-\[70vh\] > .flex {
+    transform: none !important;
     transform-origin: top left !important;
-    break-inside: avoid !important;
+    break-before: auto !important;
+    page-break-before: auto !important;
+    break-inside: auto !important;
+    page-break-inside: auto !important;
   }
 
   .max-h-\[70vh\] .sticky {
@@ -29,7 +63,7 @@
   /* Grade e cabeçalhos */
   .max-h-\[70vh\] .border-r,
   .max-h-\[70vh\] .border-b {
-    border-color: #7b8794 !important;
+    border-color: #64748b !important;
   }
 
   .max-h-\[70vh\] .bg-card,
@@ -44,7 +78,7 @@
   }
 
   .max-h-\[70vh\] .text-muted-foreground {
-    color: #374151 !important;
+    color: #334155 !important;
   }
 
   /* Toda barra recebe contorno, mesmo quando a impressão de fundos está desabilitada. */
