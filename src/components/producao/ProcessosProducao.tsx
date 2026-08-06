@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
-  Ban,
   CheckCircle,
   Clock,
   Loader2,
@@ -11,7 +10,6 @@ import {
   RotateCcw,
   Search,
   Trash2,
-  Unlock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -35,6 +33,10 @@ import {
   useProcessosProducao,
   type ResumoExclusaoProcessoProducao,
 } from '@/hooks/useProcessosProducao';
+import {
+  finalizarOrdemProducaoComConferencia,
+  FinalizacaoParcialOrdemProducaoError,
+} from '@/services/producao/finalizarOrdemProducao';
 import { FormProcessoProducao } from './FormProcessoProducao';
 import { FormRetificarProcesso } from './FormRetificarProcesso';
 import { FormOrdemProducao } from './FormOrdemProducao';
@@ -48,12 +50,7 @@ import type {
   ProducaoProcesso,
 } from '@/types/producao';
 
-type AcaoEtapaComJustificativa =
-  | 'pausar'
-  | 'bloquear'
-  | 'desbloquear'
-  | 'cancelar'
-  | 'reabrir';
+type AcaoEtapaComJustificativa = 'pausar' | 'desbloquear' | 'reabrir';
 
 type AcaoOpComJustificativa = 'concluir' | 'cancelar' | 'reabrir';
 
@@ -102,26 +99,12 @@ const configuracaoAcaoEtapa: Record<
     rotuloConfirmar: 'Pausar etapa',
     destrutiva: false,
   },
-  bloquear: {
-    titulo: 'Bloquear etapa?',
-    descricao:
-      'Use o bloqueio quando houver um impedimento operacional que precise ser registrado e resolvido antes da continuidade.',
-    rotuloConfirmar: 'Bloquear etapa',
-    destrutiva: false,
-  },
   desbloquear: {
-    titulo: 'Desbloquear etapa?',
+    titulo: 'Retomar etapa bloqueada?',
     descricao:
-      'A etapa voltará a ficar disponível para continuidade operacional.',
-    rotuloConfirmar: 'Desbloquear etapa',
+      'Esta ação recupera uma etapa que tenha sido bloqueada anteriormente e a devolve ao fluxo operacional.',
+    rotuloConfirmar: 'Retomar etapa',
     destrutiva: false,
-  },
-  cancelar: {
-    titulo: 'Cancelar etapa?',
-    descricao:
-      'O cancelamento encerra a etapa. A operação só será concluída quando não houver Ordens de Produção abertas.',
-    rotuloConfirmar: 'Cancelar etapa',
-    destrutiva: true,
   },
   reabrir: {
     titulo: 'Reabrir etapa?',
@@ -140,16 +123,16 @@ const configuracaoAcaoOp: Record<
   >
 > = {
   concluir: {
-    titulo: 'Concluir OP com quantidade parcial?',
+    titulo: 'Finalizar OP com produção parcial?',
     descricao:
-      'A quantidade apontada é menor que a quantidade planejada. Registre o motivo para encerrar a OP com saldo parcial.',
-    rotuloConfirmar: 'Concluir OP',
+      'Os apontamentos pendentes desta OP serão conferidos automaticamente. Como a produção confirmada continuará menor que a quantidade planejada, registre o motivo para finalizar com saldo parcial.',
+    rotuloConfirmar: 'Finalizar OP',
     destrutiva: false,
   },
   cancelar: {
     titulo: 'Cancelar Ordem de Produção?',
     descricao:
-      'A OP será encerrada e deixará de consumir o saldo planejado da Etapa. Apontamentos ativos precisam ser cancelados ou excluídos antes.',
+      'A OP será encerrada. Apontamentos ativos precisam ser cancelados ou excluídos antes.',
     rotuloConfirmar: 'Cancelar OP',
     destrutiva: true,
   },
@@ -169,11 +152,11 @@ const proximoPassoOp = (ordem: ProducaoOrdemProducao) => {
     case 'liberada':
       return 'A OP já está criada e salva. Clique em “Iniciar OP”. Ela só aparecerá no Histórico depois do primeiro apontamento.';
     case 'em_execucao':
-      return 'Registre a execução em Produção → Apontamentos. Cada registro passará a aparecer no Histórico.';
+      return 'Registre a execução em Produção → Apontamentos. Depois clique em “Finalizar OP”; os apontamentos pendentes serão conferidos automaticamente.';
     case 'concluida':
-      return 'A OP foi concluída. Consulte os registros na aba Histórico ou reabra a OP quando houver correção operacional.';
+      return 'A OP foi finalizada. Consulte os registros no Histórico apenas para rastreabilidade ou reabra a OP quando houver correção operacional.';
     case 'cancelada':
-      return 'A OP está cancelada e não consome o saldo da Etapa. Reabra esta OP ou emita uma nova OP.';
+      return 'A OP está cancelada. Reabra esta OP ou emita uma nova OP.';
     default:
       return 'Consulte o status da OP antes de prosseguir.';
   }
@@ -278,6 +261,26 @@ export const ProcessosProducao = () => {
     });
   };
 
+  const recarregarFluxo = async () => {
+    await Promise.all([listarProcessos(), listarOrdens()]);
+  };
+
+  const finalizarOp = async (
+    ordem: ProducaoOrdemProducao,
+    justificativa?: string | null,
+  ) => {
+    const resultado = await finalizarOrdemProducaoComConferencia(
+      ordem.id,
+      justificativa,
+    );
+    await recarregarFluxo();
+    toast.success(
+      resultado.apontamentos_conferidos > 0
+        ? `${formatarNumeroOrdemProducao(ordem.numero)} finalizada. ${resultado.apontamentos_conferidos} apontamento(s) pendente(s) foram conferidos automaticamente.`
+        : `${formatarNumeroOrdemProducao(ordem.numero)} finalizada.`,
+    );
+  };
+
   const confirmarAcao = async () => {
     if (!acaoPendente) return;
     const justificativa = justificativaAcao.trim();
@@ -294,19 +297,22 @@ export const ProcessosProducao = () => {
           acaoPendente.acao,
           justificativa,
         );
+        await recarregarFluxo();
         toast.success(`Etapa ${acaoPendente.processo.codigo} atualizada.`);
+      } else if (acaoPendente.acao === 'concluir') {
+        await finalizarOp(acaoPendente.ordem, justificativa);
       } else {
         await transicaoOrdem(
           acaoPendente.ordem.id,
           acaoPendente.acao,
           justificativa,
         );
+        await recarregarFluxo();
         toast.success(
           `${formatarNumeroOrdemProducao(acaoPendente.ordem.numero)} atualizada.`,
         );
       }
 
-      await Promise.all([listarProcessos(), listarOrdens()]);
       setAcaoPendente(null);
       setJustificativaAcao('');
     } catch (error) {
@@ -329,7 +335,7 @@ export const ProcessosProducao = () => {
   ) => {
     try {
       await transicaoProcesso(processo.id, acao);
-      await Promise.all([listarProcessos(), listarOrdens()]);
+      await recarregarFluxo();
       toast.success(
         acao === 'iniciar'
           ? `Etapa ${processo.codigo} iniciada.`
@@ -344,23 +350,25 @@ export const ProcessosProducao = () => {
     ordem: ProducaoOrdemProducao,
     acao: 'iniciar' | 'concluir',
   ) => {
-    if (
-      acao === 'concluir' &&
-      ordem.quantidade_realizada < ordem.quantidade_planejada
-    ) {
-      abrirAcaoOp(ordem, 'concluir');
-      return;
-    }
-
     try {
+      if (acao === 'concluir') {
+        await finalizarOp(ordem, null);
+        return;
+      }
+
       await transicaoOrdem(ordem.id, acao, null);
-      await Promise.all([listarProcessos(), listarOrdens()]);
+      await recarregarFluxo();
       toast.success(
-        acao === 'iniciar'
-          ? `${formatarNumeroOrdemProducao(ordem.numero)} iniciada. Registre agora os apontamentos da execução.`
-          : `${formatarNumeroOrdemProducao(ordem.numero)} concluída.`,
+        `${formatarNumeroOrdemProducao(ordem.numero)} iniciada. Registre agora os apontamentos da execução.`,
       );
     } catch (error) {
+      if (
+        acao === 'concluir' &&
+        error instanceof FinalizacaoParcialOrdemProducaoError
+      ) {
+        abrirAcaoOp(ordem, 'concluir');
+        return;
+      }
       toast.error(mensagemErro(error, 'Não foi possível alterar a OP.'));
     }
   };
@@ -433,9 +441,9 @@ export const ProcessosProducao = () => {
             </p>
           </div>
           <div>
-            <span className="font-semibold">4. Conferir e concluir</span>
+            <span className="font-semibold">4. Finalizar OP</span>
             <p className="text-xs text-muted-foreground">
-              O Histórico exibe os apontamentos, não a OP vazia.
+              Confere os apontamentos pendentes e encerra a OP na própria Etapa.
             </p>
           </div>
         </div>
@@ -536,7 +544,7 @@ export const ProcessosProducao = () => {
                         processo={processo}
                         temOps={ordensDaEtapa.length > 0}
                         onSuccess={async () => {
-                          await Promise.all([listarProcessos(), listarOrdens()]);
+                          await recarregarFluxo();
                         }}
                       />
                     )}
@@ -570,14 +578,6 @@ export const ProcessosProducao = () => {
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
-                          onClick={() => abrirAcaoEtapa(processo, 'bloquear')}
-                        >
-                          <Ban className="mr-2 h-4 w-4" />
-                          Bloquear etapa
-                        </Button>
-                        <Button
-                          size="sm"
                           onClick={() => setProcessoParaFinalizar(processo)}
                         >
                           <CheckCircle className="mr-2 h-4 w-4" />
@@ -601,17 +601,8 @@ export const ProcessosProducao = () => {
                         size="sm"
                         onClick={() => abrirAcaoEtapa(processo, 'desbloquear')}
                       >
-                        <Unlock className="mr-2 h-4 w-4" />
-                        Desbloquear etapa
-                      </Button>
-                    )}
-                    {etapaAberta && (
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => abrirAcaoEtapa(processo, 'cancelar')}
-                      >
-                        Cancelar etapa
+                        <Play className="mr-2 h-4 w-4" />
+                        Retomar etapa
                       </Button>
                     )}
                     {['finalizado', 'cancelado'].includes(processo.status) && (
@@ -649,7 +640,7 @@ export const ProcessosProducao = () => {
                       Ordens de Produção da etapa
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Os apontamentos alimentam o progresso de cada OP.
+                      Ao finalizar a OP, os apontamentos pendentes são conferidos automaticamente.
                     </p>
                   </div>
 
@@ -712,10 +703,7 @@ export const ProcessosProducao = () => {
                                   <FormEditarOrdemProducao
                                     ordem={ordem}
                                     onSuccess={async () => {
-                                      await Promise.all([
-                                        listarProcessos(),
-                                        listarOrdens(),
-                                      ]);
+                                      await recarregarFluxo();
                                     }}
                                   />
                                 )}
@@ -738,7 +726,7 @@ export const ProcessosProducao = () => {
                                   }
                                 >
                                   <CheckCircle className="mr-2 h-4 w-4" />
-                                  Concluir OP
+                                  Finalizar OP
                                 </Button>
                               )}
                               {['liberada', 'em_execucao'].includes(
