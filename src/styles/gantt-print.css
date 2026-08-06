@@ -1,0 +1,120 @@
+/* Impressão dedicada ao Cronograma de Produção.
+   Preserva barras, contraste e grade quando o navegador gera PDF. */
+
+@page {
+  size: A4 landscape;
+  margin: 8mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Quadro rolável do Gantt */
+  .max-h-\[70vh\] {
+    max-height: none !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .max-h-\[70vh\] > .flex {
+    transform-origin: top left !important;
+    break-inside: avoid !important;
+  }
+
+  .max-h-\[70vh\] .sticky {
+    position: static !important;
+  }
+
+  /* Grade e cabeçalhos */
+  .max-h-\[70vh\] .border-r,
+  .max-h-\[70vh\] .border-b {
+    border-color: #7b8794 !important;
+  }
+
+  .max-h-\[70vh\] .bg-card,
+  .max-h-\[70vh\] .bg-muted,
+  .max-h-\[70vh\] .bg-muted\/50,
+  .max-h-\[70vh\] .bg-muted\/20,
+  .max-h-\[70vh\] .bg-muted\/10,
+  .max-h-\[70vh\] .bg-muted\/5 {
+    background-color: #eef1f4 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .max-h-\[70vh\] .text-muted-foreground {
+    color: #374151 !important;
+  }
+
+  /* Toda barra recebe contorno, mesmo quando a impressão de fundos está desabilitada. */
+  .max-h-\[70vh\] .shadow-sm {
+    box-shadow: none !important;
+    opacity: 1 !important;
+    border-width: 2px !important;
+    border-style: solid !important;
+    min-height: 22px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Em andamento */
+  .max-h-\[70vh\] .shadow-sm.bg-emerald-500,
+  .max-h-\[70vh\] .shadow-sm.bg-emerald-600 {
+    background-color: #86efac !important;
+    border-color: #15803d !important;
+    color: #052e16 !important;
+  }
+
+  /* Concluída, liberada e status azuis */
+  .max-h-\[70vh\] .shadow-sm.bg-blue-500,
+  .max-h-\[70vh\] .shadow-sm.bg-blue-600,
+  .max-h-\[70vh\] .shadow-sm.bg-indigo-500 {
+    background-color: #93c5fd !important;
+    border-color: #1d4ed8 !important;
+    color: #172554 !important;
+  }
+
+  /* Pausada */
+  .max-h-\[70vh\] .shadow-sm.bg-amber-500 {
+    background-color: #fde68a !important;
+    border-color: #b45309 !important;
+    color: #451a03 !important;
+  }
+
+  /* Bloqueada */
+  .max-h-\[70vh\] .shadow-sm.bg-red-500 {
+    background-color: #fca5a5 !important;
+    border-color: #b91c1c !important;
+    color: #450a0a !important;
+  }
+
+  /* Planejada, rascunho e cancelada */
+  .max-h-\[70vh\] .shadow-sm.bg-slate-400,
+  .max-h-\[70vh\] .shadow-sm.bg-slate-500,
+  .max-h-\[70vh\] .shadow-sm.bg-zinc-500 {
+    background-color: #cbd5e1 !important;
+    border-color: #475569 !important;
+    color: #0f172a !important;
+  }
+
+  /* Faixa interna que representa o percentual realizado */
+  .max-h-\[70vh\] .shadow-sm > .absolute.inset-y-0.left-0 {
+    background-color: rgba(15, 23, 42, 0.17) !important;
+    border-right: 1px solid rgba(15, 23, 42, 0.45) !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .max-h-\[70vh\] .shadow-sm > .relative {
+    color: inherit !important;
+    font-weight: 800 !important;
+    text-shadow: none !important;
+  }
+}
