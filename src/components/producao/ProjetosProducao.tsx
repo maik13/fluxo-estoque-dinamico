@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Search, MapPin, Calendar, FolderOpen, CircleCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useProjetosProducao } from '@/hooks/useProjetosProducao';
 import { FormProjetoProducao } from './FormProjetoProducao';
+import { FormEditarProjetoProducao } from './FormEditarProjetoProducao';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export const ProjetosProducao = () => {
   const [busca, setBusca] = useState('');
   const { projetos, loading, listarProjetos } = useProjetosProducao();
+  const { canConfigurarProducao } = usePermissions();
 
   useEffect(() => {
     void listarProjetos();
@@ -105,11 +108,17 @@ export const ProjetosProducao = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between border-t pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
                 <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold">
                   <CircleCheck className="h-3.5 w-3.5 text-emerald-500" />
                   Adicionado à Produção
                 </span>
+                {canConfigurarProducao() && (
+                  <FormEditarProjetoProducao
+                    projeto={projeto}
+                    onSuccess={() => void listarProjetos()}
+                  />
+                )}
               </div>
             </div>
           ))}
