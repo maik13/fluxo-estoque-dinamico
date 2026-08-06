@@ -62,32 +62,28 @@ export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
   const [instrucoes, setInstrucoes] = useState('');
   const [salvando, setSalvando] = useState(false);
 
-  const quantidadeJaEmitida = useMemo(
+  const ordensAtivasDaEtapa = useMemo(
     () =>
-      ordens
-        .filter(
-          (ordem) =>
-            ordem.processo_id === processo.id && ordem.status !== 'cancelada',
-        )
-        .reduce(
-          (soma, ordem) => soma + Number(ordem.quantidade_planejada || 0),
-          0,
-        ),
+      ordens.filter(
+        (ordem) =>
+          ordem.processo_id === processo.id && ordem.status !== 'cancelada',
+      ),
     [ordens, processo.id],
   );
 
-  const saldo =
-    processo.quantidade_planejada == null
-      ? null
-      : Math.max(
-          Number(processo.quantidade_planejada) - quantidadeJaEmitida,
-          0,
-        );
+  const quantidadeTotalPlanejadaNasOps = useMemo(
+    () =>
+      ordensAtivasDaEtapa.reduce(
+        (soma, ordem) => soma + Number(ordem.quantidade_planejada || 0),
+        0,
+      ),
+    [ordensAtivasDaEtapa],
+  );
 
   const abrir = (open: boolean) => {
     setAberto(open);
     if (!open) return;
-    setQuantidade(saldo && saldo > 0 ? String(saldo).replace('.', ',') : '');
+    setQuantidade('');
     setInicio(
       processo.data_inicio_prevista ?? processo.data_inicio_desejada ?? '',
     );
@@ -101,10 +97,6 @@ export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
 
     if (!Number.isFinite(quantidadeNormalizada) || quantidadeNormalizada <= 0) {
       toast.error('Informe uma quantidade maior que zero.');
-      return;
-    }
-    if (saldo !== null && quantidadeNormalizada > saldo) {
-      toast.error(`A quantidade ultrapassa o saldo da etapa (${saldo}).`);
       return;
     }
     if (!inicio || !fim || fim < inicio) {
@@ -134,9 +126,10 @@ export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
         prioridade,
       });
       toast.success(
-        'OP criada e liberada. Próximo passo: clique em “Iniciar OP”.',
+        'OP criada e liberada. Você pode emitir outras OPs nesta Etapa enquanto ela permanecer aberta.',
       );
       setAberto(false);
+      setQuantidade('');
       setDescricao('');
       setInstrucoes('');
     } catch (error) {
@@ -148,31 +141,26 @@ export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
     }
   };
 
-  const tituloBotao =
-    saldo === 0
-      ? 'Todo o saldo planejado já está distribuído em OPs ativas. Cancele uma OP ou ajuste a Etapa para liberar saldo.'
-      : 'Criar e salvar uma nova Ordem de Produção';
-
   return (
     <Dialog open={aberto} onOpenChange={abrir}>
       <DialogTrigger asChild>
         <Button
           size="sm"
           variant="outline"
-          disabled={saldo === 0}
-          title={tituloBotao}
+          title="Criar uma nova Ordem de Produção nesta Etapa"
         >
           <ClipboardList className="mr-2 h-4 w-4" />
           Emitir nova OP
         </Button>
       </DialogTrigger>
+
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Emitir nova Ordem de Produção</DialogTitle>
           <DialogDescription>
-            Ao confirmar, a OP será criada e salva com status Liberada dentro da
-            etapa {processo.codigo} · {processo.nome}. Depois, clique em “Iniciar
-            OP”. A OP só aparecerá no Histórico quando receber um apontamento.
+            A OP será criada dentro da Etapa {processo.codigo} · {processo.nome}.
+            Enquanto a Etapa não estiver finalizada ou cancelada, você poderá
+            emitir quantas OPs forem necessárias.
           </DialogDescription>
         </DialogHeader>
 
@@ -185,30 +173,32 @@ export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
               <strong>Etapa:</strong> {processo.codigo} · {processo.nome}
             </p>
             <p>
-              <strong>Planejado na etapa:</strong>{' '}
-              {processo.quantidade_planejada ?? 'não informado'}{' '}
+              <strong>Meta de referência da Etapa:</strong>{' '}
+              {processo.quantidade_planejada ?? 'não informada'}{' '}
               {processo.unidade_medida ?? ''}
             </p>
             <p>
-              <strong>Já distribuído em OPs ativas:</strong>{' '}
-              {quantidadeJaEmitida} {processo.unidade_medida ?? ''}
+              <strong>OPs ativas já emitidas:</strong>{' '}
+              {ordensAtivasDaEtapa.length}
             </p>
             <p>
-              <strong>Saldo disponível para nova OP:</strong>{' '}
-              {saldo ?? 'sem limite definido'} {processo.unidade_medida ?? ''}
+              <strong>Quantidade planejada nas OPs:</strong>{' '}
+              {quantidadeTotalPlanejadaNasOps} {processo.unidade_medida ?? ''}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              OPs canceladas não consomem o saldo planejado da Etapa.
+              A meta da Etapa é apenas um indicador gerencial. Ela não bloqueia
+              novas OPs nem limita a quantidade acumulada entre elas.
             </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Quantidade da OP *</Label>
+              <Label>Quantidade desta OP *</Label>
               <Input
                 value={quantidade}
                 onChange={(event) => setQuantidade(event.target.value)}
                 inputMode="decimal"
+                placeholder="Informe a quantidade deste lote"
                 required
               />
             </div>
@@ -290,15 +280,16 @@ export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
             <Input
               value={descricao}
               onChange={(event) => setDescricao(event.target.value)}
-              placeholder="Ex.: corte do primeiro lote de 300 varas"
+              placeholder="Ex.: primeiro lote de laços ou segundo lote de painéis"
             />
           </div>
+
           <div className="space-y-2">
             <Label>Instruções para execução</Label>
             <Textarea
               value={instrucoes}
               onChange={(event) => setInstrucoes(event.target.value)}
-              placeholder="Medidas, critérios, separação, acabamento e demais orientações."
+              placeholder="Medidas, critérios, acabamento e demais orientações."
               rows={4}
             />
           </div>
