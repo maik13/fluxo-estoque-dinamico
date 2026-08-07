@@ -752,7 +752,7 @@ const consolidarIndicadores = ({
     por_projeto: porProjeto,
     por_tarefa: porTarefa,
     por_membro: porMembro,
-    por_local_tipo: porLocalTipo,
+    por_local_tipo: porLocalTipo as IndicadoresProducaoGerencial['por_local_tipo'],
     materiais: consolidarMateriais(materiais),
   };
 };

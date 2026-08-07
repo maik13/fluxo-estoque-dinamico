@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import type { ProducaoProcesso, ProducaoProcessoStatus, ProducaoPrioridade } from '@/types/producao';
 import { formatarErroSupabase } from '@/utils/supabaseError';
 
@@ -120,7 +121,7 @@ export const useProcessosProducao = () => {
       p_capacidade_diaria: dados.capacidade_diaria ?? null,
       p_pessoas_necessarias: dados.pessoas_necessarias ?? null,
       p_aceita_producao_proporcional: dados.aceita_producao_proporcional ?? false,
-      p_dependencias: dados.dependencias ?? [],
+      p_dependencias: (dados.dependencias ?? []) as unknown as Json,
     });
     if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível salvar a etapa.'));
 
@@ -145,7 +146,7 @@ export const useProcessosProducao = () => {
       p_capacidade_diaria: dados.capacidade_diaria ?? null,
       p_pessoas_necessarias: dados.pessoas_necessarias ?? null,
       p_aceita_producao_proporcional: dados.aceita_producao_proporcional ?? false,
-      p_dependencias: dados.dependencias ?? [],
+      p_dependencias: (dados.dependencias ?? []) as unknown as Json,
     });
     if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível atualizar o planejamento da etapa.'));
     await listarProcessos();
@@ -170,7 +171,7 @@ export const useProcessosProducao = () => {
       p_capacidade_diaria: dados.capacidade_diaria ?? null,
       p_pessoas_necessarias: dados.pessoas_necessarias ?? null,
       p_aceita_producao_proporcional: dados.aceita_producao_proporcional ?? false,
-      p_dependencias: dados.dependencias ?? [],
+      p_dependencias: (dados.dependencias ?? []) as unknown as Json,
       p_justificativa: dados.justificativa,
     });
     if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível retificar a etapa.'));
