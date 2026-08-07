@@ -11,9 +11,23 @@
 BEGIN;
 
 -- ---------------------------------------------------------------------------
--- 1. Repara os apontamentos existentes: quando existe OP, a Etapa e o local
---    operacional são obrigatoriamente os da própria OP.
+-- 1. Repara os apontamentos existentes.
+--    O trigger legado que recalcula status da OP é temporariamente suspenso
+--    apenas durante o backfill para não reabrir uma OP concluída parcialmente.
 -- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgrelid = 'public.producao_apontamentos'::regclass
+      AND tgname = 'trg_apontamento_atualiza_ordem'
+      AND NOT tgisinternal
+  ) THEN
+    EXECUTE 'ALTER TABLE public.producao_apontamentos DISABLE TRIGGER trg_apontamento_atualiza_ordem';
+  END IF;
+END $$;
+
 UPDATE public.producao_apontamentos a
 SET processo_id = o.processo_id,
     projeto_local_id = NULL,
@@ -27,9 +41,22 @@ WHERE a.ordem_producao_id = o.id
     OR a.local_tipo IS DISTINCT FROM o.local_tipo
   );
 
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgrelid = 'public.producao_apontamentos'::regclass
+      AND tgname = 'trg_apontamento_atualiza_ordem'
+      AND NOT tgisinternal
+  ) THEN
+    EXECUTE 'ALTER TABLE public.producao_apontamentos ENABLE TRIGGER trg_apontamento_atualiza_ordem';
+  END IF;
+END $$;
+
 -- ---------------------------------------------------------------------------
 -- 2. Bloqueia a recorrência: qualquer apontamento vinculado a OP herda
---    processo_id/local_tipo da OP antes de ser gravado.
+--    processo_id/local_tipo da própria OP antes de ser gravado.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.sincronizar_apontamento_com_op_v1()
 RETURNS TRIGGER
@@ -72,7 +99,8 @@ FOR EACH ROW
 EXECUTE FUNCTION public.sincronizar_apontamento_com_op_v1();
 
 -- ---------------------------------------------------------------------------
--- 3. Projeto e Etapa de uma OP são imutáveis após a criação.
+-- 3. Projeto e Etapa de uma OP são validados no banco e ficam imutáveis
+--    depois da criação.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.bloquear_reparent_op_v1()
 RETURNS TRIGGER
@@ -80,11 +108,28 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+DECLARE
+  v_projeto_etapa UUID;
 BEGIN
-  IF OLD.processo_id IS DISTINCT FROM NEW.processo_id
-     OR OLD.projeto_id IS DISTINCT FROM NEW.projeto_id THEN
-    RAISE EXCEPTION
-      'Projeto e Etapa da Ordem de Produção não podem ser alterados após a emissão';
+  SELECT p.projeto_id
+    INTO v_projeto_etapa
+    FROM public.producao_processos p
+   WHERE p.id = NEW.processo_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Etapa da Ordem de Produção não existe';
+  END IF;
+
+  IF NEW.projeto_id IS DISTINCT FROM v_projeto_etapa THEN
+    RAISE EXCEPTION 'O Projeto da OP deve ser o mesmo Projeto da Etapa';
+  END IF;
+
+  IF TG_OP = 'UPDATE' THEN
+    IF OLD.processo_id IS DISTINCT FROM NEW.processo_id
+       OR OLD.projeto_id IS DISTINCT FROM NEW.projeto_id THEN
+      RAISE EXCEPTION
+        'Projeto e Etapa da Ordem de Produção não podem ser alterados após a emissão';
+    END IF;
   END IF;
 
   RETURN NEW;
@@ -95,7 +140,7 @@ DROP TRIGGER IF EXISTS trg_bloquear_reparent_op_v1
   ON public.producao_ordens_producao;
 
 CREATE TRIGGER trg_bloquear_reparent_op_v1
-BEFORE UPDATE OF processo_id, projeto_id
+BEFORE INSERT OR UPDATE OF processo_id, projeto_id
 ON public.producao_ordens_producao
 FOR EACH ROW
 EXECUTE FUNCTION public.bloquear_reparent_op_v1();
@@ -245,8 +290,8 @@ WHERE p.id = e.processo_id
 
 -- ---------------------------------------------------------------------------
 -- 6. Gantt: a quantidade realizada da Etapa passa a ser consolidada pela
---    relação OP -> Etapa. processo_id do apontamento vira apenas redundância
---    sincronizada, não a fonte de verdade isolada.
+--    relação OP -> Etapa. processo_id do apontamento vira redundância
+--    sincronizada, e não mais a única fonte de verdade.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.listar_gantt_producao()
 RETURNS TABLE (
