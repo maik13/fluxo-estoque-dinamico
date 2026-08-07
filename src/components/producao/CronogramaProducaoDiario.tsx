@@ -48,6 +48,7 @@ import {
   useCronogramaProducao,
   type ConfiguracaoCronogramaProducao,
   type GanttEtapaProducao,
+  type GanttOrdemProducao,
 } from '@/hooks/useCronogramaProducao';
 import { cn } from '@/lib/utils';
 import { PlanoDiarioProducao } from './PlanoDiarioProducao';
@@ -87,8 +88,64 @@ interface IntervaloEtapa {
   origem: 'real' | 'prevista';
 }
 
+const obterIntervaloOrdem = (ordem: GanttOrdemProducao): IntervaloEtapa | null => {
+  const encerrada = ordem.status === 'concluida' || ordem.status === 'cancelada';
+  const inicioReal = ordem.data_inicio_real ?? ordem.data_fim_real;
+  const fimReal = ordem.data_fim_real ?? ordem.data_inicio_real;
+  const inicioPrevisto = ordem.data_inicio_prevista ?? ordem.data_fim_prevista;
+  const fimPrevisto = ordem.data_fim_prevista ?? ordem.data_inicio_prevista;
+
+  const inicioTexto = encerrada
+    ? inicioReal ?? inicioPrevisto
+    : inicioPrevisto ?? inicioReal;
+  const fimTexto = encerrada
+    ? fimReal ?? fimPrevisto ?? inicioTexto
+    : fimPrevisto ?? fimReal ?? inicioTexto;
+
+  if (!inicioTexto || !fimTexto) return null;
+
+  const inicio = parseISO(inicioTexto);
+  const fimCalculado = parseISO(fimTexto);
+
+  return {
+    inicio,
+    fim: fimCalculado.getTime() < inicio.getTime() ? inicio : fimCalculado,
+    origem: encerrada && Boolean(inicioReal || fimReal) ? 'real' : 'prevista',
+  };
+};
+
+const ordensValidasEtapa = (etapa: GanttEtapaProducao) =>
+  etapa.ordens.filter((ordem) => ordem.status !== 'cancelada');
+
+const obterPercentualEtapa = (etapa: GanttEtapaProducao) => {
+  const ordens = ordensValidasEtapa(etapa);
+  if (ordens.length === 0) return Number(etapa.percentual_realizado ?? 0);
+
+  const planejado = ordens.reduce((total, ordem) => total + Number(ordem.quantidade_planejada ?? 0), 0);
+  const realizado = ordens.reduce((total, ordem) => total + Number(ordem.quantidade_realizada ?? 0), 0);
+
+  if (planejado <= 0) return Number(etapa.percentual_realizado ?? 0);
+  return Math.min(100, Math.round((realizado / planejado) * 10000) / 100);
+};
+
 const obterIntervaloEtapa = (etapa: GanttEtapaProducao): IntervaloEtapa | null => {
   const encerrada = etapa.status === 'finalizado' || etapa.status === 'cancelado';
+  const intervalosOrdens = ordensValidasEtapa(etapa)
+    .map(obterIntervaloOrdem)
+    .filter((intervalo): intervalo is IntervaloEtapa => intervalo !== null);
+
+  if (intervalosOrdens.length > 0) {
+    const inicio = new Date(Math.min(...intervalosOrdens.map((intervalo) => intervalo.inicio.getTime())));
+    const fim = new Date(Math.max(...intervalosOrdens.map((intervalo) => intervalo.fim.getTime())));
+    return {
+      inicio,
+      fim,
+      origem: encerrada && intervalosOrdens.some((intervalo) => intervalo.origem === 'real')
+        ? 'real'
+        : 'prevista',
+    };
+  }
+
   const inicioReal = etapa.data_inicio_real ?? etapa.data_fim_real;
   const fimReal = etapa.data_fim_real ?? etapa.data_inicio_real;
   const inicioPrevisto = etapa.data_inicio_prevista ?? etapa.data_inicio_desejada;
@@ -239,7 +296,7 @@ export const CronogramaProducaoDiario = () => {
         <div>
           <h3 className="text-lg font-medium">Cronograma de Produção</h3>
           <p className="text-sm text-muted-foreground">
-            Semana e mês são exibidos por dias, preservando a leitura das etapas.
+            Semana e mês são exibidos por dias. Percentual e período das Etapas são consolidados pelas OPs.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -392,6 +449,7 @@ export const CronogramaProducaoDiario = () => {
 
                   {filtradas.map((etapa) => {
                     const intervalo = obterIntervaloEtapa(etapa);
+                    const percentual = obterPercentualEtapa(etapa);
                     const intersecta = intervalo
                       && intervalo.fim.getTime() >= periodo.inicio.getTime()
                       && intervalo.inicio.getTime() <= periodo.fim.getTime();
@@ -438,14 +496,14 @@ export const CronogramaProducaoDiario = () => {
                               statusClass[etapa.status] ?? 'bg-slate-500',
                             )}
                             style={{ left: esquerda, width: largura }}
-                            title={`${etapa.etapa_nome} · ${statusLabel[etapa.status] ?? etapa.status} · ${intervalo.origem === 'real' ? 'período realizado' : 'período previsto'} · ${format(intervalo.inicio, 'dd/MM/yyyy')} a ${format(intervalo.fim, 'dd/MM/yyyy')} · ${etapa.percentual_realizado}% realizado`}
+                            title={`${etapa.etapa_nome} · ${statusLabel[etapa.status] ?? etapa.status} · ${intervalo.origem === 'real' ? 'período realizado' : 'período previsto'} · ${format(intervalo.inicio, 'dd/MM/yyyy')} a ${format(intervalo.fim, 'dd/MM/yyyy')} · ${percentual}% realizado`}
                           >
                             <span className="relative z-10 truncate px-2">
-                              {etapa.percentual_realizado}% · {statusLabel[etapa.status] ?? etapa.status}
+                              {percentual}% · {statusLabel[etapa.status] ?? etapa.status}
                             </span>
                             <span
                               className="absolute inset-y-0 left-0 bg-black/25"
-                              style={{ width: `${etapa.percentual_realizado}%` }}
+                              style={{ width: `${percentual}%` }}
                             />
                           </div>
                         )}
