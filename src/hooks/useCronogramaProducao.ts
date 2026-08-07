@@ -104,11 +104,54 @@ export const useCronogramaProducao = () => {
       if (configResult.error) throw new Error(formatarErroSupabase(configResult.error, 'Não foi possível carregar a configuração do cronograma.'));
       if (alertasResult.error) throw new Error(formatarErroSupabase(alertasResult.error, 'Não foi possível carregar os alertas do cronograma.'));
 
-      const resultado = ((data ?? []) as GanttEtapaProducao[]).map((item) => ({
-        ...item,
-        alocacoes: Array.isArray(item.alocacoes) ? item.alocacoes : [],
-        ordens: Array.isArray(item.ordens) ? item.ordens : [],
-      }));
+      const resultado = ((data ?? []) as GanttEtapaProducao[]).map((item) => {
+        const ordensOriginais = Array.isArray(item.ordens) ? item.ordens : [];
+        const ordens = ordensOriginais.map((ordem) => ({
+          ...ordem,
+          // No Gantt, a posição da OP é definida pela própria programação da OP.
+          // Datas reais/status não substituem início planejado e prazo da OP.
+          data_inicio_real: null,
+          data_fim_real: null,
+        }));
+        const ordensValidas = ordens.filter((ordem) => ordem.status !== 'cancelada');
+        const datasInicio = ordensValidas
+          .map((ordem) => ordem.data_inicio_prevista)
+          .filter((valor): valor is string => Boolean(valor))
+          .sort();
+        const datasFim = ordensValidas
+          .map((ordem) => ordem.data_fim_prevista)
+          .filter((valor): valor is string => Boolean(valor))
+          .sort();
+        const planejadoOps = ordensValidas.reduce(
+          (total, ordem) => total + Number(ordem.quantidade_planejada ?? 0),
+          0,
+        );
+        const realizadoOps = ordensValidas.reduce(
+          (total, ordem) => total + Number(ordem.quantidade_realizada ?? 0),
+          0,
+        );
+        const possuiOps = ordensValidas.length > 0;
+
+        return {
+          ...item,
+          alocacoes: Array.isArray(item.alocacoes) ? item.alocacoes : [],
+          ordens,
+          // A Etapa é apenas a consolidação visual das OPs no cronograma.
+          // Quando existem OPs, seu período é o menor início e o maior prazo delas.
+          data_inicio_prevista: possuiOps
+            ? (datasInicio[0] ?? item.data_inicio_prevista)
+            : item.data_inicio_prevista,
+          data_fim_prevista: possuiOps
+            ? (datasFim[datasFim.length - 1] ?? item.data_fim_prevista)
+            : item.data_fim_prevista,
+          data_inicio_real: possuiOps ? null : item.data_inicio_real,
+          data_fim_real: possuiOps ? null : item.data_fim_real,
+          quantidade_realizada: possuiOps ? realizadoOps : Number(item.quantidade_realizada ?? 0),
+          percentual_realizado: possuiOps && planejadoOps > 0
+            ? Math.min(100, Math.round((realizadoOps / planejadoOps) * 10000) / 100)
+            : Number(item.percentual_realizado ?? 0),
+        };
+      });
       setEtapas(resultado);
       if (configResult.data) setConfiguracao(configResult.data as ConfiguracaoCronogramaProducao);
       setAlertas((alertasResult.data ?? []) as AlertaCronogramaProducao[]);
