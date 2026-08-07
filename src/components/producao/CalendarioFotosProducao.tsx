@@ -136,7 +136,7 @@ export const CalendarioFotosProducao = ({ filtros }: CalendarioFotosProducaoProp
       }, {});
 
       const registros = ((anexosResult.data ?? []) as ProducaoApontamentoAnexo[])
-        .map((anexo) => {
+        .map((anexo): FotoCalendario | null => {
           const apontamento = apontamentosPorId.get(anexo.apontamento_id);
           if (!apontamento) return null;
           return {
@@ -147,7 +147,7 @@ export const CalendarioFotosProducao = ({ filtros }: CalendarioFotosProducaoProp
             membros: membrosPorApontamento[apontamento.id] ?? [],
           };
         })
-        .filter((item): item is FotoCalendario => Boolean(item));
+        .filter((item): item is FotoCalendario => Boolean(item)) as FotoCalendario[];
 
       if (ativo) setFotos(registros);
     };

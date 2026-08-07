@@ -120,3 +120,51 @@ export interface JornadaProducaoGerencialLinha {
   minutos_produtivos: number; minutos_improdutivos: number; minutos_sem_apontamento: number | null; minutos_extras: number | null;
   eficiencia_percentual: number; ocupacao_percentual: number | null; aproveitamento_percentual: number | null;
 }
+
+export interface IndicadorProducaoMateriais {
+  total_movimentacoes_vinculadas: number;
+  total_saida: number;
+  total_entrada: number;
+  itens_distintos: number;
+  quantidade_por_item: Array<{ item_id: string; item_nome: string; quantidade: number; total_movimentacoes: number }>;
+  quantidade_por_tipo_movimento: Array<{ tipo: string; quantidade: number; total_movimentacoes: number }>;
+}
+
+export interface IndicadorProducaoLocalTipoDetalhado extends IndicadorProducaoPorLocalTipo {
+  horas_homem: number;
+  horas_produtivas: number;
+  horas_improdutivas: number;
+  eficiencia_percentual: number;
+  custo_total: number | null;
+  custo_produtivo: number | null;
+  custo_improdutivo: number | null;
+  custo_incompleto: boolean;
+  quantidade_total_produzida: number;
+}
+
+export interface IndicadoresProducaoGerencial {
+  total_apontamentos: number;
+  total_apontamentos_lancados: number;
+  total_apontamentos_conferidos: number;
+  total_apontamentos_cancelados: number;
+  total_horas: number;
+  total_minutos: number;
+  horas_relogio: number;
+  horas_homem: number;
+  horas_produtivas: number;
+  horas_improdutivas: number;
+  eficiencia_percentual: number;
+  custo_total_mao_obra: number | null;
+  custo_produtivo_mao_obra: number | null;
+  custo_improdutivo_mao_obra: number | null;
+  apontamentos_custo_incompleto: number;
+  membros_sem_valor_hora: string[];
+  quantidade_total_produzida: number;
+  media_horas_por_apontamento: number;
+  apontamentos_pendentes_conferencia: number;
+  por_projeto: IndicadorProducaoPorProjeto[];
+  por_tarefa: IndicadorProducaoPorTarefa[];
+  por_membro: IndicadorProducaoPorMembro[];
+  por_local_tipo: IndicadorProducaoLocalTipoDetalhado[];
+  materiais: IndicadorProducaoMateriais;
+}

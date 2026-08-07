@@ -2697,6 +2697,23 @@ export type Database = {
         }
         Returns: undefined
       }
+      editar_ordem_producao_v1: {
+        Args: {
+          p_data_fim_prevista: string
+          p_data_inicio_prevista: string
+          p_descricao?: string
+          p_equipe_prevista?: number
+          p_instrucoes?: string
+          p_justificativa?: string
+          p_local_tipo: string
+          p_ordem_producao_id: string
+          p_prioridade?: string
+          p_quantidade_planejada: number
+          p_responsavel_id?: string
+          p_responsavel_nome?: string
+        }
+        Returns: undefined
+      }
       excluir_apontamento_producao_admin: {
         Args: { p_apontamento_id: string }
         Returns: undefined
@@ -2708,6 +2725,10 @@ export type Database = {
           p_processo_id: string
         }
         Returns: undefined
+      }
+      finalizar_ordem_producao_com_conferencia_v1: {
+        Args: { p_justificativa?: string; p_ordem_producao_id: string }
+        Returns: Json
       }
       gerar_proximo_codigo: { Args: never; Returns: string }
       gerar_solicitacao_material_op: {
