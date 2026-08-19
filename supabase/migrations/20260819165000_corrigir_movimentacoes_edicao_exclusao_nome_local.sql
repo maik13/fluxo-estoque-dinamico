@@ -97,6 +97,13 @@ EXECUTE FUNCTION public.notificar_movimentacoes_apos_renomear_local_v1();
 
 REVOKE ALL ON FUNCTION public.notificar_movimentacoes_apos_renomear_local_v1() FROM PUBLIC;
 
+-- O local do exemplo já pode ter sido renomeado antes desta migration.
+-- Toca uma única vez as movimentações existentes para publicar eventos UPDATE
+-- e fazer clientes abertos recarregarem o nome atual pelo ID do local.
+UPDATE public.movements
+   SET local_utilizacao_id = local_utilizacao_id
+ WHERE local_utilizacao_id IS NOT NULL;
+
 NOTIFY pgrst, 'reload schema';
 
 COMMIT;
