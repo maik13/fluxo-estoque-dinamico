@@ -70,6 +70,74 @@ BEGIN
 END;
 $$;
 
+-- O RLS deixa de esconder silenciosamente a linha no UPDATE/DELETE.
+-- A autorização efetiva passa a ser aplicada por trigger BEFORE, que gera
+-- erro explícito quando o usuário não possui a permissão.
+ALTER TABLE public.movements ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+  v_policy RECORD;
+BEGIN
+  FOR v_policy IN
+    SELECT policyname
+      FROM pg_policies
+     WHERE schemaname = 'public'
+       AND tablename = 'movements'
+       AND cmd IN ('UPDATE', 'DELETE')
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.movements', v_policy.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY "Movements update reaches row for authenticated"
+ON public.movements
+FOR UPDATE
+TO authenticated
+USING (auth.uid() IS NOT NULL)
+WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Movements delete reaches row for authenticated"
+ON public.movements
+FOR DELETE
+TO authenticated
+USING (auth.uid() IS NOT NULL);
+
+CREATE OR REPLACE FUNCTION public.validar_permissao_mutacao_movements_v1()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_user UUID := auth.uid();
+BEGIN
+  IF v_user IS NULL
+     OR NOT public.usuario_pode_editar_movimentacoes_v1(v_user) THEN
+    IF TG_OP = 'DELETE' THEN
+      RAISE EXCEPTION 'Sem permissão para excluir movimentações';
+    ELSE
+      RAISE EXCEPTION 'Sem permissão para editar movimentações';
+    END IF;
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_validar_permissao_mutacao_movements_v1
+ON public.movements;
+
+CREATE TRIGGER trg_validar_permissao_mutacao_movements_v1
+BEFORE UPDATE OR DELETE
+ON public.movements
+FOR EACH ROW
+EXECUTE FUNCTION public.validar_permissao_mutacao_movements_v1();
+
 CREATE OR REPLACE FUNCTION public.editar_movimentacao_v1(
   p_movimento_id UUID,
   p_local_utilizacao_id UUID,
@@ -195,8 +263,12 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.usuario_pode_editar_movimentacoes_v1(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.validar_permissao_mutacao_movements_v1() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.editar_movimentacao_v1(UUID, UUID, NUMERIC) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.excluir_movimentacao_v1(UUID) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION public.usuario_pode_editar_movimentacoes_v1(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.editar_movimentacao_v1(UUID, UUID, NUMERIC) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.excluir_movimentacao_v1(UUID) TO authenticated;
 
