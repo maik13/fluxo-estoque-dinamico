@@ -64,6 +64,7 @@ export const SolicitacaoMaterial = () => {
   const [dialogoCriar, setDialogoCriar] = useState(false);
   const [dialogoListar, setDialogoListar] = useState(false);
   const [dialogoDetalhes, setDialogoDetalhes] = useState(false);
+  const [solicitacaoParaAdicionar, setSolicitacaoParaAdicionar] = useState<SolicitacaoMaterialCompleta | null>(null);
   const [observacoes, setObservacoes] = useState('');
   const [itensLista, setItensLista] = useState<ItemSolicitacaoMaterial[]>([]);
   const [popoverAberto, setPopoverAberto] = useState(false);
@@ -187,7 +188,7 @@ export const SolicitacaoMaterial = () => {
   };
 
   const adicionarItemEstoque = (item: EstoqueItem) => {
-    if (itensLista.find(i => i.item_id === item.id)) {
+    if (itensLista.find(i => i.item_id === item.id) || solicitacaoParaAdicionar?.itens.some(i => i.item_id === item.id)) {
       toast.error('Este item já foi adicionado');
       return;
     }
@@ -696,6 +697,60 @@ export const SolicitacaoMaterial = () => {
     }
   };
 
+  const abrirAdicaoItens = (solicitacao: SolicitacaoMaterialCompleta) => {
+    limparFormularioCriacao();
+    setSolicitacaoParaAdicionar(solicitacao);
+    setDialogoCriar(true);
+  };
+
+  const fecharFormularioSolicitacao = () => {
+    setDialogoCriar(false);
+    setSolicitacaoParaAdicionar(null);
+    limparFormularioCriacao();
+  };
+
+  const adicionarItensSolicitacao = async () => {
+    if (!solicitacaoParaAdicionar || itensLista.length === 0) {
+      toast.error('Adicione pelo menos um item');
+      return;
+    }
+
+    setEnviando(true);
+    try {
+      const itens = itensLista.map(item => ({
+        item_id: item.item_id || null,
+        nome_item: item.nome_item,
+        quantidade: item.quantidade,
+        unidade: item.unidade,
+        item_snapshot: item.item_snapshot || null,
+        observacoes: item.observacoes || null,
+      }));
+
+      const { data, error } = await (supabase as any).rpc('adicionar_itens_solicitacao_material', {
+        p_solicitacao_id: solicitacaoParaAdicionar.id,
+        p_itens: itens,
+      });
+      if (error) throw error;
+
+      const novosItens = (data || []) as SolicitacaoMaterialCompleta['itens'];
+      setSolicitacoes(prev => prev.map(sol => sol.id === solicitacaoParaAdicionar.id
+        ? { ...sol, itens: [...sol.itens, ...novosItens] }
+        : sol));
+      setSolicitacaoSelecionada(prev => prev?.id === solicitacaoParaAdicionar.id
+        ? { ...prev, itens: [...prev.itens, ...novosItens] }
+        : prev);
+
+      toast.success(`${novosItens.length} item(ns) adicionado(s) à solicitação #${solicitacaoParaAdicionar.numero}`);
+      fecharFormularioSolicitacao();
+      await carregarSolicitacoes();
+    } catch (error: any) {
+      console.error('Erro ao adicionar itens à solicitação:', error);
+      toast.error(error?.message || 'Não foi possível adicionar os itens');
+    } finally {
+      setEnviando(false);
+    }
+  };
+
   const salvarLocalOrigemSolicitacao = async () => {
     if (!solicitacaoSelecionada || !isAdmin()) return;
     if (!localOrigemEdicaoId) {
@@ -896,7 +951,7 @@ export const SolicitacaoMaterial = () => {
             <p className="text-sm text-muted-foreground">
               {solicitacoes.length} solicitação(ões) encontrada(s)
             </p>
-            <Button onClick={() => setDialogoCriar(true)} className="gap-2">
+            <Button onClick={() => { setSolicitacaoParaAdicionar(null); limparFormularioCriacao(); setDialogoCriar(true); }} className="gap-2">
               <Plus className="h-4 w-4" /> Nova Solicitação
             </Button>
           </div>
@@ -1139,6 +1194,11 @@ export const SolicitacaoMaterial = () => {
                   </Button>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {solicitacaoSelecionada.status === 'pendente' && solicitacaoSelecionada.solicitante_id === user?.id && (
+                    <Button variant="outline" className="gap-1 flex-1 sm:flex-none" onClick={() => abrirAdicaoItens(solicitacaoSelecionada)}>
+                      <Plus className="h-4 w-4 shrink-0" /> <span className="truncate">Adicionar itens</span>
+                    </Button>
+                  )}
                   {canManageStock() && solicitacaoSelecionada.status === 'pendente' && (
                     <>
                       <Button variant="outline" className="text-red-400 border-red-400/30 flex-1 sm:flex-none" onClick={() => rejeitarSolicitacao(solicitacaoSelecionada.id)}>
@@ -1186,16 +1246,16 @@ export const SolicitacaoMaterial = () => {
       </Dialog>
 
       {/* Dialog Criar Nova Solicitação */}
-      <Dialog open={dialogoCriar} onOpenChange={setDialogoCriar}>
+      <Dialog open={dialogoCriar} onOpenChange={(aberto) => aberto ? setDialogoCriar(true) : fecharFormularioSolicitacao()}>
         <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" /> Nova Solicitação de Material
+              <Plus className="h-5 w-5" /> {solicitacaoParaAdicionar ? `Adicionar itens à Solicitação #${solicitacaoParaAdicionar.numero}` : 'Nova Solicitação de Material'}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="space-y-2">
+            {!solicitacaoParaAdicionar && <div className="space-y-2">
               <Label htmlFor="local_origem">Local de Origem *</Label>
               <Select
                 value={localOrigemId}
@@ -1216,7 +1276,13 @@ export const SolicitacaoMaterial = () => {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div>}
+
+            {solicitacaoParaAdicionar && (
+              <p className="text-sm text-muted-foreground">
+                Os novos itens serão incluídos na solicitação pendente. Após a aprovação pelo Almoxarifado, novas inclusões serão bloqueadas.
+              </p>
+            )}
 
             <h3 className="text-sm font-medium">Adicionar item do estoque</h3>
             <div className="flex gap-2 items-end">
@@ -1366,27 +1432,27 @@ export const SolicitacaoMaterial = () => {
               </div>
             )}
 
-            <div>
+            {!solicitacaoParaAdicionar && <div>
               <Label>Observações gerais</Label>
               <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} placeholder="Observações sobre a solicitação (opcional)" rows={2} />
-            </div>
+            </div>}
 
             <div className="flex justify-between items-center pt-4 border-t gap-4">
               <Button 
                 type="button" 
                 variant="outline" 
-                onClick={() => setDialogoCriar(false)}
+                onClick={fecharFormularioSolicitacao}
                 className="hover:bg-destructive/10 hover:text-destructive transition-colors"
               >
                 Cancelar
               </Button>
               <Button 
                 type="submit" 
-                onClick={criarSolicitacao}
-                disabled={enviando || isInicializandoSolicitacao || itensLista.length === 0 || !localOrigemId} 
+                onClick={solicitacaoParaAdicionar ? adicionarItensSolicitacao : criarSolicitacao}
+                disabled={enviando || isInicializandoSolicitacao || itensLista.length === 0 || (!solicitacaoParaAdicionar && !localOrigemId)}
                 className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02]"
               >
-                {enviando ? 'Enviando...' : isInicializandoSolicitacao ? 'Carregando...' : '🚀 Criar Solicitação'}
+                {enviando ? 'Enviando...' : isInicializandoSolicitacao ? 'Carregando...' : solicitacaoParaAdicionar ? 'Adicionar à solicitação' : '🚀 Criar Solicitação'}
               </Button>
             </div>
           </div>
