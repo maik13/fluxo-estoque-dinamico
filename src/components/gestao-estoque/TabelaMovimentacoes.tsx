@@ -29,7 +29,7 @@ import { ptBR } from 'date-fns/locale';
 import { useConsolidacao } from '@/hooks/useConsolidacao';
 
 export const TabelaMovimentacoes = () => {
-  const { movimentacoes, loading } = useEstoqueContext();
+  const { movimentacoes, loading, carregarDados } = useEstoqueContext();
   const { isAdmin, canEditMovements } = usePermissions();
   const { user } = useAuth();
   const [filtroTexto, setFiltroTexto] = useState('');
@@ -509,15 +509,23 @@ export const TabelaMovimentacoes = () => {
         throw new Error("Quantidade inválida");
       }
       
-      const { error } = await supabase
+      const { data: movimentacaoAtualizada, error } = await supabase
         .from('movements')
         .update({ 
           local_utilizacao_id: novoLocalId || null,
           quantidade: quantidadeAtualizada
         })
-        .eq('id', movimentoEditando.id);
+        .eq('id', movimentoEditando.id)
+        .select('id')
+        .maybeSingle();
         
       if (error) throw error;
+      if (!movimentacaoAtualizada) {
+        throw new Error('A movimentação não foi alterada. Verifique se seu usuário tem permissão para editar movimentações.');
+      }
+
+      // Atualiza a tabela imediatamente, sem depender da entrega do evento realtime.
+      await carregarDados(true);
       
       // Registrar log de auditoria
       await (supabase as any).from('action_logs').insert({
