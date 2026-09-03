@@ -10,10 +10,40 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
+      action_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       categoria_subcategoria: {
         Row: {
           categoria_id: string
@@ -2503,6 +2533,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adicionar_itens_solicitacao_material: {
+        Args: { p_itens: Json; p_solicitacao_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          item_id: string | null
+          item_snapshot: Json | null
+          nome_item: string
+          observacoes: string | null
+          quantidade: number
+          solicitacao_material_id: string
+          unidade: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "solicitacao_material_itens"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       admin_create_profile: {
         Args: {
           email: string
@@ -2697,6 +2747,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      editar_movimentacao_v1: {
+        Args: {
+          p_local_utilizacao_id: string
+          p_movimento_id: string
+          p_quantidade: number
+        }
+        Returns: Json
+      }
       editar_ordem_producao_v1: {
         Args: {
           p_data_fim_prevista: string
@@ -2717,6 +2775,10 @@ export type Database = {
       excluir_apontamento_producao_admin: {
         Args: { p_apontamento_id: string }
         Returns: undefined
+      }
+      excluir_movimentacao_v1: {
+        Args: { p_movimento_id: string }
+        Returns: Json
       }
       excluir_processo_producao: {
         Args: {
@@ -2944,6 +3006,27 @@ export type Database = {
           file_path: string
         }[]
       }
+      retificar_etapa_producao: {
+        Args: {
+          p_aceita_producao_proporcional?: boolean
+          p_capacidade_diaria?: number
+          p_data_inicio_desejada?: string
+          p_data_limite?: string
+          p_dependencias?: Json
+          p_descricao?: string
+          p_grupo_cronograma?: string
+          p_justificativa?: string
+          p_nome: string
+          p_pessoas_necessarias?: number
+          p_prioridade?: string
+          p_processo_id: string
+          p_produto_entregavel?: string
+          p_quantidade_planejada?: number
+          p_sequencia?: number
+          p_unidade_medida?: string
+        }
+        Returns: undefined
+      }
       salvar_configuracao_cronograma_producao: {
         Args: {
           p_equipe_disponivel: number
@@ -3035,6 +3118,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      usuario_pode_editar_movimentacoes_v1: {
+        Args: { p_user_id?: string }
+        Returns: boolean
+      }
       usuario_tem_permissao_producao: {
         Args: { p_permissao: string }
         Returns: boolean
@@ -3066,12 +3153,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3095,11 +3182,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3120,11 +3207,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3145,11 +3232,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3162,11 +3249,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
