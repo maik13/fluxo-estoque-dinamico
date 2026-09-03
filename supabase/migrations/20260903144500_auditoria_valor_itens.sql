@@ -12,6 +12,7 @@ SET search_path = ''
 AS $$
 DECLARE
   v_acao TEXT;
+  v_valor_anterior JSONB := NULL;
 BEGIN
   IF TG_OP = 'INSERT' THEN
     -- Só registra definição inicial quando algum valor foi efetivamente informado.
@@ -27,6 +28,7 @@ BEGIN
     END IF;
 
     v_acao := 'ALTERACAO_VALOR_ITEM';
+    v_valor_anterior := to_jsonb(OLD.valor);
   END IF;
 
   INSERT INTO public.action_logs (
@@ -44,7 +46,7 @@ BEGIN
     jsonb_build_object(
       'item_nome', NEW.nome,
       'codigo_barras', NEW.codigo_barras,
-      'valor_anterior', CASE WHEN TG_OP = 'UPDATE' THEN to_jsonb(OLD.valor) ELSE NULL END,
+      'valor_anterior', v_valor_anterior,
       'valor_novo', to_jsonb(NEW.valor)
     )
   );
