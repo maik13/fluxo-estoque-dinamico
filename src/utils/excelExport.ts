@@ -80,13 +80,14 @@ export const exportarExcel = ({
 
     return {
       'Código de Barras': item.codigoBarras,
+      'Código Antigo': item.codigoAntigo || '',
       'Nome do Item': item.nome,
       'Marca': item.marca || '',
       'Especificação': item.especificacao || '',
-      'Categoria': item.categoria || '',
-      'Subcategoria': item.subcategoria || '',
       'Localização': item.localizacao || '',
+      'Caixa/Organizador': item.caixaOrganizador || '',
       'Estoque Atual': item.estoqueAtual,
+      'Quantidade Mínima': item.quantidadeMinima || '',
       'Unidade': item.unidade,
       'Valor Unitário (R$)': valorUnitario,
       'Valor Total em Estoque (R$)': valorTotalEstoque,
@@ -105,13 +106,14 @@ export const exportarExcel = ({
   worksheetPrecificados['!cols'] = dadosPrecificados.length > 0
     ? [
         { wch: 15 },
+        { wch: 15 },
         { wch: 32 },
         { wch: 18 },
         { wch: 30 },
-        { wch: 20 },
-        { wch: 20 },
+        { wch: 22 },
         { wch: 22 },
         { wch: 14 },
+        { wch: 16 },
         { wch: 10 },
         { wch: 18 },
         { wch: 24 },
