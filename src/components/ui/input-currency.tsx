@@ -2,19 +2,26 @@ import * as React from "react"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
-interface InputCurrencyProps extends Omit<React.ComponentProps<"input">, "type" | "onChange"> {
-  value: number | string;
+interface InputCurrencyProps extends Omit<React.ComponentProps<"input">, "type" | "onChange" | "value"> {
+  value: number | string | null | undefined;
   onChange: (value: number) => void;
+  allowEmpty?: boolean;
+  onClear?: () => void;
 }
 
-const formatDecimalValue = (value: number | string): string => {
-  if (value === "" || value === null || value === undefined) return "0";
+const formatDecimalValue = (
+  value: number | string | null | undefined,
+  allowEmpty = false
+): string => {
+  if (value === "" || value === null || value === undefined) {
+    return allowEmpty ? "" : "0";
+  }
 
   const numericValue = typeof value === "number"
     ? value
     : Number(String(value).trim().replace(",", "."));
 
-  if (!Number.isFinite(numericValue)) return "0";
+  if (!Number.isFinite(numericValue)) return allowEmpty ? "" : "0";
 
   return numericValue.toLocaleString("pt-BR", {
     useGrouping: false,
@@ -53,24 +60,28 @@ const sanitizeDecimalInput = (rawValue: string): string => {
 };
 
 const InputCurrency = React.forwardRef<HTMLInputElement, InputCurrencyProps>(
-  ({ className, value, onChange, onFocus, onBlur, ...props }, ref) => {
-    const [displayValue, setDisplayValue] = React.useState(() => formatDecimalValue(value));
+  ({ className, value, onChange, allowEmpty = false, onClear, onFocus, onBlur, ...props }, ref) => {
+    const [displayValue, setDisplayValue] = React.useState(() => formatDecimalValue(value, allowEmpty));
     const [isFocused, setIsFocused] = React.useState(false);
 
     React.useEffect(() => {
       // Enquanto o operador digita, preserva exatamente as casas decimais informadas.
       // Isso evita que 0,0025 seja reformatado a cada tecla pelo valor numérico do pai.
       if (!isFocused) {
-        setDisplayValue(formatDecimalValue(value));
+        setDisplayValue(formatDecimalValue(value, allowEmpty));
       }
-    }, [value, isFocused]);
+    }, [value, isFocused, allowEmpty]);
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       const sanitized = sanitizeDecimalInput(event.target.value);
       setDisplayValue(sanitized);
 
-      if (!sanitized || sanitized === ",") {
-        onChange(0);
+      if (!sanitized) {
+        if (allowEmpty) {
+          onClear?.();
+        } else {
+          onChange(0);
+        }
         return;
       }
 
@@ -88,9 +99,10 @@ const InputCurrency = React.forwardRef<HTMLInputElement, InputCurrencyProps>(
     const handleBlur = (event: React.FocusEvent<HTMLInputElement>) => {
       setIsFocused(false);
 
-      if (!displayValue || displayValue.endsWith(",")) {
-        const normalized = displayValue.replace(/,$/, "") || "0";
-        setDisplayValue(normalized);
+      if (!displayValue) {
+        setDisplayValue(allowEmpty ? "" : "0");
+      } else if (displayValue.endsWith(",")) {
+        setDisplayValue(displayValue.replace(/,$/, ""));
       }
 
       onBlur?.(event);

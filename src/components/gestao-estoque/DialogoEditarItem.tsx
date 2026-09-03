@@ -269,10 +269,15 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
               <Label htmlFor="valor">Valor</Label>
               <InputCurrency
                 id="valor"
-                value={formItem.valor || 0}
+                value={formItem.valor ?? ''}
                 onChange={(valor) => setFormItem(prev => prev ? {...prev, valor} : null)}
-                placeholder="0,00"
+                allowEmpty
+                onClear={() => setFormItem(prev => prev ? {...prev, valor: undefined} : null)}
+                placeholder="Sem valor cadastrado"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Deixe em branco quando o item ainda não possuir valor cadastrado.
+              </p>
             </div>
           </div>
 
