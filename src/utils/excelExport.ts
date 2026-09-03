@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { EstoqueItem } from '@/types/estoque';
 import { DadosEstoqueContado } from '@/hooks/useEstoqueContado';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ExportOptions {
   titulo: string;
@@ -12,12 +13,52 @@ interface ExportOptions {
 const itemEstaPrecificado = (item: EstoqueItem): boolean =>
   typeof item.valor === 'number' && Number.isFinite(item.valor) && item.valor > 0;
 
-export const exportarExcel = ({
+const carregarUltimaAtualizacaoValor = async (): Promise<Map<string, string>> => {
+  const mapa = new Map<string, string>();
+
+  try {
+    const { data, error } = await (supabase as any).rpc('listar_ultima_atualizacao_valor_itens_v1');
+
+    if (error) {
+      console.warn('Não foi possível carregar o histórico específico de valores:', error);
+      return mapa;
+    }
+
+    for (const linha of data ?? []) {
+      if (linha?.item_id && linha?.valor_atualizado_em) {
+        mapa.set(String(linha.item_id), String(linha.valor_atualizado_em));
+      }
+    }
+  } catch (error) {
+    // A exportação continua funcionando mesmo se a auditoria ainda não estiver disponível.
+    console.warn('Histórico específico de valores indisponível durante a exportação:', error);
+  }
+
+  return mapa;
+};
+
+const formatarDataAtualizacaoValor = (
+  item: EstoqueItem,
+  datasAtualizacao: Map<string, string>
+): string => {
+  if (!itemEstaPrecificado(item)) return '';
+
+  const data = datasAtualizacao.get(item.id);
+  if (!data) return 'Sem histórico específico';
+
+  return new Date(data).toLocaleString('pt-BR');
+};
+
+export const exportarExcel = async ({
   titulo,
   nomeEstoque,
   itens,
   incluirEstatisticas = true
 }: ExportOptions) => {
+  // Consulta somente de leitura. Se o recurso de auditoria ainda não estiver aplicado,
+  // o Excel continua sendo gerado normalmente e sinaliza os itens sem histórico específico.
+  const datasAtualizacaoValor = await carregarUltimaAtualizacaoValor();
+
   // Criar workbook
   const workbook = XLSX.utils.book_new();
 
@@ -36,8 +77,9 @@ export const exportarExcel = ({
     'Condição': item.condicao,
     'NCM': item.ncm || '',
     'Valor': itemEstaPrecificado(item) ? item.valor : '',
+    'Última Atualização do Valor': formatarDataAtualizacaoValor(item, datasAtualizacaoValor),
     'Última Movimentação': item.ultimaMovimentacao ?
-      new Date(item.ultimaMovimentacao.dataHora).toLocaleDateString('pt-BR') + ' ' + 
+      new Date(item.ultimaMovimentacao.dataHora).toLocaleDateString('pt-BR') + ' ' +
       new Date(item.ultimaMovimentacao.dataHora).toLocaleTimeString('pt-BR') : '',
     'Tipo Última Mov.': item.ultimaMovimentacao?.tipo || '',
     'Status do Estoque': getStatusEstoque(item)
@@ -61,6 +103,7 @@ export const exportarExcel = ({
     { wch: 10 }, // Condição
     { wch: 12 }, // NCM
     { wch: 12 }, // Valor
+    { wch: 24 }, // Última Atualização do Valor
     { wch: 20 }, // Última Movimentação
     { wch: 15 }, // Tipo Última Mov
     { wch: 15 }  // Status do Estoque
@@ -90,6 +133,7 @@ export const exportarExcel = ({
       'Quantidade Mínima': item.quantidadeMinima || '',
       'Unidade': item.unidade,
       'Valor Unitário (R$)': valorUnitario,
+      'Última Atualização do Valor': formatarDataAtualizacaoValor(item, datasAtualizacaoValor),
       'Valor Total em Estoque (R$)': valorTotalEstoque,
       'NCM': item.ncm || '',
       'Condição': item.condicao || '',
@@ -117,6 +161,7 @@ export const exportarExcel = ({
         { wch: 10 },
         { wch: 18 },
         { wch: 24 },
+        { wch: 24 },
         { wch: 14 },
         { wch: 14 },
         { wch: 16 }
@@ -131,7 +176,7 @@ export const exportarExcel = ({
     const totalItens = itens.length;
     const comEstoque = itens.filter(item => item.estoqueAtual > 0).length;
     const estoqueZero = itens.filter(item => item.estoqueAtual === 0).length;
-    const estoqueBaixo = itens.filter(item => 
+    const estoqueBaixo = itens.filter(item =>
       item.quantidadeMinima && item.estoqueAtual <= item.quantidadeMinima
     ).length;
     const totalPrecificados = itensPrecificados.length;
@@ -140,12 +185,16 @@ export const exportarExcel = ({
       (total, item) => total + (item.valor as number) * item.estoqueAtual,
       0
     );
+    const precificadosComHistorico = itensPrecificados.filter(item => datasAtualizacaoValor.has(item.id)).length;
+    const precificadosSemHistorico = totalPrecificados - precificadosComHistorico;
 
     // Dados do resumo
     const dadosResumo = [
       { 'Métrica': 'RESUMO GERAL', 'Valor': '', 'Observação': '' },
       { 'Métrica': 'Total de Itens', 'Valor': totalItens, 'Observação': 'Todos os itens considerados na exportação' },
       { 'Métrica': 'Itens Precificados', 'Valor': totalPrecificados, 'Observação': 'Valor unitário maior que zero' },
+      { 'Métrica': 'Precificados com histórico de valor', 'Valor': precificadosComHistorico, 'Observação': 'Possuem data específica registrada na auditoria' },
+      { 'Métrica': 'Precificados sem histórico específico', 'Valor': precificadosSemHistorico, 'Observação': 'Preço já existia antes da auditoria ou ainda não teve alteração registrada' },
       { 'Métrica': 'Itens sem Preço', 'Valor': totalSemPreco, 'Observação': 'Valor ausente, inválido ou igual a zero' },
       { 'Métrica': 'Valor Total do Estoque Precificado (R$)', 'Valor': valorTotalEstoquePrecificado, 'Observação': 'Valor unitário x saldo atual dos itens precificados' },
       { 'Métrica': 'Itens com Estoque', 'Valor': comEstoque, 'Observação': 'Quantidade > 0' },
@@ -154,8 +203,8 @@ export const exportarExcel = ({
     ];
 
     const worksheetResumo = XLSX.utils.json_to_sheet(dadosResumo);
-    worksheetResumo['!cols'] = [{ wch: 42 }, { wch: 22 }, { wch: 55 }];
-    
+    worksheetResumo['!cols'] = [{ wch: 42 }, { wch: 22 }, { wch: 65 }];
+
     XLSX.utils.book_append_sheet(workbook, worksheetResumo, 'Resumo e Estatísticas');
   }
 
