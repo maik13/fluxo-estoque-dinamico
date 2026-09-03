@@ -9,6 +9,9 @@ interface ExportOptions {
   incluirEstatisticas?: boolean;
 }
 
+const itemEstaPrecificado = (item: EstoqueItem): boolean =>
+  typeof item.valor === 'number' && Number.isFinite(item.valor) && item.valor > 0;
+
 export const exportarExcel = ({
   titulo,
   nomeEstoque,
@@ -32,7 +35,7 @@ export const exportarExcel = ({
     'Unidade': item.unidade,
     'Condição': item.condicao,
     'NCM': item.ncm || '',
-    'Valor': item.valor || '',
+    'Valor': itemEstaPrecificado(item) ? item.valor : '',
     'Última Movimentação': item.ultimaMovimentacao ?
       new Date(item.ultimaMovimentacao.dataHora).toLocaleDateString('pt-BR') + ' ' + 
       new Date(item.ultimaMovimentacao.dataHora).toLocaleTimeString('pt-BR') : '',
@@ -58,7 +61,6 @@ export const exportarExcel = ({
     { wch: 10 }, // Condição
     { wch: 12 }, // NCM
     { wch: 12 }, // Valor
-    { wch: 15 }, // Data de Cadastro
     { wch: 20 }, // Última Movimentação
     { wch: 15 }, // Tipo Última Mov
     { wch: 15 }  // Status do Estoque
@@ -69,6 +71,58 @@ export const exportarExcel = ({
   // Adicionar a aba principal
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Estoque Completo');
 
+  // Criar uma aba dedicada somente aos itens que já possuem valor cadastrado.
+  // Para fins operacionais, valor nulo, inválido ou igual a zero é tratado como não precificado.
+  const itensPrecificados = itens.filter(itemEstaPrecificado);
+  const dadosPrecificados = itensPrecificados.map(item => {
+    const valorUnitario = item.valor as number;
+    const valorTotalEstoque = valorUnitario * item.estoqueAtual;
+
+    return {
+      'Código de Barras': item.codigoBarras,
+      'Nome do Item': item.nome,
+      'Marca': item.marca || '',
+      'Especificação': item.especificacao || '',
+      'Categoria': item.categoria || '',
+      'Subcategoria': item.subcategoria || '',
+      'Localização': item.localizacao || '',
+      'Estoque Atual': item.estoqueAtual,
+      'Unidade': item.unidade,
+      'Valor Unitário (R$)': valorUnitario,
+      'Valor Total em Estoque (R$)': valorTotalEstoque,
+      'NCM': item.ncm || '',
+      'Condição': item.condicao || '',
+      'Status do Estoque': getStatusEstoque(item)
+    };
+  });
+
+  const worksheetPrecificados = XLSX.utils.json_to_sheet(
+    dadosPrecificados.length > 0
+      ? dadosPrecificados
+      : [{ 'Mensagem': 'Nenhum item precificado encontrado nos filtros atuais.' }]
+  );
+
+  worksheetPrecificados['!cols'] = dadosPrecificados.length > 0
+    ? [
+        { wch: 15 },
+        { wch: 32 },
+        { wch: 18 },
+        { wch: 30 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 22 },
+        { wch: 14 },
+        { wch: 10 },
+        { wch: 18 },
+        { wch: 24 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 16 }
+      ]
+    : [{ wch: 60 }];
+
+  XLSX.utils.book_append_sheet(workbook, worksheetPrecificados, 'Itens Precificados');
+
   // Se incluir estatísticas, criar aba de resumo
   if (incluirEstatisticas) {
     // Estatísticas gerais
@@ -78,18 +132,27 @@ export const exportarExcel = ({
     const estoqueBaixo = itens.filter(item => 
       item.quantidadeMinima && item.estoqueAtual <= item.quantidadeMinima
     ).length;
+    const totalPrecificados = itensPrecificados.length;
+    const totalSemPreco = totalItens - totalPrecificados;
+    const valorTotalEstoquePrecificado = itensPrecificados.reduce(
+      (total, item) => total + (item.valor as number) * item.estoqueAtual,
+      0
+    );
 
     // Dados do resumo
     const dadosResumo = [
       { 'Métrica': 'RESUMO GERAL', 'Valor': '', 'Observação': '' },
-      { 'Métrica': 'Total de Itens', 'Valor': totalItens, 'Observação': 'Todos os itens cadastrados' },
+      { 'Métrica': 'Total de Itens', 'Valor': totalItens, 'Observação': 'Todos os itens considerados na exportação' },
+      { 'Métrica': 'Itens Precificados', 'Valor': totalPrecificados, 'Observação': 'Valor unitário maior que zero' },
+      { 'Métrica': 'Itens sem Preço', 'Valor': totalSemPreco, 'Observação': 'Valor ausente, inválido ou igual a zero' },
+      { 'Métrica': 'Valor Total do Estoque Precificado (R$)', 'Valor': valorTotalEstoquePrecificado, 'Observação': 'Valor unitário x saldo atual dos itens precificados' },
       { 'Métrica': 'Itens com Estoque', 'Valor': comEstoque, 'Observação': 'Quantidade > 0' },
       { 'Métrica': 'Itens com Estoque Baixo', 'Valor': estoqueBaixo, 'Observação': 'Abaixo do mínimo' },
       { 'Métrica': 'Itens com Estoque Zerado', 'Valor': estoqueZero, 'Observação': 'Quantidade = 0' }
     ];
 
     const worksheetResumo = XLSX.utils.json_to_sheet(dadosResumo);
-    worksheetResumo['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 40 }];
+    worksheetResumo['!cols'] = [{ wch: 42 }, { wch: 22 }, { wch: 55 }];
     
     XLSX.utils.book_append_sheet(workbook, worksheetResumo, 'Resumo e Estatísticas');
   }
