@@ -1,6 +1,6 @@
 # Auditoria do Supabase externo — resultado e próximo passo
 
-A auditoria somente-leitura foi concluída (nenhuma escrita foi feita). O inventário completo está no documento `auditoria-supabase-externo.md` entregue junto desta resposta. Abaixo, o resumo e a proposta do que fazer a seguir.
+A auditoria somente-leitura foi concluída (nenhuma escrita foi feita). Este documento é o inventário consolidado; o detalhamento completo (lista de FKs com cascatas, políticas por tabela, triggers, campos de delta por tabela) pode ser entregue como arquivo separado no próximo passo, pois o modo atual permite escrever apenas este plano.
 
 ## Resumo do inventário
 
