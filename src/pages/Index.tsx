@@ -108,14 +108,13 @@ const Index = () => {
           {(() => {
             const showEstoque = canManageStock();
             const showMovimentacoes = canManageStock();
-            const showPosicaoPatrimonio = canManageStock();
             const podeVerGerencialAlmoxarifado = canAccessManagerial();
             const podeVerBIProducao = canViewBIProducao();
             const showGerencial = podeVerGerencialAlmoxarifado || podeVerBIProducao;
             const showProjetos = canAccessProjects();
             const showProducao = canApontarProducao() || canConferirProducao() || canConfigurarProducao();
             const somenteBIProducao = podeVerBIProducao && !podeVerGerencialAlmoxarifado;
-            const tabCount = 1 + (showEstoque ? 1 : 0) + (showPosicaoPatrimonio ? 1 : 0) + (showMovimentacoes ? 1 : 0);
+            const tabCount = 1 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
 
             return (
               <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
@@ -129,11 +128,6 @@ const Index = () => {
                   {showEstoque && (
                     <TabsTrigger value="estoque" className="flex-1 sm:flex-none flex items-center justify-center gap-2 min-w-[120px]">
                       <Package className="h-4 w-4" />Estoque
-                    </TabsTrigger>
-                  )}
-                  {showPosicaoPatrimonio && (
-                    <TabsTrigger value="posicao-patrimonio" className="flex-1 sm:flex-none flex items-center justify-center gap-2 min-w-[180px]">
-                      <FileSpreadsheet className="h-4 w-4" />Posição / Patrimônio
                     </TabsTrigger>
                   )}
                   {showMovimentacoes && (
@@ -170,8 +164,30 @@ const Index = () => {
                 {showGerencial && <TabsContent value="gerencial" className="space-y-6"><PainelGerencialAcesso /></TabsContent>}
                 {showProjetos && <TabsContent value="projetos" className="space-y-6"><VisaoProjetos /></TabsContent>}
                 {showProducao && <TabsContent value="producao" className="space-y-6"><Producao /></TabsContent>}
-                {showEstoque && <TabsContent value="estoque" className="space-y-6"><TabelaEstoque onAbrirRetirada={() => setTabAtiva('menu')} /></TabsContent>}
-                {showPosicaoPatrimonio && <TabsContent value="posicao-patrimonio" className="space-y-6"><PosicaoEstoquePatrimonio /></TabsContent>}
+
+                {showEstoque && (
+                  <TabsContent value="estoque" className="space-y-6">
+                    <Tabs defaultValue="estoque-operacional" className="w-full">
+                      <TabsList className="inline-flex h-auto mb-4 p-1">
+                        <TabsTrigger value="estoque-operacional" className="flex items-center gap-2 px-4 py-2">
+                          <Package className="h-4 w-4" />Estoque operacional
+                        </TabsTrigger>
+                        <TabsTrigger value="posicao-patrimonial" className="flex items-center gap-2 px-4 py-2">
+                          <FileSpreadsheet className="h-4 w-4" />Posição patrimonial
+                        </TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="estoque-operacional" className="mt-0 space-y-6">
+                        <TabelaEstoque onAbrirRetirada={() => setTabAtiva('menu')} />
+                      </TabsContent>
+
+                      <TabsContent value="posicao-patrimonial" className="mt-0 space-y-6">
+                        <PosicaoEstoquePatrimonio />
+                      </TabsContent>
+                    </Tabs>
+                  </TabsContent>
+                )}
+
                 {showMovimentacoes && <TabsContent value="movimentacoes" className="space-y-6"><TabelaMovimentacoes /></TabsContent>}
                 <TabsContent value="mensagens" className="space-y-6"><Mensagens /></TabsContent>
               </Tabs>
