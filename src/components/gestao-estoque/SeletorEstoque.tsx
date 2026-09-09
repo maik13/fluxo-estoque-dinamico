@@ -1,10 +1,13 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Database } from 'lucide-react';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { usePermissions } from '@/hooks/usePermissions';
 import { CloudStorageIndicator } from '@/components/gestao-estoque/CloudStorageIndicator';
 
 export const SeletorEstoque = () => {
   const { estoques, estoqueAtivo, alterarEstoqueAtivo } = useConfiguracoes();
+  const { isAdmin, isGestor } = usePermissions();
+  const podeVerArmazenamento = isAdmin() || isGestor();
 
   return (
     <div className="flex items-center gap-2">
@@ -21,7 +24,7 @@ export const SeletorEstoque = () => {
           ))}
         </SelectContent>
       </Select>
-      <CloudStorageIndicator />
+      {podeVerArmazenamento && <CloudStorageIndicator />}
     </div>
   );
 };
