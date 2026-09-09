@@ -6,8 +6,9 @@ import { TabelaMovimentacoes } from '@/components/gestao-estoque/TabelaMovimenta
 import { PainelGerencialAcesso } from '@/components/gestao-estoque/PainelGerencialAcesso';
 import { VisaoProjetos } from '@/components/gestao-estoque/VisaoProjetos';
 import { Mensagens } from '@/components/gestao-estoque/Mensagens';
+import { PosicaoEstoquePatrimonio } from '@/components/gestao-estoque/PosicaoEstoquePatrimonio';
 import { Producao } from '@/components/producao/Producao';
-import { Package, Menu, History, LogOut, BarChart3 } from 'lucide-react';
+import { Package, Menu, History, LogOut, BarChart3, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -32,9 +33,7 @@ const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !session) {
-      navigate('/auth');
-    }
+    if (!loading && !session) navigate('/auth');
   }, [loading, session, navigate]);
 
   useEffect(() => {
@@ -43,17 +42,10 @@ const Index = () => {
 
   const carregarLogo = async () => {
     try {
-      const { data, error } = await supabase.storage
-        .from('branding')
-        .list('', { limit: 1 });
-
+      const { data, error } = await supabase.storage.from('branding').list('', { limit: 1 });
       if (error) throw error;
-
       if (data && data.length > 0) {
-        const { data: publicUrlData } = supabase.storage
-          .from('branding')
-          .getPublicUrl(data[0].name);
-        
+        const { data: publicUrlData } = supabase.storage.from('branding').getPublicUrl(data[0].name);
         setLogoUrl(publicUrlData.publicUrl);
       }
     } catch (error) {
@@ -74,15 +66,10 @@ const Index = () => {
         >
           <div className="px-6 py-3 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
-              {logoUrl && (
-                <img
-                  src={logoUrl}
-                  alt="Logo"
-                  className="h-10 w-auto object-contain flex-shrink-0 drop-shadow-lg"
-                />
-              )}
+              {logoUrl && <img src={logoUrl} alt="Logo" className="h-10 w-auto object-contain flex-shrink-0 drop-shadow-lg" />}
               <div className="min-w-0">
-                <h1 className="text-lg font-bold leading-tight truncate"
+                <h1
+                  className="text-lg font-bold leading-tight truncate"
                   style={{
                     background: 'linear-gradient(135deg, hsl(145 72% 62%), hsl(186 72% 57%))',
                     WebkitBackgroundClip: 'text',
@@ -92,9 +79,7 @@ const Index = () => {
                 >
                   🏭 Almoxarifado
                 </h1>
-                <p className="text-xs text-muted-foreground hidden sm:block">
-                  Sistema de gestão de materiais
-                </p>
+                <p className="text-xs text-muted-foreground hidden sm:block">Sistema de gestão de materiais</p>
               </div>
             </div>
 
@@ -118,54 +103,53 @@ const Index = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="w-full px-4 py-4">
           {(() => {
             const showEstoque = canManageStock();
             const showMovimentacoes = canManageStock();
+            const showPosicaoPatrimonio = canManageStock();
             const podeVerGerencialAlmoxarifado = canAccessManagerial();
             const podeVerBIProducao = canViewBIProducao();
             const showGerencial = podeVerGerencialAlmoxarifado || podeVerBIProducao;
             const showProjetos = canAccessProjects();
-            const showProducao =
-              canApontarProducao() ||
-              canConferirProducao() ||
-              canConfigurarProducao();
+            const showProducao = canApontarProducao() || canConferirProducao() || canConfigurarProducao();
             const somenteBIProducao = podeVerBIProducao && !podeVerGerencialAlmoxarifado;
-            const tabCount = 1 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
-            
+            const tabCount = 1 + (showEstoque ? 1 : 0) + (showPosicaoPatrimonio ? 1 : 0) + (showMovimentacoes ? 1 : 0);
+
             return (
               <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
-                <TabsList 
-                  className="flex flex-wrap sm:grid w-full mb-6 h-auto gap-2 sm:gap-0" 
+                <TabsList
+                  className="flex flex-wrap sm:grid w-full mb-6 h-auto gap-2 sm:gap-0"
                   style={{ gridTemplateColumns: `repeat(${tabCount}, 1fr)` }}
                 >
                   <TabsTrigger value="menu" className="flex-1 sm:flex-none flex items-center justify-center gap-2 min-w-[120px]">
-                    <Menu className="h-4 w-4" />
-                    Menu Principal
+                    <Menu className="h-4 w-4" />Menu Principal
                   </TabsTrigger>
                   {showEstoque && (
                     <TabsTrigger value="estoque" className="flex-1 sm:flex-none flex items-center justify-center gap-2 min-w-[120px]">
-                      <Package className="h-4 w-4" />
-                      Estoque
+                      <Package className="h-4 w-4" />Estoque
+                    </TabsTrigger>
+                  )}
+                  {showPosicaoPatrimonio && (
+                    <TabsTrigger value="posicao-patrimonio" className="flex-1 sm:flex-none flex items-center justify-center gap-2 min-w-[180px]">
+                      <FileSpreadsheet className="h-4 w-4" />Posição / Patrimônio
                     </TabsTrigger>
                   )}
                   {showMovimentacoes && (
                     <TabsTrigger value="movimentacoes" className="flex-1 sm:flex-none flex items-center justify-center gap-2 min-w-[140px]">
-                      <History className="h-4 w-4" />
-                      Movimentações
+                      <History className="h-4 w-4" />Movimentações
                     </TabsTrigger>
                   )}
                 </TabsList>
 
                 <TabsContent value="menu" className="space-y-6">
-                  <MenuPrincipal 
-                    onAbrirGerencial={() => setTabAtiva('gerencial')} 
+                  <MenuPrincipal
+                    onAbrirGerencial={() => setTabAtiva('gerencial')}
                     onAbrirProjetos={() => setTabAtiva('projetos')}
                     onAbrirMensagens={() => setTabAtiva('mensagens')}
                     onAbrirProducao={() => setTabAtiva('producao')}
                   />
-
                   {somenteBIProducao && (
                     <button
                       type="button"
@@ -173,55 +157,23 @@ const Index = () => {
                       className="w-full rounded-xl border border-blue-500/30 bg-blue-500/5 p-5 text-left transition hover:border-blue-500 hover:bg-blue-500/10"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="rounded-lg bg-blue-500/10 p-2">
-                          <BarChart3 className="h-5 w-5 text-blue-500" />
-                        </div>
+                        <div className="rounded-lg bg-blue-500/10 p-2"><BarChart3 className="h-5 w-5 text-blue-500" /></div>
                         <div>
                           <p className="font-semibold text-blue-500">BI Produção</p>
-                          <p className="text-sm text-muted-foreground">
-                            Acesso exclusivo aos indicadores gerenciais da produção.
-                          </p>
+                          <p className="text-sm text-muted-foreground">Acesso exclusivo aos indicadores gerenciais da produção.</p>
                         </div>
                       </div>
                     </button>
                   )}
                 </TabsContent>
 
-                {showGerencial && (
-                  <TabsContent value="gerencial" className="space-y-6">
-                    <PainelGerencialAcesso />
-                  </TabsContent>
-                )}
-
-                {showProjetos && (
-                  <TabsContent value="projetos" className="space-y-6">
-                    <VisaoProjetos />
-                  </TabsContent>
-                )}
-
-                {showProducao && (
-                  <TabsContent value="producao" className="space-y-6">
-                    <Producao />
-                  </TabsContent>
-                )}
-
-                {showEstoque && (
-                  <TabsContent value="estoque" className="space-y-6">
-                    <TabelaEstoque 
-                      onAbrirRetirada={() => setTabAtiva('menu')}
-                    />
-                  </TabsContent>
-                )}
-
-                {showMovimentacoes && (
-                  <TabsContent value="movimentacoes" className="space-y-6">
-                    <TabelaMovimentacoes />
-                  </TabsContent>
-                )}
-
-                <TabsContent value="mensagens" className="space-y-6">
-                  <Mensagens />
-                </TabsContent>
+                {showGerencial && <TabsContent value="gerencial" className="space-y-6"><PainelGerencialAcesso /></TabsContent>}
+                {showProjetos && <TabsContent value="projetos" className="space-y-6"><VisaoProjetos /></TabsContent>}
+                {showProducao && <TabsContent value="producao" className="space-y-6"><Producao /></TabsContent>}
+                {showEstoque && <TabsContent value="estoque" className="space-y-6"><TabelaEstoque onAbrirRetirada={() => setTabAtiva('menu')} /></TabsContent>}
+                {showPosicaoPatrimonio && <TabsContent value="posicao-patrimonio" className="space-y-6"><PosicaoEstoquePatrimonio /></TabsContent>}
+                {showMovimentacoes && <TabsContent value="movimentacoes" className="space-y-6"><TabelaMovimentacoes /></TabsContent>}
+                <TabsContent value="mensagens" className="space-y-6"><Mensagens /></TabsContent>
               </Tabs>
             );
           })()}
