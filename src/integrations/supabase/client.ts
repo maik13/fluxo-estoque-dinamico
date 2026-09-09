@@ -3,16 +3,20 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
-const SUPABASE_URL = "https://zhnmblqzvvicqzkzqvrb.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpobm1ibHF6dnZpY3F6a3pxdnJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ1OTc3NDEsImV4cCI6MjA3MDE3Mzc0MX0.mpqvsobjwjFf8lk3QNCMKsHAVGd2Xp3vzaS1F6X9BXs";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: brokeredPreviewStorage(),
-    persistSession: true,
-    autoRefreshToken: true,
+export const supabase = createClient<Database>(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY,
+  {
+    auth: {
+      storage: brokeredPreviewStorage(),
+      persistSession: true,
+      autoRefreshToken: true,
+    },
   }
-});
+);
