@@ -1,0 +1,178 @@
+name: Temporary configuracoes lateral
+
+on:
+  push:
+    branches:
+      - feature/configuracoes-na-lateral-20260910
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-validate:
+    if: ${{ !contains(github.event.head_commit.message, '[config-lateral-bot]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/configuracoes-na-lateral-20260910
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Aplicar refatoração pontual
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: esperado 1 ocorrência, encontrado {count}')
+              return text.replace(old, new, 1)
+
+          # 1) Configurações: manter o modal por compatibilidade e adicionar modo página.
+          path = Path('src/components/gestao-estoque/Configuracoes.tsx')
+          text = path.read_text()
+          text = replace_once(
+              text,
+              "interface ConfiguracoesProps {\n  onConfigChange?: () => void;\n}\n\nexport const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {",
+              "interface ConfiguracoesProps {\n  onConfigChange?: () => void;\n  modoPagina?: boolean;\n}\n\nexport const Configuracoes = ({ onConfigChange, modoPagina = false }: ConfiguracoesProps) => {",
+              'props Configuracoes',
+          )
+
+          return_start = text.index("  return (\n    <Dialog>\n      <DialogTrigger asChild>")
+          trigger_start = text.index("      <DialogTrigger asChild>", return_start)
+          dialog_content_start = text.index("      <DialogContent", trigger_start)
+          dialog_open_end = text.index("\n", dialog_content_start) + 1
+          trigger_block = text[trigger_start:dialog_content_start]
+          dialog_open = text[dialog_content_start:dialog_open_end]
+
+          tabs_start = text.index('        <Tabs defaultValue="usuarios" className="w-full">', dialog_open_end)
+          tabs_close = text.rindex('        </Tabs>') + len('        </Tabs>')
+          tabs_block = text[tabs_start:tabs_close]
+          tabs_block = tabs_block.replace(
+              'defaultValue="usuarios"',
+              "defaultValue={canCreateUsers() ? 'usuarios' : 'solicitantes'}",
+              1,
+          )
+
+          function_end_marker = "      </DialogContent>\n    </Dialog>\n  );\n};"
+          function_end = text.index(function_end_marker, tabs_close) + len(function_end_marker)
+
+          new_return = f'''  const conteudoConfiguracoes = (\n    <>\n{tabs_block}\n    </>\n  );\n\n  if (modoPagina) {{\n    return (\n      <section className="space-y-5" aria-labelledby="configuracoes-title">\n        <div className="space-y-1">\n          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Administração</p>\n          <h2 id="configuracoes-title" className="text-2xl font-semibold tracking-tight">Configurações do Sistema</h2>\n          <p className="text-sm text-muted-foreground">Cadastros, permissões, parâmetros e manutenção do almoxarifado.</p>\n        </div>\n        <div className="rounded-xl border border-border/70 bg-card/30 p-3 sm:p-5">\n          {{conteudoConfiguracoes}}\n        </div>\n      </section>\n    );\n  }}\n\n  return (\n    <Dialog>\n{trigger_block}{dialog_open}        <DialogHeader>\n          <DialogTitle>⚙️ Configurações do Sistema</DialogTitle>\n        </DialogHeader>\n        {{conteudoConfiguracoes}}\n      </DialogContent>\n    </Dialog>\n  );\n}};'''
+
+          text = text[:return_start] + new_return + text[function_end:]
+          path.write_text(text)
+
+          # 2) Menu Principal: retirar o antigo botão/instância de Configurações.
+          path = Path('src/components/gestao-estoque/MenuPrincipal.tsx')
+          text = path.read_text()
+          text = replace_once(text, "import { Configuracoes } from './Configuracoes';\n", '', 'import Configuracoes Menu')
+          text = replace_once(text, "    isAdmin,\n    isGestor,\n", '', 'roles Menu')
+          text = replace_once(text, "          {(isAdmin() || isGestor()) && <Configuracoes />}\n", '', 'botao Configuracoes Menu')
+          path.write_text(text)
+
+          # 3) Navegação lateral: adicionar Configurações como página permissionada.
+          path = Path('src/components/gestao-estoque/NavegacaoLateralEstoque.tsx')
+          text = path.read_text()
+          text = replace_once(
+              text,
+              "  Package,\n  type LucideIcon,",
+              "  Package,\n  Settings,\n  type LucideIcon,",
+              'icone Settings',
+          )
+          text = replace_once(
+              text,
+              "  showProducao: boolean;\n  somenteBIProducao: boolean;",
+              "  showProducao: boolean;\n  showConfiguracoes: boolean;\n  somenteBIProducao: boolean;",
+              'prop showConfiguracoes tipo',
+          )
+          text = replace_once(
+              text,
+              "  showProducao,\n  somenteBIProducao,",
+              "  showProducao,\n  showConfiguracoes,\n  somenteBIProducao,",
+              'prop showConfiguracoes assinatura',
+          )
+          marker = "    {\n      label: 'Comunicação',\n      items: ["
+          administracao = "    {\n      label: 'Administração',\n      items: [\n        {\n          value: 'configuracoes',\n          label: 'Configurações',\n          icon: Settings,\n          visible: showConfiguracoes,\n        },\n      ],\n    },\n"
+          text = replace_once(text, marker, administracao + marker, 'secao Administracao')
+          path.write_text(text)
+
+          # 4) Index: ligar permissão, sidebar e conteúdo central.
+          path = Path('src/pages/Index.tsx')
+          text = path.read_text()
+          text = replace_once(
+              text,
+              "import { NavegacaoLateralEstoque } from '@/components/gestao-estoque/NavegacaoLateralEstoque';\n",
+              "import { NavegacaoLateralEstoque } from '@/components/gestao-estoque/NavegacaoLateralEstoque';\nimport { Configuracoes } from '@/components/gestao-estoque/Configuracoes';\n",
+              'import Configuracoes Index',
+          )
+          text = replace_once(
+              text,
+              "    canManageStock,\n    canAccessManagerial,",
+              "    canManageStock,\n    canManageSettings,\n    canAccessManagerial,",
+              'canManageSettings destructuring',
+          )
+          text = replace_once(
+              text,
+              "          const showMovimentacoes = canManageStock();\n          const podeVerGerencialAlmoxarifado",
+              "          const showMovimentacoes = canManageStock();\n          const showConfiguracoes = canManageSettings();\n          const podeVerGerencialAlmoxarifado",
+              'showConfiguracoes calculo',
+          )
+          text = replace_once(
+              text,
+              "                showProducao={showProducao}\n                somenteBIProducao={somenteBIProducao}",
+              "                showProducao={showProducao}\n                showConfiguracoes={showConfiguracoes}\n                somenteBIProducao={somenteBIProducao}",
+              'showConfiguracoes sidebar',
+          )
+          text = replace_once(
+              text,
+              "                    {showMovimentacoes && <TabsContent value=\"movimentacoes\" className=\"mt-0 space-y-6\"><TabelaMovimentacoes /></TabsContent>}\n                    <TabsContent value=\"mensagens\" className=\"mt-0 space-y-6\"><Mensagens /></TabsContent>",
+              "                    {showMovimentacoes && <TabsContent value=\"movimentacoes\" className=\"mt-0 space-y-6\"><TabelaMovimentacoes /></TabsContent>}\n                    {showConfiguracoes && (\n                      <TabsContent value=\"configuracoes\" className=\"mt-0 space-y-6\">\n                        <Configuracoes modoPagina />\n                      </TabsContent>\n                    )}\n                    <TabsContent value=\"mensagens\" className=\"mt-0 space-y-6\"><Mensagens /></TabsContent>",
+              'TabsContent configuracoes',
+          )
+          path.write_text(text)
+
+          # Invariantes do bloco.
+          menu = Path('src/components/gestao-estoque/MenuPrincipal.tsx').read_text()
+          sidebar = Path('src/components/gestao-estoque/NavegacaoLateralEstoque.tsx').read_text()
+          index = Path('src/pages/Index.tsx').read_text()
+          config = Path('src/components/gestao-estoque/Configuracoes.tsx').read_text()
+          checks = {
+              'Config removida do MenuPrincipal': '<Configuracoes />' not in menu and "from './Configuracoes'" not in menu,
+              'Config presente na lateral': "value: 'configuracoes'" in sidebar and 'showConfiguracoes' in sidebar,
+              'Config ligada à permissão real': 'canManageSettings' in index,
+              'Config renderiza como página': '<Configuracoes modoPagina />' in index and 'modoPagina?: boolean' in config,
+              'Modal legado preservado': '<DialogTrigger asChild>' in config and '{conteudoConfiguracoes}' in config,
+          }
+          failed = [name for name, ok in checks.items() if not ok]
+          if failed:
+              raise SystemExit('Invariantes falharam: ' + ', '.join(failed))
+          print('Invariantes OK')
+          PY
+
+      - name: Instalar dependências
+        run: bun install --frozen-lockfile
+
+      - name: Validar diff
+        run: git diff --check
+
+      - name: Lint dos arquivos novos/limpos
+        run: bunx eslint src/components/gestao-estoque/NavegacaoLateralEstoque.tsx src/pages/Index.tsx
+
+      - name: Build
+        run: bun run build
+
+      - name: Testes
+        run: bun run test
+
+      - name: Commitar alteração validada
+        run: |
+          git config user.name "ChatGPT Validation Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/gestao-estoque/Configuracoes.tsx src/components/gestao-estoque/MenuPrincipal.tsx src/components/gestao-estoque/NavegacaoLateralEstoque.tsx src/pages/Index.tsx
+          git commit -m "[config-lateral-bot] feat: mover configurações para navegação lateral"
+          git push origin HEAD:feature/configuracoes-na-lateral-20260910
