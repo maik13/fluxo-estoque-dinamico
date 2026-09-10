@@ -1,0 +1,94 @@
+name: Temporary notificacao pendentes
+
+on:
+  push:
+    branches:
+      - feature/notificacao-solicitacoes-pendentes-20260910
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-validate:
+    if: ${{ !contains(github.event.head_commit.message, '[pendentes-bot]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/notificacao-solicitacoes-pendentes-20260910
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Ligar contador à navegação
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              n = text.count(old)
+              if n != 1:
+                  raise SystemExit(f'{label}: esperado 1, encontrado {n}')
+              return text.replace(old, new, 1)
+
+          p = Path('src/pages/Index.tsx')
+          s = p.read_text()
+          s = replace_once(
+              s,
+              "import { usePermissions } from '@/hooks/usePermissions';\n",
+              "import { usePermissions } from '@/hooks/usePermissions';\nimport { useSolicitacoesMaterialPendentes } from '@/hooks/useSolicitacoesMaterialPendentes';\n",
+              'import hook',
+          )
+          s = replace_once(
+              s,
+              "    canManageSettings,\n    canAccessManagerial,",
+              "    canManageSettings,\n    canSolicitacaoMaterial,\n    canAccessManagerial,",
+              'permission hook',
+          )
+          s = replace_once(
+              s,
+              "  } = usePermissions();\n  const navigate = useNavigate();",
+              "  } = usePermissions();\n  const podeGerenciarSolicitacoesMaterial = canSolicitacaoMaterial();\n  const { pendentesCount: solicitacoesPendentesCount } = useSolicitacoesMaterialPendentes({\n    enabled: podeGerenciarSolicitacoesMaterial,\n  });\n  const navigate = useNavigate();",
+              'hook call',
+          )
+          s = replace_once(
+              s,
+              "                showConfiguracoes={showConfiguracoes}\n                somenteBIProducao={somenteBIProducao}",
+              "                showConfiguracoes={showConfiguracoes}\n                solicitacoesPendentesCount={solicitacoesPendentesCount}\n                somenteBIProducao={somenteBIProducao}",
+              'sidebar count',
+          )
+          p.write_text(s)
+
+          hook = Path('src/hooks/useSolicitacoesMaterialPendentes.ts').read_text()
+          sidebar = Path('src/components/gestao-estoque/NavegacaoLateralEstoque.tsx').read_text()
+          index = p.read_text()
+          checks = {
+              'canonical table': "from('solicitacoes_material')" in hook,
+              'canonical pending': ".eq('status', 'pendente')" in hook,
+              'active stock filter': "eq('estoque_id', estoqueAtivo)" in hook,
+              'realtime': "postgres_changes" in hook,
+              'no initial toast': 'carregarPendentes(false)' in hook,
+              'toast only increase': 'atual > anterior' in hook,
+              'permission gating': 'canSolicitacaoMaterial' in index and 'enabled: podeGerenciarSolicitacoesMaterial' in index,
+              'sidebar badge': 'solicitacoesPendentesCount' in sidebar and 'solicitação pendente' in sidebar,
+          }
+          failed = [k for k, v in checks.items() if not v]
+          if failed:
+              raise SystemExit('Invariantes falharam: ' + ', '.join(failed))
+          print('Invariantes OK')
+          PY
+
+      - run: bun install --frozen-lockfile
+      - run: git diff --check
+      - name: Lint do bloco
+        run: bunx eslint src/hooks/useSolicitacoesMaterialPendentes.ts src/components/gestao-estoque/NavegacaoLateralEstoque.tsx src/pages/Index.tsx
+      - run: bun run build
+      - run: bun run test
+      - name: Commitar bloco validado
+        run: |
+          git config user.name "ChatGPT Validation Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/hooks/useSolicitacoesMaterialPendentes.ts src/components/gestao-estoque/NavegacaoLateralEstoque.tsx src/pages/Index.tsx
+          git commit -m "[pendentes-bot] feat: notificar solicitações de material pendentes"
+          git push origin HEAD:feature/notificacao-solicitacoes-pendentes-20260910
