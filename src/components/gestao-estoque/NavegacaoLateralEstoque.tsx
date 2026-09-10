@@ -30,6 +30,7 @@ type NavegacaoLateralEstoqueProps = {
   showProjetos: boolean;
   showProducao: boolean;
   showConfiguracoes: boolean;
+  solicitacoesPendentesCount: number;
   somenteBIProducao: boolean;
 };
 
@@ -38,6 +39,7 @@ type NavItem = {
   label: string;
   icon: LucideIcon;
   visible?: boolean;
+  badge?: number;
 };
 
 type NavSection = {
@@ -54,6 +56,7 @@ export const NavegacaoLateralEstoque = ({
   showProjetos,
   showProducao,
   showConfiguracoes,
+  solicitacoesPendentesCount,
   somenteBIProducao,
 }: NavegacaoLateralEstoqueProps) => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -68,7 +71,12 @@ export const NavegacaoLateralEstoque = ({
     {
       label: 'Almoxarifado',
       items: [
-        { value: 'menu', label: 'Menu Principal', icon: Menu },
+        {
+          value: 'menu',
+          label: 'Menu Principal',
+          icon: Menu,
+          badge: solicitacoesPendentesCount,
+        },
         { value: 'estoque', label: 'Estoque', icon: Package, visible: showEstoque },
         {
           value: 'movimentacoes',
@@ -140,6 +148,7 @@ export const NavegacaoLateralEstoque = ({
               {visibleItems.map((item) => {
                 const Icon = item.icon;
                 const active = tabAtiva === item.value;
+                const badge = item.badge && item.badge > 0 ? item.badge : 0;
 
                 return (
                   <button
@@ -164,7 +173,16 @@ export const NavegacaoLateralEstoque = ({
                     >
                       <Icon className="h-4 w-4" />
                     </span>
-                    <span className="truncate">{item.label}</span>
+                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    {badge > 0 && (
+                      <span
+                        className="inline-flex min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 py-0.5 text-[11px] font-bold leading-none text-destructive-foreground shadow-sm"
+                        aria-label={`${badge} ${badge === 1 ? 'solicitação pendente' : 'solicitações pendentes'}`}
+                        title={`${badge} ${badge === 1 ? 'solicitação pendente' : 'solicitações pendentes'}`}
+                      >
+                        {badge > 99 ? '99+' : badge}
+                      </span>
+                    )}
                   </button>
                 );
               })}
