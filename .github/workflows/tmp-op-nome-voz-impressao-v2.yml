@@ -1,0 +1,54 @@
+name: Temporary OP nome voz impressao v2
+
+on:
+  push:
+    branches:
+      - feature/op-nome-voz-impressao-20260910
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-validate:
+    if: ${{ !contains(github.event.head_commit.message, '[op-nome-bot]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/op-nome-voz-impressao-20260910
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Reaplicar patch funcional já validado
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          texto = Path('.github/workflows/tmp-op-nome-voz-impressao.yml').read_text()
+          inicio = texto.index('      - name: Aplicar integração nominal da OP\n        run: |\n')
+          inicio = texto.index('        run: |\n', inicio) + len('        run: |\n')
+          fim = texto.index('\n      - run: bun install --frozen-lockfile', inicio)
+          bloco = texto[inicio:fim]
+          linhas = []
+          for linha in bloco.splitlines():
+              linhas.append(linha[10:] if linha.startswith('          ') else linha)
+          Path('/tmp/aplicar-op-nominal.sh').write_text('\n'.join(linhas) + '\n')
+          PY
+          bash /tmp/aplicar-op-nominal.sh
+
+      - run: bun install --frozen-lockfile
+      - run: git diff --check
+      - name: Lint dos arquivos novos e componentes alterados sem dívida legada
+        run: bunx eslint src/components/producao/CampoDescricaoComVoz.tsx src/components/producao/FormOrdemProducao.tsx src/components/producao/FormEditarOrdemProducao.tsx src/components/producao/FormApontamentoProducaoV2.tsx src/components/producao/ProcessosProducao.tsx src/components/producao/Producao.tsx src/components/producao/CronogramaProducao.tsx src/utils/imprimirOrdemProducaoOperacional.ts
+      - name: Build completo
+        run: bun run build
+      - name: Testes completos
+        run: bun run test
+      - name: Commitar bloco validado
+        run: |
+          git config user.name "ChatGPT Validation Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src supabase/migrations/20260910160500_op_atividade_nome_v1.sql
+          git commit -m "[op-nome-bot] feat: nomear OP por atividade, ditar descrição e imprimir"
+          git push origin HEAD:feature/op-nome-voz-impressao-20260910
