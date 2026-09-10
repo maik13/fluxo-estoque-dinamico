@@ -7,8 +7,9 @@ import { PainelGerencialAcesso } from '@/components/gestao-estoque/PainelGerenci
 import { VisaoProjetos } from '@/components/gestao-estoque/VisaoProjetos';
 import { Mensagens } from '@/components/gestao-estoque/Mensagens';
 import { PosicaoEstoquePatrimonio } from '@/components/gestao-estoque/PosicaoEstoquePatrimonio';
+import { VisaoGeralEstoque } from '@/components/gestao-estoque/VisaoGeralEstoque';
 import { Producao } from '@/components/producao/Producao';
-import { Package, Menu, History, LogOut, BarChart3, FileSpreadsheet } from 'lucide-react';
+import { Package, Menu, History, LogOut, BarChart3, FileSpreadsheet, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -18,7 +19,7 @@ import { EstoqueProvider } from '@/contexts/EstoqueContext';
 import { usePermissions } from '@/hooks/usePermissions';
 
 const Index = () => {
-  const [tabAtiva, setTabAtiva] = useState('menu');
+  const [tabAtiva, setTabAtiva] = useState('visao-geral');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const { session, loading, signOut } = useAuth();
   const {
@@ -114,7 +115,7 @@ const Index = () => {
             const showProjetos = canAccessProjects();
             const showProducao = canApontarProducao() || canConferirProducao() || canConfigurarProducao();
             const somenteBIProducao = podeVerBIProducao && !podeVerGerencialAlmoxarifado;
-            const tabCount = 1 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
+            const tabCount = 2 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
 
             return (
               <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
@@ -122,6 +123,9 @@ const Index = () => {
                   className="flex flex-wrap sm:grid w-full mb-6 h-auto gap-2 sm:gap-0"
                   style={{ gridTemplateColumns: `repeat(${tabCount}, 1fr)` }}
                 >
+                  <TabsTrigger value="visao-geral" className="flex-1 sm:flex-none flex items-center justify-center gap-2 min-w-[120px]">
+                    <LayoutDashboard className="h-4 w-4" />Visão Geral
+                  </TabsTrigger>
                   <TabsTrigger value="menu" className="flex-1 sm:flex-none flex items-center justify-center gap-2 min-w-[120px]">
                     <Menu className="h-4 w-4" />Menu Principal
                   </TabsTrigger>
@@ -136,6 +140,15 @@ const Index = () => {
                     </TabsTrigger>
                   )}
                 </TabsList>
+
+                <TabsContent value="visao-geral" className="space-y-6">
+                  <VisaoGeralEstoque
+                    onAbrirEstoque={showEstoque ? () => setTabAtiva('estoque') : undefined}
+                    onAbrirMovimentacoes={showMovimentacoes ? () => setTabAtiva('movimentacoes') : undefined}
+                    onAbrirMenu={() => setTabAtiva('menu')}
+                    onAbrirProjetos={showProjetos ? () => setTabAtiva('projetos') : undefined}
+                  />
+                </TabsContent>
 
                 <TabsContent value="menu" className="space-y-6">
                   <MenuPrincipal
