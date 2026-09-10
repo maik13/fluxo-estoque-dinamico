@@ -17,7 +17,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - name: Install dependencies without mutating lockfile
+        run: npm install --package-lock=false
       - name: Lint
         run: npm run lint
       - name: Build
