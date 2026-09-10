@@ -9,6 +9,7 @@ import { Mensagens } from '@/components/gestao-estoque/Mensagens';
 import { PosicaoEstoquePatrimonio } from '@/components/gestao-estoque/PosicaoEstoquePatrimonio';
 import { VisaoGeralEstoque } from '@/components/gestao-estoque/VisaoGeralEstoque';
 import { NavegacaoLateralEstoque } from '@/components/gestao-estoque/NavegacaoLateralEstoque';
+import { Configuracoes } from '@/components/gestao-estoque/Configuracoes';
 import { Producao } from '@/components/producao/Producao';
 import { Package, LogOut, BarChart3, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,6 +26,7 @@ const Index = () => {
   const { session, loading, signOut } = useAuth();
   const {
     canManageStock,
+    canManageSettings,
     canAccessManagerial,
     canAccessProjects,
     canApontarProducao,
@@ -109,6 +111,7 @@ const Index = () => {
         {(() => {
           const showEstoque = canManageStock();
           const showMovimentacoes = canManageStock();
+          const showConfiguracoes = canManageSettings();
           const podeVerGerencialAlmoxarifado = canAccessManagerial();
           const podeVerBIProducao = canViewBIProducao();
           const showGerencial = podeVerGerencialAlmoxarifado || podeVerBIProducao;
@@ -126,6 +129,7 @@ const Index = () => {
                 showGerencial={showGerencial}
                 showProjetos={showProjetos}
                 showProducao={showProducao}
+                showConfiguracoes={showConfiguracoes}
                 somenteBIProducao={somenteBIProducao}
               />
 
@@ -193,6 +197,11 @@ const Index = () => {
                     )}
 
                     {showMovimentacoes && <TabsContent value="movimentacoes" className="mt-0 space-y-6"><TabelaMovimentacoes /></TabsContent>}
+                    {showConfiguracoes && (
+                      <TabsContent value="configuracoes" className="mt-0 space-y-6">
+                        <Configuracoes modoPagina />
+                      </TabsContent>
+                    )}
                     <TabsContent value="mensagens" className="mt-0 space-y-6"><Mensagens /></TabsContent>
                   </Tabs>
                 </div>

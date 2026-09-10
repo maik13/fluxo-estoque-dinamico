@@ -13,7 +13,6 @@ import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBar
 import { Switch } from '@/components/ui/switch';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Item, EstoqueItem } from '@/types/estoque';
-import { Configuracoes } from './Configuracoes';
 import { SeletorEstoque } from './SeletorEstoque';
 import { UploadFotoProduto } from './UploadFotoProduto';
 import { SolicitarMaterial } from './SolicitarMaterial';
@@ -45,8 +44,6 @@ export const MenuPrincipal = ({
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoqueContext();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria, obterSubcategoriasDaCategoria, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
   const { 
-    isAdmin,
-    isGestor,
     canCreateItems, 
     canManageStock, 
     canSolicitarMaterial, 
@@ -521,7 +518,6 @@ export const MenuPrincipal = ({
             <MessageCircle className="h-5 w-5" />
             <span>Mensagens</span>
           </Button>
-          {(isAdmin() || isGestor()) && <Configuracoes />}
         </div>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-6">

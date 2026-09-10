@@ -8,6 +8,7 @@ import {
   Menu,
   MessageCircle,
   Package,
+  Settings,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ type NavegacaoLateralEstoqueProps = {
   showGerencial: boolean;
   showProjetos: boolean;
   showProducao: boolean;
+  showConfiguracoes: boolean;
   somenteBIProducao: boolean;
 };
 
@@ -51,6 +53,7 @@ export const NavegacaoLateralEstoque = ({
   showGerencial,
   showProjetos,
   showProducao,
+  showConfiguracoes,
   somenteBIProducao,
 }: NavegacaoLateralEstoqueProps) => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -95,6 +98,17 @@ export const NavegacaoLateralEstoque = ({
           label: 'Produção',
           icon: Factory,
           visible: showProducao,
+        },
+      ],
+    },
+    {
+      label: 'Administração',
+      items: [
+        {
+          value: 'configuracoes',
+          label: 'Configurações',
+          icon: Settings,
+          visible: showConfiguracoes,
         },
       ],
     },
