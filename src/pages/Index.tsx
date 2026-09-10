@@ -25,6 +25,7 @@ const Index = () => {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const { session, loading, signOut } = useAuth();
   const {
+    isGestor,
     canManageStock,
     canManageSettings,
     canAccessManagerial,
@@ -111,7 +112,7 @@ const Index = () => {
         {(() => {
           const showEstoque = canManageStock();
           const showMovimentacoes = canManageStock();
-          const showConfiguracoes = canManageSettings();
+          const showConfiguracoes = isGestor() || canManageSettings();
           const podeVerGerencialAlmoxarifado = canAccessManagerial();
           const podeVerBIProducao = canViewBIProducao();
           const showGerencial = podeVerGerencialAlmoxarifado || podeVerBIProducao;
