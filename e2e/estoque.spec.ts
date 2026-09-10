@@ -22,13 +22,15 @@ test.describe('Regressão do Almoxarifado', () => {
     await expect(page.locator('body')).toBeVisible();
   });
 
-  test('mantém o painel do almoxarifado acessível', async ({ page }) => {
-    await expect(
-      page.getByText(/almoxarifado|estoque|painel gerencial/i).first(),
-    ).toBeVisible();
+  test('abre na visão geral funcional do almoxarifado', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: /visão geral do almoxarifado/i })).toBeVisible();
+    await expect(page.getByText(/itens com saldo/i).first()).toBeVisible();
+    await expect(page.getByText(/saídas hoje/i).first()).toBeVisible();
   });
 
-  test('mantém os fluxos principais visíveis', async ({ page }) => {
+  test('mantém os fluxos principais acessíveis pelo menu principal', async ({ page }) => {
+    await page.getByRole('tab', { name: /menu principal/i }).click();
+
     const labels = [/entrada/i, /saída/i, /retirada/i, /devolução/i];
 
     let encontrados = 0;
