@@ -23,9 +23,10 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ConfiguracoesProps {
   onConfigChange?: () => void;
+  modoPagina?: boolean;
 }
 
-export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
+export const Configuracoes = ({ onConfigChange, modoPagina = false }: ConfiguracoesProps) => {
   const { toast } = useToast();
   const { canCreateUsers } = usePermissions();
   const {
@@ -753,20 +754,9 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
     }
   };
 
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="h-10 px-4 text-sm sm:text-base">
-          <Settings className="h-5 w-5 mr-2" />
-          Configurações
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto overflow-x-hidden">
-        <DialogHeader>
-          <DialogTitle>⚙️ Configurações do Sistema</DialogTitle>
-        </DialogHeader>
-        
-        <Tabs defaultValue="usuarios" className="w-full">
+  const conteudoConfiguracoes = (
+    <>
+        <Tabs defaultValue={canCreateUsers() ? 'usuarios' : 'solicitantes'} className="w-full">
           <TabsList className="grid w-full grid-cols-11 gap-1">
             {canCreateUsers() && <TabsTrigger value="usuarios" className="text-xs">Usuários</TabsTrigger>}
             <TabsTrigger value="solicitantes" className="text-xs">Solicitantes</TabsTrigger>
@@ -1972,6 +1962,37 @@ export const Configuracoes = ({ onConfigChange }: ConfiguracoesProps) => {
             </Card>
           </TabsContent>
         </Tabs>
+    </>
+  );
+
+  if (modoPagina) {
+    return (
+      <section className="space-y-5" aria-labelledby="configuracoes-title">
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Administração</p>
+          <h2 id="configuracoes-title" className="text-2xl font-semibold tracking-tight">Configurações do Sistema</h2>
+          <p className="text-sm text-muted-foreground">Cadastros, permissões, parâmetros e manutenção do almoxarifado.</p>
+        </div>
+        <div className="rounded-xl border border-border/70 bg-card/30 p-3 sm:p-5">
+          {conteudoConfiguracoes}
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-10 px-4 text-sm sm:text-base">
+          <Settings className="h-5 w-5 mr-2" />
+          Configurações
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogHeader>
+          <DialogTitle>⚙️ Configurações do Sistema</DialogTitle>
+        </DialogHeader>
+        {conteudoConfiguracoes}
       </DialogContent>
     </Dialog>
   );
