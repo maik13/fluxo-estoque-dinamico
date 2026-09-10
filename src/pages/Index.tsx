@@ -8,8 +8,9 @@ import { VisaoProjetos } from '@/components/gestao-estoque/VisaoProjetos';
 import { Mensagens } from '@/components/gestao-estoque/Mensagens';
 import { PosicaoEstoquePatrimonio } from '@/components/gestao-estoque/PosicaoEstoquePatrimonio';
 import { VisaoGeralEstoque } from '@/components/gestao-estoque/VisaoGeralEstoque';
+import { NavegacaoLateralEstoque } from '@/components/gestao-estoque/NavegacaoLateralEstoque';
 import { Producao } from '@/components/producao/Producao';
-import { Package, Menu, History, LogOut, BarChart3, FileSpreadsheet, LayoutDashboard } from 'lucide-react';
+import { Package, LogOut, BarChart3, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -65,7 +66,7 @@ const Index = () => {
             boxShadow: '0 1px 0 hsl(145 72% 42% / 0.15), 0 4px 24px hsl(222 28% 4% / 0.6)',
           }}
         >
-          <div className="px-6 py-3 flex items-center justify-between gap-4">
+          <div className="px-4 py-3 sm:px-6 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
               {logoUrl && <img src={logoUrl} alt="Logo" className="h-10 w-auto object-contain flex-shrink-0 drop-shadow-lg" />}
               <div className="min-w-0">
@@ -105,108 +106,100 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="w-full px-4 py-4">
-          {(() => {
-            const showEstoque = canManageStock();
-            const showMovimentacoes = canManageStock();
-            const podeVerGerencialAlmoxarifado = canAccessManagerial();
-            const podeVerBIProducao = canViewBIProducao();
-            const showGerencial = podeVerGerencialAlmoxarifado || podeVerBIProducao;
-            const showProjetos = canAccessProjects();
-            const showProducao = canApontarProducao() || canConferirProducao() || canConfigurarProducao();
-            const somenteBIProducao = podeVerBIProducao && !podeVerGerencialAlmoxarifado;
-            const tabCount = 2 + (showEstoque ? 1 : 0) + (showMovimentacoes ? 1 : 0);
+        {(() => {
+          const showEstoque = canManageStock();
+          const showMovimentacoes = canManageStock();
+          const podeVerGerencialAlmoxarifado = canAccessManagerial();
+          const podeVerBIProducao = canViewBIProducao();
+          const showGerencial = podeVerGerencialAlmoxarifado || podeVerBIProducao;
+          const showProjetos = canAccessProjects();
+          const showProducao = canApontarProducao() || canConferirProducao() || canConfigurarProducao();
+          const somenteBIProducao = podeVerBIProducao && !podeVerGerencialAlmoxarifado;
 
-            return (
-              <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
-                <TabsList
-                  className="flex flex-wrap sm:grid w-full mb-6 h-auto gap-2 sm:gap-0"
-                  style={{ gridTemplateColumns: `repeat(${tabCount}, 1fr)` }}
-                >
-                  <TabsTrigger value="visao-geral" className="flex-1 sm:flex-none flex items-center justify-center gap-2 min-w-[120px]">
-                    <LayoutDashboard className="h-4 w-4" />Visão Geral
-                  </TabsTrigger>
-                  <TabsTrigger value="menu" className="flex-1 sm:flex-none flex items-center justify-center gap-2 min-w-[120px]">
-                    <Menu className="h-4 w-4" />Menu Principal
-                  </TabsTrigger>
-                  {showEstoque && (
-                    <TabsTrigger value="estoque" className="flex-1 sm:flex-none flex items-center justify-center gap-2 min-w-[120px]">
-                      <Package className="h-4 w-4" />Estoque
-                    </TabsTrigger>
-                  )}
-                  {showMovimentacoes && (
-                    <TabsTrigger value="movimentacoes" className="flex-1 sm:flex-none flex items-center justify-center gap-2 min-w-[140px]">
-                      <History className="h-4 w-4" />Movimentações
-                    </TabsTrigger>
-                  )}
-                </TabsList>
+          return (
+            <div className="lg:flex">
+              <NavegacaoLateralEstoque
+                tabAtiva={tabAtiva}
+                onNavigate={setTabAtiva}
+                showEstoque={showEstoque}
+                showMovimentacoes={showMovimentacoes}
+                showGerencial={showGerencial}
+                showProjetos={showProjetos}
+                showProducao={showProducao}
+                somenteBIProducao={somenteBIProducao}
+              />
 
-                <TabsContent value="visao-geral" className="space-y-6">
-                  <VisaoGeralEstoque
-                    onAbrirEstoque={showEstoque ? () => setTabAtiva('estoque') : undefined}
-                    onAbrirMovimentacoes={showMovimentacoes ? () => setTabAtiva('movimentacoes') : undefined}
-                    onAbrirMenu={() => setTabAtiva('menu')}
-                    onAbrirProjetos={showProjetos ? () => setTabAtiva('projetos') : undefined}
-                  />
-                </TabsContent>
+              <main className="min-w-0 flex-1">
+                <div className="w-full px-4 py-4 lg:px-6 lg:py-6">
+                  <Tabs value={tabAtiva} onValueChange={setTabAtiva} className="w-full">
+                    <TabsContent value="visao-geral" className="mt-0 space-y-6">
+                      <VisaoGeralEstoque
+                        onAbrirEstoque={showEstoque ? () => setTabAtiva('estoque') : undefined}
+                        onAbrirMovimentacoes={showMovimentacoes ? () => setTabAtiva('movimentacoes') : undefined}
+                        onAbrirMenu={() => setTabAtiva('menu')}
+                        onAbrirProjetos={showProjetos ? () => setTabAtiva('projetos') : undefined}
+                      />
+                    </TabsContent>
 
-                <TabsContent value="menu" className="space-y-6">
-                  <MenuPrincipal
-                    onAbrirGerencial={() => setTabAtiva('gerencial')}
-                    onAbrirProjetos={() => setTabAtiva('projetos')}
-                    onAbrirMensagens={() => setTabAtiva('mensagens')}
-                    onAbrirProducao={() => setTabAtiva('producao')}
-                  />
-                  {somenteBIProducao && (
-                    <button
-                      type="button"
-                      onClick={() => setTabAtiva('gerencial')}
-                      className="w-full rounded-xl border border-blue-500/30 bg-blue-500/5 p-5 text-left transition hover:border-blue-500 hover:bg-blue-500/10"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-lg bg-blue-500/10 p-2"><BarChart3 className="h-5 w-5 text-blue-500" /></div>
-                        <div>
-                          <p className="font-semibold text-blue-500">BI Produção</p>
-                          <p className="text-sm text-muted-foreground">Acesso exclusivo aos indicadores gerenciais da produção.</p>
-                        </div>
-                      </div>
-                    </button>
-                  )}
-                </TabsContent>
+                    <TabsContent value="menu" className="mt-0 space-y-6">
+                      <MenuPrincipal
+                        onAbrirGerencial={() => setTabAtiva('gerencial')}
+                        onAbrirProjetos={() => setTabAtiva('projetos')}
+                        onAbrirMensagens={() => setTabAtiva('mensagens')}
+                        onAbrirProducao={() => setTabAtiva('producao')}
+                      />
+                      {somenteBIProducao && (
+                        <button
+                          type="button"
+                          onClick={() => setTabAtiva('gerencial')}
+                          className="w-full rounded-xl border border-blue-500/30 bg-blue-500/5 p-5 text-left transition hover:border-blue-500 hover:bg-blue-500/10"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="rounded-lg bg-blue-500/10 p-2"><BarChart3 className="h-5 w-5 text-blue-500" /></div>
+                            <div>
+                              <p className="font-semibold text-blue-500">BI Produção</p>
+                              <p className="text-sm text-muted-foreground">Acesso exclusivo aos indicadores gerenciais da produção.</p>
+                            </div>
+                          </div>
+                        </button>
+                      )}
+                    </TabsContent>
 
-                {showGerencial && <TabsContent value="gerencial" className="space-y-6"><PainelGerencialAcesso /></TabsContent>}
-                {showProjetos && <TabsContent value="projetos" className="space-y-6"><VisaoProjetos /></TabsContent>}
-                {showProducao && <TabsContent value="producao" className="space-y-6"><Producao /></TabsContent>}
+                    {showGerencial && <TabsContent value="gerencial" className="mt-0 space-y-6"><PainelGerencialAcesso /></TabsContent>}
+                    {showProjetos && <TabsContent value="projetos" className="mt-0 space-y-6"><VisaoProjetos /></TabsContent>}
+                    {showProducao && <TabsContent value="producao" className="mt-0 space-y-6"><Producao /></TabsContent>}
 
-                {showEstoque && (
-                  <TabsContent value="estoque" className="space-y-6">
-                    <Tabs defaultValue="estoque-operacional" className="w-full">
-                      <TabsList className="inline-flex h-auto mb-4 p-1">
-                        <TabsTrigger value="estoque-operacional" className="flex items-center gap-2 px-4 py-2">
-                          <Package className="h-4 w-4" />Estoque operacional
-                        </TabsTrigger>
-                        <TabsTrigger value="posicao-patrimonial" className="flex items-center gap-2 px-4 py-2">
-                          <FileSpreadsheet className="h-4 w-4" />Posição patrimonial
-                        </TabsTrigger>
-                      </TabsList>
+                    {showEstoque && (
+                      <TabsContent value="estoque" className="mt-0 space-y-6">
+                        <Tabs defaultValue="estoque-operacional" className="w-full">
+                          <TabsList className="inline-flex h-auto mb-4 p-1">
+                            <TabsTrigger value="estoque-operacional" className="flex items-center gap-2 px-4 py-2">
+                              <Package className="h-4 w-4" />Estoque operacional
+                            </TabsTrigger>
+                            <TabsTrigger value="posicao-patrimonial" className="flex items-center gap-2 px-4 py-2">
+                              <FileSpreadsheet className="h-4 w-4" />Posição patrimonial
+                            </TabsTrigger>
+                          </TabsList>
 
-                      <TabsContent value="estoque-operacional" className="mt-0 space-y-6">
-                        <TabelaEstoque onAbrirRetirada={() => setTabAtiva('menu')} />
+                          <TabsContent value="estoque-operacional" className="mt-0 space-y-6">
+                            <TabelaEstoque onAbrirRetirada={() => setTabAtiva('menu')} />
+                          </TabsContent>
+
+                          <TabsContent value="posicao-patrimonial" className="mt-0 space-y-6">
+                            <PosicaoEstoquePatrimonio />
+                          </TabsContent>
+                        </Tabs>
                       </TabsContent>
+                    )}
 
-                      <TabsContent value="posicao-patrimonial" className="mt-0 space-y-6">
-                        <PosicaoEstoquePatrimonio />
-                      </TabsContent>
-                    </Tabs>
-                  </TabsContent>
-                )}
-
-                {showMovimentacoes && <TabsContent value="movimentacoes" className="space-y-6"><TabelaMovimentacoes /></TabsContent>}
-                <TabsContent value="mensagens" className="space-y-6"><Mensagens /></TabsContent>
-              </Tabs>
-            );
-          })()}
-        </div>
+                    {showMovimentacoes && <TabsContent value="movimentacoes" className="mt-0 space-y-6"><TabelaMovimentacoes /></TabsContent>}
+                    <TabsContent value="mensagens" className="mt-0 space-y-6"><Mensagens /></TabsContent>
+                  </Tabs>
+                </div>
+              </main>
+            </div>
+          );
+        })()}
       </div>
     </EstoqueProvider>
   );

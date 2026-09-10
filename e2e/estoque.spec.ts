@@ -28,8 +28,10 @@ test.describe('Regressão do Almoxarifado', () => {
     await expect(page.getByText(/saídas hoje/i).first()).toBeVisible();
   });
 
-  test('mantém os fluxos principais acessíveis pelo menu principal', async ({ page }) => {
-    await page.getByRole('tab', { name: /menu principal/i }).click();
+  test('mantém os fluxos principais acessíveis pela navegação lateral', async ({ page }) => {
+    const navigation = page.getByRole('navigation', { name: /navegação principal do almoxarifado/i });
+    await expect(navigation).toBeVisible();
+    await navigation.getByRole('button', { name: /menu principal/i }).click();
 
     const labels = [/entrada/i, /saída/i, /retirada/i, /devolução/i];
 
@@ -41,5 +43,16 @@ test.describe('Regressão do Almoxarifado', () => {
     }
 
     expect(encontrados).toBeGreaterThanOrEqual(2);
+  });
+
+  test('oferece navegação em drawer no celular', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByRole('button', { name: /navegação/i })).toBeVisible();
+    await page.getByRole('button', { name: /navegação/i }).click();
+
+    const navigation = page.getByRole('navigation', { name: /navegação principal do almoxarifado/i });
+    await expect(navigation).toBeVisible();
+    await expect(navigation.getByRole('button', { name: /visão geral/i })).toBeVisible();
+    await expect(navigation.getByRole('button', { name: /menu principal/i })).toBeVisible();
   });
 });
