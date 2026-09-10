@@ -19,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { SeletorEstoque } from '@/components/gestao-estoque/SeletorEstoque';
 import { EstoqueProvider } from '@/contexts/EstoqueContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useSolicitacoesMaterialPendentes } from '@/hooks/useSolicitacoesMaterialPendentes';
 
 const Index = () => {
   const [tabAtiva, setTabAtiva] = useState('visao-geral');
@@ -28,6 +29,7 @@ const Index = () => {
     isGestor,
     canManageStock,
     canManageSettings,
+    canSolicitacaoMaterial,
     canAccessManagerial,
     canAccessProjects,
     canApontarProducao,
@@ -35,6 +37,10 @@ const Index = () => {
     canViewBIProducao,
     canConfigurarProducao,
   } = usePermissions();
+  const podeGerenciarSolicitacoesMaterial = canSolicitacaoMaterial();
+  const { pendentesCount: solicitacoesPendentesCount } = useSolicitacoesMaterialPendentes({
+    enabled: podeGerenciarSolicitacoesMaterial,
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -131,6 +137,7 @@ const Index = () => {
                 showProjetos={showProjetos}
                 showProducao={showProducao}
                 showConfiguracoes={showConfiguracoes}
+                solicitacoesPendentesCount={solicitacoesPendentesCount}
                 somenteBIProducao={somenteBIProducao}
               />
 
