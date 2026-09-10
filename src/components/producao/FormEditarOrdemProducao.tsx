@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { CampoDescricaoComVoz } from './CampoDescricaoComVoz';
 import {
   editarOrdemProducao,
   formatarNumeroOrdemProducao,
@@ -132,6 +133,7 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
         instrucoes: instrucoes.trim() || null,
         prioridade,
         justificativa: motivo,
+        tarefa_id: ordem.tarefa_id,
       });
 
       await onSuccess();
@@ -182,6 +184,10 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
             <p>
               <strong>Etapa:</strong> {ordem.processo_codigo} ·{' '}
               {ordem.processo_nome}
+            </p>
+            <p>
+              <strong>Atividade da OP:</strong>{' '}
+              {ordem.tarefa_nome_snapshot ?? 'Ainda não vinculada'}
             </p>
             <p>
               <strong>Produção confirmada:</strong>{' '}
@@ -280,10 +286,12 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
           </div>
 
           <div className="space-y-2">
-            <Label>Descrição do lote</Label>
-            <Input
+            <Label>Descrição</Label>
+            <CampoDescricaoComVoz
               value={descricao}
-              onChange={(event) => setDescricao(event.target.value)}
+              onChange={setDescricao}
+              placeholder="Descreva de forma objetiva o que deve ser executado nesta OP."
+              rows={4}
             />
           </div>
 

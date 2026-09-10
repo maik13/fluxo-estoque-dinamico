@@ -48,6 +48,7 @@ import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
 import {
   useOrdensProducao,
   formatarNumeroOrdemProducao,
+  formatarIdentificacaoOrdemProducao,
 } from '@/hooks/useOrdensProducao';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useProcessosProducao } from '@/hooks/useProcessosProducao';
@@ -567,7 +568,7 @@ export const HistoricoApontamentosProducaoV2 = ({
                   <SelectItem value={AVULSOS}>Somente avulsos</SelectItem>
                   {ordensDisponiveis.map((ordem) => (
                     <SelectItem key={ordem.id} value={ordem.id}>
-                      {formatarNumeroOrdemProducao(ordem.numero)} ·{' '}
+                      {formatarIdentificacaoOrdemProducao(ordem)} ·{' '}
                       {ordem.processo_nome}
                     </SelectItem>
                   ))}
@@ -718,7 +719,7 @@ export const HistoricoApontamentosProducaoV2 = ({
                         {ordem ? (
                           <>
                             <span className="font-medium">
-                              {formatarNumeroOrdemProducao(ordem.numero)}
+                              {formatarIdentificacaoOrdemProducao(ordem)}
                             </span>
                             <div className="text-xs text-muted-foreground">
                               {ordem.percentual_realizado}% da OP
@@ -799,7 +800,7 @@ export const HistoricoApontamentosProducaoV2 = ({
                             <Button
                               size="icon"
                               variant="ghost"
-                              title={`Imprimir ${formatarNumeroOrdemProducao(ordem.numero)}`}
+                              title={`Imprimir ${formatarIdentificacaoOrdemProducao(ordem)}`}
                               disabled={imprimindoId === ordem.id}
                               onClick={() => void imprimir(ordem.id)}
                             >

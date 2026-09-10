@@ -101,13 +101,14 @@ export const imprimirOrdemProducao = ({ ordem, apontamentos }: DadosImpressaoOrd
     }).join('');
 
   const localizacao = [ordem.projeto_cidade, ordem.projeto_uf].filter(Boolean).join('/');
+  const atividadeOp = ordem.tarefa_nome_snapshot?.trim() || 'Atividade não vinculada';
 
   janela.document.open();
   janela.document.write(`<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>${escapar(opFormatada(ordem.numero))}</title>
+  <title>${escapar(`${opFormatada(ordem.numero)} — ${atividadeOp}`)}</title>
   <style>
     @page { size: A4; margin: 12mm; }
     * { box-sizing: border-box; }
@@ -153,7 +154,7 @@ export const imprimirOrdemProducao = ({ ordem, apontamentos }: DadosImpressaoOrd
     <div class="numero"><strong>${escapar(opFormatada(ordem.numero))}</strong><span class="status">${escapar(statusOpLabel[ordem.status] ?? ordem.status)}</span></div>
   </header>
 
-  <h1>Ordem de Produção</h1>
+  <h1>${escapar(opFormatada(ordem.numero))} — ${escapar(atividadeOp)}</h1>
   <p class="descricao">Documento emitido antes da execução e atualizado pelos apontamentos realizados dentro da ordem.</p>
 
   <section class="bloco">
