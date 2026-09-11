@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CloudOff, RefreshCw, Wifi } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -16,6 +16,7 @@ export const OfflineSyncIndicator = () => {
   const [online, setOnline] = useState(() => navigator.onLine);
   const [summary, setSummary] = useState<OfflineQueueSummary>(EMPTY);
   const [syncing, setSyncing] = useState(false);
+  const syncingRef = useRef(false);
 
   const refresh = useCallback(async () => {
     setOnline(navigator.onLine);
@@ -27,11 +28,12 @@ export const OfflineSyncIndicator = () => {
   }, []);
 
   const syncNow = useCallback(async (silent = false) => {
-    if (!navigator.onLine || syncing) {
+    if (!navigator.onLine || syncingRef.current) {
       await refresh();
       return;
     }
 
+    syncingRef.current = true;
     setSyncing(true);
     try {
       const result = await syncOfflineQueue();
@@ -47,17 +49,32 @@ export const OfflineSyncIndicator = () => {
         }
       }
     } finally {
+      syncingRef.current = false;
       setSyncing(false);
       await refresh();
     }
-  }, [refresh, syncing]);
+  }, [refresh]);
 
   useEffect(() => {
     void refresh();
+
+    // Mudanças na fila apenas atualizam o indicador. A sincronização é disparada
+    // ao recuperar conexão, no timer de segurança ou manualmente pelo botão.
     const unsubscribe = subscribeOfflineQueue(() => {
       void refresh();
-      if (navigator.onLine) void syncNow(true);
     });
+
+    const handleOnline = () => {
+      setOnline(true);
+      void syncNow(true);
+    };
+    const handleOffline = () => {
+      setOnline(false);
+      void refresh();
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
     const timer = window.setInterval(() => {
       if (navigator.onLine) void syncNow(true);
@@ -68,9 +85,11 @@ export const OfflineSyncIndicator = () => {
 
     return () => {
       unsubscribe();
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
       window.clearInterval(timer);
     };
-  }, [refresh]);
+  }, [refresh, syncNow]);
 
   const hasProblem = summary.conflict > 0 || summary.failed > 0;
   const label = !online
@@ -111,6 +130,9 @@ export const OfflineSyncIndicator = () => {
           </p>
           {!online && summary.pending > 0 && (
             <p className="text-xs mt-1">Os registros estão guardados neste dispositivo e serão enviados quando a conexão voltar.</p>
+          )}
+          {hasProblem && (
+            <p className="text-xs mt-1">Há operação que não foi aplicada automaticamente para evitar sobrescrever dados ou duplicar estoque.</p>
           )}
         </TooltipContent>
       </Tooltip>
