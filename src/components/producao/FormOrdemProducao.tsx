@@ -21,17 +21,20 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { CampoDescricaoComVoz } from './CampoDescricaoComVoz';
 import type {
   NovaOrdemProducao,
   ProducaoLocalTipo,
   ProducaoOrdemProducao,
   ProducaoPrioridade,
   ProducaoProcesso,
+  ProducaoTarefa,
 } from '@/types/producao';
 
 interface Props {
   processo: ProducaoProcesso;
   ordens: ProducaoOrdemProducao[];
+  tarefas: ProducaoTarefa[];
   onEmitir: (dados: NovaOrdemProducao) => Promise<unknown>;
 }
 
@@ -42,9 +45,10 @@ const formatarQuantidade = (value: number) =>
     maximumFractionDigits: 4,
   }).format(value);
 
-export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
+export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props) => {
   const [aberto, setAberto] = useState(false);
   const [quantidade, setQuantidade] = useState('');
+  const [tarefaId, setTarefaId] = useState('');
   const [inicio, setInicio] = useState(
     processo.data_inicio_prevista ?? processo.data_inicio_desejada ?? '',
   );
@@ -110,6 +114,7 @@ export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
     setAberto(open);
     if (!open) return;
     setQuantidade('');
+    setTarefaId('');
     setInicio(
       processo.data_inicio_prevista ?? processo.data_inicio_desejada ?? '',
     );
@@ -119,6 +124,10 @@ export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
   const emitir = async (event: FormEvent) => {
     event.preventDefault();
     const quantidadeNormalizada = numero(quantidade);
+    if (!tarefaId) {
+      toast.error('Selecione a atividade que dará nome à OP.');
+      return;
+    }
     const equipeNormalizada = equipe.trim() ? Number(equipe) : null;
 
     if (!Number.isFinite(quantidadeNormalizada) || quantidadeNormalizada <= 0) {
@@ -141,6 +150,7 @@ export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
     try {
       await onEmitir({
         processo_id: processo.id,
+        tarefa_id: tarefaId,
         quantidade_planejada: quantidadeNormalizada,
         data_inicio_prevista: inicio,
         data_fim_prevista: fim,
@@ -156,6 +166,7 @@ export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
       );
       setAberto(false);
       setQuantidade('');
+      setTarefaId('');
       setDescricao('');
       setInstrucoes('');
     } catch (error) {
@@ -253,6 +264,24 @@ export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Atividade / nome da OP *</Label>
+              <Select value={tarefaId} onValueChange={setTarefaId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a atividade que identificará esta OP" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tarefas.filter((tarefa) => tarefa.ativo).map((tarefa) => (
+                    <SelectItem key={tarefa.id} value={tarefa.id}>
+                      {tarefa.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                O número continuará sendo gerado automaticamente. Esta atividade ficará gravada como o nome da OP.
+              </p>
+            </div>
             <div className="space-y-2">
               <Label>Quantidade desta OP *</Label>
               <Input
@@ -337,11 +366,12 @@ export const FormOrdemProducao = ({ processo, ordens, onEmitir }: Props) => {
           </div>
 
           <div className="space-y-2">
-            <Label>Descrição do lote</Label>
-            <Input
+            <Label>Descrição</Label>
+            <CampoDescricaoComVoz
               value={descricao}
-              onChange={(event) => setDescricao(event.target.value)}
-              placeholder="Ex.: primeiro lote de laços ou segundo lote de painéis"
+              onChange={setDescricao}
+              placeholder="Descreva de forma objetiva o que deve ser executado nesta OP."
+              rows={4}
             />
           </div>
 

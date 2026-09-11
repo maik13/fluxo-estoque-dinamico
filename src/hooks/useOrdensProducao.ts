@@ -21,12 +21,12 @@ const erroRpcEmissao = (value: unknown) => {
   );
 
   if (
-    /criar_ordem_producao_sem_limite_v2|schema cache|could not find the function/i.test(
+    /criar_ordem_producao_sem_limite_v3|schema cache|could not find the function/i.test(
       mensagem,
     )
   ) {
     return new Error(
-      'A atualização do banco para emissão de múltiplas OPs ainda não foi aplicada neste ambiente. Execute a migration 20260806112000_criar_ordem_producao_sem_limite_v2.sql no Supabase conectado ao sistema.',
+      'A atualização do banco para emissão de múltiplas OPs ainda não foi aplicada neste ambiente. Execute a migration 20260910160500_op_atividade_nome_v1.sql no Supabase conectado ao sistema.',
     );
   }
 
@@ -40,12 +40,12 @@ const erroRpcEdicao = (value: unknown) => {
   );
 
   if (
-    /editar_ordem_producao_v1|schema cache|could not find the function/i.test(
+    /editar_ordem_producao_v2|schema cache|could not find the function/i.test(
       mensagem,
     )
   ) {
     return new Error(
-      'A atualização do banco para edição de OP ainda não foi aplicada neste ambiente. Execute a migration 20260806115500_editar_ordem_producao_v1.sql no Supabase conectado ao sistema.',
+      'A atualização do banco para edição de OP ainda não foi aplicada neste ambiente. Execute a migration 20260910160500_op_atividade_nome_v1.sql no Supabase conectado ao sistema.',
     );
   }
 
@@ -65,12 +65,13 @@ export interface DadosEdicaoOrdemProducao {
   descricao?: string | null;
   prioridade: ProducaoPrioridade;
   justificativa: string;
+  tarefa_id?: string | null;
 }
 
 export const editarOrdemProducao = async (
   dados: DadosEdicaoOrdemProducao,
 ) => {
-  const { error } = await (supabase.rpc as any)('editar_ordem_producao_v1', {
+  const { error } = await (supabase.rpc as any)('editar_ordem_producao_v2', {
     p_ordem_producao_id: dados.ordem_producao_id,
     p_quantidade_planejada: dados.quantidade_planejada,
     p_data_inicio_prevista: dados.data_inicio_prevista,
@@ -83,6 +84,7 @@ export const editarOrdemProducao = async (
     p_descricao: dados.descricao ?? null,
     p_prioridade: dados.prioridade,
     p_justificativa: dados.justificativa,
+    p_tarefa_id: dados.tarefa_id ?? null,
   });
 
   if (error) throw erroRpcEdicao(error);
@@ -97,6 +99,15 @@ export const notificarOrdensProducaoAlteradas = () => {
 export const formatarNumeroOrdemProducao = (numero: number | null | undefined) =>
   numero ? `OP ${String(numero).padStart(6, '0')}` : 'OP sem número';
 
+export const formatarIdentificacaoOrdemProducao = (ordem: {
+  numero: number | null | undefined;
+  tarefa_nome_snapshot?: string | null;
+} | null | undefined) => {
+  const numero = formatarNumeroOrdemProducao(ordem?.numero);
+  const atividade = ordem?.tarefa_nome_snapshot?.trim();
+  return atividade ? `${numero} — ${atividade}` : numero;
+};
+
 export const useOrdensProducao = () => {
   const [ordens, setOrdens] = useState<ProducaoOrdemProducao[]>([]);
   const [loading, setLoading] = useState(false);
@@ -107,7 +118,7 @@ export const useOrdensProducao = () => {
   ) => {
     setLoading(true);
     try {
-      const { data, error } = await (supabase.rpc as any)('listar_ordens_producao', {
+      const { data, error } = await (supabase.rpc as any)('listar_ordens_producao_v2', {
         p_processo_id: processoId ?? null,
         p_status: status ?? null,
       });
@@ -133,9 +144,10 @@ export const useOrdensProducao = () => {
 
   const criarOrdem = useCallback(async (dados: NovaOrdemProducao) => {
     const { data: id, error } = await (supabase.rpc as any)(
-      'criar_ordem_producao_sem_limite_v2',
+      'criar_ordem_producao_sem_limite_v3',
       {
         p_processo_id: dados.processo_id,
+        p_tarefa_id: dados.tarefa_id,
         p_quantidade_planejada: dados.quantidade_planejada,
         p_data_inicio_prevista: dados.data_inicio_prevista,
         p_data_fim_prevista: dados.data_fim_prevista,

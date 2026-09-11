@@ -11,6 +11,8 @@ export interface AlocacaoGanttProducao {
 export interface GanttOrdemProducao {
   id: string;
   numero: number;
+  tarefa_id: string | null;
+  tarefa_nome_snapshot: string | null;
   status: string;
   local_tipo: string;
   quantidade_planejada: number;
@@ -95,24 +97,38 @@ export const useCronogramaProducao = () => {
     setLoading(true);
     setErro(null);
     try {
-      const [{ data, error }, configResult, alertasResult] = await Promise.all([
+      const [{ data, error }, configResult, alertasResult, ordensResult] = await Promise.all([
         (supabase.rpc as any)('listar_gantt_producao'),
         supabase.from('producao_cronograma_configuracoes').select('equipe_disponivel_por_dia,trabalha_sabado,trabalha_domingo,horizonte_dias').eq('id', 1).maybeSingle(),
         supabase.from('producao_cronograma_alertas').select('id,processo_id,data,severidade,codigo,mensagem').order('created_at', { ascending: false }).limit(100),
+        (supabase.rpc as any)('listar_ordens_producao_v2', { p_processo_id: null, p_status: null }),
       ]);
       if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível carregar o Gantt.'));
       if (configResult.error) throw new Error(formatarErroSupabase(configResult.error, 'Não foi possível carregar a configuração do cronograma.'));
       if (alertasResult.error) throw new Error(formatarErroSupabase(alertasResult.error, 'Não foi possível carregar os alertas do cronograma.'));
+      if (ordensResult.error) throw new Error(formatarErroSupabase(ordensResult.error, 'Não foi possível carregar os nomes das OPs.'));
+
+      const identidadePorOp = new Map<string, { tarefa_id: string | null; tarefa_nome_snapshot: string | null }>(
+        ((ordensResult.data ?? []) as Array<{ id: string; tarefa_id: string | null; tarefa_nome_snapshot: string | null }>).map((ordem) => [
+          ordem.id,
+          { tarefa_id: ordem.tarefa_id, tarefa_nome_snapshot: ordem.tarefa_nome_snapshot },
+        ]),
+      );
 
       const resultado = ((data ?? []) as GanttEtapaProducao[]).map((item) => {
         const ordensOriginais = Array.isArray(item.ordens) ? item.ordens : [];
-        const ordens = ordensOriginais.map((ordem) => ({
-          ...ordem,
-          // No Gantt, a posição da OP é definida pela própria programação da OP.
-          // Datas reais/status não substituem início planejado e prazo da OP.
-          data_inicio_real: null,
-          data_fim_real: null,
-        }));
+        const ordens = ordensOriginais.map((ordem) => {
+          const identidade = identidadePorOp.get(ordem.id);
+          return {
+            ...ordem,
+            tarefa_id: identidade?.tarefa_id ?? ordem.tarefa_id ?? null,
+            tarefa_nome_snapshot: identidade?.tarefa_nome_snapshot ?? ordem.tarefa_nome_snapshot ?? null,
+            // No Gantt, a posição da OP é definida pela própria programação da OP.
+            // Datas reais/status não substituem início planejado e prazo da OP.
+            data_inicio_real: null,
+            data_fim_real: null,
+          };
+        });
         const ordensValidas = ordens.filter((ordem) => ordem.status !== 'cancelada');
         const datasInicio = ordensValidas
           .map((ordem) => ordem.data_inicio_prevista)

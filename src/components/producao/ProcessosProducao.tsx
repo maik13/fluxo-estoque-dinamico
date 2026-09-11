@@ -7,6 +7,7 @@ import {
   Loader2,
   Pause,
   Play,
+  Printer,
   RotateCcw,
   Search,
   Trash2,
@@ -28,6 +29,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import {
   useOrdensProducao,
   formatarNumeroOrdemProducao,
+  formatarIdentificacaoOrdemProducao,
 } from '@/hooks/useOrdensProducao';
 import {
   useProcessosProducao,
@@ -48,7 +50,9 @@ import { ModalExcluirProcesso } from './ModalExcluirProcesso';
 import type {
   ProducaoOrdemProducao,
   ProducaoProcesso,
+  ProducaoTarefa,
 } from '@/types/producao';
+import { imprimirOrdemProducaoOperacional } from '@/utils/imprimirOrdemProducaoOperacional';
 
 type AcaoEtapaComJustificativa = 'pausar' | 'desbloquear' | 'reabrir';
 
@@ -162,7 +166,11 @@ const proximoPassoOp = (ordem: ProducaoOrdemProducao) => {
   }
 };
 
-export const ProcessosProducao = () => {
+interface Props {
+  tarefas: ProducaoTarefa[];
+}
+
+export const ProcessosProducao = ({ tarefas }: Props) => {
   const [busca, setBusca] = useState('');
   const [mostrarEncerrados, setMostrarEncerrados] = useState(false);
   const [processoParaFinalizar, setProcessoParaFinalizar] =
@@ -276,8 +284,8 @@ export const ProcessosProducao = () => {
     await recarregarFluxo();
     toast.success(
       resultado.apontamentos_conferidos > 0
-        ? `${formatarNumeroOrdemProducao(ordem.numero)} finalizada. ${resultado.apontamentos_conferidos} apontamento(s) pendente(s) foram conferidos automaticamente.`
-        : `${formatarNumeroOrdemProducao(ordem.numero)} finalizada.`,
+        ? `${formatarIdentificacaoOrdemProducao(ordem)} finalizada. ${resultado.apontamentos_conferidos} apontamento(s) pendente(s) foram conferidos automaticamente.`
+        : `${formatarIdentificacaoOrdemProducao(ordem)} finalizada.`,
     );
   };
 
@@ -309,7 +317,7 @@ export const ProcessosProducao = () => {
         );
         await recarregarFluxo();
         toast.success(
-          `${formatarNumeroOrdemProducao(acaoPendente.ordem.numero)} atualizada.`,
+          `${formatarIdentificacaoOrdemProducao(acaoPendente.ordem)} atualizada.`,
         );
       }
 
@@ -359,7 +367,7 @@ export const ProcessosProducao = () => {
       await transicaoOrdem(ordem.id, acao, null);
       await recarregarFluxo();
       toast.success(
-        `${formatarNumeroOrdemProducao(ordem.numero)} iniciada. Registre agora os apontamentos da execução.`,
+        `${formatarIdentificacaoOrdemProducao(ordem)} iniciada. Registre agora os apontamentos da execução.`,
       );
     } catch (error) {
       if (
@@ -552,6 +560,7 @@ export const ProcessosProducao = () => {
                       <FormOrdemProducao
                         processo={processo}
                         ordens={ordens}
+                        tarefas={tarefas}
                         onEmitir={criarOrdem}
                       />
                     )}
@@ -660,7 +669,7 @@ export const ProcessosProducao = () => {
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="font-semibold">
-                                  {formatarNumeroOrdemProducao(ordem.numero)}
+                                  {formatarIdentificacaoOrdemProducao(ordem)}
                                 </span>
                                 <span className="rounded-full border px-2 py-0.5 text-xs">
                                   {statusOpLabel[ordem.status] ?? ordem.status}
@@ -696,6 +705,20 @@ export const ProcessosProducao = () => {
                             </div>
 
                             <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  try {
+                                    imprimirOrdemProducaoOperacional(ordem);
+                                  } catch (error) {
+                                    toast.error(mensagemErro(error, 'Não foi possível imprimir a OP.'));
+                                  }
+                                }}
+                              >
+                                <Printer className="mr-2 h-4 w-4" />
+                                Imprimir OP
+                              </Button>
                               {['liberada', 'em_execucao'].includes(
                                 ordem.status,
                               ) &&
@@ -808,7 +831,7 @@ export const ProcessosProducao = () => {
                   <>
                     <p>
                       <strong>Ordem de Produção:</strong>{' '}
-                      {formatarNumeroOrdemProducao(acaoPendente.ordem.numero)}
+                      {formatarIdentificacaoOrdemProducao(acaoPendente.ordem)}
                     </p>
                     <p>
                       <strong>Etapa:</strong>{' '}

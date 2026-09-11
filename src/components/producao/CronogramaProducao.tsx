@@ -38,7 +38,7 @@ import {
   type GanttEtapaProducao,
   type GanttOrdemProducao,
 } from '@/hooks/useCronogramaProducao';
-import { formatarNumeroOrdemProducao } from '@/hooks/useOrdensProducao';
+import { formatarIdentificacaoOrdemProducao, formatarNumeroOrdemProducao } from '@/hooks/useOrdensProducao';
 import { cn } from '@/lib/utils';
 import { PlanoDiarioProducao } from './PlanoDiarioProducao';
 
@@ -216,6 +216,7 @@ export const CronogramaProducao = () => {
         etapa.uf,
         ...etapa.ordens.flatMap((ordem) => [
           formatarNumeroOrdemProducao(ordem.numero),
+          ordem.tarefa_nome_snapshot,
           ordem.local_tipo,
           ordem.responsavel_nome,
         ]),
@@ -339,7 +340,7 @@ export const CronogramaProducao = () => {
                       ) : (
                         <>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-xs font-medium">↳ {formatarNumeroOrdemProducao(linha.ordem.numero)}</span>
+                            <span className="truncate text-xs font-medium">↳ {formatarIdentificacaoOrdemProducao(linha.ordem)}</span>
                             <span className="shrink-0 text-[9px] text-muted-foreground">{statusOpLabel[linha.ordem.status] ?? linha.ordem.status}</span>
                           </div>
                           <span className="truncate text-[10px] text-muted-foreground">{linha.ordem.local_tipo}{linha.ordem.responsavel_nome ? ` · ${linha.ordem.responsavel_nome}` : ''} · {linha.ordem.quantidade_realizada}/{linha.ordem.quantidade_planejada}</span>

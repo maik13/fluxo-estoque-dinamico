@@ -37,7 +37,7 @@ export interface ProducaoProcessoEvento {
 
 export interface ProducaoOrdemProducao {
   id: string; numero: number; processo_id: string; projeto_id: string; processo_codigo: string; processo_nome: string;
-  projeto_nome: string; projeto_cidade: string | null; projeto_uf: string | null; local_tipo: ProducaoLocalTipo;
+  projeto_nome: string; projeto_cidade: string | null; projeto_uf: string | null; tarefa_id: string | null; tarefa_nome_snapshot: string | null; local_tipo: ProducaoLocalTipo;
   descricao: string | null; instrucoes: string | null; produto_entregavel: string | null; unidade_medida: string | null;
   quantidade_planejada: number; quantidade_realizada: number; percentual_realizado: number;
   data_inicio_prevista: string; data_fim_prevista: string; data_inicio_real: string | null; data_fim_real: string | null;
@@ -47,7 +47,7 @@ export interface ProducaoOrdemProducao {
 }
 
 export interface NovaOrdemProducao {
-  processo_id: string; quantidade_planejada: number; data_inicio_prevista: string; data_fim_prevista: string;
+  processo_id: string; tarefa_id: string; quantidade_planejada: number; data_inicio_prevista: string; data_fim_prevista: string;
   local_tipo: ProducaoLocalTipo; responsavel_id?: string | null; responsavel_nome?: string | null;
   equipe_prevista?: number | null; instrucoes?: string | null; descricao?: string | null; prioridade?: ProducaoPrioridade;
 }

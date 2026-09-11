@@ -122,7 +122,7 @@ export const Producao = () => {
         </TabsList>
 
         <TabsContent value="projetos" className="mt-5"><ProjetosProducao /></TabsContent>
-        <TabsContent value="etapas" className="mt-5"><ProcessosProducao /></TabsContent>
+        <TabsContent value="etapas" className="mt-5"><ProcessosProducao tarefas={tarefas} /></TabsContent>
         <TabsContent value="cronograma" className="mt-5"><CronogramaProducao /></TabsContent>
 
         <TabsContent value="apontamento" className="mt-5">

@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
-import { useOrdensProducao, formatarNumeroOrdemProducao } from '@/hooks/useOrdensProducao';
+import { useOrdensProducao, formatarNumeroOrdemProducao, formatarIdentificacaoOrdemProducao } from '@/hooks/useOrdensProducao';
 import { calcularDuracaoProducao } from '@/hooks/useProducao';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
 import type {
@@ -74,6 +74,7 @@ export const FormApontamentoProducaoV2 = ({
     if (!ordemSelecionada) return;
     setProjetoLocalId('');
     setLocalTipo(ordemSelecionada.local_tipo);
+    setTarefaId(ordemSelecionada.tarefa_id ?? '');
   }, [ordemSelecionada]);
 
   const duracao = useMemo(() => {
@@ -188,7 +189,7 @@ export const FormApontamentoProducaoV2 = ({
       }
 
       const contexto = ordemSelecionada
-        ? ` dentro da ${formatarNumeroOrdemProducao(ordemSelecionada.numero)}`
+        ? ` dentro da ${formatarIdentificacaoOrdemProducao(ordemSelecionada)}`
         : ' como atividade avulsa';
       if (falhas > 0) {
         toast.warning(`Apontamento salvo${contexto}, mas ${falhas} foto(s) não foram enviadas.`);
@@ -227,7 +228,7 @@ export const FormApontamentoProducaoV2 = ({
             <SelectContent>
               {ordensDisponiveis.map((ordem) => (
                 <SelectItem key={ordem.id} value={ordem.id}>
-                  {formatarNumeroOrdemProducao(ordem.numero)} · {ordem.processo_nome} · {ordem.projeto_nome}
+                  {formatarIdentificacaoOrdemProducao(ordem)} · {ordem.processo_nome} · {ordem.projeto_nome}
                 </SelectItem>
               ))}
               <SelectItem value={ORIGEM_AVULSA}>Atividade não planejada — sem OP</SelectItem>
@@ -238,7 +239,7 @@ export const FormApontamentoProducaoV2 = ({
 
         {ordemSelecionada ? (
           <div className="rounded-lg border bg-muted/20 p-4 text-sm md:col-span-2">
-            <p><strong>{formatarNumeroOrdemProducao(ordemSelecionada.numero)}</strong> · {ordemSelecionada.status === 'liberada' ? 'Liberada' : 'Em execução'}</p>
+            <p><strong>{formatarIdentificacaoOrdemProducao(ordemSelecionada)}</strong> · {ordemSelecionada.status === 'liberada' ? 'Liberada' : 'Em execução'}</p>
             <p><strong>Projeto:</strong> {ordemSelecionada.projeto_nome}</p>
             <p><strong>Etapa:</strong> {ordemSelecionada.processo_codigo} · {ordemSelecionada.processo_nome}</p>
             <p><strong>Local:</strong> {ordemSelecionada.local_tipo}</p>
