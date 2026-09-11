@@ -1,0 +1,34 @@
+{
+  "application": "fluxo-estoque-dinamico",
+  "displayName": "GESTÃO ALMOXARIFADO",
+  "repository": "maik13/fluxo-estoque-dinamico",
+  "productionBranch": "main",
+  "backendProvider": "Lovable Cloud",
+  "productionLovableProjectId": "f2b21626-c1f3-4d7c-9966-6dd8bb0f2ef1",
+  "workspaceName": "JOELMA – SISTEMA INTEGRADO",
+  "organization": "UNIKA",
+  "legacyForbiddenTargets": [
+    {
+      "type": "supabase_project",
+      "id": "tyjzlkjfiemcgyiulmve",
+      "reason": "Backend Supabase legado; não é o banco operacional atual."
+    },
+    {
+      "type": "lovable_project",
+      "id": "e41d0c8b-1892-4e40-a15c-0f2b892f4ddf",
+      "reason": "Projeto Lovable antigo; não publicar nem aplicar alterações de banco aqui."
+    },
+    {
+      "type": "lovable_project",
+      "id": "62686b91-2360-41f4-8a81-25c2df57e2f2",
+      "reason": "Projeto de migração/staging; não é o alvo de produção."
+    }
+  ],
+  "rules": {
+    "requireExplicitProjectVerificationBeforeDatabaseMutation": true,
+    "requireExplicitProjectVerificationBeforeDeploy": true,
+    "stopIfProjectCannotBeVerified": true,
+    "envFileIsNotSourceOfTruthForProductionTarget": true,
+    "legacySupabaseFolderNamesDoNotDefineRuntimeTarget": true
+  }
+}
