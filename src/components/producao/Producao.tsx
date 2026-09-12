@@ -159,7 +159,7 @@ export const Producao = () => {
               listarMembros={listarMembrosProducao}
               criarMembro={criarMembroProducao}
               editarMembro={editarMembroProducao}
-              inativarMembroProducao={inativarMembroProducao}
+              inativarMembro={inativarMembroProducao}
               listarTarefas={listarTarefas}
               criarTarefa={criarTarefa}
             />
