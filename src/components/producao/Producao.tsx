@@ -20,7 +20,7 @@ import { CronogramaProducao } from './CronogramaProducao';
 import { FormApontamentoProducaoV2 } from './FormApontamentoProducaoV2';
 import { HistoricoApontamentosProducaoComBusca } from './HistoricoApontamentosProducaoComBusca';
 import { ProjetosProducao } from './ProjetosProducao';
-import { ProcessosProducao } from './ProcessosProducao';
+import { ProcessosProducaoHierarquico } from './ProcessosProducaoHierarquico';
 
 export const Producao = () => {
   const [abaAtiva, setAbaAtiva] = useState('etapas');
@@ -122,7 +122,7 @@ export const Producao = () => {
         </TabsList>
 
         <TabsContent value="projetos" className="mt-5"><ProjetosProducao /></TabsContent>
-        <TabsContent value="etapas" className="mt-5"><ProcessosProducao tarefas={tarefas} /></TabsContent>
+        <TabsContent value="etapas" className="mt-5"><ProcessosProducaoHierarquico tarefas={tarefas} /></TabsContent>
         <TabsContent value="cronograma" className="mt-5"><CronogramaProducao /></TabsContent>
 
         <TabsContent value="apontamento" className="mt-5">
@@ -159,7 +159,7 @@ export const Producao = () => {
               listarMembros={listarMembrosProducao}
               criarMembro={criarMembroProducao}
               editarMembro={editarMembroProducao}
-              inativarMembro={inativarMembroProducao}
+              inativarMembroProducao={inativarMembroProducao}
               listarTarefas={listarTarefas}
               criarTarefa={criarTarefa}
             />
