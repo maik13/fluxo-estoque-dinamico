@@ -18,7 +18,7 @@ import { useProducao } from '@/hooks/useProducao';
 import { ConfiguracoesProducao } from './ConfiguracoesProducao';
 import { CronogramaProducao } from './CronogramaProducao';
 import { FormApontamentoProducaoV2 } from './FormApontamentoProducaoV2';
-import { HistoricoApontamentosProducaoV2 } from './HistoricoApontamentosProducaoV2';
+import { HistoricoApontamentosProducaoComBusca } from './HistoricoApontamentosProducaoComBusca';
 import { ProjetosProducao } from './ProjetosProducao';
 import { ProcessosProducao } from './ProcessosProducao';
 
@@ -137,7 +137,7 @@ export const Producao = () => {
         </TabsContent>
 
         <TabsContent value="historico" className="mt-5">
-          <HistoricoApontamentosProducaoV2
+          <HistoricoApontamentosProducaoComBusca
             apontamentos={apontamentos}
             tarefas={tarefas}
             locais={locaisUtilizacao}
