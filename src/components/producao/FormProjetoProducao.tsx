@@ -29,6 +29,8 @@ interface FormData {
   uf: string;
   local_execucao: string;
   endereco_execucao: string;
+  data_inicio_prevista: string;
+  data_fim_prevista: string;
   responsavel_nome: string;
 }
 
@@ -61,6 +63,7 @@ export const FormProjetoProducao = ({ onSuccess }: FormProps) => {
   }, [aberto, listarLocaisDisponiveis]);
 
   const localId = watch('local_utilizacao_id');
+  const inicioPrevisto = watch('data_inicio_prevista');
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -72,6 +75,8 @@ export const FormProjetoProducao = ({ onSuccess }: FormProps) => {
         uf: data.uf || null,
         local_execucao: data.local_execucao || null,
         endereco_execucao: data.endereco_execucao || null,
+        data_inicio_prevista: data.data_inicio_prevista,
+        data_fim_prevista: data.data_fim_prevista,
         responsavel_nome: data.responsavel_nome || null,
       });
       reset();
@@ -95,7 +100,7 @@ export const FormProjetoProducao = ({ onSuccess }: FormProps) => {
         <DialogHeader>
           <DialogTitle>Adicionar Projeto à Produção</DialogTitle>
           <DialogDescription>
-            Escolha um projeto/local disponível no aplicativo. Somente os projetos adicionados aparecerão na aba Produção.
+            Escolha um projeto/local disponível e informe o período previsto de execução.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
@@ -166,7 +171,6 @@ export const FormProjetoProducao = ({ onSuccess }: FormProps) => {
             </p>
           </div>
 
-
           <div className="space-y-2">
             <Label htmlFor="descricao">Descrição operacional</Label>
             <Input id="descricao" {...register('descricao')} />
@@ -185,6 +189,36 @@ export const FormProjetoProducao = ({ onSuccess }: FormProps) => {
               <Input id="uf" maxLength={2} placeholder="PR" {...register('uf', { maxLength: 2 })} />
             </div>
           </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="data_inicio_prevista">Data de início prevista *</Label>
+              <Input
+                id="data_inicio_prevista"
+                type="date"
+                {...register('data_inicio_prevista', { required: 'Informe a data de início prevista' })}
+              />
+              {errors.data_inicio_prevista && (
+                <span className="text-sm text-destructive">{errors.data_inicio_prevista.message}</span>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="data_fim_prevista">Data de término prevista *</Label>
+              <Input
+                id="data_fim_prevista"
+                type="date"
+                {...register('data_fim_prevista', {
+                  required: 'Informe a data de término prevista',
+                  validate: (value) =>
+                    !inicioPrevisto || value >= inicioPrevisto || 'O término não pode ser anterior ao início',
+                })}
+              />
+              {errors.data_fim_prevista && (
+                <span className="text-sm text-destructive">{errors.data_fim_prevista.message}</span>
+              )}
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="local_execucao">Local de destino/obra</Label>
             <Input id="local_execucao" {...register('local_execucao')} />
