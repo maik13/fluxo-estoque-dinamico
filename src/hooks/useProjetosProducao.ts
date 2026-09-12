@@ -10,6 +10,8 @@ export interface ProjetoProducaoInput {
   uf?: string | null;
   local_execucao?: string | null;
   endereco_execucao?: string | null;
+  data_inicio_prevista?: string | null;
+  data_fim_prevista?: string | null;
   responsavel_id?: string | null;
   responsavel_nome?: string | null;
   ativo?: boolean;
@@ -47,6 +49,9 @@ interface ConfigRow {
   endereco_execucao: string | null;
   data_inicio_prevista: string | null;
   data_fim_prevista: string | null;
+  data_inicio_real?: string | null;
+  data_fim_real?: string | null;
+  status?: 'planejado' | 'em_andamento' | 'concluido';
   responsavel_id: string | null;
   responsavel_nome_snapshot: string | null;
   observacoes: string | null;
@@ -129,6 +134,9 @@ export const useProjetosProducao = () => {
             endereco_execucao: config.endereco_execucao,
             data_inicio_prevista: config.data_inicio_prevista,
             data_fim_prevista: config.data_fim_prevista,
+            data_inicio_real: config.data_inicio_real ?? null,
+            data_fim_real: config.data_fim_real ?? null,
+            status: config.status ?? 'planejado',
             responsavel_id: config.responsavel_id,
             responsavel_nome_snapshot: config.responsavel_nome_snapshot,
             observacoes: config.observacoes,
@@ -193,7 +201,15 @@ export const useProjetosProducao = () => {
   }, []);
 
   const salvarConfiguracao = useCallback(async (dados: ProjetoProducaoInput) => {
-    const { data, error } = await (supabase.rpc as any)('configurar_projeto_producao', {
+    if (
+      dados.data_inicio_prevista &&
+      dados.data_fim_prevista &&
+      dados.data_fim_prevista < dados.data_inicio_prevista
+    ) {
+      throw new Error('A data de término do projeto não pode ser anterior à data de início.');
+    }
+
+    const { data, error } = await (supabase.rpc as any)('configurar_projeto_producao_v2', {
       p_local_utilizacao_id: dados.local_utilizacao_id,
       p_descricao: dados.descricao ?? null,
       p_cliente: dados.cliente ?? null,
@@ -201,6 +217,8 @@ export const useProjetosProducao = () => {
       p_uf: dados.uf ?? null,
       p_local_execucao: dados.local_execucao ?? null,
       p_endereco_execucao: dados.endereco_execucao ?? null,
+      p_data_inicio_prevista: dados.data_inicio_prevista ?? null,
+      p_data_fim_prevista: dados.data_fim_prevista ?? null,
       p_responsavel_id: dados.responsavel_id ?? null,
       p_responsavel_nome: dados.responsavel_nome ?? null,
       p_ativo: dados.ativo ?? true,
@@ -208,6 +226,11 @@ export const useProjetosProducao = () => {
 
     if (error) {
       const detalhe = error.message || error.details || 'Não foi possível adicionar o projeto à Produção.';
+      if (/configurar_projeto_producao_v2|schema cache|could not find the function/i.test(detalhe)) {
+        throw new Error(
+          'A atualização do banco para datas e status automáticos do projeto ainda não foi aplicada. Execute a migration 20260912190000_projeto_datas_status_hierarquia_v1.sql no Supabase conectado ao sistema.',
+        );
+      }
       throw new Error(detalhe);
     }
 
