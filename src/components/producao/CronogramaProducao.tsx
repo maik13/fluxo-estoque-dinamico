@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   addDays,
   addMonths,
@@ -186,6 +186,8 @@ export const CronogramaProducao = () => {
   const [visualizacao, setVisualizacao] = useState<Visualizacao>('semana');
   const [deslocamento, setDeslocamento] = useState(0);
   const [configAberta, setConfigAberta] = useState(false);
+  const [larguraViewport, setLarguraViewport] = useState(0);
+  const ganttViewportRef = useRef<HTMLDivElement>(null);
   const [configForm, setConfigForm] = useState<ConfiguracaoCronogramaProducao>({
     equipe_disponivel_por_dia: 5,
     trabalha_sabado: false,
@@ -195,6 +197,18 @@ export const CronogramaProducao = () => {
 
   useEffect(() => { void listarCronograma().catch(() => undefined); }, [listarCronograma]);
   useEffect(() => { if (configuracao) setConfigForm(configuracao); }, [configuracao]);
+  useEffect(() => {
+    const elemento = ganttViewportRef.current;
+    if (!elemento) return;
+
+    const atualizarLargura = () => setLarguraViewport(elemento.clientWidth);
+    atualizarLargura();
+
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(atualizarLargura);
+    observer.observe(elemento);
+    return () => observer.disconnect();
+  }, []);
 
   const projetos = useMemo(() => {
     const mapa = new Map<string, string>();
@@ -231,14 +245,20 @@ export const CronogramaProducao = () => {
   ]), [etapasFiltradas]);
 
   const periodo = useMemo(() => calcularPeriodo(visualizacao, deslocamento), [deslocamento, visualizacao]);
-  const pixelsPorDia = PIXELS_POR_DIA[visualizacao];
+  const pixelsPorDiaBase = PIXELS_POR_DIA[visualizacao];
   const dias = useMemo(() => {
     const total = differenceInCalendarDays(periodo.fim, periodo.inicio) + 1;
     return Array.from({ length: total }, (_, indice) => addDays(periodo.inicio, indice));
   }, [periodo]);
+  const larguraMinima = dias.length * pixelsPorDiaBase;
+  const larguraTimelineDisponivel = Math.max(0, larguraViewport - LABEL_WIDTH);
+  const pixelsPorDia = visualizacao === 'semana' && larguraTimelineDisponivel > larguraMinima
+    ? larguraTimelineDisponivel / dias.length
+    : pixelsPorDiaBase;
   const largura = dias.length * pixelsPorDia;
-  const hojeOffset = differenceInCalendarDays(new Date(), periodo.inicio) * pixelsPorDia;
-  const hojeNaFaixa = hojeOffset >= 0 && hojeOffset < largura;
+  const hojeIndice = differenceInCalendarDays(new Date(), periodo.inicio);
+  const hojeOffset = hojeIndice * pixelsPorDia;
+  const hojeNaFaixa = hojeIndice >= 0 && hojeIndice < dias.length;
   const totalOps = etapasFiltradas.reduce((soma, etapa) => soma + etapa.ordens.length, 0);
   const alertasAltos = alertas.filter((alerta) => alerta.severidade === 'alta').length;
 
@@ -323,7 +343,7 @@ export const CronogramaProducao = () => {
               {format(periodo.inicio, "dd 'de' MMMM", { locale: ptBR })} a {format(periodo.fim, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })} · cada coluna representa um dia
             </div>
 
-            <div className="max-h-[76vh] overflow-auto">
+            <div ref={ganttViewportRef} className="max-h-[76vh] overflow-auto">
               <div className="flex" style={{ width: LABEL_WIDTH + largura }}>
                 <div className="sticky left-0 z-20 shrink-0 border-r bg-card" style={{ width: LABEL_WIDTH }}>
                   <div className="flex h-20 items-end border-b bg-muted/50 px-3 pb-2 text-sm font-semibold">Projeto / Etapa / Ordem de Produção</div>
