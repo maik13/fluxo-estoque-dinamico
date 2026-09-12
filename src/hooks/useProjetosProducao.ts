@@ -49,9 +49,6 @@ interface ConfigRow {
   endereco_execucao: string | null;
   data_inicio_prevista: string | null;
   data_fim_prevista: string | null;
-  data_inicio_real?: string | null;
-  data_fim_real?: string | null;
-  status?: 'planejado' | 'em_andamento' | 'concluido';
   responsavel_id: string | null;
   responsavel_nome_snapshot: string | null;
   observacoes: string | null;
@@ -134,9 +131,6 @@ export const useProjetosProducao = () => {
             endereco_execucao: config.endereco_execucao,
             data_inicio_prevista: config.data_inicio_prevista,
             data_fim_prevista: config.data_fim_prevista,
-            data_inicio_real: config.data_inicio_real ?? null,
-            data_fim_real: config.data_fim_real ?? null,
-            status: config.status ?? 'planejado',
             responsavel_id: config.responsavel_id,
             responsavel_nome_snapshot: config.responsavel_nome_snapshot,
             observacoes: config.observacoes,
