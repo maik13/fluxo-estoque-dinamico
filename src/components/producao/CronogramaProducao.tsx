@@ -42,16 +42,16 @@ import { formatarIdentificacaoOrdemProducao, formatarNumeroOrdemProducao } from 
 import { cn } from '@/lib/utils';
 import { PlanoDiarioProducao } from './PlanoDiarioProducao';
 
-const LABEL_WIDTH = 340;
-const ROW_HEIGHT_ETAPA = 62;
-const ROW_HEIGHT_OP = 54;
+const LABEL_WIDTH = 390;
+const ROW_HEIGHT_ETAPA = 70;
+const ROW_HEIGHT_OP = 64;
 
 type Visualizacao = '14dias' | 'semana' | 'mes';
 
 const PIXELS_POR_DIA: Record<Visualizacao, number> = {
-  '14dias': 54,
-  semana: 90,
-  mes: 36,
+  '14dias': 84,
+  semana: 120,
+  mes: 68,
 };
 
 const statusEtapaClass: Record<string, string> = {
@@ -323,27 +323,27 @@ export const CronogramaProducao = () => {
               {format(periodo.inicio, "dd 'de' MMMM", { locale: ptBR })} a {format(periodo.fim, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })} · cada coluna representa um dia
             </div>
 
-            <div className="max-h-[70vh] overflow-auto">
+            <div className="max-h-[76vh] overflow-auto">
               <div className="flex" style={{ width: LABEL_WIDTH + largura }}>
                 <div className="sticky left-0 z-20 shrink-0 border-r bg-card" style={{ width: LABEL_WIDTH }}>
-                  <div className="flex h-16 items-end border-b bg-muted/50 px-3 pb-2 text-xs font-semibold">Projeto / Etapa / Ordem de Produção</div>
+                  <div className="flex h-20 items-end border-b bg-muted/50 px-3 pb-2 text-sm font-semibold">Projeto / Etapa / Ordem de Produção</div>
                   {linhas.map((linha) => (
                     <div key={linha.id} className={cn('flex flex-col justify-center border-b px-3', linha.tipo === 'op' && 'bg-muted/10 pl-9')} style={{ height: alturaLinha(linha) }}>
                       {linha.tipo === 'etapa' ? (
                         <>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-xs font-semibold">{linha.etapa.codigo} · {linha.etapa.etapa_nome}</span>
-                            <span className="shrink-0 text-[9px] text-muted-foreground">{statusEtapaLabel[linha.etapa.status] ?? linha.etapa.status}</span>
+                            <span className="truncate text-sm font-semibold">{linha.etapa.codigo} · {linha.etapa.etapa_nome}</span>
+                            <span className="shrink-0 text-[11px] text-muted-foreground">{statusEtapaLabel[linha.etapa.status] ?? linha.etapa.status}</span>
                           </div>
-                          <span className="truncate text-[10px] text-muted-foreground">{linha.etapa.projeto_nome} · {linha.etapa.ordens.length} OP(s)</span>
+                          <span className="truncate text-xs text-muted-foreground">{linha.etapa.projeto_nome} · {linha.etapa.ordens.length} OP(s)</span>
                         </>
                       ) : (
                         <>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-xs font-medium">↳ {formatarIdentificacaoOrdemProducao(linha.ordem)}</span>
-                            <span className="shrink-0 text-[9px] text-muted-foreground">{statusOpLabel[linha.ordem.status] ?? linha.ordem.status}</span>
+                            <span className="truncate text-sm font-medium">↳ {formatarIdentificacaoOrdemProducao(linha.ordem)}</span>
+                            <span className="shrink-0 text-[11px] text-muted-foreground">{statusOpLabel[linha.ordem.status] ?? linha.ordem.status}</span>
                           </div>
-                          <span className="truncate text-[10px] text-muted-foreground">{linha.ordem.local_tipo}{linha.ordem.responsavel_nome ? ` · ${linha.ordem.responsavel_nome}` : ''} · {linha.ordem.quantidade_realizada}/{linha.ordem.quantidade_planejada}</span>
+                          <span className="truncate text-[11px] text-muted-foreground">{linha.ordem.local_tipo}{linha.ordem.responsavel_nome ? ` · ${linha.ordem.responsavel_nome}` : ''} · {linha.ordem.quantidade_realizada}/{linha.ordem.quantidade_planejada}</span>
                         </>
                       )}
                     </div>
@@ -351,7 +351,7 @@ export const CronogramaProducao = () => {
                 </div>
 
                 <div className="relative" style={{ width: largura }}>
-                  <div className="sticky top-0 z-10 flex h-16 border-b bg-muted/50">
+                  <div className="sticky top-0 z-10 flex h-20 border-b bg-muted/50">
                     {dias.map((dia) => (
                       <div
                         key={dia.toISOString()}
@@ -362,8 +362,8 @@ export const CronogramaProducao = () => {
                         )}
                         style={{ width: pixelsPorDia }}
                       >
-                        <span className="text-[9px] font-semibold">{format(dia, 'EEE', { locale: ptBR }).replace('.', '')}</span>
-                        <span className="text-[9px] text-muted-foreground">{format(dia, 'dd/MM')}</span>
+                        <span className="text-[11px] font-semibold">{format(dia, 'EEE', { locale: ptBR }).replace('.', '')}</span>
+                        <span className="text-[11px] text-muted-foreground">{format(dia, 'dd/MM')}</span>
                       </div>
                     ))}
                   </div>
@@ -371,6 +371,7 @@ export const CronogramaProducao = () => {
                   {linhas.map((linha) => {
                     const intervalo = intervaloLinha(linha);
                     const intersecta = intervalo && intervalo.fim.getTime() >= periodo.inicio.getTime() && intervalo.inicio.getTime() <= periodo.fim.getTime();
+                    const antesDoPeriodo = Boolean(intervalo && intervalo.fim.getTime() < periodo.inicio.getTime());
                     const inicioVisivel = intervalo && intersecta ? limitarData(intervalo.inicio, periodo.inicio, periodo.fim) : null;
                     const fimVisivel = intervalo && intersecta ? limitarData(intervalo.fim, periodo.inicio, periodo.fim) : null;
                     const esquerda = inicioVisivel ? differenceInCalendarDays(inicioVisivel, periodo.inicio) * pixelsPorDia : 0;
@@ -392,22 +393,33 @@ export const CronogramaProducao = () => {
                         {hojeNaFaixa && <div className="absolute inset-y-0 bg-emerald-500/10" style={{ left: hojeOffset, width: pixelsPorDia }} />}
                         {intervalo && intersecta && (
                           <div
-                            className={cn('absolute flex items-center overflow-hidden rounded text-xs font-bold text-white shadow-sm', classe, linha.tipo === 'etapa' ? 'top-3 h-9' : 'top-3 h-8')}
+                            className={cn('absolute flex items-center overflow-hidden rounded text-xs font-bold text-white shadow-sm', classe, linha.tipo === 'etapa' ? 'top-3 h-10' : 'top-3 h-10')}
                             style={{ left: esquerda, width: larguraBarra }}
                             title={`${titulo} · ${intervalo.origem === 'real' ? 'período realizado' : 'período previsto'} · ${format(intervalo.inicio, 'dd/MM/yyyy')} a ${format(intervalo.fim, 'dd/MM/yyyy')} · ${percentual}% realizado`}
                           >
                             {linha.tipo === 'op' ? (
-                              <div className="relative z-10 flex w-full min-w-0 items-center justify-between gap-1 px-1.5">
-                                <span className="min-w-0 truncate text-[11px]">{formatarNumeroOrdemProducao(linha.ordem.numero)}</span>
+                              <div className="relative z-10 flex w-full min-w-0 flex-col items-center justify-center gap-0.5 px-1 leading-none">
+                                <span className="max-w-full truncate text-[11px] font-semibold">{formatarNumeroOrdemProducao(linha.ordem.numero)}</span>
                                 <span className="shrink-0 text-xs font-extrabold">{percentual}%</span>
                               </div>
                             ) : (
-                              <span className="relative z-10 w-full px-1 text-center text-xs font-extrabold">{percentual}%</span>
+                              <span className="relative z-10 w-full px-1 text-center text-sm font-extrabold">{percentual}%</span>
                             )}
                             <span className="absolute inset-y-0 left-0 bg-black/25" style={{ width: `${Math.min(100, percentual)}%` }} />
                           </div>
                         )}
-                        {!intervalo && <span className="absolute left-3 top-5 text-[10px] text-muted-foreground">Sem datas de planejamento ou execução</span>}
+                        {intervalo && !intersecta && (
+                          <span
+                            className={cn(
+                              'absolute top-1/2 z-[1] -translate-y-1/2 rounded border bg-card/95 px-2 py-1 text-[11px] font-semibold text-muted-foreground shadow-sm',
+                              antesDoPeriodo ? 'left-2' : 'right-2',
+                            )}
+                            title={`${titulo} · fora do período exibido · ${format(intervalo.inicio, 'dd/MM/yyyy')} a ${format(intervalo.fim, 'dd/MM/yyyy')}`}
+                          >
+                            {antesDoPeriodo ? `← ${format(intervalo.fim, 'dd/MM')}` : `${format(intervalo.inicio, 'dd/MM')} →`}
+                          </span>
+                        )}
+                        {!intervalo && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">Sem datas de planejamento ou execução</span>}
                       </div>
                     );
                   })}
