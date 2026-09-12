@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useProjetosProducao } from '@/hooks/useProjetosProducao';
+import { supabase } from '@/integrations/supabase/client';
 import type { ProducaoProjeto } from '@/types/producao';
 
 interface Props {
@@ -30,9 +30,9 @@ interface FormData {
   uf: string;
   local_execucao: string;
   endereco_execucao: string;
+  responsavel_nome: string;
   data_inicio_prevista: string;
   data_fim_prevista: string;
-  responsavel_nome: string;
 }
 
 const valoresDoProjeto = (projeto: ProducaoProjeto): FormData => ({
@@ -42,14 +42,13 @@ const valoresDoProjeto = (projeto: ProducaoProjeto): FormData => ({
   uf: projeto.uf ?? '',
   local_execucao: projeto.local_execucao ?? '',
   endereco_execucao: projeto.endereco_execucao ?? '',
+  responsavel_nome: projeto.responsavel_nome_snapshot ?? '',
   data_inicio_prevista: projeto.data_inicio_prevista ?? '',
   data_fim_prevista: projeto.data_fim_prevista ?? '',
-  responsavel_nome: projeto.responsavel_nome_snapshot ?? '',
 });
 
 export const FormEditarProjetoProducao = ({ projeto, onSuccess }: Props) => {
   const [aberto, setAberto] = useState(false);
-  const { atualizarProjeto } = useProjetosProducao();
   const {
     register,
     handleSubmit,
@@ -67,21 +66,31 @@ export const FormEditarProjetoProducao = ({ projeto, onSuccess }: Props) => {
   const inicioPrevisto = watch('data_inicio_prevista');
 
   const salvar = async (dados: FormData) => {
+    if (dados.data_fim_prevista < dados.data_inicio_prevista) {
+      toast.error('A data de término não pode ser anterior à data de início.');
+      return;
+    }
+
     try {
-      await atualizarProjeto(projeto.config_id ?? projeto.id, {
-        local_utilizacao_id: projeto.local_utilizacao_id,
-        descricao: dados.descricao.trim() || null,
-        cliente: dados.cliente.trim() || null,
-        cidade: dados.cidade.trim() || null,
-        uf: dados.uf.trim().toUpperCase() || null,
-        local_execucao: dados.local_execucao.trim() || null,
-        endereco_execucao: dados.endereco_execucao.trim() || null,
-        data_inicio_prevista: dados.data_inicio_prevista,
-        data_fim_prevista: dados.data_fim_prevista,
-        responsavel_id: projeto.responsavel_id,
-        responsavel_nome: dados.responsavel_nome.trim() || null,
-        ativo: projeto.ativo,
-      });
+      const { error } = await (supabase.rpc as any)(
+        'configurar_projeto_producao_v2',
+        {
+          p_local_utilizacao_id: projeto.local_utilizacao_id,
+          p_descricao: dados.descricao.trim() || null,
+          p_cliente: dados.cliente.trim() || null,
+          p_cidade: dados.cidade.trim() || null,
+          p_uf: dados.uf.trim().toUpperCase() || null,
+          p_local_execucao: dados.local_execucao.trim() || null,
+          p_endereco_execucao: dados.endereco_execucao.trim() || null,
+          p_responsavel_id: projeto.responsavel_id,
+          p_responsavel_nome: dados.responsavel_nome.trim() || null,
+          p_data_inicio_prevista: dados.data_inicio_prevista,
+          p_data_fim_prevista: dados.data_fim_prevista,
+          p_ativo: projeto.ativo,
+        },
+      );
+
+      if (error) throw error;
 
       setAberto(false);
       onSuccess();
@@ -108,8 +117,8 @@ export const FormEditarProjetoProducao = ({ projeto, onSuccess }: Props) => {
         <DialogHeader>
           <DialogTitle>Editar informações do projeto</DialogTitle>
           <DialogDescription>
-            Atualize os dados operacionais e o período previsto do projeto. O nome
-            e o vínculo com o projeto original permanecem inalterados.
+            Atualize os dados operacionais e o período previsto exibido no card
+            do projeto.
           </DialogDescription>
         </DialogHeader>
 
@@ -121,6 +130,48 @@ export const FormEditarProjetoProducao = ({ projeto, onSuccess }: Props) => {
               </p>
             )}
             <p className="font-semibold">{projeto.nome}</p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor={`inicio-projeto-${projeto.id}`}>
+                Data de início prevista *
+              </Label>
+              <Input
+                id={`inicio-projeto-${projeto.id}`}
+                type="date"
+                {...register('data_inicio_prevista', {
+                  required: 'Informe a data de início prevista',
+                })}
+              />
+              {errors.data_inicio_prevista && (
+                <p className="text-sm text-destructive">
+                  {errors.data_inicio_prevista.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor={`fim-projeto-${projeto.id}`}>
+                Data de término prevista *
+              </Label>
+              <Input
+                id={`fim-projeto-${projeto.id}`}
+                type="date"
+                {...register('data_fim_prevista', {
+                  required: 'Informe a data de término prevista',
+                  validate: (value) =>
+                    !inicioPrevisto || value >= inicioPrevisto
+                      ? true
+                      : 'O término não pode ser anterior ao início',
+                })}
+              />
+              {errors.data_fim_prevista && (
+                <p className="text-sm text-destructive">
+                  {errors.data_fim_prevista.message}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -160,47 +211,6 @@ export const FormEditarProjetoProducao = ({ projeto, onSuccess }: Props) => {
                 placeholder="PR"
                 {...register('uf', { maxLength: 2 })}
               />
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor={`inicio-projeto-${projeto.id}`}>
-                Data de início prevista *
-              </Label>
-              <Input
-                id={`inicio-projeto-${projeto.id}`}
-                type="date"
-                {...register('data_inicio_prevista', {
-                  required: 'Informe a data de início prevista',
-                })}
-              />
-              {errors.data_inicio_prevista && (
-                <span className="text-sm text-destructive">
-                  {errors.data_inicio_prevista.message}
-                </span>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={`fim-projeto-${projeto.id}`}>
-                Data de término prevista *
-              </Label>
-              <Input
-                id={`fim-projeto-${projeto.id}`}
-                type="date"
-                {...register('data_fim_prevista', {
-                  required: 'Informe a data de término prevista',
-                  validate: (value) =>
-                    !inicioPrevisto ||
-                    value >= inicioPrevisto ||
-                    'O término não pode ser anterior ao início',
-                })}
-              />
-              {errors.data_fim_prevista && (
-                <span className="text-sm text-destructive">
-                  {errors.data_fim_prevista.message}
-                </span>
-              )}
             </div>
           </div>
 
