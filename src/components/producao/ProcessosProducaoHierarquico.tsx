@@ -592,6 +592,10 @@ export const ProcessosProducaoHierarquico = ({ tarefas }: Props) => {
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {etapas.map((processo) => {
                 const opsEtapa = ordensPorProcesso[processo.id] ?? [];
+                const opsValidas = opsEtapa.filter((ordem) => ordem.status !== 'cancelada');
+                const opsConcluidas = opsValidas.filter(
+                  (ordem) => ordem.status === 'concluida',
+                ).length;
                 const percentualEtapa = progressoEtapa(processo, opsEtapa);
                 return (
                   <button
@@ -607,9 +611,12 @@ export const ProcessosProducaoHierarquico = ({ tarefas }: Props) => {
                       </div>
                       <ChevronRight className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
                       <span>{statusEtapaLabel[processo.status] ?? processo.status}</span>
-                      <span>{opsEtapa.length} OP(s)</span>
+                      <span>{opsValidas.length} OP(s)</span>
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {opsConcluidas} de {opsValidas.length} OP(s) concluída(s)
                     </div>
                     <div className="mt-3 space-y-1">
                       <div className="flex justify-between text-xs">
@@ -629,14 +636,11 @@ export const ProcessosProducaoHierarquico = ({ tarefas }: Props) => {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <h3 className="text-lg font-medium">Etapas de Produção</h3>
-          <p className="text-sm text-muted-foreground">
-            Selecione primeiro o projeto. Dentro dele você verá as etapas e, depois, as OPs.
-          </p>
-        </div>
-        <FormProcessoProducao onSuccess={() => void recarregar()} />
+      <div>
+        <h3 className="text-lg font-medium">Etapas de Produção</h3>
+        <p className="text-sm text-muted-foreground">
+          Selecione primeiro o projeto. Dentro dele você verá as etapas e, depois, as OPs.
+        </p>
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row">
