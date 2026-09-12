@@ -392,11 +392,18 @@ export const CronogramaProducao = () => {
                         {hojeNaFaixa && <div className="absolute inset-y-0 bg-emerald-500/10" style={{ left: hojeOffset, width: pixelsPorDia }} />}
                         {intervalo && intersecta && (
                           <div
-                            className={cn('absolute flex items-center justify-center overflow-hidden rounded text-xs font-bold text-white shadow-sm', classe, linha.tipo === 'etapa' ? 'top-3 h-9' : 'top-3 h-8')}
+                            className={cn('absolute flex items-center overflow-hidden rounded text-xs font-bold text-white shadow-sm', classe, linha.tipo === 'etapa' ? 'top-3 h-9' : 'top-3 h-8')}
                             style={{ left: esquerda, width: larguraBarra }}
                             title={`${titulo} · ${intervalo.origem === 'real' ? 'período realizado' : 'período previsto'} · ${format(intervalo.inicio, 'dd/MM/yyyy')} a ${format(intervalo.fim, 'dd/MM/yyyy')} · ${percentual}% realizado`}
                           >
-                            <span className="relative z-10 w-full px-1 text-center">{percentual}%</span>
+                            {linha.tipo === 'op' ? (
+                              <div className="relative z-10 flex w-full min-w-0 items-center justify-between gap-1 px-1.5">
+                                <span className="min-w-0 truncate text-[11px]">{formatarNumeroOrdemProducao(linha.ordem.numero)}</span>
+                                <span className="shrink-0 text-xs font-extrabold">{percentual}%</span>
+                              </div>
+                            ) : (
+                              <span className="relative z-10 w-full px-1 text-center text-xs font-extrabold">{percentual}%</span>
+                            )}
                             <span className="absolute inset-y-0 left-0 bg-black/25" style={{ width: `${Math.min(100, percentual)}%` }} />
                           </div>
                         )}
