@@ -15,6 +15,8 @@ import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { useDiagnosticoProducao } from '@/hooks/useDiagnosticoProducao';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useProducao } from '@/hooks/useProducao';
+import { criarApontamentoComHorarios } from '@/services/producao/criarApontamentoComHorarios';
+import type { NovoApontamentoProducao } from '@/types/producao';
 import { ConfiguracoesProducao } from './ConfiguracoesProducao';
 import { CronogramaProducao } from './CronogramaProducao';
 import { FormApontamentoProducaoV2 } from './FormApontamentoProducaoV2';
@@ -61,6 +63,16 @@ export const Producao = () => {
       listarApontamentos(),
     ]);
   }, [listarApontamentos, listarMembrosProducao, listarTarefas]);
+
+  const criarApontamentoComExcecoes = useCallback(
+    async (dados: NovoApontamentoProducao) => {
+      if (dados.horarios_membros?.length) {
+        return criarApontamentoComHorarios(dados);
+      }
+      return criarApontamento(dados);
+    },
+    [criarApontamento],
+  );
 
   const trocarAba = useCallback(
     (novaAba: string) => {
@@ -131,7 +143,7 @@ export const Producao = () => {
             locais={locaisUtilizacao}
             membros={membrosProducao}
             podeApontar={podeApontar}
-            criarApontamento={criarApontamento}
+            criarApontamento={criarApontamentoComExcecoes}
             onSuccess={carregarDados}
           />
         </TabsContent>
