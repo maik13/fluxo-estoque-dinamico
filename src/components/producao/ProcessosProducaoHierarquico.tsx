@@ -126,7 +126,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas }: Props) => {
   const [carregandoResumoExclusao, setCarregandoResumoExclusao] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [executandoId, setExecutandoId] = useState<string | null>(null);
-  const [projetosComImagem, setProjetosComImagem] = useState<Set<string>>(new Set());
+  const [opsComImagem, setOpsComImagem] = useState<Set<string>>(new Set());
 
   const { isAdmin, canConfigurarProducao } = usePermissions();
   const { projetos, loading: loadingProjetos, listarProjetos } = useProjetosProducao();
@@ -150,40 +150,40 @@ export const ProcessosProducaoHierarquico = ({ tarefas }: Props) => {
   }, []);
 
   useEffect(() => {
-    const carregarProjetosComImagem = async () => {
+    const carregarOpsComImagem = async () => {
       const { data: anexos, error: anexosError } = await supabase
         .from('producao_apontamento_anexos')
         .select('apontamento_id');
 
       if (anexosError || !anexos?.length) {
-        setProjetosComImagem(new Set());
+        setOpsComImagem(new Set());
         return;
       }
 
       const apontamentoIds = [...new Set(anexos.map((anexo) => anexo.apontamento_id).filter(Boolean))];
       if (apontamentoIds.length === 0) {
-        setProjetosComImagem(new Set());
+        setOpsComImagem(new Set());
         return;
       }
 
       const { data: apontamentos, error: apontamentosError } = await supabase
         .from('producao_apontamentos')
-        .select('id,projeto_local_id')
+        .select('id,ordem_producao_id')
         .in('id', apontamentoIds)
-        .not('projeto_local_id', 'is', null);
+        .not('ordem_producao_id', 'is', null);
 
       if (apontamentosError) return;
 
-      setProjetosComImagem(
+      setOpsComImagem(
         new Set(
           (apontamentos ?? [])
-            .map((apontamento) => apontamento.projeto_local_id)
+            .map((apontamento) => apontamento.ordem_producao_id)
             .filter((id): id is string => Boolean(id)),
         ),
       );
     };
 
-    void carregarProjetosComImagem().catch(() => undefined);
+    void carregarOpsComImagem().catch(() => undefined);
   }, []);
 
   const ordensPorProcesso = useMemo(
@@ -723,7 +723,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas }: Props) => {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {projetosFiltrados.map((resumo) => {
             const { projeto, etapas, ops, percentual, status, dataInicioReal, dataFimReal } = resumo;
-            const possuiImagem = projetosComImagem.has(projeto.local_utilizacao_id);
+            const possuiImagem = ops.some((ordem) => opsComImagem.has(ordem.id));
 
             return (
               <div
@@ -752,13 +752,13 @@ export const ProcessosProducaoHierarquico = ({ tarefas }: Props) => {
                           <TooltipTrigger asChild>
                             <span
                               className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary"
-                              aria-label="Este projeto possui imagens vinculadas"
+                              aria-label="Este projeto possui OP com imagem vinculada"
                             >
                               <Camera className="h-3.5 w-3.5" />
                             </span>
                           </TooltipTrigger>
                           <TooltipContent side="top">
-                            Este projeto possui imagens vinculadas.
+                            Este projeto possui OP com imagem vinculada.
                           </TooltipContent>
                         </Tooltip>
                       )}
