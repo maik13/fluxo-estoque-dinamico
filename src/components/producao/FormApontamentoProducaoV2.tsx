@@ -8,10 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
-import { useOrdensProducao, formatarNumeroOrdemProducao, formatarIdentificacaoOrdemProducao } from '@/hooks/useOrdensProducao';
+import { useOrdensProducao, formatarIdentificacaoOrdemProducao } from '@/hooks/useOrdensProducao';
 import { calcularDuracaoProducao } from '@/hooks/useProducao';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
 import type {
+  HorarioMembroApontamento,
   NovoApontamentoProducao,
   ProducaoApontamento,
   ProducaoLocalTipo,
@@ -27,6 +28,8 @@ interface Props {
   criarApontamento: (dados: NovoApontamentoProducao) => Promise<ProducaoApontamento>;
   onSuccess?: () => Promise<unknown> | unknown;
 }
+
+type HorarioPersonalizado = { inicio: string; termino: string };
 
 const hoje = () => new Date().toISOString().slice(0, 10);
 const horaAtual = () => new Date().toTimeString().slice(0, 5);
@@ -55,6 +58,8 @@ export const FormApontamentoProducaoV2 = ({
   const [observacoes, setObservacoes] = useState('');
   const [membrosIds, setMembrosIds] = useState<string[]>([]);
   const [buscaMembro, setBuscaMembro] = useState('');
+  const [horariosMembros, setHorariosMembros] = useState<Record<string, HorarioPersonalizado>>({});
+  const [membroHorarioAberto, setMembroHorarioAberto] = useState<string | null>(null);
   const [fotos, setFotos] = useState<File[]>([]);
   const [salvando, setSalvando] = useState(false);
   const inputFotosRef = useRef<HTMLInputElement>(null);
@@ -111,8 +116,39 @@ export const FormApontamentoProducaoV2 = ({
     setObservacoes('');
     setMembrosIds([]);
     setBuscaMembro('');
+    setHorariosMembros({});
+    setMembroHorarioAberto(null);
     setFotos([]);
     if (inputFotosRef.current) inputFotosRef.current.value = '';
+  };
+
+  const removerMembro = (id: string) => {
+    setMembrosIds((atuais) => atuais.filter((item) => item !== id));
+    setHorariosMembros((atuais) => {
+      const proximo = { ...atuais };
+      delete proximo[id];
+      return proximo;
+    });
+    setMembroHorarioAberto((atual) => atual === id ? null : atual);
+  };
+
+  const atualizarHorarioMembro = (id: string, campo: keyof HorarioPersonalizado, valor: string) => {
+    setHorariosMembros((atuais) => ({
+      ...atuais,
+      [id]: {
+        inicio: atuais[id]?.inicio ?? inicio,
+        termino: atuais[id]?.termino ?? termino,
+        [campo]: valor,
+      },
+    }));
+  };
+
+  const usarHorarioGeral = (id: string) => {
+    setHorariosMembros((atuais) => {
+      const proximo = { ...atuais };
+      delete proximo[id];
+      return proximo;
+    });
   };
 
   const selecionarFotos = (arquivos: FileList | null) => {
@@ -143,6 +179,29 @@ export const FormApontamentoProducaoV2 = ({
     if (!tarefaId) return void toast.error('Selecione a atividade executada.');
     if (!duracao) return void toast.error('Informe horários válidos de início e término.');
     if (membrosIds.length === 0) return void toast.error('Selecione pelo menos um membro da equipe.');
+
+    const horariosPersonalizados: HorarioMembroApontamento[] = [];
+    for (const membroId of membrosIds) {
+      const ajuste = horariosMembros[membroId];
+      if (!ajuste) continue;
+      if (!ajuste.inicio || !ajuste.termino) {
+        const membro = membros.find((item) => item.id === membroId);
+        return void toast.error(`Informe início e término para ${membro?.nome ?? 'o integrante da equipe'}.`);
+      }
+      try {
+        calcularDuracaoProducao(ajuste.inicio, ajuste.termino);
+      } catch {
+        const membro = membros.find((item) => item.id === membroId);
+        return void toast.error(`O horário individual de ${membro?.nome ?? 'um integrante'} é inválido.`);
+      }
+      if (ajuste.inicio < inicio || ajuste.termino > termino) {
+        const membro = membros.find((item) => item.id === membroId);
+        return void toast.error(`O horário de ${membro?.nome ?? 'um integrante'} deve estar dentro do período geral do apontamento.`);
+      }
+      if (ajuste.inicio !== inicio || ajuste.termino !== termino) {
+        horariosPersonalizados.push({ membro_id: membroId, inicio: ajuste.inicio, termino: ajuste.termino });
+      }
+    }
 
     const improdutivos = Number(minutosImprodutivos || 0);
     if (!Number.isInteger(improdutivos) || improdutivos < 0 || improdutivos > duracao) {
@@ -177,6 +236,7 @@ export const FormApontamentoProducaoV2 = ({
         motivo_improdutivo: improdutivos > 0 ? motivoImprodutivo.trim() : null,
         observacoes: observacoes.trim() || null,
         membros_ids: membrosIds,
+        horarios_membros: horariosPersonalizados,
       });
 
       let falhas = 0;
@@ -282,11 +342,62 @@ export const FormApontamentoProducaoV2 = ({
         <div className="space-y-2"><Label>Motivo improdutivo</Label><Input value={motivoImprodutivo} onChange={(event) => setMotivoImprodutivo(event.target.value)} disabled={Number(minutosImprodutivos || 0) === 0} /></div>
       </div>
 
-      <div className="space-y-2">
-        <Label>Equipe *</Label>
+      <div className="space-y-3">
+        <div>
+          <Label>Equipe *</Label>
+          <p className="mt-1 text-xs text-muted-foreground">Todos herdam o horário geral. Ajuste somente quem entrou depois ou saiu antes.</p>
+        </div>
         <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={buscaMembro} onChange={(event) => setBuscaMembro(event.target.value)} placeholder="Buscar membro" /></div>
         {buscaMembro.trim() && <div className="max-h-40 overflow-y-auto rounded-md border p-1">{membrosFiltrados.map((membro) => <button key={membro.id} type="button" className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-accent" onClick={() => { setMembrosIds((atuais) => [...new Set([...atuais, membro.id])]); setBuscaMembro(''); }}>{membro.nome}{membro.funcao ? ` · ${membro.funcao}` : ''}</button>)}</div>}
-        <div className="flex flex-wrap gap-2">{membrosIds.map((id) => { const membro = membros.find((item) => item.id === id); return <Button key={id} type="button" size="sm" variant="secondary" onClick={() => setMembrosIds((atuais) => atuais.filter((item) => item !== id))}>{membro?.nome ?? id} ×</Button>; })}</div>
+
+        {membrosIds.length > 0 && (
+          <div className="space-y-2">
+            {membrosIds.map((id) => {
+              const membro = membros.find((item) => item.id === id);
+              const ajuste = horariosMembros[id];
+              const inicioEfetivo = ajuste?.inicio || inicio || '--:--';
+              const terminoEfetivo = ajuste?.termino || termino || '--:--';
+              const personalizado = Boolean(ajuste && (ajuste.inicio !== inicio || ajuste.termino !== termino));
+              const aberto = membroHorarioAberto === id;
+
+              return (
+                <div key={id} className="rounded-lg border bg-muted/10 p-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{membro?.nome ?? id}</span>
+                        {personalizado && <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">Horário personalizado</span>}
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {inicioEfetivo} → {terminoEfetivo}{personalizado ? '' : ' · horário geral'}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Button type="button" size="sm" variant="outline" onClick={() => setMembroHorarioAberto((atual) => atual === id ? null : id)}>
+                        <Clock className="mr-2 h-4 w-4" /> Ajustar horário
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => removerMembro(id)}>Remover</Button>
+                    </div>
+                  </div>
+
+                  {aberto && (
+                    <div className="mt-3 grid gap-3 border-t pt-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Início individual</Label>
+                        <Input type="time" value={ajuste?.inicio ?? inicio} onChange={(event) => atualizarHorarioMembro(id, 'inicio', event.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Término individual</Label>
+                        <Input type="time" value={ajuste?.termino ?? termino} onChange={(event) => atualizarHorarioMembro(id, 'termino', event.target.value)} />
+                      </div>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => usarHorarioGeral(id)} disabled={!ajuste}>Usar horário geral</Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="space-y-3 rounded-lg border p-4">
