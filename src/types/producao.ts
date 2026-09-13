@@ -68,7 +68,13 @@ export interface ProducaoApontamento {
 export interface ProducaoApontamentoMembro {
   id: string; apontamento_id: string; membro_id: string; nome_snapshot: string; valor_hora_snapshot: number | null;
   jornada_diaria_minutos_snapshot: number | null; minutos_produtivos_snapshot: number | null; minutos_improdutivos_snapshot: number | null;
+  inicio_individual: string | null; termino_individual: string | null; duracao_minutos_snapshot: number | null;
   created_at: string;
+}
+export interface HorarioMembroApontamento {
+  membro_id: string;
+  inicio: string;
+  termino: string;
 }
 export interface ProducaoMembro {
   id: string; nome: string; nome_snapshot: string; solicitante_id: string | null; origem: ProducaoMembroOrigem;
@@ -86,7 +92,7 @@ export interface NovoApontamentoProducao {
   data: string; ordem_producao_id?: string | null; projeto_local_id: string | null; processo_id?: string | null; tarefa_id: string;
   local_tipo: ProducaoLocalTipo; quantidade_produzida?: number | null; inicio: string; termino: string;
   minutos_produtivos?: number | null; minutos_improdutivos?: number | null; motivo_improdutivo?: string | null;
-  observacoes?: string | null; membros_ids: string[];
+  observacoes?: string | null; membros_ids: string[]; horarios_membros?: HorarioMembroApontamento[];
 }
 export interface FiltrosProducao { data_inicio?: string; data_fim?: string; projeto_local_id?: string; processo_id?: string; ordem_producao_id?: string; tarefa_id?: string; status?: ProducaoStatus; local_tipo?: ProducaoLocalTipo; }
 export interface FiltrosProducaoGerencial extends FiltrosProducao { membro_id?: string; }
