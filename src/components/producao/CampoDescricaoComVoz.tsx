@@ -143,6 +143,7 @@ export const CampoDescricaoComVoz = ({
         placeholder={placeholder}
         rows={rows}
         disabled={disabled || ouvindo}
+        ditadoPorVoz={false}
       />
       <div className="flex flex-wrap items-center gap-2">
         <Button
