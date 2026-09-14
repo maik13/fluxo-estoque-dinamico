@@ -36,6 +36,18 @@ const itemToDbPayload = (item: any) => ({
   ativo: item.ativo !== false,
 });
 
+const rpcOfflineInventarioIndisponivel = (mensagem?: string) => {
+  const texto = (mensagem ?? '').toLocaleLowerCase('pt-BR');
+  return (
+    texto.includes('apply_offline_inventory_operation') &&
+    (
+      texto.includes('schema cache') ||
+      texto.includes('could not find the function') ||
+      texto.includes('pgrst202')
+    )
+  );
+};
+
 export const EstoqueProvider = ({ children }: { children: React.ReactNode }) => {
   const estoque = useEstoque();
   const { obterEstoqueAtivoInfo, isEstoqueAtivoPrincipal } = useConfiguracoes();
@@ -116,6 +128,12 @@ export const EstoqueProvider = ({ children }: { children: React.ReactNode }) => 
     });
 
     if (!result.ok) {
+      // O banco de produção atual ainda pode não ter a RPC da camada offline.
+      // Nesse caso, preservamos a edição online já existente em useEstoque em vez de bloquear o usuário.
+      if (rpcOfflineInventarioIndisponivel(result.message)) {
+        return estoque.editarItem(itemEditado);
+      }
+
       toast({
         title: result.status === 'conflict' ? 'Conflito de edição' : 'Erro ao editar',
         description: result.message || 'Não foi possível salvar a alteração.',
