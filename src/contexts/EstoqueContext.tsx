@@ -128,8 +128,6 @@ export const EstoqueProvider = ({ children }: { children: React.ReactNode }) => 
     });
 
     if (!result.ok) {
-      // O banco de produção atual ainda pode não ter a RPC da camada offline.
-      // Nesse caso, preservamos a edição online já existente em useEstoque em vez de bloquear o usuário.
       if (rpcOfflineInventarioIndisponivel(result.message)) {
         return estoque.editarItem(itemEditado);
       }
@@ -177,6 +175,10 @@ export const EstoqueProvider = ({ children }: { children: React.ReactNode }) => 
     });
 
     if (!result.ok) {
+      if (rpcOfflineInventarioIndisponivel(result.message)) {
+        return estoque.cadastrarItem(dadosItem);
+      }
+
       toast({ title: 'Erro ao cadastrar', description: result.message || 'Não foi possível cadastrar o item.', variant: 'destructive' });
       return false;
     }
@@ -228,6 +230,16 @@ export const EstoqueProvider = ({ children }: { children: React.ReactNode }) => 
     });
 
     if (!result.ok) {
+      if (rpcOfflineInventarioIndisponivel(result.message)) {
+        return estoque.registrarEntrada(
+          codigoBarras,
+          quantidade,
+          responsavel,
+          observacoes,
+          tipoOperacaoId,
+        );
+      }
+
       toast({ title: result.status === 'conflict' ? 'Entrada requer revisão' : 'Erro na entrada', description: result.message || 'Não foi possível registrar a entrada.', variant: 'destructive' });
       return false;
     }
@@ -286,6 +298,17 @@ export const EstoqueProvider = ({ children }: { children: React.ReactNode }) => 
     });
 
     if (!result.ok) {
+      if (rpcOfflineInventarioIndisponivel(result.message)) {
+        return estoque.registrarSaida(
+          codigoBarras,
+          quantidade,
+          responsavel,
+          observacoes,
+          tipoOperacaoId,
+          destinatario,
+        );
+      }
+
       toast({ title: result.status === 'conflict' ? 'Saída requer revisão' : 'Erro na saída', description: result.message || 'Não foi possível registrar a saída.', variant: 'destructive' });
       return false;
     }
