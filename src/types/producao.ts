@@ -166,7 +166,6 @@ export interface IndicadoresProducaoGerencial {
   custo_total_mao_obra: number | null;
   custo_produtivo_mao_obra: number | null;
   custo_improdutivo_mao_obra: number | null;
-  custo_incompleto: boolean;
   apontamentos_custo_incompleto: number;
   membros_sem_valor_hora: string[];
   quantidade_total_produzida: number;
