@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  AlertTriangle,
   CheckCircle2,
   Eye,
   Filter,
@@ -86,6 +87,8 @@ interface Props {
 
 const TODOS = '__todos__';
 const AVULSOS = '__avulsos__';
+const RETROATIVOS = '__retroativos__';
+const SEM_OCORRENCIA = '__sem_ocorrencia__';
 
 const statusLabel: Record<ProducaoStatus, string> = {
   lancado: 'Pendente',
@@ -117,6 +120,7 @@ export const HistoricoApontamentosProducaoV2 = ({
   const [projetoId, setProjetoId] = useState(TODOS);
   const [processoId, setProcessoId] = useState(TODOS);
   const [ordemId, setOrdemId] = useState(TODOS);
+  const [ocorrencia, setOcorrencia] = useState(TODOS);
   const [detalhes, setDetalhes] = useState<ProducaoApontamento | null>(null);
   const [galeria, setGaleria] = useState<ProducaoApontamento | null>(null);
   const [apontamentoParaExcluir, setApontamentoParaExcluir] =
@@ -277,13 +281,18 @@ export const HistoricoApontamentosProducaoV2 = ({
           (ordemId === AVULSOS
             ? !apontamento.ordem_producao_id
             : apontamento.ordem_producao_id === ordemId);
+        const correspondeOcorrencia =
+          ocorrencia === TODOS ||
+          (ocorrencia === RETROATIVOS && apontamento.fechamento_retroativo) ||
+          (ocorrencia === SEM_OCORRENCIA && !apontamento.fechamento_retroativo);
         return (
           (!dataInicio || apontamento.data >= dataInicio) &&
           (!dataFim || apontamento.data <= dataFim) &&
           (status === TODOS || apontamento.status === status) &&
           correspondeProjeto &&
           (processoId === TODOS || apontamento.processo_id === processoId) &&
-          correspondeOrdem
+          correspondeOrdem &&
+          correspondeOcorrencia
         );
       }),
     [
@@ -291,6 +300,7 @@ export const HistoricoApontamentosProducaoV2 = ({
       dataFim,
       dataInicio,
       idsProjetosDoLocal,
+      ocorrencia,
       ordemId,
       ordensPorId,
       processoId,
@@ -305,6 +315,7 @@ export const HistoricoApontamentosProducaoV2 = ({
     let confirmada = 0;
     let pendente = 0;
     let cancelada = 0;
+    let retroativos = 0;
 
     filtrados.forEach((apontamento) => {
       if (apontamento.ordem_producao_id) {
@@ -314,6 +325,7 @@ export const HistoricoApontamentosProducaoV2 = ({
       if (apontamento.status === 'conferido') confirmada += quantidade;
       if (apontamento.status === 'lancado') pendente += quantidade;
       if (apontamento.status === 'cancelado') cancelada += quantidade;
+      if (apontamento.fechamento_retroativo) retroativos += 1;
     });
 
     return {
@@ -322,6 +334,7 @@ export const HistoricoApontamentosProducaoV2 = ({
       confirmada,
       pendente,
       cancelada,
+      retroativos,
     };
   }, [filtrados]);
 
@@ -495,7 +508,7 @@ export const HistoricoApontamentosProducaoV2 = ({
             <Filter className="h-4 w-4" />
             Filtros
           </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
             <div className="space-y-1.5">
               <Label>Data inicial</Label>
               <Input
@@ -594,45 +607,44 @@ export const HistoricoApontamentosProducaoV2 = ({
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1.5">
+              <Label>Ocorrência</Label>
+              <Select value={ocorrencia} onValueChange={setOcorrencia}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={TODOS}>Todas</SelectItem>
+                  <SelectItem value={RETROATIVOS}>Fechamento retroativo</SelectItem>
+                  <SelectItem value={SEM_OCORRENCIA}>Sem ocorrência</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <div className="rounded-lg border p-3">
             <p className="text-xs text-muted-foreground">OPs distintas</p>
             <p className="text-xl font-semibold">{resumoFiltrado.ordens}</p>
           </div>
           <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">
-              Apontamentos filtrados
-            </p>
-            <p className="text-xl font-semibold">
-              {resumoFiltrado.apontamentos}
-            </p>
+            <p className="text-xs text-muted-foreground">Apontamentos filtrados</p>
+            <p className="text-xl font-semibold">{resumoFiltrado.apontamentos}</p>
           </div>
           <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">
-              Produção confirmada
-            </p>
-            <p className="text-xl font-semibold text-emerald-500">
-              {formatarQuantidade(resumoFiltrado.confirmada)}
-            </p>
+            <p className="text-xs text-muted-foreground">Produção confirmada</p>
+            <p className="text-xl font-semibold text-emerald-500">{formatarQuantidade(resumoFiltrado.confirmada)}</p>
           </div>
           <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">
-              Quantidade pendente
-            </p>
-            <p className="text-xl font-semibold text-amber-500">
-              {formatarQuantidade(resumoFiltrado.pendente)}
-            </p>
+            <p className="text-xs text-muted-foreground">Quantidade pendente</p>
+            <p className="text-xl font-semibold text-amber-500">{formatarQuantidade(resumoFiltrado.pendente)}</p>
           </div>
           <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">
-              Quantidade cancelada
-            </p>
-            <p className="text-xl font-semibold text-red-500">
-              {formatarQuantidade(resumoFiltrado.cancelada)}
-            </p>
+            <p className="text-xs text-muted-foreground">Quantidade cancelada</p>
+            <p className="text-xl font-semibold text-red-500">{formatarQuantidade(resumoFiltrado.cancelada)}</p>
+          </div>
+          <div className={`rounded-lg border p-3 ${resumoFiltrado.retroativos > 0 ? 'border-amber-500/40 bg-amber-500/5' : ''}`}>
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><AlertTriangle className="h-3.5 w-3.5" />Fechamentos retroativos</p>
+            <p className="text-xl font-semibold text-amber-600 dark:text-amber-400">{resumoFiltrado.retroativos}</p>
           </div>
         </div>
 
@@ -672,189 +684,98 @@ export const HistoricoApontamentosProducaoV2 = ({
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-28 text-center">
-                    Carregando...
-                  </TableCell>
+                  <TableCell colSpan={9} className="h-28 text-center">Carregando...</TableCell>
                 </TableRow>
               ) : filtrados.length === 0 ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={9}
-                    className="h-28 text-center text-muted-foreground"
-                  >
-                    Nenhum apontamento encontrado.
-                  </TableCell>
+                  <TableCell colSpan={9} className="h-28 text-center text-muted-foreground">Nenhum apontamento encontrado.</TableCell>
                 </TableRow>
               ) : (
                 filtrados.map((apontamento) => {
-                  const processo = apontamento.processo_id
-                    ? processosPorId[apontamento.processo_id]
-                    : null;
-                  const ordem = apontamento.ordem_producao_id
-                    ? ordensPorId[apontamento.ordem_producao_id]
-                    : null;
-                  const localId =
-                    apontamento.projeto_local_id ??
-                    processo?.projeto?.local_utilizacao_id ??
-                    null;
-                  const projetoAvulso = localId
-                    ? projetosPorLocal[localId]
-                    : null;
+                  const processo = apontamento.processo_id ? processosPorId[apontamento.processo_id] : null;
+                  const ordem = apontamento.ordem_producao_id ? ordensPorId[apontamento.ordem_producao_id] : null;
+                  const localId = apontamento.projeto_local_id ?? processo?.projeto?.local_utilizacao_id ?? null;
+                  const projetoAvulso = localId ? projetosPorLocal[localId] : null;
                   const equipe = membrosPorApontamento[apontamento.id] ?? [];
                   const anexos = anexosPorApontamento[apontamento.id] ?? [];
-                  const quantidade =
-                    apontamento.quantidade_produzida == null
-                      ? null
-                      : Number(apontamento.quantidade_produzida);
-                  const explicacaoQuantidade =
-                    apontamento.status === 'conferido'
-                      ? 'Contabilizada na produção'
-                      : apontamento.status === 'cancelado'
-                        ? 'Não contabilizada'
-                        : 'Aguardando conferência';
+                  const quantidade = apontamento.quantidade_produzida == null ? null : Number(apontamento.quantidade_produzida);
+                  const explicacaoQuantidade = apontamento.status === 'conferido'
+                    ? 'Contabilizada na produção'
+                    : apontamento.status === 'cancelado'
+                      ? 'Não contabilizada'
+                      : 'Aguardando conferência';
 
                   return (
-                    <TableRow key={apontamento.id}>
+                    <TableRow
+                      key={apontamento.id}
+                      className={apontamento.fechamento_retroativo ? 'bg-amber-500/5 hover:bg-amber-500/10' : undefined}
+                    >
                       <TableCell>
                         {ordem ? (
                           <>
-                            <span className="font-medium">
-                              {formatarIdentificacaoOrdemProducao(ordem)}
-                            </span>
-                            <div className="text-xs text-muted-foreground">
-                              {ordem.percentual_realizado}% da OP
-                            </div>
+                            <span className="font-medium">{formatarIdentificacaoOrdemProducao(ordem)}</span>
+                            <div className="text-xs text-muted-foreground">{ordem.percentual_realizado}% da OP</div>
+                            {apontamento.fechamento_retroativo && (
+                              <Badge variant="outline" className="mt-1.5 border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                                <AlertTriangle className="mr-1 h-3 w-3" /> Fechamento retroativo
+                              </Badge>
+                            )}
                           </>
                         ) : (
                           <Badge variant="outline">Avulso</Badge>
                         )}
                       </TableCell>
                       <TableCell>
-                        {new Date(
-                          `${apontamento.data}T12:00:00`,
-                        ).toLocaleDateString('pt-BR')}
+                        {new Date(`${apontamento.data}T12:00:00`).toLocaleDateString('pt-BR')}
                         <div className="text-xs text-muted-foreground">
-                          {apontamento.inicio.slice(0, 5)}–
-                          {apontamento.termino.slice(0, 5)}
+                          {apontamento.inicio.slice(0, 5)}–{apontamento.termino.slice(0, 5)}
                         </div>
                       </TableCell>
                       <TableCell>
-                        {ordem?.projeto_nome ??
-                          projetoAvulso?.nome ??
-                          (localId ? locaisPorId[localId] : '—')}
+                        {ordem?.projeto_nome ?? projetoAvulso?.nome ?? (localId ? locaisPorId[localId] : '—')}
                         <div className="text-xs text-muted-foreground">
-                          {ordem
-                            ? `${ordem.processo_codigo} · ${ordem.processo_nome}`
-                            : 'Atividade não planejada'}
+                          {ordem ? `${ordem.processo_codigo} · ${ordem.processo_nome}` : 'Atividade não planejada'}
                         </div>
                       </TableCell>
+                      <TableCell>{tarefasPorId[apontamento.tarefa_id] ?? '—'}</TableCell>
+                      <TableCell>{equipe.map((membro) => membro.nome_snapshot).join(', ') || '—'}</TableCell>
                       <TableCell>
-                        {tarefasPorId[apontamento.tarefa_id] ?? '—'}
-                      </TableCell>
-                      <TableCell>
-                        {equipe
-                          .map((membro) => membro.nome_snapshot)
-                          .join(', ') || '—'}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={
-                            apontamento.status === 'cancelado'
-                              ? 'text-muted-foreground line-through'
-                              : apontamento.status === 'conferido'
-                                ? 'font-semibold text-emerald-500'
-                                : 'font-medium text-amber-500'
-                          }
-                        >
-                          {quantidade == null
-                            ? '—'
-                            : formatarQuantidade(quantidade)}
+                        <span className={apontamento.status === 'cancelado' ? 'text-muted-foreground line-through' : apontamento.status === 'conferido' ? 'font-semibold text-emerald-500' : 'font-medium text-amber-500'}>
+                          {quantidade == null ? '—' : formatarQuantidade(quantidade)}
                         </span>
-                        <div className="text-xs text-muted-foreground">
-                          {explicacaoQuantidade}
-                        </div>
+                        <div className="text-xs text-muted-foreground">{explicacaoQuantidade}</div>
                       </TableCell>
                       <TableCell>
                         {anexos.length > 0 ? (
-                          <Button
-                            type="button"
-                            variant="link"
-                            className="h-auto p-0"
-                            onClick={() => setGaleria(apontamento)}
-                          >
-                            <ImageIcon className="mr-1 h-4 w-4" />
-                            {anexos.length}
+                          <Button type="button" variant="link" className="h-auto p-0" onClick={() => setGaleria(apontamento)}>
+                            <ImageIcon className="mr-1 h-4 w-4" />{anexos.length}
                           </Button>
-                        ) : (
-                          '—'
-                        )}
+                        ) : '—'}
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {statusLabel[apontamento.status]}
-                        </Badge>
-                      </TableCell>
+                      <TableCell><Badge variant="outline">{statusLabel[apontamento.status]}</Badge></TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
                           {ordem && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              title={`Imprimir ${formatarIdentificacaoOrdemProducao(ordem)}`}
-                              disabled={imprimindoId === ordem.id}
-                              onClick={() => void imprimir(ordem.id)}
-                            >
-                              {imprimindoId === ordem.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Printer className="h-4 w-4" />
-                              )}
+                            <Button size="icon" variant="ghost" title={`Imprimir ${formatarIdentificacaoOrdemProducao(ordem)}`} disabled={imprimindoId === ordem.id} onClick={() => void imprimir(ordem.id)}>
+                              {imprimindoId === ordem.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                             </Button>
                           )}
-                          {podeConferir &&
-                            apontamento.status === 'lancado' && (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                title="Conferir"
-                                onClick={() => void conferir(apontamento)}
-                              >
-                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                              </Button>
-                            )}
+                          {podeConferir && apontamento.status === 'lancado' && (
+                            <Button size="icon" variant="ghost" title="Conferir" onClick={() => void conferir(apontamento)}>
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            </Button>
+                          )}
                           {apontamento.status === 'lancado' && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              title="Cancelar"
-                              onClick={() => void cancelar(apontamento)}
-                            >
+                            <Button size="icon" variant="ghost" title="Cancelar" onClick={() => void cancelar(apontamento)}>
                               <XCircle className="h-4 w-4 text-red-500" />
                             </Button>
                           )}
                           {podeExcluir && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              title="Excluir apontamento"
-                              disabled={excluindoId === apontamento.id}
-                              onClick={() =>
-                                setApontamentoParaExcluir(apontamento)
-                              }
-                            >
-                              {excluindoId === apontamento.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4 text-red-600" />
-                              )}
+                            <Button size="icon" variant="ghost" title="Excluir apontamento" disabled={excluindoId === apontamento.id} onClick={() => setApontamentoParaExcluir(apontamento)}>
+                              {excluindoId === apontamento.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 text-red-600" />}
                             </Button>
                           )}
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            title="Detalhes"
-                            onClick={() => setDetalhes(apontamento)}
-                          >
+                          <Button size="icon" variant="ghost" title="Detalhes" onClick={() => setDetalhes(apontamento)}>
                             <Eye className="h-4 w-4" />
                           </Button>
                         </div>
@@ -886,57 +807,23 @@ export const HistoricoApontamentosProducaoV2 = ({
           {apontamentoParaExcluir && (
             <div className="space-y-3">
               <div className="rounded-lg border bg-muted/20 p-4 text-sm">
-                <p>
-                  <strong>Atividade:</strong>{' '}
-                  {tarefasPorId[apontamentoParaExcluir.tarefa_id] ??
-                    'Não identificada'}
-                </p>
-                <p>
-                  <strong>Data:</strong>{' '}
-                  {new Date(
-                    `${apontamentoParaExcluir.data}T12:00:00`,
-                  ).toLocaleDateString('pt-BR')}
-                </p>
-                <p>
-                  <strong>Ordem de Produção:</strong>{' '}
-                  {ordemDaExclusao
-                    ? formatarNumeroOrdemProducao(ordemDaExclusao.numero)
-                    : 'Atividade avulsa'}
-                </p>
+                <p><strong>Atividade:</strong>{' '}{tarefasPorId[apontamentoParaExcluir.tarefa_id] ?? 'Não identificada'}</p>
+                <p><strong>Data:</strong>{' '}{new Date(`${apontamentoParaExcluir.data}T12:00:00`).toLocaleDateString('pt-BR')}</p>
+                <p><strong>Ordem de Produção:</strong>{' '}{ordemDaExclusao ? formatarNumeroOrdemProducao(ordemDaExclusao.numero) : 'Atividade avulsa'}</p>
               </div>
               {ordemDaExclusao && (
                 <p className="text-sm text-muted-foreground">
-                  Se este for o último apontamento da OP, ela será cancelada
-                  automaticamente e o saldo retornará à Etapa para permitir uma
-                  nova emissão.
+                  Se este for o último apontamento da OP, ela será cancelada automaticamente e o saldo retornará à Etapa para permitir uma nova emissão.
                 </p>
               )}
-              <p className="text-sm font-medium text-destructive">
-                Esta exclusão não poderá ser desfeita.
-              </p>
+              <p className="text-sm font-medium text-destructive">Esta exclusão não poderá ser desfeita.</p>
             </div>
           )}
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={Boolean(excluindoId)}
-              onClick={() => setApontamentoParaExcluir(null)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={Boolean(excluindoId)}
-              onClick={() => void excluir()}
-            >
-              {excluindoId ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="mr-2 h-4 w-4" />
-              )}
+            <Button type="button" variant="outline" disabled={Boolean(excluindoId)} onClick={() => setApontamentoParaExcluir(null)}>Cancelar</Button>
+            <Button type="button" variant="destructive" disabled={Boolean(excluindoId)} onClick={() => void excluir()}>
+              {excluindoId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
               Excluir apontamento
             </Button>
           </DialogFooter>
@@ -955,9 +842,7 @@ export const HistoricoApontamentosProducaoV2 = ({
         <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Fotos do apontamento</DialogTitle>
-            <DialogDescription>
-              Evidências fotográficas vinculadas ao registro produtivo.
-            </DialogDescription>
+            <DialogDescription>Evidências fotográficas vinculadas ao registro produtivo.</DialogDescription>
           </DialogHeader>
           {galeria && (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -965,21 +850,13 @@ export const HistoricoApontamentosProducaoV2 = ({
                 <div key={anexo.id} className="rounded-lg border p-3">
                   <div className="mb-2 flex aspect-video items-center justify-center overflow-hidden rounded-md bg-muted/20">
                     {urls[anexo.id] ? (
-                      <img
-                        src={urls[anexo.id]}
-                        alt={anexo.file_name}
-                        className="h-full w-full object-cover"
-                      />
+                      <img src={urls[anexo.id]} alt={anexo.file_name} className="h-full w-full object-cover" />
                     ) : (
                       <ImageIcon className="h-8 w-8 text-muted-foreground" />
                     )}
                   </div>
-                  <p className="truncate text-sm font-medium">
-                    {anexo.file_name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(anexo.created_at).toLocaleString('pt-BR')}
-                  </p>
+                  <p className="truncate text-sm font-medium">{anexo.file_name}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(anexo.created_at).toLocaleString('pt-BR')}</p>
                 </div>
               ))}
             </div>
@@ -987,92 +864,56 @@ export const HistoricoApontamentosProducaoV2 = ({
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={Boolean(detalhes)}
-        onOpenChange={(open) => !open && setDetalhes(null)}
-      >
+      <Dialog open={Boolean(detalhes)} onOpenChange={(open) => !open && setDetalhes(null)}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Rastreabilidade do apontamento</DialogTitle>
-            <DialogDescription>
-              Este registro é uma execução dentro da OP ou uma atividade avulsa.
-            </DialogDescription>
+            <DialogDescription>Este registro é uma execução dentro da OP ou uma atividade avulsa.</DialogDescription>
           </DialogHeader>
           {detalhes && (
             <div className="grid gap-3 sm:grid-cols-2">
+              {detalhes.fechamento_retroativo && (
+                <div className="sm:col-span-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+                  <div className="flex items-center gap-2 font-semibold text-amber-700 dark:text-amber-300">
+                    <AlertTriangle className="h-4 w-4" /> Fechamento retroativo
+                  </div>
+                  <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+                    <p><strong>Término real:</strong>{' '}{detalhes.termino_real_em ? new Date(detalhes.termino_real_em).toLocaleString('pt-BR') : `${detalhes.data} ${detalhes.termino}`}</p>
+                    <p><strong>Regularizado em:</strong>{' '}{detalhes.regularizado_em ? new Date(detalhes.regularizado_em).toLocaleString('pt-BR') : '—'}</p>
+                    <p><strong>Regularizado por:</strong> {detalhes.regularizado_por_nome_snapshot ?? 'Não identificado'}</p>
+                    <p><strong>Motivo:</strong> {detalhes.motivo_regularizacao ?? 'Não informado'}</p>
+                  </div>
+                </div>
+              )}
               <p>
                 <strong>Ordem de Produção:</strong>{' '}
-                {detalhes.ordem_producao_id
-                  ? formatarNumeroOrdemProducao(
-                      ordensPorId[detalhes.ordem_producao_id]?.numero,
-                    )
-                  : 'Atividade avulsa'}
+                {detalhes.ordem_producao_id ? formatarNumeroOrdemProducao(ordensPorId[detalhes.ordem_producao_id]?.numero) : 'Atividade avulsa'}
               </p>
               <p>
-                <strong>Criado por:</strong>{' '}
-                {detalhes.criado_por_nome_snapshot ?? 'Não identificado'}
-                <br />
+                <strong>Criado por:</strong> {detalhes.criado_por_nome_snapshot ?? 'Não identificado'}<br />
+                <span className="text-sm text-muted-foreground">{new Date(detalhes.created_at).toLocaleString('pt-BR')}</span>
+              </p>
+              <p>
+                <strong>Última edição:</strong> {detalhes.ultima_edicao_por_nome_snapshot ?? 'Sem edição'}<br />
+                <span className="text-sm text-muted-foreground">{detalhes.ultima_edicao_em ? new Date(detalhes.ultima_edicao_em).toLocaleString('pt-BR') : '—'}</span>
+              </p>
+              <p>
+                <strong>Conferido por:</strong> {detalhes.conferido_por_nome_snapshot ?? 'Não conferido'}<br />
+                <span className="text-sm text-muted-foreground">{detalhes.conferido_em ? new Date(detalhes.conferido_em).toLocaleString('pt-BR') : '—'}</span>
+              </p>
+              <p>
+                <strong>Cancelado por:</strong> {detalhes.cancelado_por_nome_snapshot ?? 'Não cancelado'}<br />
+                <span className="text-sm text-muted-foreground">{detalhes.cancelado_em ? new Date(detalhes.cancelado_em).toLocaleString('pt-BR') : '—'}</span>
+              </p>
+              <p>
+                <strong>Quantidade registrada:</strong> {detalhes.quantidade_produzida ?? '—'}<br />
                 <span className="text-sm text-muted-foreground">
-                  {new Date(detalhes.created_at).toLocaleString('pt-BR')}
+                  {detalhes.status === 'conferido' ? 'Contabilizada na produção' : detalhes.status === 'cancelado' ? 'Não contabilizada' : 'Aguardando conferência'}
                 </span>
               </p>
-              <p>
-                <strong>Última edição:</strong>{' '}
-                {detalhes.ultima_edicao_por_nome_snapshot ?? 'Sem edição'}
-                <br />
-                <span className="text-sm text-muted-foreground">
-                  {detalhes.ultima_edicao_em
-                    ? new Date(detalhes.ultima_edicao_em).toLocaleString('pt-BR')
-                    : '—'}
-                </span>
-              </p>
-              <p>
-                <strong>Conferido por:</strong>{' '}
-                {detalhes.conferido_por_nome_snapshot ?? 'Não conferido'}
-                <br />
-                <span className="text-sm text-muted-foreground">
-                  {detalhes.conferido_em
-                    ? new Date(detalhes.conferido_em).toLocaleString('pt-BR')
-                    : '—'}
-                </span>
-              </p>
-              <p>
-                <strong>Cancelado por:</strong>{' '}
-                {detalhes.cancelado_por_nome_snapshot ?? 'Não cancelado'}
-                <br />
-                <span className="text-sm text-muted-foreground">
-                  {detalhes.cancelado_em
-                    ? new Date(detalhes.cancelado_em).toLocaleString('pt-BR')
-                    : '—'}
-                </span>
-              </p>
-              <p>
-                <strong>Quantidade registrada:</strong>{' '}
-                {detalhes.quantidade_produzida ?? '—'}
-                <br />
-                <span className="text-sm text-muted-foreground">
-                  {detalhes.status === 'conferido'
-                    ? 'Contabilizada na produção'
-                    : detalhes.status === 'cancelado'
-                      ? 'Não contabilizada'
-                      : 'Aguardando conferência'}
-                </span>
-              </p>
-              <p>
-                <strong>Tempos:</strong> {detalhes.minutos_produtivos} min
-                produtivos / {detalhes.minutos_improdutivos} min improdutivos
-              </p>
-              {detalhes.motivo_cancelamento && (
-                <p className="sm:col-span-2">
-                  <strong>Motivo do cancelamento:</strong>{' '}
-                  {detalhes.motivo_cancelamento}
-                </p>
-              )}
-              {detalhes.observacoes && (
-                <p className="sm:col-span-2">
-                  <strong>Observações:</strong> {detalhes.observacoes}
-                </p>
-              )}
+              <p><strong>Tempos:</strong> {detalhes.minutos_produtivos} min produtivos / {detalhes.minutos_improdutivos} min improdutivos</p>
+              {detalhes.motivo_cancelamento && <p className="sm:col-span-2"><strong>Motivo do cancelamento:</strong> {detalhes.motivo_cancelamento}</p>}
+              {detalhes.observacoes && <p className="sm:col-span-2"><strong>Observações:</strong> {detalhes.observacoes}</p>}
             </div>
           )}
         </DialogContent>
