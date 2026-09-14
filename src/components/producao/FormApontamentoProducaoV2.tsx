@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Clock, Info, Search, Trash2, Upload } from 'lucide-react';
+import { AlertTriangle, Camera, Clock, Info, Search, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,10 @@ import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
 import { useOrdensProducao, formatarIdentificacaoOrdemProducao } from '@/hooks/useOrdensProducao';
 import { calcularDuracaoProducao } from '@/hooks/useProducao';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
+import {
+  finalizarJornadaOp,
+  type ContextoFechamentoJornadaOp,
+} from '@/services/producao/jornadasOrdemProducao';
 import type {
   HorarioMembroApontamento,
   NovoApontamentoProducao,
@@ -27,15 +31,33 @@ interface Props {
   podeApontar: boolean;
   criarApontamento: (dados: NovoApontamentoProducao) => Promise<ProducaoApontamento>;
   onSuccess?: () => Promise<unknown> | unknown;
+  jornadaContexto?: ContextoFechamentoJornadaOp | null;
+  onJornadaFinalizada?: () => Promise<unknown> | unknown;
 }
 
 type HorarioPersonalizado = { inicio: string; termino: string };
 
-const hoje = () => new Date().toISOString().slice(0, 10);
-const horaAtual = () => new Date().toTimeString().slice(0, 5);
+const dataLocal = (valor = new Date()) => {
+  const ano = valor.getFullYear();
+  const mes = String(valor.getMonth() + 1).padStart(2, '0');
+  const dia = String(valor.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+};
+const horaLocal = (valor = new Date()) =>
+  `${String(valor.getHours()).padStart(2, '0')}:${String(valor.getMinutes()).padStart(2, '0')}`;
+const hoje = () => dataLocal();
+const horaAtual = () => horaLocal();
 const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
 const TAMANHO_MAXIMO = 10 * 1024 * 1024;
 const ORIGEM_AVULSA = '__avulso__';
+const MOTIVOS_REGULARIZACAO = [
+  'Esquecimento de fechamento',
+  'Falha de internet/sistema',
+  'Apontador indisponível',
+  'Horário informado posteriormente pela equipe',
+  'Correção de lançamento',
+  'Outro',
+];
 
 export const FormApontamentoProducaoV2 = ({
   tarefas,
@@ -44,6 +66,8 @@ export const FormApontamentoProducaoV2 = ({
   podeApontar,
   criarApontamento,
   onSuccess,
+  jornadaContexto = null,
+  onJornadaFinalizada,
 }: Props) => {
   const [data, setData] = useState(hoje());
   const [origem, setOrigem] = useState('');
@@ -62,6 +86,9 @@ export const FormApontamentoProducaoV2 = ({
   const [membroHorarioAberto, setMembroHorarioAberto] = useState<string | null>(null);
   const [fotos, setFotos] = useState<File[]>([]);
   const [salvando, setSalvando] = useState(false);
+  const [motivoRegularizacao, setMotivoRegularizacao] = useState('');
+  const [motivoRegularizacaoOutro, setMotivoRegularizacaoOutro] = useState('');
+  const [justificativaConclusao, setJustificativaConclusao] = useState('');
   const inputFotosRef = useRef<HTMLInputElement>(null);
   const { ordens, listarOrdens } = useOrdensProducao();
   const { anexarImagem } = useProducaoAnexos();
@@ -74,6 +101,20 @@ export const FormApontamentoProducaoV2 = ({
     ordem.status === 'liberada' || ordem.status === 'em_execucao'), [ordens]);
   const ordemSelecionada = ordensDisponiveis.find((ordem) => ordem.id === origem) ?? null;
   const avulso = origem === ORIGEM_AVULSA;
+  const fechamentoRetroativo = Boolean(jornadaContexto && data < hoje());
+
+  useEffect(() => {
+    if (!jornadaContexto) return;
+    const iniciado = new Date(jornadaContexto.iniciadoEm);
+    const dataInicio = dataLocal(iniciado);
+    setOrigem(jornadaContexto.ordemProducaoId);
+    setData(dataInicio);
+    setInicio(horaLocal(iniciado));
+    setTermino(dataInicio < hoje() ? '' : horaAtual());
+    setMotivoRegularizacao('');
+    setMotivoRegularizacaoOutro('');
+    setJustificativaConclusao('');
+  }, [jornadaContexto]);
 
   useEffect(() => {
     if (!ordemSelecionada) return;
@@ -119,6 +160,9 @@ export const FormApontamentoProducaoV2 = ({
     setHorariosMembros({});
     setMembroHorarioAberto(null);
     setFotos([]);
+    setMotivoRegularizacao('');
+    setMotivoRegularizacaoOutro('');
+    setJustificativaConclusao('');
     if (inputFotosRef.current) inputFotosRef.current.value = '';
   };
 
@@ -219,25 +263,48 @@ export const FormApontamentoProducaoV2 = ({
       return;
     }
 
+    const motivoRetroativo = motivoRegularizacao === 'Outro'
+      ? motivoRegularizacaoOutro.trim()
+      : motivoRegularizacao.trim();
+    if (fechamentoRetroativo && !motivoRetroativo) {
+      toast.error('Informe o motivo do fechamento retroativo.');
+      return;
+    }
+
     setSalvando(true);
     try {
-      const apontamento = await criarApontamento({
-        data,
-        ordem_producao_id: ordemSelecionada?.id ?? null,
-        processo_id: ordemSelecionada?.processo_id ?? null,
-        projeto_local_id: avulso ? projetoLocalId : null,
-        tarefa_id: tarefaId,
-        local_tipo: ordemSelecionada?.local_tipo ?? localTipo,
-        quantidade_produzida: quantidadeNormalizada,
-        inicio,
-        termino,
-        minutos_produtivos: duracao - improdutivos,
-        minutos_improdutivos: improdutivos,
-        motivo_improdutivo: improdutivos > 0 ? motivoImprodutivo.trim() : null,
-        observacoes: observacoes.trim() || null,
-        membros_ids: membrosIds,
-        horarios_membros: horariosPersonalizados,
-      });
+      const apontamento = jornadaContexto
+        ? await finalizarJornadaOp({
+            jornadaId: jornadaContexto.jornadaId,
+            tarefaId,
+            quantidadeProduzida: quantidadeNormalizada,
+            termino,
+            minutosImprodutivos: improdutivos,
+            motivoImprodutivo: improdutivos > 0 ? motivoImprodutivo.trim() : null,
+            observacoes: observacoes.trim() || null,
+            membrosIds,
+            horariosMembros: horariosPersonalizados,
+            concluirOp: jornadaContexto.concluirOp,
+            motivoRegularizacao: fechamentoRetroativo ? motivoRetroativo : null,
+            justificativaConclusao: justificativaConclusao.trim() || null,
+          })
+        : await criarApontamento({
+            data,
+            ordem_producao_id: ordemSelecionada?.id ?? null,
+            processo_id: ordemSelecionada?.processo_id ?? null,
+            projeto_local_id: avulso ? projetoLocalId : null,
+            tarefa_id: tarefaId,
+            local_tipo: ordemSelecionada?.local_tipo ?? localTipo,
+            quantidade_produzida: quantidadeNormalizada,
+            inicio,
+            termino,
+            minutos_produtivos: duracao - improdutivos,
+            minutos_improdutivos: improdutivos,
+            motivo_improdutivo: improdutivos > 0 ? motivoImprodutivo.trim() : null,
+            observacoes: observacoes.trim() || null,
+            membros_ids: membrosIds,
+            horarios_membros: horariosPersonalizados,
+          });
 
       let falhas = 0;
       for (const foto of fotos) {
@@ -253,11 +320,20 @@ export const FormApontamentoProducaoV2 = ({
         : ' como atividade avulsa';
       if (falhas > 0) {
         toast.warning(`Apontamento salvo${contexto}, mas ${falhas} foto(s) não foram enviadas.`);
+      } else if (jornadaContexto?.concluirOp) {
+        toast.success(`Apontamento salvo e ${formatarIdentificacaoOrdemProducao(ordemSelecionada!)} concluída.`);
+      } else if (jornadaContexto) {
+        toast.success(`Trabalho encerrado${contexto}. A OP permanece em execução.`);
       } else {
         toast.success(`Apontamento salvo${contexto} e pendente de conferência.`);
       }
       limpar();
-      await Promise.all([onSuccess?.(), listarOrdens()]);
+      if (jornadaContexto) {
+        await onJornadaFinalizada?.();
+      } else {
+        await onSuccess?.();
+      }
+      await listarOrdens();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível salvar o apontamento.');
     } finally {
@@ -268,22 +344,46 @@ export const FormApontamentoProducaoV2 = ({
   return (
     <form onSubmit={salvar} className="space-y-6 rounded-lg border bg-card p-5">
       <div>
-        <h3 className="text-lg font-semibold">Novo Apontamento</h3>
-        <p className="text-sm text-muted-foreground">Registre a execução real dentro de uma OP já emitida.</p>
+        <h3 className="text-lg font-semibold">
+          {jornadaContexto
+            ? jornadaContexto.concluirOp
+              ? 'Finalizar OP e registrar apontamento'
+              : 'Encerrar trabalho e registrar apontamento'
+            : 'Novo Apontamento'}
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          {jornadaContexto
+            ? 'O início foi capturado quando o trabalho começou. Complete o fechamento real abaixo.'
+            : 'Registre a execução real dentro de uma OP já emitida.'}
+        </p>
       </div>
 
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertDescription>
-          <strong>Etapa</strong> é o planejamento. <strong>OP</strong> é a autorização de execução. <strong>Apontamento</strong> registra o que foi realmente feito dentro da OP. Atividade avulsa deve ser usada somente para trabalho não planejado.
-        </AlertDescription>
-      </Alert>
+      {jornadaContexto ? (
+        <Alert className={fechamentoRetroativo ? 'border-amber-500/40 bg-amber-500/5' : ''}>
+          {fechamentoRetroativo ? <AlertTriangle className="h-4 w-4 text-amber-500" /> : <Info className="h-4 w-4" />}
+          <AlertDescription>
+            {fechamentoRetroativo
+              ? 'Esta jornada ficou aberta de um dia para o outro. Informe o horário em que o trabalho realmente terminou e o motivo da regularização. O Histórico ficará sinalizado para auditoria.'
+              : 'A hora de início veio do clique em “Iniciar OP/Iniciar trabalho”. Informe a hora real de término e os dados do apontamento.'}
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Etapa</strong> é o planejamento. <strong>OP</strong> é a autorização de execução. <strong>Apontamento</strong> registra o que foi realmente feito dentro da OP. Atividade avulsa deve ser usada somente para trabalho não planejado.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2"><Label>Data *</Label><Input type="date" value={data} onChange={(event) => setData(event.target.value)} disabled={!podeApontar} /></div>
+        <div className="space-y-2">
+          <Label>Data *</Label>
+          <Input type="date" value={data} onChange={(event) => setData(event.target.value)} disabled={!podeApontar || Boolean(jornadaContexto)} />
+        </div>
         <div className="space-y-2">
           <Label>Ordem de Produção *</Label>
-          <Select value={origem} onValueChange={setOrigem} disabled={!podeApontar}>
+          <Select value={origem} onValueChange={setOrigem} disabled={!podeApontar || Boolean(jornadaContexto)}>
             <SelectTrigger><SelectValue placeholder="Selecione a OP em execução" /></SelectTrigger>
             <SelectContent>
               {ordensDisponiveis.map((ordem) => (
@@ -291,7 +391,7 @@ export const FormApontamentoProducaoV2 = ({
                   {formatarIdentificacaoOrdemProducao(ordem)} · {ordem.processo_nome} · {ordem.projeto_nome}
                 </SelectItem>
               ))}
-              <SelectItem value={ORIGEM_AVULSA}>Atividade não planejada — sem OP</SelectItem>
+              {!jornadaContexto && <SelectItem value={ORIGEM_AVULSA}>Atividade não planejada — sem OP</SelectItem>}
             </SelectContent>
           </Select>
           {ordensDisponiveis.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma OP está liberada ou em execução. Emita a OP dentro da Etapa.</p>}
@@ -331,10 +431,45 @@ export const FormApontamentoProducaoV2 = ({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2"><Label>Início *</Label><div className="flex gap-2"><Input type="time" value={inicio} onChange={(event) => setInicio(event.target.value)} /><Button type="button" variant="outline" onClick={() => setInicio(horaAtual())}><Clock className="mr-2 h-4 w-4" />Agora</Button></div></div>
-        <div className="space-y-2"><Label>Término *</Label><div className="flex gap-2"><Input type="time" value={termino} onChange={(event) => setTermino(event.target.value)} /><Button type="button" variant="outline" onClick={() => setTermino(horaAtual())}><Clock className="mr-2 h-4 w-4" />Agora</Button></div></div>
+        <div className="space-y-2">
+          <Label>Início *</Label>
+          <div className="flex gap-2">
+            <Input type="time" value={inicio} onChange={(event) => setInicio(event.target.value)} disabled={Boolean(jornadaContexto)} />
+            {!jornadaContexto && <Button type="button" variant="outline" onClick={() => setInicio(horaAtual())}><Clock className="mr-2 h-4 w-4" />Agora</Button>}
+          </div>
+          {jornadaContexto && <p className="text-xs text-muted-foreground">Capturado automaticamente no início do trabalho.</p>}
+        </div>
+        <div className="space-y-2">
+          <Label>Término real *</Label>
+          <div className="flex gap-2">
+            <Input type="time" value={termino} onChange={(event) => setTermino(event.target.value)} />
+            {!fechamentoRetroativo && <Button type="button" variant="outline" onClick={() => setTermino(horaAtual())}><Clock className="mr-2 h-4 w-4" />Agora</Button>}
+          </div>
+          {fechamentoRetroativo && <p className="text-xs text-amber-600 dark:text-amber-400">Informe o horário em que o serviço realmente terminou no dia {new Date(`${data}T12:00:00`).toLocaleDateString('pt-BR')}.</p>}
+        </div>
       </div>
       {duracao && <p className="rounded-md border bg-muted/20 p-3 text-sm">Duração calculada: <strong>{duracao} minutos</strong></p>}
+
+      {fechamentoRetroativo && (
+        <div className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+          <div className="space-y-2">
+            <Label>Motivo do fechamento retroativo *</Label>
+            <Select value={motivoRegularizacao} onValueChange={setMotivoRegularizacao}>
+              <SelectTrigger><SelectValue placeholder="Selecione o motivo" /></SelectTrigger>
+              <SelectContent>
+                {MOTIVOS_REGULARIZACAO.map((motivo) => <SelectItem key={motivo} value={motivo}>{motivo}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          {motivoRegularizacao === 'Outro' && (
+            <div className="space-y-2">
+              <Label>Descreva o motivo *</Label>
+              <Input value={motivoRegularizacaoOutro} onChange={(event) => setMotivoRegularizacaoOutro(event.target.value)} />
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">A ocorrência ficará marcada no Histórico com quem regularizou, quando regularizou e o motivo informado.</p>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="space-y-2"><Label>Quantidade produzida</Label><Input inputMode="decimal" value={quantidade} onChange={(event) => setQuantidade(event.target.value)} /></div>
@@ -409,8 +544,30 @@ export const FormApontamentoProducaoV2 = ({
         {fotos.length === 0 ? <div className="flex items-center gap-2 rounded-md bg-muted/20 p-3 text-sm text-muted-foreground"><Upload className="h-4 w-4" />Nenhuma foto selecionada.</div> : <div className="grid gap-2 sm:grid-cols-2">{fotos.map((foto, indice) => <div key={`${foto.name}-${foto.size}-${foto.lastModified}`} className="flex items-center justify-between gap-2 rounded-md border p-3"><div className="min-w-0"><p className="truncate text-sm font-medium">{foto.name}</p><p className="text-xs text-muted-foreground">{(foto.size / 1024 / 1024).toFixed(2)} MB</p></div><Button type="button" size="icon" variant="ghost" title="Remover foto" onClick={() => setFotos((atuais) => atuais.filter((_, i) => i !== indice))}><Trash2 className="h-4 w-4 text-red-500" /></Button></div>)}</div>}
       </div>
 
+      {jornadaContexto?.concluirOp && (
+        <div className="space-y-2 rounded-lg border bg-muted/10 p-4">
+          <Label>Justificativa caso a quantidade final fique abaixo do planejado</Label>
+          <Textarea
+            value={justificativaConclusao}
+            onChange={(event) => setJustificativaConclusao(event.target.value)}
+            rows={2}
+            placeholder="Preencha somente se a OP for concluída com produção parcial."
+          />
+        </div>
+      )}
+
       <div className="space-y-2"><Label>Observações</Label><Textarea value={observacoes} onChange={(event) => setObservacoes(event.target.value)} rows={4} /></div>
-      <div className="flex justify-end"><Button type="submit" disabled={!podeApontar || salvando}>{salvando ? 'Salvando apontamento e fotos...' : 'Salvar como pendente'}</Button></div>
+      <div className="flex justify-end">
+        <Button type="submit" disabled={!podeApontar || salvando}>
+          {salvando
+            ? 'Salvando apontamento e fotos...'
+            : jornadaContexto?.concluirOp
+              ? 'Salvar apontamento e concluir OP'
+              : jornadaContexto
+                ? 'Encerrar trabalho e salvar apontamento'
+                : 'Salvar como pendente'}
+        </Button>
+      </div>
     </form>
   );
 };
