@@ -57,6 +57,9 @@ export interface ProducaoApontamento {
   tarefa_id: string; local_tipo: ProducaoLocalTipo; quantidade_produzida: number | null; inicio: string; termino: string;
   duracao_minutos: number; minutos_produtivos: number; minutos_improdutivos: number; motivo_improdutivo: string | null;
   observacoes: string | null; status: ProducaoStatus; jornada_total_equipe_minutos_snapshot: number | null;
+  jornada_op_id: string | null; termino_real_em: string | null; fechamento_retroativo: boolean;
+  motivo_regularizacao: string | null; regularizado_por_id: string | null; regularizado_por_nome_snapshot: string | null;
+  regularizado_em: string | null;
   criado_por_id: string | null; criado_por_nome_snapshot: string | null; ultima_edicao_por_id: string | null;
   ultima_edicao_por_nome_snapshot: string | null; ultima_edicao_em: string | null; conferido_por_id: string | null;
   conferido_por_nome_snapshot: string | null; conferido_em: string | null; cancelado_por_id: string | null;
@@ -163,6 +166,7 @@ export interface IndicadoresProducaoGerencial {
   custo_total_mao_obra: number | null;
   custo_produtivo_mao_obra: number | null;
   custo_improdutivo_mao_obra: number | null;
+  custo_incompleto: boolean;
   apontamentos_custo_incompleto: number;
   membros_sem_valor_hora: string[];
   quantidade_total_produzida: number;
