@@ -33,12 +33,19 @@ import {
   finalizarOrdemProducaoComConferencia,
   FinalizacaoParcialOrdemProducaoError,
 } from '@/services/producao/finalizarOrdemProducao';
+import {
+  iniciarJornadaOp,
+  listarJornadasOpAbertas,
+  type ContextoFechamentoJornadaOp,
+  type JornadaOpAberta,
+} from '@/services/producao/jornadasOrdemProducao';
 import type {
   ProducaoOrdemProducao,
   ProducaoProcesso,
   ProducaoProjeto,
   ProducaoTarefa,
 } from '@/types/producao';
+import { ControlesJornadaOp } from './ControlesJornadaOp';
 import { FormEditarOrdemProducao } from './FormEditarOrdemProducao';
 import { FormOrdemProducao } from './FormOrdemProducao';
 import { FormProcessoProducao } from './FormProcessoProducao';
@@ -50,6 +57,7 @@ import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
 
 interface Props {
   tarefas: ProducaoTarefa[];
+  onFecharJornada: (contexto: ContextoFechamentoJornadaOp) => void;
 }
 
 const statusEtapaLabel: Record<string, string> = {
@@ -115,7 +123,7 @@ const progressoEtapa = (
   );
 };
 
-export const ProcessosProducaoHierarquico = ({ tarefas }: Props) => {
+export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props) => {
   const [busca, setBusca] = useState('');
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
   const [projetoSelecionadoId, setProjetoSelecionadoId] = useState<string | null>(null);
@@ -127,6 +135,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas }: Props) => {
   const [excluindo, setExcluindo] = useState(false);
   const [executandoId, setExecutandoId] = useState<string | null>(null);
   const [opsComImagem, setOpsComImagem] = useState<Set<string>>(new Set());
+  const [jornadasAbertas, setJornadasAbertas] = useState<JornadaOpAberta[]>([]);
 
   const { isAdmin, canConfigurarProducao } = usePermissions();
   const { projetos, loading: loadingProjetos, listarProjetos } = useProjetosProducao();
@@ -141,8 +150,22 @@ export const ProcessosProducaoHierarquico = ({ tarefas }: Props) => {
   } = useProcessosProducao();
   const { ordens, listarOrdens, criarOrdem, transicaoOrdem } = useOrdensProducao();
 
+  const carregarJornadas = async () => {
+    try {
+      const jornadas = await listarJornadasOpAbertas();
+      setJornadasAbertas(jornadas);
+    } catch {
+      setJornadasAbertas([]);
+    }
+  };
+
   const recarregar = async () => {
-    await Promise.all([listarProjetos(), listarProcessos(), listarOrdens()]);
+    await Promise.all([
+      listarProjetos(),
+      listarProcessos(),
+      listarOrdens(),
+      carregarJornadas(),
+    ]);
   };
 
   useEffect(() => {
@@ -194,6 +217,11 @@ export const ProcessosProducaoHierarquico = ({ tarefas }: Props) => {
         return acc;
       }, {}),
     [ordens],
+  );
+
+  const jornadasPorOp = useMemo(
+    () => Object.fromEntries(jornadasAbertas.map((jornada) => [jornada.ordem_producao_id, jornada])),
+    [jornadasAbertas],
   );
 
   const resumosProjetos = useMemo(
@@ -303,9 +331,22 @@ export const ProcessosProducaoHierarquico = ({ tarefas }: Props) => {
     toast.success('Etapa finalizada. O status global do projeto foi recalculado.');
   };
 
+  const iniciarTrabalhoOp = async (ordem: ProducaoOrdemProducao) => {
+    setExecutandoId(ordem.id);
+    try {
+      await iniciarJornadaOp(ordem.id);
+      await recarregar();
+      toast.success(`${formatarIdentificacaoOrdemProducao(ordem)} iniciada. O horário real foi registrado automaticamente.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível iniciar o trabalho na OP.');
+    } finally {
+      setExecutandoId(null);
+    }
+  };
+
   const executarOp = async (
     ordem: ProducaoOrdemProducao,
-    acao: 'iniciar' | 'concluir' | 'cancelar' | 'reabrir',
+    acao: 'concluir' | 'cancelar' | 'reabrir',
   ) => {
     setExecutandoId(ordem.id);
     try {
@@ -496,55 +537,62 @@ export const ProcessosProducaoHierarquico = ({ tarefas }: Props) => {
             </div>
           ) : (
             <div className="grid gap-3 xl:grid-cols-2">
-              {ordensDaEtapa.map((ordem) => (
-                <div key={ordem.id} className="rounded-xl border bg-card p-4 shadow-sm">
-                  <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold">{formatarIdentificacaoOrdemProducao(ordem)}</span>
-                        <span className="rounded-full border px-2 py-0.5 text-xs">
-                          {statusOpLabel[ordem.status] ?? ordem.status}
-                        </span>
+              {ordensDaEtapa.map((ordem) => {
+                const jornada = jornadasPorOp[ordem.id] ?? null;
+                return (
+                  <div key={ordem.id} className="rounded-xl border bg-card p-4 shadow-sm">
+                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold">{formatarIdentificacaoOrdemProducao(ordem)}</span>
+                          <span className="rounded-full border px-2 py-0.5 text-xs">
+                            {statusOpLabel[ordem.status] ?? ordem.status}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {ordem.quantidade_realizada} de {ordem.quantidade_planejada} {ordem.unidade_medida ?? ''}
+                        </p>
+                        <BarraProgresso valor={Number(ordem.percentual_realizado || 0)} />
+                        <p className="text-xs text-muted-foreground">
+                          {formatarData(ordem.data_inicio_prevista)} → {formatarData(ordem.data_fim_prevista)}
+                          {ordem.responsavel_nome_snapshot ? ` · ${ordem.responsavel_nome_snapshot}` : ''}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {ordem.quantidade_realizada} de {ordem.quantidade_planejada} {ordem.unidade_medida ?? ''}
-                      </p>
-                      <BarraProgresso valor={Number(ordem.percentual_realizado || 0)} />
-                      <p className="text-xs text-muted-foreground">
-                        {formatarData(ordem.data_inicio_prevista)} → {formatarData(ordem.data_fim_prevista)}
-                        {ordem.responsavel_nome_snapshot ? ` · ${ordem.responsavel_nome_snapshot}` : ''}
-                      </p>
+                      <div className="flex max-w-full flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
+                        {canConfigurarProducao() && (
+                          <FormEditarOrdemProducao ordem={ordem} onSuccess={recarregar} />
+                        )}
+                        <ControlesJornadaOp
+                          ordem={ordem}
+                          jornada={jornada}
+                          executando={executandoId === ordem.id}
+                          onIniciar={(item) => void iniciarTrabalhoOp(item)}
+                          onFechar={onFecharJornada}
+                          onFinalizarLegado={(item) => void executarOp(item, 'concluir')}
+                        />
+                        {['concluida', 'cancelada'].includes(ordem.status) && (
+                          <Button variant="outline" size="sm" onClick={() => void executarOp(ordem, 'reabrir')} disabled={executandoId === ordem.id}>
+                            <RotateCcw className="mr-2 h-4 w-4" /> Reabrir
+                          </Button>
+                        )}
+                        {['liberada', 'em_execucao'].includes(ordem.status) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive"
+                            onClick={() => void executarOp(ordem, 'cancelar')}
+                            disabled={executandoId === ordem.id || Boolean(jornada)}
+                            title={jornada ? 'Encerre o apontamento aberto antes de cancelar a OP' : 'Cancelar OP'}
+                          >
+                            Cancelar
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
-                      {canConfigurarProducao() && (
-                        <FormEditarOrdemProducao ordem={ordem} onSuccess={recarregar} />
-                      )}
-                      {ordem.status === 'liberada' && (
-                        <Button size="sm" onClick={() => void executarOp(ordem, 'iniciar')} disabled={executandoId === ordem.id}>
-                          {executandoId === ordem.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-                          Iniciar OP
-                        </Button>
-                      )}
-                      {ordem.status === 'em_execucao' && (
-                        <Button size="sm" onClick={() => void executarOp(ordem, 'concluir')} disabled={executandoId === ordem.id}>
-                          <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar OP
-                        </Button>
-                      )}
-                      {['concluida', 'cancelada'].includes(ordem.status) && (
-                        <Button variant="outline" size="sm" onClick={() => void executarOp(ordem, 'reabrir')} disabled={executandoId === ordem.id}>
-                          <RotateCcw className="mr-2 h-4 w-4" /> Reabrir
-                        </Button>
-                      )}
-                      {['liberada', 'em_execucao'].includes(ordem.status) && (
-                        <Button variant="outline" size="sm" className="text-destructive" onClick={() => void executarOp(ordem, 'cancelar')} disabled={executandoId === ordem.id}>
-                          Cancelar
-                        </Button>
-                      )}
-                    </div>
+                    <MateriaisOrdemProducao ordem={ordem} />
                   </div>
-                  <MateriaisOrdemProducao ordem={ordem} />
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
