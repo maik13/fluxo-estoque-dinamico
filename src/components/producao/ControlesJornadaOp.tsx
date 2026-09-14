@@ -10,7 +10,7 @@ interface Props {
   ordem: ProducaoOrdemProducao;
   jornada: JornadaOpAberta | null;
   executando: boolean;
-  podeConcluir: boolean;
+  podeConcluir?: boolean;
   onIniciar: (ordem: ProducaoOrdemProducao) => void;
   onFechar: (contexto: ContextoFechamentoJornadaOp) => void;
   onFinalizarLegado: (ordem: ProducaoOrdemProducao) => void;
@@ -28,7 +28,7 @@ export const ControlesJornadaOp = ({
   ordem,
   jornada,
   executando,
-  podeConcluir,
+  podeConcluir = true,
   onIniciar,
   onFechar,
   onFinalizarLegado,
