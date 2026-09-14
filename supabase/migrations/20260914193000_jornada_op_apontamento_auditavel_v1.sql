@@ -4,6 +4,24 @@
 
 BEGIN;
 
+-- Falha de forma segura antes de qualquer DDL caso o banco conectado ainda não
+-- possua as dependências já utilizadas pelo módulo de Produção atual.
+DO $$
+BEGIN
+  IF TO_REGPROCEDURE(
+    'public.criar_apontamento_producao_com_horarios(date,uuid,uuid,uuid,uuid,text,numeric,time without time zone,time without time zone,integer,integer,integer,text,text,uuid[],jsonb)'
+  ) IS NULL THEN
+    RAISE EXCEPTION 'Pré-requisito ausente: criar_apontamento_producao_com_horarios. A migration de horários individuais precisa estar instalada antes desta.';
+  END IF;
+
+  IF TO_REGPROCEDURE(
+    'public.finalizar_ordem_producao_com_conferencia_v1(uuid,text)'
+  ) IS NULL THEN
+    RAISE EXCEPTION 'Pré-requisito ausente: finalizar_ordem_producao_com_conferencia_v1. A rotina atual de finalização de OP precisa estar instalada antes desta.';
+  END IF;
+END;
+$$;
+
 CREATE TABLE IF NOT EXISTS public.producao_op_jornadas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   ordem_producao_id UUID NOT NULL
@@ -78,10 +96,11 @@ DECLARE
   v_jornada_id UUID;
   v_iniciado_em TIMESTAMPTZ := NOW();
 BEGIN
-  IF v_user IS NULL OR NOT (
-    public.usuario_tem_permissao_producao('lancar')
-    OR public.usuario_tem_permissao_producao('processos')
-  ) THEN
+  -- Iniciar trabalho é uma ação de apontamento. Usuários de configuração atuais
+  -- também passam em 'lancar'; esta regra evita que um perfil legado que apenas
+  -- gerencia processo abra uma jornada que depois não teria permissão para fechar.
+  IF v_user IS NULL
+     OR NOT public.usuario_tem_permissao_producao('lancar') THEN
     RAISE EXCEPTION 'Sem permissão para iniciar trabalho em Ordem de Produção';
   END IF;
 
@@ -96,6 +115,15 @@ BEGIN
 
   IF v_op.status NOT IN ('liberada', 'em_execucao') THEN
     RAISE EXCEPTION 'Somente uma OP liberada ou em execução pode iniciar uma jornada';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.producao_processos p
+    WHERE p.id = v_op.processo_id
+      AND p.status IN ('pausado', 'bloqueado', 'finalizado', 'cancelado')
+  ) THEN
+    RAISE EXCEPTION 'A Etapa da OP não está disponível para execução';
   END IF;
 
   IF EXISTS (
