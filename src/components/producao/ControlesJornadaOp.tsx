@@ -10,6 +10,7 @@ interface Props {
   ordem: ProducaoOrdemProducao;
   jornada: JornadaOpAberta | null;
   executando: boolean;
+  podeConcluir: boolean;
   onIniciar: (ordem: ProducaoOrdemProducao) => void;
   onFechar: (contexto: ContextoFechamentoJornadaOp) => void;
   onFinalizarLegado: (ordem: ProducaoOrdemProducao) => void;
@@ -27,6 +28,7 @@ export const ControlesJornadaOp = ({
   ordem,
   jornada,
   executando,
+  podeConcluir,
   onIniciar,
   onFechar,
   onFinalizarLegado,
@@ -49,15 +51,17 @@ export const ControlesJornadaOp = ({
           {executando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
           Iniciar trabalho
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => onFinalizarLegado(ordem)}
-          disabled={executando}
-          title="Usado quando a OP já possui apontamentos encerrados e não há trabalho aberto neste momento"
-        >
-          <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar OP
-        </Button>
+        {podeConcluir && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onFinalizarLegado(ordem)}
+            disabled={executando}
+            title="Usado quando a OP já possui apontamentos encerrados e não há trabalho aberto neste momento"
+          >
+            <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar OP
+          </Button>
+        )}
       </>
     );
   }
@@ -90,17 +94,19 @@ export const ControlesJornadaOp = ({
         >
           <Square className="mr-2 h-4 w-4" /> Encerrar trabalho
         </Button>
-        <Button
-          size="sm"
-          onClick={() => onFechar({
-            jornadaId: jornada.id,
-            ordemProducaoId: ordem.id,
-            iniciadoEm: jornada.iniciado_em,
-            concluirOp: true,
-          })}
-        >
-          <CheckCircle2 className="mr-2 h-4 w-4" /> Concluir OP
-        </Button>
+        {podeConcluir && (
+          <Button
+            size="sm"
+            onClick={() => onFechar({
+              jornadaId: jornada.id,
+              ordemProducaoId: ordem.id,
+              iniciadoEm: jornada.iniciado_em,
+              concluirOp: true,
+            })}
+          >
+            <CheckCircle2 className="mr-2 h-4 w-4" /> Concluir OP
+          </Button>
+        )}
       </div>
     </div>
   );
