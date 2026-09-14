@@ -35,6 +35,13 @@ const DB_VERSION = 1;
 const STORE_NAME = 'operations';
 const EVENT_NAME = 'inventory-offline-queue-changed';
 
+// O banco de produção atual não possui public.apply_offline_inventory_operation.
+// Enquanto a RPC não for instalada e validada, operações online devem usar o fluxo
+// normal existente no EstoqueContext/useEstoque, sem tentar chamar uma função ausente.
+const OFFLINE_RPC_ENABLED = false;
+const RPC_UNAVAILABLE_MESSAGE =
+  'Could not find the function public.apply_offline_inventory_operation in the schema cache';
+
 const emitChange = () => {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(EVENT_NAME));
@@ -200,6 +207,15 @@ export const submitInventoryOperation = async (
     return { ok: true, queued: true, status: 'pending', message: 'Registro protegido neste dispositivo e aguardando conexão.' };
   }
 
+  if (!OFFLINE_RPC_ENABLED) {
+    return {
+      ok: false,
+      queued: false,
+      status: 'rpc_unavailable',
+      message: RPC_UNAVAILABLE_MESSAGE,
+    };
+  }
+
   try {
     const data = await sendOperation(operation);
     if (data?.status === 'applied' || data?.replayed === true) {
@@ -226,6 +242,10 @@ export const submitInventoryOperation = async (
 
 export const syncOfflineQueue = async (): Promise<OfflineQueueSummary> => {
   if (!navigator.onLine) return getOfflineQueueSummary();
+
+  // Não tentamos sincronizar contra uma RPC que sabemos estar ausente.
+  // Os registros permanecem locais até a camada offline ser reativada de forma controlada.
+  if (!OFFLINE_RPC_ENABLED) return getOfflineQueueSummary();
 
   const userId = await getCurrentUserId();
   if (!userId) return getOfflineQueueSummary();
