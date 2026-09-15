@@ -52,7 +52,7 @@ export const ControlesJornadaOp = ({
     return (
       <Button size="sm" onClick={() => onIniciar(ordem)} disabled={executando}>
         {executando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-        Iniciar OP
+        Iniciar apontamento
       </Button>
     );
   }
@@ -64,7 +64,7 @@ export const ControlesJornadaOp = ({
       <>
         <Button size="sm" onClick={() => onIniciar(ordem)} disabled={executando}>
           {executando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-          Iniciar trabalho
+          Iniciar novo apontamento
         </Button>
         {podeConcluir && (
           <Button
@@ -72,7 +72,7 @@ export const ControlesJornadaOp = ({
             variant="outline"
             onClick={() => onFinalizarLegado(ordem)}
             disabled={executando}
-            title="Usado quando a OP já possui apontamentos encerrados e não há trabalho aberto neste momento"
+            title="Concluir definitivamente a OP quando não houver apontamento aberto"
           >
             <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar OP
           </Button>
@@ -108,9 +108,11 @@ export const ControlesJornadaOp = ({
           {jornadaAtual.pendente_dia_anterior
             ? <AlertTriangle className="h-3.5 w-3.5" />
             : <Clock3 className="h-3.5 w-3.5" />}
-          {jornadaAtual.pendente_dia_anterior ? 'Fechamento pendente' : 'Apontamento aberto'}
+          {jornadaAtual.pendente_dia_anterior
+            ? 'Apontamento pendente de fechamento'
+            : 'Apontamento em andamento'}
         </div>
-        <div className="mt-0.5">Iniciado em {formatarInicio(jornadaAtual.iniciado_em)}</div>
+        <div className="mt-0.5">Início do apontamento: {formatarInicio(jornadaAtual.iniciado_em)}</div>
         {quantidadeRascunho != null && (
           <div className="mt-1 font-medium">
             Rascunho: {formatarQuantidade(Number(quantidadeRascunho))}{' '}
@@ -130,7 +132,7 @@ export const ControlesJornadaOp = ({
           variant="outline"
           onClick={() => abrirFechamento(false)}
         >
-          <Square className="mr-2 h-4 w-4" /> Encerrar trabalho
+          <Square className="mr-2 h-4 w-4" /> Encerrar apontamento
         </Button>
         {podeConcluir && (
           <Button
