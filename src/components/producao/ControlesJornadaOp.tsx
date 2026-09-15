@@ -68,7 +68,7 @@ export const ControlesJornadaOp = ({
               variant="outline"
               onClick={() => onFinalizarLegado(ordem)}
               disabled={executando}
-              title="Concluir definitivamente a OP quando não houver apontamento aberto"
+              title="Concluir definitivamente a OP usando os apontamentos já encerrados"
             >
               <CheckCircle2 className="mr-2 h-4 w-4" /> Concluir OP
             </Button>
@@ -79,10 +79,10 @@ export const ControlesJornadaOp = ({
     );
   }
 
-  const abrirFechamento = (concluirOp: boolean) => {
+  const abrirFechamento = () => {
     const contexto = contextoFechamentoJornada(
       jornada,
-      concluirOp,
+      false,
       ordem.responsavel_id,
       ordem.responsavel_nome_snapshot,
     );
@@ -90,6 +90,7 @@ export const ControlesJornadaOp = ({
     onFechar({
       ...contexto,
       tarefaId: contexto.tarefaId ?? ordem.tarefa_id ?? null,
+      concluirOp: false,
     });
   };
 
@@ -120,15 +121,13 @@ export const ControlesJornadaOp = ({
         )}
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" onClick={() => abrirFechamento(false)}>
+        <Button size="sm" variant="outline" onClick={abrirFechamento}>
           <Square className="mr-2 h-4 w-4" /> Encerrar apontamento
         </Button>
-        {podeConcluir && (
-          <Button size="sm" onClick={() => abrirFechamento(true)}>
-            <CheckCircle2 className="mr-2 h-4 w-4" /> Concluir OP
-          </Button>
-        )}
       </div>
+      <p className="text-xs text-muted-foreground">
+        Encerre o apontamento atual primeiro. Depois disso, o botão “Concluir OP” ficará disponível no mesmo card.
+      </p>
       <ApontamentosEncerradosOp ordem={ordem} />
     </div>
   );
