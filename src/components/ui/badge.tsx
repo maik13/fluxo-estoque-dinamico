@@ -4,7 +4,6 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  // Base
   [
     "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5",
     "text-xs font-semibold leading-tight",
@@ -14,46 +13,39 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        // ── Default — green ──
         default: [
-          "bg-[hsl(145_72%_42%_/_0.15)] text-[hsl(145_72%_62%)]",
-          "border-[hsl(145_72%_42%_/_0.3)]",
+          "bg-primary/10 text-primary",
+          "border-primary/25",
         ].join(" "),
 
-        // ── Secondary — slate ──
         secondary: [
-          "bg-[hsl(var(--secondary))] text-[hsl(var(--secondary-foreground))]",
-          "border-[hsl(var(--border))]",
+          "bg-secondary text-secondary-foreground",
+          "border-border",
         ].join(" "),
 
-        // ── Destructive — red ──
         destructive: [
-          "bg-[hsl(0_80%_56%_/_0.15)] text-[hsl(0_80%_70%)]",
-          "border-[hsl(0_80%_56%_/_0.3)]",
+          "bg-destructive/10 text-destructive",
+          "border-destructive/25",
         ].join(" "),
 
-        // ── Outline — neutral ──
         outline: [
           "bg-transparent text-foreground",
-          "border-[hsl(var(--border))]",
+          "border-border",
         ].join(" "),
 
-        // ── Warning — amber ──
         warning: [
-          "bg-[hsl(38_96%_54%_/_0.15)] text-[hsl(38_96%_70%)]",
-          "border-[hsl(38_96%_54%_/_0.3)]",
+          "bg-warning/15 text-[hsl(var(--warning-foreground))]",
+          "border-warning/30",
         ].join(" "),
 
-        // ── Info — blue ──
         info: [
-          "bg-[hsl(210_84%_60%_/_0.15)] text-[hsl(210_84%_75%)]",
-          "border-[hsl(210_84%_60%_/_0.3)]",
+          "bg-info/10 text-[hsl(var(--info))]",
+          "border-info/25",
         ].join(" "),
 
-        // ── Accent — cyan ──
         accent: [
-          "bg-[hsl(186_72%_37%_/_0.15)] text-[hsl(186_72%_60%)]",
-          "border-[hsl(186_72%_37%_/_0.3)]",
+          "bg-accent/10 text-accent",
+          "border-accent/25",
         ].join(" "),
       },
     },
