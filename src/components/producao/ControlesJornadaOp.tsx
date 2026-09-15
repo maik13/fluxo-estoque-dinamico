@@ -8,6 +8,7 @@ import {
   type JornadaOpAberta,
 } from '@/services/producao/jornadasOrdemProducao';
 import { AjustarInicioJornadaOp } from './AjustarInicioJornadaOp';
+import { ApontamentosEncerradosOp } from './ApontamentosEncerradosOp';
 
 interface Props {
   ordem: ProducaoOrdemProducao;
@@ -50,10 +51,15 @@ export const ControlesJornadaOp = ({
 
   if (ordem.status === 'liberada') {
     return (
-      <Button size="sm" onClick={() => onIniciar(ordem)} disabled={executando}>
-        {executando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-        Iniciar apontamento
-      </Button>
+      <div className="flex w-full flex-col gap-2 sm:w-auto">
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => onIniciar(ordem)} disabled={executando}>
+            {executando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+            Iniciar apontamento
+          </Button>
+        </div>
+        <ApontamentosEncerradosOp ordem={ordem} />
+      </div>
     );
   }
 
@@ -61,23 +67,26 @@ export const ControlesJornadaOp = ({
 
   if (!jornadaAtual) {
     return (
-      <>
-        <Button size="sm" onClick={() => onIniciar(ordem)} disabled={executando}>
-          {executando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-          Iniciar novo apontamento
-        </Button>
-        {podeConcluir && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => onFinalizarLegado(ordem)}
-            disabled={executando}
-            title="Concluir definitivamente a OP quando não houver apontamento aberto"
-          >
-            <CheckCircle2 className="mr-2 h-4 w-4" /> Concluir OP
+      <div className="flex w-full flex-col gap-2 sm:w-auto">
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => onIniciar(ordem)} disabled={executando}>
+            {executando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+            Iniciar novo apontamento
           </Button>
-        )}
-      </>
+          {podeConcluir && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onFinalizarLegado(ordem)}
+              disabled={executando}
+              title="Concluir definitivamente a OP quando não houver apontamento aberto"
+            >
+              <CheckCircle2 className="mr-2 h-4 w-4" /> Concluir OP
+            </Button>
+          )}
+        </div>
+        <ApontamentosEncerradosOp ordem={ordem} />
+      </div>
     );
   }
 
@@ -143,6 +152,7 @@ export const ControlesJornadaOp = ({
           </Button>
         )}
       </div>
+      <ApontamentosEncerradosOp ordem={ordem} />
     </div>
   );
 };
