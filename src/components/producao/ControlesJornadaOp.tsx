@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock3, Loader2, Play, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ProducaoOrdemProducao } from '@/types/producao';
@@ -6,6 +7,7 @@ import {
   type ContextoFechamentoJornadaOp,
   type JornadaOpAberta,
 } from '@/services/producao/jornadasOrdemProducao';
+import { AjustarInicioJornadaOp } from './AjustarInicioJornadaOp';
 
 interface Props {
   ordem: ProducaoOrdemProducao;
@@ -34,6 +36,15 @@ export const ControlesJornadaOp = ({
   onFechar,
   onFinalizarLegado,
 }: Props) => {
+  const [jornadaAjustada, setJornadaAjustada] = useState<JornadaOpAberta | null>(null);
+
+  useEffect(() => {
+    setJornadaAjustada(null);
+  }, [jornada?.id, jornada?.iniciado_em]);
+
+  const jornadaAtual =
+    jornada && jornadaAjustada?.id === jornada.id ? jornadaAjustada : jornada;
+
   if (ordem.status === 'liberada') {
     return (
       <Button size="sm" onClick={() => onIniciar(ordem)} disabled={executando}>
@@ -45,7 +56,7 @@ export const ControlesJornadaOp = ({
 
   if (ordem.status !== 'em_execucao') return null;
 
-  if (!jornada) {
+  if (!jornadaAtual) {
     return (
       <>
         <Button size="sm" onClick={() => onIniciar(ordem)} disabled={executando}>
@@ -69,7 +80,7 @@ export const ControlesJornadaOp = ({
 
   const abrirFechamento = (concluirOp: boolean) => {
     const contexto = contextoFechamentoJornada(
-      jornada,
+      jornadaAtual,
       concluirOp,
       ordem.responsavel_id,
       ordem.responsavel_nome_snapshot,
@@ -84,19 +95,24 @@ export const ControlesJornadaOp = ({
   return (
     <div className="flex w-full flex-col gap-2 sm:w-auto">
       <div className={`rounded-md border px-3 py-2 text-xs ${
-        jornada.pendente_dia_anterior
+        jornadaAtual.pendente_dia_anterior
           ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300'
           : 'border-primary/20 bg-primary/5 text-muted-foreground'
       }`}>
         <div className="flex items-center gap-1.5 font-medium">
-          {jornada.pendente_dia_anterior
+          {jornadaAtual.pendente_dia_anterior
             ? <AlertTriangle className="h-3.5 w-3.5" />
             : <Clock3 className="h-3.5 w-3.5" />}
-          {jornada.pendente_dia_anterior ? 'Fechamento pendente' : 'Apontamento aberto'}
+          {jornadaAtual.pendente_dia_anterior ? 'Fechamento pendente' : 'Apontamento aberto'}
         </div>
-        <div className="mt-0.5">Iniciado em {formatarInicio(jornada.iniciado_em)}</div>
+        <div className="mt-0.5">Iniciado em {formatarInicio(jornadaAtual.iniciado_em)}</div>
       </div>
       <div className="flex flex-wrap gap-2">
+        <AjustarInicioJornadaOp
+          jornada={jornadaAtual}
+          disabled={executando}
+          onAjustado={setJornadaAjustada}
+        />
         <Button
           size="sm"
           variant="outline"
