@@ -73,6 +73,23 @@ export interface SalvarContextoJornadaOpInput {
   justificativaConclusao: string | null;
 }
 
+export interface AjustarInicioJornadaOpInput {
+  jornadaId: string;
+  data: string;
+  inicio: string;
+  motivo: string;
+}
+
+export interface AjusteInicioJornadaOpResultado {
+  jornadaId: string;
+  iniciadoEm: string;
+  iniciadoEmOriginal: string;
+  data: string;
+  inicio: string;
+  ajustadoEm: string;
+  retroativo: boolean;
+}
+
 const erro = (value: unknown, fallback: string) =>
   new Error(formatarErroSupabase(value, fallback));
 
@@ -209,6 +226,44 @@ export const salvarContextoJornadaOp = async (
   if (error) {
     throw erro(error, 'Não foi possível preservar o rascunho desta jornada.');
   }
+};
+
+export const ajustarInicioJornadaOp = async (
+  dados: AjustarInicioJornadaOpInput,
+): Promise<AjusteInicioJornadaOpResultado> => {
+  const { data, error } = await (supabase.rpc as any)(
+    'ajustar_inicio_jornada_op_v1',
+    {
+      p_jornada_id: dados.jornadaId,
+      p_nova_data: dados.data,
+      p_novo_inicio: dados.inicio,
+      p_motivo: dados.motivo,
+    },
+  );
+
+  if (error) {
+    throw erro(error, 'Não foi possível ajustar o horário real de início.');
+  }
+
+  const resultado = data as {
+    jornada_id: string;
+    iniciado_em: string;
+    iniciado_em_original: string;
+    data: string;
+    inicio: string;
+    ajustado_em: string;
+    retroativo: boolean;
+  };
+
+  return {
+    jornadaId: String(resultado.jornada_id),
+    iniciadoEm: String(resultado.iniciado_em),
+    iniciadoEmOriginal: String(resultado.iniciado_em_original),
+    data: String(resultado.data),
+    inicio: String(resultado.inicio).slice(0, 5),
+    ajustadoEm: String(resultado.ajustado_em),
+    retroativo: Boolean(resultado.retroativo),
+  };
 };
 
 export const finalizarJornadaOp = async (
