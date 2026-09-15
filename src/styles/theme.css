@@ -83,3 +83,26 @@ html.dark {
   --sidebar-foreground: 210 20% 94%;
   --sidebar-accent-foreground: 210 20% 96%;
 }
+
+/* A barra superior passa a obedecer o mesmo sistema visual do restante da aplicação.
+   Sobrescreve os estilos inline legados do header sem alterar sua estrutura. */
+.sticky.top-0.z-40.border-b {
+  background: hsl(var(--card) / 0.96) !important;
+  border-bottom-color: hsl(var(--border)) !important;
+  box-shadow: var(--shadow-sm) !important;
+  color: hsl(var(--foreground));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* O seletor de tema agora é um controle global da barra superior.
+   Remove a antiga aba Tema das Configurações sem afetar os demais cadastros. */
+[role='tab'][id$='-trigger-tema'],
+[role='tabpanel'][id$='-content-tema'] {
+  display: none !important;
+}
+
+/* Reequilibra a grade da Administração após a retirada da aba Tema. */
+.grid.grid-cols-11:has(> [role='tab'][id$='-trigger-tema']) {
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+}
