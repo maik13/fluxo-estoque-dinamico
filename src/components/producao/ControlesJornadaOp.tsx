@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { AlertTriangle, CheckCircle2, Clock3, Loader2, Play, Square, Trash2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  Loader2,
+  Play,
+  Square,
+  Trash2,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import type { ProducaoOrdemProducao } from '@/types/producao';
@@ -32,6 +40,12 @@ const formatarInicio = (valor: string) =>
 const formatarQuantidade = (valor: number) =>
   new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 4 }).format(valor);
 
+const PainelExecucao = ({ children }: { children: React.ReactNode }) => (
+  <div className="min-w-0 rounded-lg border border-border/70 bg-muted/15 p-3">
+    {children}
+  </div>
+);
+
 export const ControlesJornadaOp = ({
   ordem,
   jornada,
@@ -45,13 +59,26 @@ export const ControlesJornadaOp = ({
 
   if (ordem.status === 'liberada') {
     return (
-      <div className="flex w-full flex-col gap-2 sm:w-auto">
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={() => onIniciar(ordem)} disabled={executando}>
-            {executando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+      <div className="w-full min-w-0 space-y-2 sm:w-[280px] sm:max-w-[280px] sm:shrink-0">
+        <PainelExecucao>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Execução da OP
+          </p>
+          <p className="mt-1 text-sm font-medium">Aguardando início</p>
+          <Button
+            size="sm"
+            className="mt-3 w-full justify-center"
+            onClick={() => onIniciar(ordem)}
+            disabled={executando}
+          >
+            {executando ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="mr-2 h-4 w-4" />
+            )}
             Iniciar apontamento
           </Button>
-        </div>
+        </PainelExecucao>
         <ApontamentosEncerradosOp ordem={ordem} />
       </div>
     );
@@ -61,24 +88,48 @@ export const ControlesJornadaOp = ({
 
   if (!jornada) {
     return (
-      <div className="flex w-full flex-col gap-2 sm:w-auto">
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={() => onIniciar(ordem)} disabled={executando}>
-            {executando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-            Iniciar novo apontamento
-          </Button>
-          {podeConcluir && (
+      <div className="w-full min-w-0 space-y-2 sm:w-[280px] sm:max-w-[280px] sm:shrink-0">
+        <PainelExecucao>
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Execução da OP
+              </p>
+              <p className="mt-0.5 text-sm font-medium">Sem apontamento em andamento</p>
+            </div>
+          </div>
+
+          <div className="mt-3 grid gap-2">
             <Button
               size="sm"
               variant="outline"
-              onClick={() => onFinalizarLegado(ordem)}
+              className="w-full justify-center"
+              onClick={() => onIniciar(ordem)}
               disabled={executando}
-              title="Concluir definitivamente a OP usando os apontamentos já encerrados"
             >
-              <CheckCircle2 className="mr-2 h-4 w-4" /> Concluir OP
+              {executando ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="mr-2 h-4 w-4" />
+              )}
+              Iniciar novo apontamento
             </Button>
-          )}
-        </div>
+
+            {podeConcluir && (
+              <Button
+                size="sm"
+                className="w-full justify-center"
+                onClick={() => onFinalizarLegado(ordem)}
+                disabled={executando}
+                title="Concluir definitivamente a OP usando os apontamentos já encerrados"
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Concluir OP
+              </Button>
+            )}
+          </div>
+        </PainelExecucao>
         <ApontamentosEncerradosOp ordem={ordem} />
       </div>
     );
@@ -101,17 +152,23 @@ export const ControlesJornadaOp = ({
 
   const descartarAberto = async () => {
     const motivo = window.prompt(
-      'Este apontamento aberto será descartado sem gerar produção nem novo histórico. Informe o motivo:',
+      'Este registro aberto será descartado sem apagar os apontamentos já encerrados nem gerar nova produção. Informe o motivo:',
     )?.trim();
     if (!motivo) return;
 
     setDescartando(true);
     try {
       await descartarJornadaOp(jornada.id, motivo);
-      toast.success('Apontamento aberto descartado. A OP foi liberada para concluir ou iniciar novo apontamento.');
+      toast.success(
+        'Registro aberto descartado. Os apontamentos encerrados foram preservados e a OP foi liberada.',
+      );
       window.location.reload();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Não foi possível descartar o apontamento aberto.');
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível descartar o registro aberto.',
+      );
     } finally {
       setDescartando(false);
     }
@@ -123,52 +180,80 @@ export const ControlesJornadaOp = ({
     Number(ordem.quantidade_realizada ?? 0) >= Number(ordem.quantidade_planejada ?? 0);
 
   return (
-    <div className="flex w-full flex-col gap-2 sm:w-auto">
-      <div className={`rounded-md border px-3 py-2 text-xs ${
-        jornada.pendente_dia_anterior
-          ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300'
-          : 'border-primary/20 bg-primary/5 text-muted-foreground'
-      }`}>
-        <div className="flex items-center gap-1.5 font-medium">
-          {jornada.pendente_dia_anterior
-            ? <AlertTriangle className="h-3.5 w-3.5" />
-            : <Clock3 className="h-3.5 w-3.5" />}
-          {jornada.pendente_dia_anterior
-            ? 'Apontamento pendente de fechamento'
-            : 'Apontamento em andamento'}
+    <div className="w-full min-w-0 space-y-2 sm:w-[280px] sm:max-w-[280px] sm:shrink-0">
+      <PainelExecucao>
+        <div className="flex items-start gap-2">
+          {jornada.pendente_dia_anterior ? (
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          ) : (
+            <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          )}
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Execução atual
+            </p>
+            <p className="mt-0.5 text-sm font-medium">
+              {jornada.pendente_dia_anterior
+                ? 'Registro pendente de fechamento'
+                : 'Apontamento em andamento'}
+            </p>
+          </div>
         </div>
-        <div className="mt-0.5">Início do apontamento: {formatarInicio(jornada.iniciado_em)}</div>
-        {quantidadeRascunho != null && (
-          <div className="mt-1 font-medium">
-            Rascunho: {formatarQuantidade(Number(quantidadeRascunho))}{' '}
-            {ordem.unidade_medida ?? ''}
-            <span className="font-normal"> · ainda não contabilizado</span>
+
+        <div className="mt-3 space-y-1 border-t border-border/60 pt-2 text-xs">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Início</span>
+            <span className="text-right font-medium">{formatarInicio(jornada.iniciado_em)}</span>
           </div>
-        )}
+          {quantidadeRascunho != null && (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Rascunho</span>
+              <span className="text-right font-medium">
+                {formatarQuantidade(Number(quantidadeRascunho))} {ordem.unidade_medida ?? ''}
+              </span>
+            </div>
+          )}
+        </div>
+
         {producaoCompleta && (
-          <div className="mt-2 border-t border-current/20 pt-2 font-medium">
-            A produção já atingiu 100% da OP. Se este apontamento aberto for residual ou duplicado, descarte-o em vez de lançar produção novamente.
+          <div className="mt-3 rounded-md border border-amber-500/35 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-700 dark:text-amber-300">
+            <strong>OP já está em 100%.</strong> Se este registro ficou aberto por engano ou é duplicado,
+            descarte-o. Não lance produção novamente.
           </div>
         )}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" onClick={abrirFechamento} disabled={descartando}>
-          <Square className="mr-2 h-4 w-4" /> Encerrar apontamento
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-destructive hover:text-destructive"
-          onClick={() => void descartarAberto()}
-          disabled={executando || descartando}
-        >
-          {descartando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-          Descartar apontamento aberto
-        </Button>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Encerre o apontamento se o trabalho realmente ocorreu neste período. Se ele for duplicado ou aberto por engano, descarte-o. Depois disso, “Concluir OP” ficará disponível no mesmo card.
-      </p>
+
+        <div className="mt-3 grid gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full justify-center"
+            onClick={abrirFechamento}
+            disabled={descartando}
+          >
+            <Square className="mr-2 h-4 w-4" />
+            Encerrar apontamento
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full justify-center border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => void descartarAberto()}
+            disabled={executando || descartando}
+          >
+            {descartando ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="mr-2 h-4 w-4" />
+            )}
+            Descartar registro aberto
+          </Button>
+        </div>
+
+        <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+          Encerrar cria um apontamento deste período. Descartar remove somente a abertura residual e preserva os apontamentos já salvos.
+        </p>
+      </PainelExecucao>
+
       <ApontamentosEncerradosOp ordem={ordem} />
     </div>
   );
