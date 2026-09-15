@@ -67,7 +67,6 @@ import type {
 } from '@/types/producao';
 import { imprimirOrdemProducao } from '@/utils/imprimirOrdemProducao';
 import { formatarErroSupabase } from '@/utils/supabaseError';
-import { FormRetificarApontamentoProducao } from './FormRetificarApontamentoProducao';
 
 interface Props {
   apontamentos: ProducaoApontamento[];
@@ -100,7 +99,7 @@ export const HistoricoApontamentosProducaoV3 = ({
   apontamentos,
   tarefas,
   locais,
-  membros,
+  membros: _membros,
   loading,
   podeConferir,
   listarMembros,
@@ -117,7 +116,6 @@ export const HistoricoApontamentosProducaoV3 = ({
   const [ocorrencia, setOcorrencia] = useState(TODOS);
   const [detalhes, setDetalhes] = useState<ProducaoApontamento | null>(null);
   const [galeria, setGaleria] = useState<ProducaoApontamento | null>(null);
-  const [retificando, setRetificando] = useState<ProducaoApontamento | null>(null);
   const [apontamentoParaExcluir, setApontamentoParaExcluir] = useState<ProducaoApontamento | null>(null);
   const [imprimindoId, setImprimindoId] = useState<string | null>(null);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
@@ -125,13 +123,12 @@ export const HistoricoApontamentosProducaoV3 = ({
   const [anexosPorApontamento, setAnexosPorApontamento] = useState<Record<string, ProducaoApontamentoAnexo[]>>({});
   const [urls, setUrls] = useState<Record<string, string>>({});
 
-  const { isAdmin, canApontarProducao } = usePermissions();
+  const { isAdmin } = usePermissions();
   const { processos, listarProcessos } = useProcessosProducao();
   const { projetos, listarProjetos } = useProjetosProducao();
   const { ordens, listarOrdens } = useOrdensProducao();
   const { listarAnexosPorApontamentos, obterUrlAnexo } = useProducaoAnexos();
   const podeExcluir = isAdmin();
-  const podeRetificar = canApontarProducao();
 
   useEffect(() => {
     void Promise.all([listarProcessos(), listarProjetos(), listarOrdens()]);
@@ -342,14 +339,13 @@ export const HistoricoApontamentosProducaoV3 = ({
   };
 
   const ordemDaExclusao = apontamentoParaExcluir?.ordem_producao_id ? ordensPorId[apontamentoParaExcluir.ordem_producao_id] : null;
-  const ordemDaRetificacao = retificando?.ordem_producao_id ? ordensPorId[retificando.ordem_producao_id] ?? null : null;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Histórico de apontamentos e rastreabilidade</CardTitle>
         <CardDescription>
-          Cada linha é um apontamento independente dentro de uma OP. Apontamentos já encerrados são corrigidos aqui, sem reabrir o apontamento atual da OP.
+          Consulta e auditoria dos apontamentos encerrados. Correções operacionais são feitas dentro da própria OP.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -452,9 +448,6 @@ export const HistoricoApontamentosProducaoV3 = ({
                     <TableCell><Badge variant="outline">{statusLabel[apontamento.status]}</Badge></TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
-                        {podeRetificar && apontamento.status !== 'cancelado' && (
-                          <Button size="icon" variant="ghost" title="Retificar apontamento" onClick={() => setRetificando(apontamento)}><Pencil className="h-4 w-4" /></Button>
-                        )}
                         {ordem && <Button size="icon" variant="ghost" title={`Imprimir ${formatarIdentificacaoOrdemProducao(ordem)}`} disabled={imprimindoId === ordem.id} onClick={() => void imprimir(ordem.id)}>{imprimindoId === ordem.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}</Button>}
                         {podeConferir && apontamento.status === 'lancado' && <Button size="icon" variant="ghost" title="Conferir" onClick={() => void conferir(apontamento)}><CheckCircle2 className="h-4 w-4 text-emerald-500" /></Button>}
                         {apontamento.status === 'lancado' && <Button size="icon" variant="ghost" title="Cancelar" onClick={() => void cancelar(apontamento)}><XCircle className="h-4 w-4 text-red-500" /></Button>}
@@ -469,18 +462,6 @@ export const HistoricoApontamentosProducaoV3 = ({
           </Table>
         </div>
       </CardContent>
-
-      <FormRetificarApontamentoProducao
-        apontamento={retificando}
-        ordem={ordemDaRetificacao}
-        tarefaNome={retificando ? tarefasPorId[retificando.tarefa_id] ?? 'Atividade não identificada' : ''}
-        membrosDisponiveis={membros}
-        membrosAtuais={retificando ? membrosPorApontamento[retificando.id] ?? [] : []}
-        onClose={() => setRetificando(null)}
-        onSuccess={async () => {
-          await Promise.all([recarregar(), listarOrdens(), listarProcessos()]);
-        }}
-      />
 
       <Dialog open={Boolean(apontamentoParaExcluir)} onOpenChange={(open) => { if (!open && !excluindoId) setApontamentoParaExcluir(null); }}>
         <DialogContent className="max-w-md">
