@@ -6,9 +6,9 @@ import {
   formatarNumeroOrdemProducao,
   useOrdensProducao,
 } from '@/hooks/useOrdensProducao';
-import { HistoricoApontamentosProducaoV2 } from './HistoricoApontamentosProducaoV2';
+import { HistoricoApontamentosProducaoV3 } from './HistoricoApontamentosProducaoV3';
 
-type Props = ComponentProps<typeof HistoricoApontamentosProducaoV2>;
+type Props = ComponentProps<typeof HistoricoApontamentosProducaoV3>;
 
 export const HistoricoApontamentosProducaoComBusca = (props: Props) => {
   const [buscaOp, setBuscaOp] = useState('');
@@ -64,7 +64,7 @@ export const HistoricoApontamentosProducaoComBusca = (props: Props) => {
         </div>
       </div>
 
-      <HistoricoApontamentosProducaoV2
+      <HistoricoApontamentosProducaoV3
         {...props}
         apontamentos={apontamentosFiltrados}
       />
