@@ -1,75 +1,85 @@
 /* Tema claro complementar.
    O index.css original usa a paleta escura em :root e .dark.
    Este arquivo, carregado depois, fornece os tokens reais do tema claro
-   quando a classe .dark não está ativa. */
+   quando a classe .dark não está ativa e reforça o contraste tipográfico
+   nos dois temas. */
 
 html:not(.dark) {
   color-scheme: light;
 
   --background: 210 20% 98%;
-  --foreground: 222 28% 12%;
+  --foreground: 222 36% 8%;
 
   --card: 0 0% 100%;
-  --card-foreground: 222 28% 12%;
+  --card-foreground: 222 36% 8%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 222 28% 12%;
+  --popover-foreground: 222 36% 8%;
 
-  --primary: 145 65% 35%;
+  --primary: 145 65% 32%;
   --primary-foreground: 0 0% 100%;
 
   --secondary: 215 20% 94%;
-  --secondary-foreground: 222 28% 18%;
+  --secondary-foreground: 222 30% 13%;
 
   --muted: 215 20% 95%;
-  --muted-foreground: 220 10% 42%;
+  --muted-foreground: 220 16% 30%;
 
-  --accent: 186 55% 35%;
+  --accent: 186 55% 31%;
   --accent-foreground: 0 0% 100%;
 
-  --destructive: 0 72% 50%;
+  --destructive: 0 72% 46%;
   --destructive-foreground: 0 0% 100%;
 
-  --border: 215 18% 84%;
-  --input: 215 18% 88%;
-  --ring: 145 65% 35%;
+  --border: 215 18% 78%;
+  --input: 215 18% 84%;
+  --ring: 145 65% 32%;
 
-  --success: 145 60% 36%;
+  --success: 145 60% 31%;
   --success-foreground: 0 0% 100%;
-  --warning: 38 92% 50%;
-  --warning-foreground: 38 80% 12%;
-  --info: 210 76% 46%;
+  --warning: 38 92% 43%;
+  --warning-foreground: 38 80% 10%;
+  --info: 210 76% 40%;
   --info-foreground: 0 0% 100%;
 
-  --glass-bg: hsl(0 0% 100% / 0.72);
-  --glass-border: hsl(222 28% 12% / 0.08);
-  --glass-shadow: 0 8px 30px hsl(220 20% 30% / 0.12);
+  --glass-bg: hsl(0 0% 100% / 0.80);
+  --glass-border: hsl(222 28% 12% / 0.12);
+  --glass-shadow: 0 8px 30px hsl(220 20% 30% / 0.14);
 
-  --gradient-primary: linear-gradient(135deg, hsl(145 65% 35%), hsl(170 58% 34%));
-  --gradient-accent: linear-gradient(135deg, hsl(186 55% 35%), hsl(200 65% 42%));
-  --gradient-danger: linear-gradient(135deg, hsl(0 72% 50%), hsl(15 72% 46%));
-  --gradient-warning: linear-gradient(135deg, hsl(38 92% 50%), hsl(25 90% 48%));
+  --gradient-primary: linear-gradient(135deg, hsl(145 65% 32%), hsl(170 58% 31%));
+  --gradient-accent: linear-gradient(135deg, hsl(186 55% 31%), hsl(200 65% 38%));
+  --gradient-danger: linear-gradient(135deg, hsl(0 72% 46%), hsl(15 72% 43%));
+  --gradient-warning: linear-gradient(135deg, hsl(38 92% 43%), hsl(25 90% 44%));
   --gradient-header: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 20% 97%));
   --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 20% 97%));
 
-  --shadow-sm: 0 1px 3px hsl(220 20% 30% / 0.10);
-  --shadow-md: 0 4px 16px hsl(220 20% 30% / 0.12);
-  --shadow-lg: 0 12px 40px hsl(220 20% 30% / 0.15);
-  --shadow-green: 0 0 20px hsl(145 65% 35% / 0.18);
-  --shadow-cyan: 0 0 20px hsl(186 55% 35% / 0.18);
-  --shadow-amber: 0 0 20px hsl(38 92% 50% / 0.18);
-  --shadow-red: 0 0 20px hsl(0 72% 50% / 0.18);
+  --shadow-sm: 0 1px 3px hsl(220 20% 30% / 0.12);
+  --shadow-md: 0 4px 16px hsl(220 20% 30% / 0.14);
+  --shadow-lg: 0 12px 40px hsl(220 20% 30% / 0.17);
+  --shadow-green: 0 0 20px hsl(145 65% 32% / 0.20);
+  --shadow-cyan: 0 0 20px hsl(186 55% 31% / 0.20);
+  --shadow-amber: 0 0 20px hsl(38 92% 43% / 0.20);
+  --shadow-red: 0 0 20px hsl(0 72% 46% / 0.20);
 
   --sidebar-background: 0 0% 100%;
-  --sidebar-foreground: 222 28% 18%;
-  --sidebar-primary: 145 65% 35%;
+  --sidebar-foreground: 222 30% 12%;
+  --sidebar-primary: 145 65% 32%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 215 20% 94%;
-  --sidebar-accent-foreground: 222 28% 18%;
-  --sidebar-border: 215 18% 86%;
-  --sidebar-ring: 145 65% 35%;
+  --sidebar-accent: 215 20% 93%;
+  --sidebar-accent-foreground: 222 30% 12%;
+  --sidebar-border: 215 18% 80%;
+  --sidebar-ring: 145 65% 32%;
 }
 
 html.dark {
   color-scheme: dark;
+
+  /* Reforço de legibilidade sem clarear o fundo do tema escuro. */
+  --foreground: 210 24% 98%;
+  --card-foreground: 210 24% 98%;
+  --popover-foreground: 210 24% 98%;
+  --secondary-foreground: 210 20% 96%;
+  --muted-foreground: 215 16% 72%;
+  --sidebar-foreground: 210 20% 94%;
+  --sidebar-accent-foreground: 210 20% 96%;
 }
