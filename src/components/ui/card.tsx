@@ -9,11 +9,8 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      // Base card — dark gradient background with subtle border
-      "rounded-xl border border-[hsl(var(--border))]",
-      "bg-gradient-to-b from-[hsl(224_24%_12%)] to-[hsl(222_22%_9%)]",
-      "text-card-foreground",
-      "shadow-[0_2px_12px_hsl(222_28%_4%_/_0.4)]",
+      "rounded-xl border border-border bg-card text-card-foreground",
+      "shadow-[var(--shadow-sm)]",
       "transition-all duration-200",
       className
     )}
@@ -55,7 +52,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-sm text-[hsl(var(--muted-foreground))] leading-relaxed", className)}
+    className={cn("text-sm leading-relaxed text-muted-foreground", className)}
     {...props}
   />
 ))
@@ -76,8 +73,7 @@ const CardFooter = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "flex items-center p-6 pt-0",
-      "border-t border-[hsl(var(--border)_/_0.5)] mt-2",
+      "mt-2 flex items-center border-t border-border/50 p-6 pt-0",
       className
     )}
     {...props}
