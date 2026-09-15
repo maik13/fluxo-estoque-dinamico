@@ -1,9 +1,10 @@
 import { AlertTriangle, CheckCircle2, Clock3, Loader2, Play, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ProducaoOrdemProducao } from '@/types/producao';
-import type {
-  ContextoFechamentoJornadaOp,
-  JornadaOpAberta,
+import {
+  contextoFechamentoJornada,
+  type ContextoFechamentoJornadaOp,
+  type JornadaOpAberta,
 } from '@/services/producao/jornadasOrdemProducao';
 
 interface Props {
@@ -66,6 +67,20 @@ export const ControlesJornadaOp = ({
     );
   }
 
+  const abrirFechamento = (concluirOp: boolean) => {
+    const contexto = contextoFechamentoJornada(
+      jornada,
+      concluirOp,
+      ordem.responsavel_id,
+      ordem.responsavel_nome_snapshot,
+    );
+
+    onFechar({
+      ...contexto,
+      tarefaId: contexto.tarefaId ?? ordem.tarefa_id ?? null,
+    });
+  };
+
   return (
     <div className="flex w-full flex-col gap-2 sm:w-auto">
       <div className={`rounded-md border px-3 py-2 text-xs ${
@@ -85,24 +100,14 @@ export const ControlesJornadaOp = ({
         <Button
           size="sm"
           variant="outline"
-          onClick={() => onFechar({
-            jornadaId: jornada.id,
-            ordemProducaoId: ordem.id,
-            iniciadoEm: jornada.iniciado_em,
-            concluirOp: false,
-          })}
+          onClick={() => abrirFechamento(false)}
         >
           <Square className="mr-2 h-4 w-4" /> Encerrar trabalho
         </Button>
         {podeConcluir && (
           <Button
             size="sm"
-            onClick={() => onFechar({
-              jornadaId: jornada.id,
-              ordemProducaoId: ordem.id,
-              iniciadoEm: jornada.iniciado_em,
-              concluirOp: true,
-            })}
+            onClick={() => abrirFechamento(true)}
           >
             <CheckCircle2 className="mr-2 h-4 w-4" /> Concluir OP
           </Button>
