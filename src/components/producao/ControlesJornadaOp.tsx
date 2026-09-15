@@ -1,6 +1,9 @@
-import { AlertTriangle, CheckCircle2, Clock3, Loader2, Play, Square } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, CheckCircle2, Clock3, Loader2, Play, Square, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import type { ProducaoOrdemProducao } from '@/types/producao';
+import { descartarJornadaOp } from '@/services/producao/descartarJornadaOp';
 import {
   contextoFechamentoJornada,
   type ContextoFechamentoJornadaOp,
@@ -38,6 +41,8 @@ export const ControlesJornadaOp = ({
   onFechar,
   onFinalizarLegado,
 }: Props) => {
+  const [descartando, setDescartando] = useState(false);
+
   if (ordem.status === 'liberada') {
     return (
       <div className="flex w-full flex-col gap-2 sm:w-auto">
@@ -94,7 +99,28 @@ export const ControlesJornadaOp = ({
     });
   };
 
+  const descartarAberto = async () => {
+    const motivo = window.prompt(
+      'Este apontamento aberto será descartado sem gerar produção nem novo histórico. Informe o motivo:',
+    )?.trim();
+    if (!motivo) return;
+
+    setDescartando(true);
+    try {
+      await descartarJornadaOp(jornada.id, motivo);
+      toast.success('Apontamento aberto descartado. A OP foi liberada para concluir ou iniciar novo apontamento.');
+      window.location.reload();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível descartar o apontamento aberto.');
+    } finally {
+      setDescartando(false);
+    }
+  };
+
   const quantidadeRascunho = jornada.quantidade_produzida_rascunho;
+  const producaoCompleta =
+    Number(ordem.quantidade_planejada ?? 0) > 0 &&
+    Number(ordem.quantidade_realizada ?? 0) >= Number(ordem.quantidade_planejada ?? 0);
 
   return (
     <div className="flex w-full flex-col gap-2 sm:w-auto">
@@ -119,14 +145,29 @@ export const ControlesJornadaOp = ({
             <span className="font-normal"> · ainda não contabilizado</span>
           </div>
         )}
+        {producaoCompleta && (
+          <div className="mt-2 border-t border-current/20 pt-2 font-medium">
+            A produção já atingiu 100% da OP. Se este apontamento aberto for residual ou duplicado, descarte-o em vez de lançar produção novamente.
+          </div>
+        )}
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" onClick={abrirFechamento}>
+        <Button size="sm" variant="outline" onClick={abrirFechamento} disabled={descartando}>
           <Square className="mr-2 h-4 w-4" /> Encerrar apontamento
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-destructive hover:text-destructive"
+          onClick={() => void descartarAberto()}
+          disabled={executando || descartando}
+        >
+          {descartando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+          Descartar apontamento aberto
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Encerre o apontamento atual primeiro. Depois disso, o botão “Concluir OP” ficará disponível no mesmo card.
+        Encerre o apontamento se o trabalho realmente ocorreu neste período. Se ele for duplicado ou aberto por engano, descarte-o. Depois disso, “Concluir OP” ficará disponível no mesmo card.
       </p>
       <ApontamentosEncerradosOp ordem={ordem} />
     </div>
