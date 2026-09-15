@@ -21,6 +21,7 @@ import type { NovoApontamentoProducao } from '@/types/producao';
 import { ConfiguracoesProducao } from './ConfiguracoesProducao';
 import { CronogramaProducao } from './CronogramaProducao';
 import { FormApontamentoProducaoV2 } from './FormApontamentoProducaoV2';
+import { FormFechamentoJornadaOp } from './FormFechamentoJornadaOp';
 import { HistoricoApontamentosProducaoComBusca } from './HistoricoApontamentosProducaoComBusca';
 import { ProjetosProducao } from './ProjetosProducao';
 import { ProcessosProducaoHierarquico } from './ProcessosProducaoHierarquico';
@@ -162,16 +163,24 @@ export const Producao = () => {
         <TabsContent value="cronograma" className="mt-5"><CronogramaProducao /></TabsContent>
 
         <TabsContent value="apontamento" className="mt-5">
-          <FormApontamentoProducaoV2
-            tarefas={tarefas}
-            locais={locaisUtilizacao}
-            membros={membrosProducao}
-            podeApontar={podeApontar}
-            criarApontamento={criarApontamentoComExcecoes}
-            onSuccess={carregarDados}
-            jornadaContexto={contextoJornada}
-            onJornadaFinalizada={concluirFechamentoJornada}
-          />
+          {contextoJornada ? (
+            <FormFechamentoJornadaOp
+              tarefas={tarefas}
+              membros={membrosProducao}
+              podeApontar={podeApontar}
+              jornadaContexto={contextoJornada}
+              onJornadaFinalizada={concluirFechamentoJornada}
+            />
+          ) : (
+            <FormApontamentoProducaoV2
+              tarefas={tarefas}
+              locais={locaisUtilizacao}
+              membros={membrosProducao}
+              podeApontar={podeApontar}
+              criarApontamento={criarApontamentoComExcecoes}
+              onSuccess={carregarDados}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="historico" className="mt-5">
