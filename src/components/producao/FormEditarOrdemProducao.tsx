@@ -156,12 +156,13 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
     <Dialog open={aberto} onOpenChange={alterarAbertura}>
       <DialogTrigger asChild>
         <Button
-          size="sm"
+          size="icon"
           variant="outline"
+          className="h-9 w-9 shrink-0"
           title={`Editar ${formatarNumeroOrdemProducao(ordem.numero)}`}
+          aria-label={`Editar ${formatarNumeroOrdemProducao(ordem.numero)}`}
         >
-          <Pencil className="mr-2 h-4 w-4" />
-          Editar OP
+          <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
 
@@ -171,8 +172,8 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
             Editar {formatarNumeroOrdemProducao(ordem.numero)}
           </DialogTitle>
           <DialogDescription>
-            Você está alterando esta Ordem de Produção específica. Projeto,
-            Etapa, número e status permanecem inalterados.
+            Altere o planejamento desta OP. Projeto, Etapa, número, status e a
+            produção já apontada permanecem preservados.
           </DialogDescription>
         </DialogHeader>
 
@@ -194,17 +195,40 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
               {formatarQuantidade(Number(ordem.quantidade_realizada))}{' '}
               {ordem.unidade_medida ?? ''}
             </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              A produção realizada é controlada pelos apontamentos. Esta tela
+              altera a quantidade planejada e os demais dados de planejamento da OP.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Motivo da alteração *</Label>
+            <Textarea
+              value={justificativa}
+              onChange={(event) => setJustificativa(event.target.value)}
+              placeholder="Explique por que esta OP está sendo alterada."
+              rows={2}
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              O motivo fica registrado na auditoria da OP.
+            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Quantidade planejada *</Label>
+              <Label>Quantidade planejada da OP *</Label>
               <Input
                 value={quantidade}
                 onChange={(event) => setQuantidade(event.target.value)}
                 inputMode="decimal"
+                className="font-medium"
                 required
               />
+              <p className="text-xs text-muted-foreground">
+                Pode ser alterada enquanto a OP estiver liberada ou em execução,
+                mas nunca para um valor menor que a produção já confirmada.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -304,18 +328,7 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Motivo da alteração *</Label>
-            <Textarea
-              value={justificativa}
-              onChange={(event) => setJustificativa(event.target.value)}
-              placeholder="Explique por que esta OP está sendo alterada."
-              rows={3}
-              required
-            />
-          </div>
-
-          <DialogFooter>
+          <DialogFooter className="sticky -bottom-6 -mx-6 border-t bg-background px-6 py-4">
             <Button
               type="button"
               variant="outline"
