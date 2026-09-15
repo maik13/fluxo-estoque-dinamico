@@ -28,8 +28,8 @@ import { ProcessosProducaoHierarquico } from './ProcessosProducaoHierarquico';
 
 export const Producao = () => {
   const [abaAtiva, setAbaAtiva] = useState('etapas');
-  const [contextoJornada, setContextoJornada] =
-    useState<ContextoFechamentoJornadaOp | null>(null);
+  const [contextoJornada, setContextoJornada] = useState<ContextoFechamentoJornadaOp | null>(null);
+  const [versaoEtapas, setVersaoEtapas] = useState(0);
   const {
     tarefas,
     membrosProducao,
@@ -70,9 +70,7 @@ export const Producao = () => {
 
   const criarApontamentoComExcecoes = useCallback(
     async (dados: NovoApontamentoProducao) => {
-      if (dados.horarios_membros?.length) {
-        return criarApontamentoComHorarios(dados);
-      }
+      if (dados.horarios_membros?.length) return criarApontamentoComHorarios(dados);
       return criarApontamento(dados);
     },
     [criarApontamento],
@@ -81,27 +79,22 @@ export const Producao = () => {
   const trocarAba = useCallback(
     (novaAba: string) => {
       setAbaAtiva(novaAba);
-      if (novaAba === 'historico') {
-        void carregarDados().catch(() => undefined);
-      }
-      if (novaAba !== 'apontamento' && contextoJornada) {
-        setContextoJornada(null);
-      }
+      if (novaAba === 'historico') void carregarDados().catch(() => undefined);
+      if (novaAba !== 'apontamento' && contextoJornada) setContextoJornada(null);
     },
     [carregarDados, contextoJornada],
   );
 
-  const abrirFechamentoJornada = useCallback(
-    (contexto: ContextoFechamentoJornadaOp) => {
-      setContextoJornada(contexto);
-      setAbaAtiva('apontamento');
-    },
-    [],
-  );
+  const abrirFechamentoJornada = useCallback((contexto: ContextoFechamentoJornadaOp) => {
+    setContextoJornada(contexto);
+    setAbaAtiva('apontamento');
+  }, []);
 
   const concluirFechamentoJornada = useCallback(async () => {
     setContextoJornada(null);
     await carregarDados();
+    setVersaoEtapas((atual) => atual + 1);
+    setAbaAtiva('etapas');
   }, [carregarDados]);
 
   useEffect(() => {
@@ -156,6 +149,7 @@ export const Producao = () => {
         <TabsContent value="projetos" className="mt-5"><ProjetosProducao /></TabsContent>
         <TabsContent value="etapas" className="mt-5">
           <ProcessosProducaoHierarquico
+            key={versaoEtapas}
             tarefas={tarefas}
             onFecharJornada={abrirFechamentoJornada}
           />
