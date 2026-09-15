@@ -74,7 +74,7 @@ export const ControlesJornadaOp = ({
             disabled={executando}
             title="Concluir definitivamente a OP quando não houver apontamento aberto"
           >
-            <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar OP
+            <CheckCircle2 className="mr-2 h-4 w-4" /> Concluir OP
           </Button>
         )}
       </>
