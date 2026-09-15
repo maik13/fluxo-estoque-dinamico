@@ -27,6 +27,9 @@ const formatarInicio = (valor: string) =>
     minute: '2-digit',
   });
 
+const formatarQuantidade = (valor: number) =>
+  new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 4 }).format(valor);
+
 export const ControlesJornadaOp = ({
   ordem,
   jornada,
@@ -92,6 +95,8 @@ export const ControlesJornadaOp = ({
     });
   };
 
+  const quantidadeRascunho = jornadaAtual.quantidade_produzida_rascunho;
+
   return (
     <div className="flex w-full flex-col gap-2 sm:w-auto">
       <div className={`rounded-md border px-3 py-2 text-xs ${
@@ -106,6 +111,13 @@ export const ControlesJornadaOp = ({
           {jornadaAtual.pendente_dia_anterior ? 'Fechamento pendente' : 'Apontamento aberto'}
         </div>
         <div className="mt-0.5">Iniciado em {formatarInicio(jornadaAtual.iniciado_em)}</div>
+        {quantidadeRascunho != null && (
+          <div className="mt-1 font-medium">
+            Rascunho: {formatarQuantidade(Number(quantidadeRascunho))}{' '}
+            {ordem.unidade_medida ?? ''}
+            <span className="font-normal"> · ainda não contabilizado</span>
+          </div>
+        )}
       </div>
       <div className="flex flex-wrap gap-2">
         <AjustarInicioJornadaOp
