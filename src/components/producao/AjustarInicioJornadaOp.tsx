@@ -63,11 +63,11 @@ export const AjustarInicioJornadaOp = ({
     event.preventDefault();
 
     if (!data || !inicio) {
-      toast.error('Informe a data e o horário reais de início.');
+      toast.error('Informe a data e o horário reais de início do apontamento.');
       return;
     }
     if (!motivo.trim()) {
-      toast.error('Informe por que o horário de início está sendo corrigido.');
+      toast.error('Informe por que o início deste apontamento está sendo corrigido.');
       return;
     }
 
@@ -87,13 +87,13 @@ export const AjustarInicioJornadaOp = ({
       });
       setAberto(false);
       toast.success(
-        'Início real ajustado. O horário capturado originalmente foi preservado na auditoria.',
+        'Início do apontamento corrigido. O horário capturado originalmente foi preservado na auditoria.',
       );
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : 'Não foi possível ajustar o início da jornada.',
+          : 'Não foi possível corrigir o início do apontamento.',
       );
     } finally {
       setSalvando(false);
@@ -108,25 +108,25 @@ export const AjustarInicioJornadaOp = ({
           size="sm"
           variant="ghost"
           disabled={disabled}
-          title="Corrigir o início real da jornada com registro de auditoria"
+          title="Corrigir o início do apontamento atual com registro de auditoria"
         >
           <Clock3 className="mr-2 h-4 w-4" />
-          Ajustar início
+          Corrigir início do apontamento
         </Button>
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Ajustar início real da jornada</DialogTitle>
+          <DialogTitle>Corrigir início do apontamento atual</DialogTitle>
           <DialogDescription>
-            Use somente quando o apontador iniciou o registro depois do horário em que o trabalho realmente começou. O horário originalmente capturado não será apagado.
+            Esta correção vale somente para o apontamento que está aberto agora. Não altera a data de início da OP nem apontamentos anteriores. O horário capturado originalmente permanece na auditoria.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={salvar} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Data real *</Label>
+              <Label>Data real do apontamento *</Label>
               <Input
                 type="date"
                 value={data}
@@ -152,7 +152,7 @@ export const AjustarInicioJornadaOp = ({
             <Textarea
               value={motivo}
               onChange={(event) => setMotivo(event.target.value)}
-              placeholder="Ex.: operador iniciou o apontamento às 10:43, mas o trabalho começou às 08:00."
+              placeholder="Ex.: o apontador iniciou o registro às 10:43, mas o trabalho deste apontamento começou às 08:00."
               rows={3}
               disabled={salvando}
               required
@@ -160,7 +160,7 @@ export const AjustarInicioJornadaOp = ({
           </div>
 
           <p className="text-xs text-muted-foreground">
-            A auditoria registrará o horário capturado originalmente, o novo horário informado, quem fez a alteração, quando ela foi feita e a justificativa.
+            A auditoria registra o horário capturado originalmente, o novo horário, quem fez a correção, quando e a justificativa.
           </p>
 
           <DialogFooter>
@@ -174,7 +174,7 @@ export const AjustarInicioJornadaOp = ({
             </Button>
             <Button type="submit" disabled={salvando || !motivo.trim()}>
               {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Salvar ajuste
+              Salvar correção
             </Button>
           </DialogFooter>
         </form>
