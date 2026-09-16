@@ -117,7 +117,9 @@ export const useProjetosProducao = () => {
           const local = locais.get(localId);
 
           return {
-            id: localId,
+            // O identificador canônico de um projeto de Produção é producao_projetos.id.
+            // O local de utilização continua disponível separadamente em local_utilizacao_id.
+            id: config.id,
             config_id: config.id,
             local_utilizacao_id: localId,
             group_id: local?.group_id ?? null,
