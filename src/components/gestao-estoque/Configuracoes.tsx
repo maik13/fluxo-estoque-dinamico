@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Database, Wrench, Tag, Pencil, X, CheckCircle, XCircle } from 'lucide-react';
+import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Database, Wrench, Tag, Pencil, X, CheckCircle, XCircle, Search } from 'lucide-react';
 import { userCreationSchema } from '@/schemas/validation';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -153,6 +153,7 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false }: Configurac
   const [buscandoItens, setBuscandoItens] = useState(false);
   const [itensSelecionados, setItensSelecionados] = useState<Set<string>>(new Set());
   const [filtroCategoria, setFiltroCategoria] = useState<string>('Todos');
+  const [buscaLocal, setBuscaLocal] = useState('');
 
   const handleTemaChange = (tema: 'light' | 'dark') => {
     setConfiguracao(prev => ({ ...prev, tema }));
@@ -595,6 +596,25 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false }: Configurac
       return tipo === filtroCategoria;
     });
   }, [itensParaCorrigir, filtroCategoria]);
+
+  const locaisFiltrados = useMemo(() => {
+    const normalizar = (valor: string) =>
+      valor
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLocaleLowerCase('pt-BR');
+
+    const termo = normalizar(buscaLocal.trim());
+    if (!termo) return locaisUtilizacao;
+
+    return locaisUtilizacao.filter((local) => {
+      const grupoNome = local.group_id
+        ? gruposProjeto.find((grupo) => grupo.id === local.group_id)?.nome || ''
+        : '';
+
+      return normalizar(`${local.nome} ${grupoNome}`).includes(termo);
+    });
+  }, [buscaLocal, gruposProjeto, locaisUtilizacao]);
 
   const handleToggleSelectAll = (checked: boolean) => {
     if (!itensFiltrados) return;
@@ -1164,40 +1184,61 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false }: Configurac
                 <Separator />
                 
                 <div className="space-y-2">
-                  <h4 className="font-medium">Locais Cadastrados</h4>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <h4 className="font-medium">Locais Cadastrados</h4>
+                    <span className="text-xs text-muted-foreground">
+                      {locaisFiltrados.length} de {locaisUtilizacao.length} local(is)
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={buscaLocal}
+                      onChange={(e) => setBuscaLocal(e.target.value)}
+                      placeholder="Buscar local ou grupo..."
+                      className="pl-9"
+                      aria-label="Buscar local ou grupo"
+                    />
+                  </div>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {locaisUtilizacao.map((local) => (
-                      <div key={local.id} className="flex items-center justify-between p-2 border rounded">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{local.nome}</span>
-                          {local.group_id && (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                              📦 {gruposProjeto.find(g => g.id === local.group_id)?.nome || 'Grupo carregando...'}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditandoLocal({
-                              id: local.id,
-                              nome: local.nome,
-                              groupId: local.group_id
-                            })}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removerLocalUtilizacao(local.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                    {locaisFiltrados.length === 0 ? (
+                      <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+                        Nenhum local encontrado para esta busca.
                       </div>
-                    ))}
+                    ) : (
+                      locaisFiltrados.map((local) => (
+                        <div key={local.id} className="flex items-center justify-between p-2 border rounded">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{local.nome}</span>
+                            {local.group_id && (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                📦 {gruposProjeto.find(g => g.id === local.group_id)?.nome || 'Grupo carregando...'}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditandoLocal({
+                                id: local.id,
+                                nome: local.nome,
+                                groupId: local.group_id
+                              })}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removerLocalUtilizacao(local.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </CardContent>
