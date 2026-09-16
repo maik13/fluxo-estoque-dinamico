@@ -8,7 +8,11 @@ import { FormEditarProjetoProducao } from './FormEditarProjetoProducao';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-export const ProjetosProducao = () => {
+interface Props {
+  onProjetosAtualizados?: () => void;
+}
+
+export const ProjetosProducao = ({ onProjetosAtualizados }: Props) => {
   const [busca, setBusca] = useState('');
   const { projetos, loading, listarProjetos } = useProjetosProducao();
   const { canConfigurarProducao } = usePermissions();
@@ -16,6 +20,11 @@ export const ProjetosProducao = () => {
   useEffect(() => {
     void listarProjetos();
   }, [listarProjetos]);
+
+  const atualizarProjetos = async () => {
+    await listarProjetos();
+    onProjetosAtualizados?.();
+  };
 
   const termo = busca.toLocaleLowerCase('pt-BR');
   const projetosFiltrados = projetos.filter((projeto) =>
@@ -33,7 +42,7 @@ export const ProjetosProducao = () => {
             Esta lista mostra somente os projetos que foram adicionados ao módulo de Produção.
           </p>
         </div>
-        <FormProjetoProducao onSuccess={() => void listarProjetos()} />
+        <FormProjetoProducao onSuccess={() => void atualizarProjetos()} />
       </div>
 
       {projetos.length > 0 && (
@@ -116,7 +125,7 @@ export const ProjetosProducao = () => {
                 {canConfigurarProducao() && (
                   <FormEditarProjetoProducao
                     projeto={projeto}
-                    onSuccess={() => void listarProjetos()}
+                    onSuccess={() => void atualizarProjetos()}
                   />
                 )}
               </div>
