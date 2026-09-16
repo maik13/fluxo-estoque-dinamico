@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   BarChart3,
   ClipboardList,
@@ -8,7 +7,6 @@ import {
   LayoutDashboard,
   Menu,
   MessageCircle,
-  MonitorUp,
   Package,
   Settings,
   type LucideIcon,
@@ -22,7 +20,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import { usePermissions } from '@/hooks/usePermissions';
 
 type NavegacaoLateralEstoqueProps = {
   tabAtiva: string;
@@ -43,7 +40,6 @@ type NavItem = {
   icon: LucideIcon;
   visible?: boolean;
   badge?: number;
-  href?: string;
 };
 
 type NavSection = {
@@ -64,9 +60,6 @@ export const NavegacaoLateralEstoque = ({
   somenteBIProducao,
 }: NavegacaoLateralEstoqueProps) => {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const navigate = useNavigate();
-  const { canViewBIProducao } = usePermissions();
-  const podeVerPainelAoVivo = canViewBIProducao();
 
   const sections: NavSection[] = [
     {
@@ -103,13 +96,6 @@ export const NavegacaoLateralEstoque = ({
           visible: showGerencial,
         },
         {
-          value: 'painel-producao-ao-vivo',
-          label: 'Painel ao Vivo',
-          icon: MonitorUp,
-          visible: podeVerPainelAoVivo,
-          href: '/producao/ao-vivo',
-        },
-        {
           value: 'projetos',
           label: 'Projetos',
           icon: ClipboardList,
@@ -142,12 +128,8 @@ export const NavegacaoLateralEstoque = ({
     },
   ];
 
-  const handleNavigate = (item: NavItem, closeMobile = false) => {
-    if (item.href) {
-      navigate(item.href);
-    } else {
-      onNavigate(item.value);
-    }
+  const handleNavigate = (value: string, closeMobile = false) => {
+    onNavigate(value);
     if (closeMobile) setMobileOpen(false);
   };
 
@@ -165,7 +147,7 @@ export const NavegacaoLateralEstoque = ({
             <div className="space-y-1">
               {visibleItems.map((item) => {
                 const Icon = item.icon;
-                const active = !item.href && tabAtiva === item.value;
+                const active = tabAtiva === item.value;
                 const badge = item.badge && item.badge > 0 ? item.badge : 0;
 
                 return (
@@ -173,7 +155,7 @@ export const NavegacaoLateralEstoque = ({
                     key={item.value}
                     type="button"
                     aria-current={active ? 'page' : undefined}
-                    onClick={() => handleNavigate(item, closeMobile)}
+                    onClick={() => handleNavigate(item.value, closeMobile)}
                     className={cn(
                       'group flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors',
                       active
