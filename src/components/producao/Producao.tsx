@@ -76,9 +76,14 @@ export const Producao = () => {
     [criarApontamento],
   );
 
+  const sincronizarProjetosEtapas = useCallback(() => {
+    setVersaoEtapas((atual) => atual + 1);
+  }, []);
+
   const trocarAba = useCallback(
     (novaAba: string) => {
       setAbaAtiva(novaAba);
+      if (novaAba === 'etapas') setVersaoEtapas((atual) => atual + 1);
       if (novaAba === 'historico') void carregarDados().catch(() => undefined);
       if (novaAba !== 'apontamento' && contextoJornada) setContextoJornada(null);
     },
@@ -146,7 +151,9 @@ export const Producao = () => {
           {podeConfigurar && <TabsTrigger value="configuracoes" className="gap-2"><Settings className="h-4 w-4" /><span className="hidden sm:inline">Configurações</span></TabsTrigger>}
         </TabsList>
 
-        <TabsContent value="projetos" className="mt-5"><ProjetosProducao /></TabsContent>
+        <TabsContent value="projetos" className="mt-5">
+          <ProjetosProducao onProjetosAtualizados={sincronizarProjetosEtapas} />
+        </TabsContent>
         <TabsContent value="etapas" className="mt-5">
           <ProcessosProducaoHierarquico
             key={versaoEtapas}
