@@ -1,5 +1,6 @@
-import { ArrowLeft, Factory } from 'lucide-react';
+import { ArrowLeft, BarChart3, Factory, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
 import { PainelProjetosProducaoAoVivo } from './PainelProjetosProducaoAoVivo';
 import { PainelProducaoGerencial } from './PainelProducaoGerencial';
@@ -14,7 +15,19 @@ export const GerencialProducaoIntegrado = ({
   onVoltar,
 }: GerencialProducaoIntegradoProps) => {
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
+      <style>{`
+        .gerencial-producao-analises #bi-producao-impressao > div:first-child h2 {
+          font-size: 0 !important;
+        }
+        .gerencial-producao-analises #bi-producao-impressao > div:first-child h2::after {
+          content: 'Gerencial de Produção';
+          font-size: 1.5rem;
+          line-height: 2rem;
+          font-weight: 700;
+        }
+      `}</style>
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="rounded-xl bg-blue-500/10 p-2.5">
@@ -23,7 +36,7 @@ export const GerencialProducaoIntegrado = ({
           <div>
             <h2 className="text-2xl font-bold">Gerencial de Produção</h2>
             <p className="text-sm text-muted-foreground">
-              Acompanhamento executivo ao vivo e análises detalhadas da Produção.
+              Visão executiva ao vivo e análises detalhadas da operação.
             </p>
           </div>
         </div>
@@ -35,17 +48,26 @@ export const GerencialProducaoIntegrado = ({
         )}
       </div>
 
-      <PainelProjetosProducaoAoVivo />
+      <Tabs defaultValue="visao" className="space-y-4">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="visao" className="gap-2">
+            <LayoutDashboard className="h-4 w-4" />
+            Visão ao vivo
+          </TabsTrigger>
+          <TabsTrigger value="analises" className="gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Análises
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="border-t pt-6">
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold">Análises detalhadas</h3>
-          <p className="text-sm text-muted-foreground">
-            Filtros, fotos, materiais, mão de obra e demais indicadores permanecem disponíveis abaixo.
-          </p>
-        </div>
-        <PainelProducaoGerencial locais={locais} />
-      </div>
+        <TabsContent value="visao" className="mt-0">
+          <PainelProjetosProducaoAoVivo />
+        </TabsContent>
+
+        <TabsContent value="analises" className="gerencial-producao-analises mt-0">
+          <PainelProducaoGerencial locais={locais} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
