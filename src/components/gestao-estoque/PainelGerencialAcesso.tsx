@@ -1,44 +1,57 @@
-import { BarChart3 } from 'lucide-react';
+import { useState, type MouseEvent } from 'react';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
-import { PainelProducaoGerencial } from '@/components/producao/PainelProducaoGerencial';
-import { ResumoJornadaProducao } from '@/components/producao/ResumoJornadaProducao';
+import { GerencialProducaoIntegrado } from '@/components/producao/GerencialProducaoIntegrado';
 import { PainelGerencial } from './PainelGerencial';
 
 export const PainelGerencialAcesso = () => {
   const { canAccessManagerial, canViewBIProducao } = usePermissions();
   const { locaisUtilizacao } = useConfiguracoes();
+  const [abrirGerencialProducao, setAbrirGerencialProducao] = useState(false);
 
   const podeVerGerencialAlmoxarifado = canAccessManagerial();
   const podeVerGerencialProducao = canViewBIProducao();
 
-  // Quando o usuário tem acesso ao gerencial do almoxarifado, o próprio
-  // PainelGerencial funciona como a tela de entrada: inicialmente exibe
-  // somente os dois cards de acesso e só carrega conteúdo após a escolha.
+  if (podeVerGerencialAlmoxarifado && podeVerGerencialProducao) {
+    if (abrirGerencialProducao) {
+      return (
+        <GerencialProducaoIntegrado
+          locais={locaisUtilizacao}
+          onVoltar={() => setAbrirGerencialProducao(false)}
+        />
+      );
+    }
+
+    // Ponte de compatibilidade: preserva integralmente o Gerencial do
+    // Almoxarifado atual e substitui somente a entrada de Produção pela nova
+    // experiência integrada. Assim o painel ao vivo permanece dentro do
+    // Gerencial, sem criar uma navegação paralela.
+    const interceptarAcessoProducao = (event: MouseEvent<HTMLDivElement>) => {
+      const alvo = event.target as HTMLElement;
+      const botao = alvo.closest('button');
+      if (!botao) return;
+
+      const texto = (botao.textContent ?? '').replace(/\s+/g, ' ').trim();
+      if (!texto.includes('BI de Produção') && !texto.includes('Gerencial de Produção')) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      setAbrirGerencialProducao(true);
+    };
+
+    return (
+      <div onClickCapture={interceptarAcessoProducao}>
+        <PainelGerencial />
+      </div>
+    );
+  }
+
   if (podeVerGerencialAlmoxarifado) {
     return <PainelGerencial />;
   }
 
-  // Usuários com acesso exclusivo à produção entram diretamente no
-  // respectivo gerencial, sem misturar dados do almoxarifado.
   if (podeVerGerencialProducao) {
-    return (
-      <div className="space-y-8">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-blue-500/10 p-2.5">
-            <BarChart3 className="h-6 w-6 text-blue-500" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold">Gerencial de Produção</h2>
-            <p className="text-sm text-muted-foreground">
-              Visão gerencial dos apontamentos, materiais, mão de obra, jornada e registros da produção.
-            </p>
-          </div>
-        </div>
-        <ResumoJornadaProducao />
-        <PainelProducaoGerencial locais={locaisUtilizacao} />
-      </div>
-    );
+    return <GerencialProducaoIntegrado locais={locaisUtilizacao} />;
   }
 
   return null;
