@@ -1,1144 +1,407 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { Search, ArrowUpCircle, ArrowDownCircle, PlusCircle, Calendar as CalendarIcon, User, Package, RotateCcw, FileSpreadsheet, Pencil, Printer, AlertTriangle, Trash2, BarChart3 } from 'lucide-react';
-import { RelatorioMovimentacoesDialog } from './RelatorioMovimentacoesDialog';
-import { Label } from '@/components/ui/label';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Search, ArrowUpCircle, ArrowDownCircle, Calendar as CalendarIcon, Package, RotateCcw, FileSpreadsheet, Pencil, Printer, AlertTriangle, Trash2, Loader2 } from 'lucide-react';
+import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/hooks/useAuth';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
-import { useEstoqueContext } from '@/contexts/EstoqueContext';
-import { Movimentacao, TipoMovimentacao } from '@/types/estoque';
-import * as XLSX from 'xlsx';
-import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from '@/hooks/use-toast';
-import { isAcertoDeEstoque, isEntradaParaAcerto } from '@/utils/movimentacoes';
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { useConsolidacao } from '@/hooks/useConsolidacao';
+import { toast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
+
+interface MovimentacaoServidor {
+  id: string;
+  itemId: string;
+  tipo: 'ENTRADA' | 'SAIDA' | 'CADASTRO';
+  quantidade: number;
+  quantidadeAnterior: number;
+  quantidadeAtual: number;
+  userId?: string;
+  responsavelNome?: string;
+  observacoes?: string;
+  dataHora: string;
+  localUtilizacaoId?: string;
+  localUtilizacaoNome?: string;
+  solicitacaoId?: string;
+  solicitanteNome?: string;
+  solicitacaoTipoOperacao?: string;
+  destinatario?: string;
+  estoqueId?: string;
+  tipoOperacaoId?: string;
+  tipoOperacaoNome?: string;
+  itemSnapshot: any;
+  ehDevolucao?: boolean;
+  ehEntradaAcerto?: boolean;
+  ehSaidaAcerto?: boolean;
+}
+
+type FiltroTipo = 'todas' | 'ENTRADA' | 'ENTRADA_ACERTO' | 'SAIDA' | 'SAIDA_ACERTO' | 'DEVOLUCAO' | 'CADASTRO';
+type Visualizacao = 'todas' | 'saidas' | 'devolucoes' | 'pendentes';
+
+const TAMANHOS_PAGINA = [20, 50, 100, 200];
 
 export const TabelaMovimentacoes = () => {
-  const { movimentacoes, loading, carregarDados } = useEstoqueContext();
-  const { isAdmin, canEditMovements } = usePermissions();
   const { user } = useAuth();
-  const [filtroTexto, setFiltroTexto] = useState('');
-  type FiltroTipoMovimentacao = TipoMovimentacao | 'todas' | 'DEVOLUCAO' | 'ENTRADA_ACERTO' | 'SAIDA_ACERTO';
-  const [filtroTipo, setFiltroTipo] = useState<FiltroTipoMovimentacao>('todas');
-  const [filtroDestino, setFiltroDestino] = useState('todos');
-  const [tipoVisualizacao, setTipoVisualizacao] = useState<'todas' | 'saidas' | 'devolucoes' | 'pendentes'>('todas');
-  const [filtroCategoria, setFiltroCategoria] = useState('todas');
-  const [filtroTipoItem, setFiltroTipoItem] = useState('todos');
-  const [filtroDataInicio, setFiltroDataInicio] = useState<Date | undefined>(undefined);
-  const [filtroDataFim, setFiltroDataFim] = useState<Date | undefined>(undefined);
-  const [usuariosMap, setUsuariosMap] = useState<Record<string, string>>({});
+  const { canEditMovements } = usePermissions();
+  const {
+    estoqueAtivo,
+    obterEstoqueAtivoInfo,
+    isEstoqueAtivoPrincipal,
+    tiposOperacao,
+    locaisUtilizacao,
+    subcategorias,
+    obterPrimeiraCategoriaDeSubcategoria,
+  } = useConfiguracoes();
+
+  const [rows, setRows] = useState<MovimentacaoServidor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const itensPorPagina = 20;
-  const [relatorioAberto, setRelatorioAberto] = useState(false);
-  const { locaisUtilizacao: locaisConfig, gruposProjeto, subcategorias: subcategoriasConfig, obterPrimeiraCategoriaDeSubcategoria } = useConfiguracoes();
-  const [movimentoEditando, setMovimentoEditando] = useState<Movimentacao | null>(null);
-  const [novoLocalId, setNovoLocalId] = useState<string>('');
-  const [novaQuantidade, setNovaQuantidade] = useState<string>('');
+  const [itensPorPagina, setItensPorPagina] = useState(20);
+  const [totalFiltrado, setTotalFiltrado] = useState(0);
+  const [stats, setStats] = useState({ total: 0, hoje: 0, entradas: 0, saidas: 0, devolucoes: 0 });
+
+  const [filtroTexto, setFiltroTexto] = useState('');
+  const [buscaAplicada, setBuscaAplicada] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todas');
+  const [tipoVisualizacao, setTipoVisualizacao] = useState<Visualizacao>('todas');
+  const [filtroOperacao, setFiltroOperacao] = useState('todas');
+  const [filtroDestino, setFiltroDestino] = useState('todos');
+  const [filtroTipoItem, setFiltroTipoItem] = useState('todos');
+  const [filtroCategoria, setFiltroCategoria] = useState('todas');
+  const [filtroDataInicio, setFiltroDataInicio] = useState('');
+  const [filtroDataFim, setFiltroDataFim] = useState('');
+
+  const [movimentoEditando, setMovimentoEditando] = useState<MovimentacaoServidor | null>(null);
+  const [novoLocalId, setNovoLocalId] = useState('');
+  const [novaQuantidade, setNovaQuantidade] = useState('');
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  const refreshTimerRef = useRef<number | null>(null);
 
-  // Buscar informações dos usuários (para coluna Responsável)
+  const categorias = useMemo(() => {
+    return Array.from(
+      new Set(
+        subcategorias
+          .map((s) => obterPrimeiraCategoriaDeSubcategoria(s.id))
+          .filter((nome) => nome && nome.trim() !== '')
+      )
+    ).sort();
+  }, [subcategorias, obterPrimeiraCategoriaDeSubcategoria]);
+
+  const subcategoriaIdsFiltro = useMemo(() => {
+    if (filtroCategoria === 'todas') return null;
+    return subcategorias
+      .filter((s) => obterPrimeiraCategoriaDeSubcategoria(s.id) === filtroCategoria)
+      .map((s) => s.id);
+  }, [filtroCategoria, subcategorias, obterPrimeiraCategoriaDeSubcategoria]);
+
   useEffect(() => {
-    const buscarDados = async () => {
-      const userIds = [...new Set(movimentacoes.map(m => m.userId).filter(Boolean))];
-      
-      if (userIds.length > 0) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('user_id, nome')
-          .in('user_id', userIds);
+    const timer = window.setTimeout(() => setBuscaAplicada(filtroTexto.trim()), 350);
+    return () => window.clearTimeout(timer);
+  }, [filtroTexto]);
 
-        if (!error && data) {
-          const map: Record<string, string> = {};
-          data.forEach(profile => {
-            if (profile.user_id) {
-              map[profile.user_id] = profile.nome;
-            }
-          });
-          setUsuariosMap(map);
-        }
-      }
-    };
-
-    buscarDados();
-  }, [movimentacoes]);
-
-  const locaisAtivos = useMemo(() => 
-    locaisConfig.filter(l => l.ativo).map(l => ({ id: l.id, nome: l.nome })),
-    [locaisConfig]
-  );
-
-  // Ordenar movimentações por data (mais recente primeiro)
-  const movimentacoesOrdenadas = useMemo(() => {
-    return [...movimentacoes].sort((a, b) => 
-      new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime()
-    );
-  }, [movimentacoes]);
-
-  // Recalcula o saldo histórico pela ordem real das movimentações do estoque ativo.
-  // Os campos salvos em movements.quantidade_anterior/atual podem estar incorretos em registros antigos.
-  const saldosCalculadosPorMovimentacao = useMemo(() => {
-    const saldos = new Map<string, { anterior: number; atual: number }>();
-    const saldoPorItem = new Map<string, number>();
-
-    [...movimentacoes]
-      .sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
-      .forEach((mov) => {
-        const anterior = saldoPorItem.get(mov.itemId) ?? 0;
-        let delta = 0;
-        if (isEntradaParaAcerto(mov)) {
-          delta = mov.quantidadeAtual - anterior;
-        } else if (mov.tipo === 'ENTRADA') {
-          delta = mov.quantidade;
-        } else if (mov.tipo === 'SAIDA') {
-          delta = -mov.quantidade;
-        }
-        const atual = anterior + delta;
-
-        saldos.set(mov.id, { anterior, atual });
-        saldoPorItem.set(mov.itemId, atual);
-      });
-
-    return saldos;
-  }, [movimentacoes]);
-
-  // Obter locais de utilização únicos para filtro
-  const locaisUtilizacao = useMemo(() => {
-    const locais = new Set(
-      movimentacoes
-        .map(mov => mov.localUtilizacaoNome)
-        .filter(Boolean)
-    );
-    return Array.from(locais).sort();
-  }, [movimentacoes]);
-
-  // Helper: verificar se uma movimentação é devolução
-  const isDevolucao = (mov: any) => {
-    if (mov.tipo !== 'ENTRADA') return false;
-    if (mov.solicitacaoTipoOperacao === 'devolucao' || mov.solicitacaoTipoOperacao === 'devolucao_estoque') return true;
-    if (mov.observacoes?.toLowerCase().includes('devolução')) return true;
-    return false;
-  };
-
-  // Filtrar movimentações - lógica unificada
-  const movimentacoesFiltradas = useMemo(() => {
-    return movimentacoesOrdenadas.filter(mov => {
-      const textoFiltro = filtroTexto.trim().toLowerCase();
-      const buscaPorCodigo = /^\d+$/.test(textoFiltro);
-      const codigoItem = mov.itemSnapshot?.codigoBarras?.toString().trim() || '';
-      const matchTexto = !textoFiltro || (
-        buscaPorCodigo
-          ? codigoItem === textoFiltro
-          : mov.itemSnapshot?.nome?.toLowerCase().includes(textoFiltro) ||
-            mov.observacoes?.toLowerCase().includes(textoFiltro)
-      );
-
-      const movEhDevolucao = isDevolucao(mov);
-      const movEhEntradaAcerto = isEntradaParaAcerto(mov);
-      const movEhSaidaAcerto = isAcertoDeEstoque(mov);
-      let matchTipo = true;
-      if (tipoVisualizacao === 'saidas') {
-        matchTipo = mov.tipo === 'SAIDA' && !movEhSaidaAcerto;
-      } else if (tipoVisualizacao === 'devolucoes') {
-        matchTipo = movEhDevolucao;
-      } else if (tipoVisualizacao === 'pendentes') {
-        matchTipo = mov.tipo === 'SAIDA' && !movEhSaidaAcerto;
-      } else if (filtroTipo === 'ENTRADA') {
-        matchTipo = mov.tipo === 'ENTRADA' && !movEhDevolucao && !movEhEntradaAcerto;
-      } else if (filtroTipo === 'ENTRADA_ACERTO') {
-        matchTipo = movEhEntradaAcerto;
-      } else if (filtroTipo === 'SAIDA') {
-        matchTipo = mov.tipo === 'SAIDA' && !movEhSaidaAcerto;
-      } else if (filtroTipo === 'SAIDA_ACERTO') {
-        matchTipo = movEhSaidaAcerto;
-      } else if (filtroTipo === 'DEVOLUCAO') {
-        matchTipo = movEhDevolucao;
-      } else {
-        matchTipo = filtroTipo === 'todas' || mov.tipo === filtroTipo;
-      }
-      // isDevolucao kept available for future use
-      void isDevolucao;
-      
-      const matchDestino = filtroDestino === 'todos' || mov.localUtilizacaoNome === filtroDestino;
-
-      const dataInicioFiltro = filtroDataInicio ?? filtroDataFim;
-      const dataFimFiltro = filtroDataFim ?? filtroDataInicio;
-      const dInicio = dataInicioFiltro ? new Date(new Date(dataInicioFiltro).setHours(0, 0, 0, 0)) : null;
-      const dFim = dataFimFiltro ? new Date(new Date(dataFimFiltro).setHours(23, 59, 59, 999)) : null;
-      const movData = new Date(mov.dataHora);
-
-      const matchData = !dInicio || movData >= dInicio;
-      const matchDataFim = !dFim || movData <= dFim;
-
-      const categoria = mov.itemSnapshot?.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId) : '-';
-      const matchCategoria = filtroCategoria === 'todas' || categoria === filtroCategoria;
-      
-      const tipoItem = mov.itemSnapshot?.tipoItem || '-';
-      const matchTipoItem = filtroTipoItem === 'todos' || tipoItem === filtroTipoItem;
-
-      return matchTexto && matchTipo && matchDestino && matchData && matchDataFim && matchCategoria && matchTipoItem;
-    });
-  }, [movimentacoesOrdenadas, filtroTexto, filtroTipo, filtroDestino, tipoVisualizacao, filtroDataInicio, filtroDataFim, filtroCategoria, filtroTipoItem]);
-
-  // Resetar página quando filtros mudarem
   useEffect(() => {
     setPaginaAtual(1);
-  }, [filtroTexto, filtroTipo, filtroDestino, tipoVisualizacao, filtroCategoria, filtroTipoItem, filtroDataInicio, filtroDataFim]);
+  }, [buscaAplicada, filtroTipo, tipoVisualizacao, filtroOperacao, filtroDestino, filtroTipoItem, filtroCategoria, filtroDataInicio, filtroDataFim, itensPorPagina, estoqueAtivo]);
 
-  // Calcular paginação
-  const totalPaginas = Math.ceil(movimentacoesFiltradas.length / itensPorPagina);
-  const movimentacoesPaginadas = useMemo(() => {
-    const inicio = (paginaAtual - 1) * itensPorPagina;
-    const fim = inicio + itensPorPagina;
-    return movimentacoesFiltradas.slice(inicio, fim);
-  }, [movimentacoesFiltradas, paginaAtual, itensPorPagina]);
+  const montarParametros = useCallback((pagina: number, limite: number) => {
+    const estoqueInfo = obterEstoqueAtivoInfo();
+    const inicio = filtroDataInicio ? new Date(`${filtroDataInicio}T00:00:00-03:00`).toISOString() : null;
+    const fim = filtroDataFim ? new Date(`${filtroDataFim}T23:59:59.999-03:00`).toISOString() : null;
 
-  // Estatísticas das movimentações
-  const estatisticas = useMemo(() => {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    
-    const movHoje = movimentacoes.filter(mov => 
-      new Date(mov.dataHora) >= hoje
-    ).length;
-    
-    const entradas = movimentacoes.filter(mov => 
-      (mov.tipo === 'ENTRADA' && !isDevolucao(mov) && !isEntradaParaAcerto(mov)) || mov.tipo === 'CADASTRO'
-    ).length;
-    
-    const saidas = movimentacoes.filter(mov => mov.tipo === 'SAIDA' && !isAcertoDeEstoque(mov)).length;
-    
-    const devolucoes = movimentacoes.filter(mov => isDevolucao(mov)).length;
-    
     return {
-      total: movimentacoes.length,
-      hoje: movHoje,
-      entradas,
-      saidas,
-      devolucoes
+      p_estoque_id: estoqueInfo?.id ?? null,
+      p_incluir_sem_estoque: isEstoqueAtivoPrincipal(),
+      p_pagina: pagina,
+      p_limite: limite,
+      p_busca: buscaAplicada || null,
+      p_tipo: filtroTipo === 'todas' ? null : filtroTipo,
+      p_tipo_operacao_id: filtroOperacao === 'todas' ? null : filtroOperacao,
+      p_visualizacao: tipoVisualizacao,
+      p_local_utilizacao_id: filtroDestino === 'todos' ? null : filtroDestino,
+      p_tipo_item: filtroTipoItem === 'todos' ? null : filtroTipoItem,
+      p_subcategoria_ids: subcategoriaIdsFiltro,
+      p_data_inicio: inicio,
+      p_data_fim: fim,
     };
-  }, [movimentacoes]);
+  }, [obterEstoqueAtivoInfo, isEstoqueAtivoPrincipal, filtroDataInicio, filtroDataFim, buscaAplicada, filtroTipo, filtroOperacao, tipoVisualizacao, filtroDestino, filtroTipoItem, subcategoriaIdsFiltro]);
 
-  // Função para exportar movimentações para Excel
-  const exportarParaExcel = () => {
+  const carregarPagina = useCallback(async (silencioso = false) => {
+    if (!estoqueAtivo) return;
+    if (!silencioso) setLoading(true);
+    setErro(null);
+
     try {
-      // Preparar dados para exportação
-      const dadosExportacao = movimentacoesFiltradas.map(mov => {
-        const eDevolucao = isDevolucao(mov);
-        const saldoCalculado = saldosCalculadosPorMovimentacao.get(mov.id);
-        let responsavel = '-';
-        const solicitante = mov.solicitanteNome || '-';
-        // Para ENTRADA e CADASTRO: mostrar nome do usuário que fez a operação
-        if (mov.userId && usuariosMap[mov.userId]) {
-          responsavel = usuariosMap[mov.userId];
-        }
+      const { data, error } = await (supabase as any).rpc(
+        'listar_movimentacoes_paginadas_v1',
+        montarParametros(paginaAtual, itensPorPagina),
+      );
+      if (error) throw error;
 
-        return {
-          'Tipo': eDevolucao ? 'Devolução' : getTipoInfo(mov).label,
-          'Data': new Date(mov.dataHora).toLocaleDateString('pt-BR'),
-          'Hora': new Date(mov.dataHora).toLocaleTimeString('pt-BR'),
-          'Item': mov.itemSnapshot?.nome || 'Item não identificado',
-          'Código de Barras': mov.itemSnapshot?.codigoBarras || '',
-          'Marca': mov.itemSnapshot?.marca || '',
-          'Quantidade': formatarQuantidadeMovimentacao(mov),
-          'Unidade': mov.itemSnapshot?.unidade || '',
-          'Qtd. Anterior': saldoCalculado?.anterior ?? mov.quantidadeAnterior,
-          'Qtd. Atual': saldoCalculado?.atual ?? mov.quantidadeAtual,
-          'Solicitante': solicitante,
-          'Responsável': responsavel,
-          'Destinatário': mov.destinatario || '-',
-          'Tipo de Item': mov.itemSnapshot?.tipoItem || '-',
-          'Categoria': mov.itemSnapshot?.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId) : '-',
-          'Estoque/Destino': mov.localUtilizacaoNome || '-',
-          'Observações': mov.observacoes && mov.tipo !== 'SAIDA' ? mov.observacoes : '-'
-        };
+      const payload = data ?? {};
+      const novosRows = Array.isArray(payload.rows) ? payload.rows : [];
+      const novoTotal = Number(payload.totalFiltrado ?? 0);
+      const totalPaginas = Math.max(1, Math.ceil(novoTotal / itensPorPagina));
+
+      if (paginaAtual > totalPaginas) {
+        setPaginaAtual(totalPaginas);
+        return;
+      }
+
+      setRows(novosRows);
+      setTotalFiltrado(novoTotal);
+      setStats({
+        total: Number(payload.stats?.total ?? 0),
+        hoje: Number(payload.stats?.hoje ?? 0),
+        entradas: Number(payload.stats?.entradas ?? 0),
+        saidas: Number(payload.stats?.saidas ?? 0),
+        devolucoes: Number(payload.stats?.devolucoes ?? 0),
       });
+    } catch (e: any) {
+      console.error('Erro ao carregar movimentações paginadas:', e);
+      setErro(e?.message || 'Não foi possível carregar as movimentações.');
+      toast({ title: 'Erro ao carregar dados', description: 'Não foi possível carregar as movimentações do servidor.', variant: 'destructive' });
+    } finally {
+      if (!silencioso) setLoading(false);
+    }
+  }, [estoqueAtivo, paginaAtual, itensPorPagina, montarParametros]);
 
-      // Criar workbook
-      const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.json_to_sheet(dadosExportacao);
+  useEffect(() => {
+    void carregarPagina();
+  }, [carregarPagina]);
 
-      // Definir larguras das colunas
-      const columnWidths = [
-        { wch: 12 },  // Tipo
-        { wch: 12 },  // Data
-        { wch: 10 },  // Hora
-        { wch: 30 },  // Item
-        { wch: 18 },  // Código de Barras
-        { wch: 15 },  // Marca
-        { wch: 12 },  // Quantidade
-        { wch: 10 },  // Unidade
-        { wch: 12 },  // Qtd. Anterior
-        { wch: 12 },  // Qtd. Atual
-        { wch: 20 },  // Responsável
-        { wch: 20 },  // Destinatário
-        { wch: 15 },  // Tipo de Item
-        { wch: 20 },  // Categoria
-        { wch: 20 },  // Estoque/Destino
-        { wch: 30 }   // Observações
-      ];
-      
-      worksheet['!cols'] = columnWidths;
+  useEffect(() => {
+    const reagendar = () => {
+      if (refreshTimerRef.current) window.clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = window.setTimeout(() => void carregarPagina(true), 300);
+    };
 
-      // Adicionar aba
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Movimentações');
+    const channel = supabase
+      .channel('movimentacoes-paginadas-refresh')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'movements' }, reagendar)
+      .subscribe();
 
-      // Gerar nome do arquivo
-      const tipoExportacao = tipoVisualizacao === 'todas' ? 'todas' : 
-                            tipoVisualizacao === 'saidas' ? 'saidas' : 'devolucoes';
-      const dataAtual = new Date().toISOString().split('T')[0];
-      const nomeArquivo = `movimentacoes-${tipoExportacao}-${dataAtual}.xlsx`;
+    return () => {
+      if (refreshTimerRef.current) window.clearTimeout(refreshTimerRef.current);
+      void supabase.removeChannel(channel);
+    };
+  }, [carregarPagina]);
 
-      // Baixar arquivo
-      XLSX.writeFile(workbook, nomeArquivo);
+  const totalPaginas = Math.max(1, Math.ceil(totalFiltrado / itensPorPagina));
+  const inicioPagina = totalFiltrado === 0 ? 0 : (paginaAtual - 1) * itensPorPagina + 1;
+  const fimPagina = Math.min(paginaAtual * itensPorPagina, totalFiltrado);
 
-      toast({
-        title: "Exportação concluída!",
-        description: `${movimentacoesFiltradas.length} movimentações exportadas com sucesso.`,
-      });
-    } catch (error) {
-      console.error('Erro ao exportar:', error);
-      toast({
-        title: "Erro na exportação",
-        description: "Não foi possível exportar as movimentações.",
-        variant: "destructive",
-      });
+  const operacaoLabel = (mov: MovimentacaoServidor) => {
+    if (mov.ehDevolucao) return 'Devolução';
+    if (mov.tipoOperacaoNome) return mov.tipoOperacaoNome;
+    if (mov.ehEntradaAcerto) return 'Entrada para acerto';
+    if (mov.ehSaidaAcerto) return 'Saída para acerto';
+    if (mov.tipo === 'ENTRADA') return 'Entrada';
+    if (mov.tipo === 'SAIDA') return 'Saída';
+    return 'Cadastro';
+  };
+
+  const operacaoClass = (mov: MovimentacaoServidor) => {
+    const label = operacaoLabel(mov).toLocaleLowerCase('pt-BR');
+    if (label.includes('descarte')) return 'text-red-600 bg-red-500/10';
+    if (label.includes('acerto')) return 'text-orange-600 bg-orange-500/10';
+    if (label.includes('devolu')) return 'text-blue-600 bg-blue-500/10';
+    if (label.includes('entrada')) return 'text-green-600 bg-green-500/10';
+    if (label.includes('epi')) return 'text-violet-600 bg-violet-500/10';
+    return 'text-amber-600 bg-amber-500/10';
+  };
+
+  const formatarQuantidade = (mov: MovimentacaoServidor) => {
+    if (mov.ehEntradaAcerto) return `=${Number(mov.quantidadeAtual).toLocaleString('pt-BR')}`;
+    return `${mov.tipo === 'SAIDA' ? '-' : '+'}${Number(mov.quantidade).toLocaleString('pt-BR')}`;
+  };
+
+  const buscarTodosFiltrados = async () => {
+    const primeira = await (supabase as any).rpc('listar_movimentacoes_paginadas_v1', montarParametros(1, 1000));
+    if (primeira.error) throw primeira.error;
+    const total = Number(primeira.data?.totalFiltrado ?? 0);
+    const acumulado: MovimentacaoServidor[] = [...(primeira.data?.rows ?? [])];
+    const paginas = Math.ceil(total / 1000);
+    for (let p = 2; p <= paginas; p += 1) {
+      const resp = await (supabase as any).rpc('listar_movimentacoes_paginadas_v1', montarParametros(p, 1000));
+      if (resp.error) throw resp.error;
+      acumulado.push(...(resp.data?.rows ?? []));
+    }
+    return acumulado;
+  };
+
+  const exportarParaExcel = async () => {
+    try {
+      const dados = await buscarTodosFiltrados();
+      const linhas = dados.map((mov) => ({
+        Operação: operacaoLabel(mov),
+        Data: new Date(mov.dataHora).toLocaleDateString('pt-BR'),
+        Hora: new Date(mov.dataHora).toLocaleTimeString('pt-BR'),
+        Item: mov.itemSnapshot?.nome || 'Item não identificado',
+        Código: mov.itemSnapshot?.codigoBarras ?? mov.itemSnapshot?.codigo_barras ?? '',
+        Quantidade: formatarQuantidade(mov),
+        Unidade: mov.itemSnapshot?.unidade || '',
+        Anterior: mov.quantidadeAnterior,
+        Atual: mov.quantidadeAtual,
+        Solicitante: mov.solicitanteNome || '-',
+        Responsável: mov.responsavelNome || '-',
+        Destinatário: mov.destinatario || '-',
+        'Tipo de Item': mov.itemSnapshot?.tipoItem || mov.itemSnapshot?.tipo_item || '-',
+        'Estoque/Destino': mov.localUtilizacaoNome || '-',
+        Observações: mov.observacoes || '-',
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(linhas);
+      XLSX.utils.book_append_sheet(wb, ws, 'Movimentações');
+      XLSX.writeFile(wb, `movimentacoes-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast({ title: 'Exportação concluída', description: `${dados.length} movimentações exportadas.` });
+    } catch (e: any) {
+      toast({ title: 'Erro na exportação', description: e?.message || 'Não foi possível exportar.', variant: 'destructive' });
     }
   };
 
-  // Função para imprimir movimentações
   const imprimirMovimentacoes = async () => {
-    // Buscar logo do branding
-    let logoHtml = '';
     try {
-      const { data, error } = await supabase.storage.from('branding').list('', { limit: 1 });
-      if (!error && data && data.length > 0) {
-        const { data: publicUrlData } = supabase.storage.from('branding').getPublicUrl(data[0].name);
-        if (publicUrlData.publicUrl) {
-          logoHtml = `<img src="${publicUrlData.publicUrl}" alt="Logo" style="height:50px;object-fit:contain;" />`;
-        }
-      }
-    } catch (e) { console.error('Erro ao carregar logo:', e); }
+      const dados = await buscarTodosFiltrados();
+      const w = window.open('', '_blank');
+      if (!w) throw new Error('Pop-up bloqueado pelo navegador.');
+      const linhas = dados.map((mov) => `<tr>
+        <td>${operacaoLabel(mov)}</td><td>${new Date(mov.dataHora).toLocaleString('pt-BR')}</td>
+        <td>${mov.itemSnapshot?.nome || '-'}</td><td>${mov.itemSnapshot?.codigoBarras ?? '-'}</td>
+        <td>${formatarQuantidade(mov)} ${mov.itemSnapshot?.unidade || ''}</td><td>${mov.responsavelNome || '-'}</td>
+        <td>${mov.destinatario || '-'}</td><td>${mov.localUtilizacaoNome || '-'}</td>
+      </tr>`).join('');
+      w.document.write(`<!doctype html><html><head><title>Movimentações</title><style>body{font-family:Arial;font-size:11px;margin:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:5px}th{background:#eee;text-align:left}</style></head><body><h2>Relatório de Movimentações</h2><p>${dados.length} registros | Gerado em ${new Date().toLocaleString('pt-BR')}</p><table><thead><tr><th>Operação</th><th>Data/Hora</th><th>Item</th><th>Código</th><th>Quantidade</th><th>Responsável</th><th>Destinatário</th><th>Estoque/Destino</th></tr></thead><tbody>${linhas}</tbody></table><script>window.print();window.onafterprint=()=>window.close();</script></body></html>`);
+      w.document.close();
+    } catch (e: any) {
+      toast({ title: 'Erro ao imprimir', description: e?.message || 'Não foi possível gerar a impressão.', variant: 'destructive' });
+    }
+  };
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast({ title: "Erro", description: "Não foi possível abrir a janela de impressão. Verifique se pop-ups estão habilitados.", variant: "destructive" });
+  const salvarEdicao = async () => {
+    if (!movimentoEditando) return;
+    const qtd = Number(novaQuantidade);
+    if (!Number.isFinite(qtd) || qtd <= 0) {
+      toast({ title: 'Quantidade inválida', variant: 'destructive' });
       return;
     }
-
-    const linhas = movimentacoesFiltradas.map(mov => {
-      const eDevolucao = isDevolucao(mov);
-      let responsavel = '-';
-      const solicitante = mov.solicitanteNome || '-';
-      if (mov.userId && usuariosMap[mov.userId]) {
-        responsavel = usuariosMap[mov.userId];
-      }
-
-      return `<tr>
-        <td>${eDevolucao ? 'Devolução' : getTipoInfo(mov).label}</td>
-        <td>${new Date(mov.dataHora).toLocaleDateString('pt-BR')} ${new Date(mov.dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
-        <td>${mov.itemSnapshot?.nome || '-'}</td>
-        <td>${mov.itemSnapshot?.codigoBarras || '-'}</td>
-        <td>${formatarQuantidadeMovimentacao(mov)}</td>
-        <td>${solicitante}</td>
-        <td>${responsavel}</td>
-        <td>${mov.destinatario || '-'}</td>
-        <td>${mov.itemSnapshot?.tipoItem || '-'}</td>
-        <td>${mov.itemSnapshot?.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId) : '-'}</td>
-        <td>${mov.localUtilizacaoNome || '-'}</td>
-        <td>${mov.observacoes && mov.tipo !== 'SAIDA' ? mov.observacoes : '-'}</td>
-      </tr>`;
-    }).join('');
-
-    const filtrosAtivos = [];
-    if (tipoVisualizacao !== 'todas') filtrosAtivos.push(`Tipo: ${tipoVisualizacao === 'saidas' ? 'Saídas' : tipoVisualizacao === 'devolucoes' ? 'Devoluções' : 'Pendentes'}`);
-    if (filtroTipo !== 'todas' && tipoVisualizacao === 'todas') filtrosAtivos.push(`Tipo: ${getFiltroTipoLabel(filtroTipo)}`);
-    if (filtroDestino !== 'todos') filtrosAtivos.push(`Estoque/Destino: ${filtroDestino}`);
-    if (filtroTexto) filtrosAtivos.push(`Busca: ${filtroTexto}`);
-
-    printWindow.document.write(`<!DOCTYPE html><html><head><title>Movimentações</title>
-      <style>
-        body { font-family: Arial, sans-serif; font-size: 11px; margin: 20px; }
-        .header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; border-bottom: 2px solid #2980b3; padding-bottom: 8px; }
-        .header h1 { font-size: 16px; margin: 0; }
-        .info { color: #666; margin-bottom: 12px; font-size: 10px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; }
-        th { background: #2980b3; color: white; font-size: 10px; }
-        tr:nth-child(even) { background: #f8f8f8; }
-        @media print { body { margin: 10px; } }
-      </style></head><body>
-      <div class="header">${logoHtml}<h1>Relatório de Movimentações</h1></div>
-      <div class="info">Gerado em: ${new Date().toLocaleString('pt-BR')} | Total: ${movimentacoesFiltradas.length} registros${filtrosAtivos.length > 0 ? ' | Filtros: ' + filtrosAtivos.join(', ') : ''}</div>
-      <table><thead><tr>
-        <th>Tipo</th><th>Data/Hora</th><th>Item</th><th>Código</th><th>Qtd</th><th>Solicitante</th><th>Responsável</th><th>Destinatário</th><th>Tipo Item</th><th>Categoria</th><th>Estoque/Destino</th><th>Observações</th>
-      </tr></thead><tbody>${linhas}</tbody></table>
-      <script>window.print();window.onafterprint=()=>window.close();</script>
-    </body></html>`);
-    printWindow.document.close();
-  };
-
-  // Função para obter ícone e cor do tipo de movimentação
-  const getTipoInfo = (movOuTipo: Movimentacao | TipoMovimentacao) => {
-    const isObj = typeof movOuTipo === 'object' && movOuTipo !== null;
-    const tipo = isObj ? (movOuTipo as Movimentacao).tipo : movOuTipo as TipoMovimentacao;
-    const isAcerto = isObj ? isAcertoDeEstoque(movOuTipo as Movimentacao) : false;
-    const entradaParaAcerto = isObj ? isEntradaParaAcerto(movOuTipo as Movimentacao) : false;
-
-    switch (tipo) {
-      case 'ENTRADA':
-        if (entradaParaAcerto) {
-          return {
-            icon: <AlertTriangle className="h-4 w-4" />,
-            color: 'text-orange-500',
-            bgColor: 'bg-orange-500/10',
-            label: 'Entrada para acerto'
-          };
-        }
-        return {
-          icon: <ArrowUpCircle className="h-4 w-4" />,
-          color: 'text-info',
-          bgColor: 'bg-info/10',
-          label: 'Entrada'
-        };
-      case 'SAIDA':
-        if (isAcerto) {
-          return {
-            icon: <AlertTriangle className="h-4 w-4" />,
-            color: 'text-orange-500',
-            bgColor: 'bg-orange-500/10',
-            label: 'Saída para acerto'
-          };
-        }
-        return {
-          icon: <ArrowDownCircle className="h-4 w-4" />,
-          color: 'text-warning',
-          bgColor: 'bg-warning/10',
-          label: 'Saída'
-        };
-      case 'CADASTRO':
-        return {
-          icon: <PlusCircle className="h-4 w-4" />,
-          color: 'text-success',
-          bgColor: 'bg-success/10',
-          label: 'Cadastro'
-        };
-      default:
-        return {
-          icon: <Package className="h-4 w-4" />,
-          color: 'text-muted-foreground',
-          bgColor: 'bg-muted',
-          label: tipo
-        };
-    }
-  };
-
-  const getFiltroTipoLabel = (tipo: FiltroTipoMovimentacao) => {
-    switch (tipo) {
-      case 'ENTRADA':
-        return 'Entrada';
-      case 'ENTRADA_ACERTO':
-        return 'Entrada para acerto';
-      case 'SAIDA':
-        return 'Saída';
-      case 'SAIDA_ACERTO':
-        return 'Saída para acerto';
-      case 'DEVOLUCAO':
-        return 'Devolução';
-      case 'CADASTRO':
-        return 'Cadastro';
-      default:
-        return 'Todos os tipos';
-    }
-  };
-
-  const formatarQuantidadeMovimentacao = (mov: Movimentacao) => {
-    if (isEntradaParaAcerto(mov)) {
-      return `=${mov.quantidadeAtual.toLocaleString('pt-BR')}`;
-    }
-
-    return `${mov.tipo === 'SAIDA' ? '-' : '+'}${mov.quantidade.toLocaleString('pt-BR')}`;
-  };
-
-  // Função para formatar data e hora
-  const formatarDataHora = (data: string) => {
-    const date = new Date(data);
-    const hoje = new Date();
-    const ontem = new Date(hoje);
-    ontem.setDate(hoje.getDate() - 1);
-    
-    let prefixo = '';
-    if (date.toDateString() === hoje.toDateString()) {
-      prefixo = 'Hoje ';
-    } else if (date.toDateString() === ontem.toDateString()) {
-      prefixo = 'Ontem ';
-    }
-    
-    return prefixo + date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: date.getFullYear() !== hoje.getFullYear() ? 'numeric' : undefined,
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const handleSalvarEdicaoDestino = async () => {
-    if (!movimentoEditando) return;
-    
     setSalvandoEdicao(true);
     try {
-      const localSelecionado = locaisAtivos.find(l => l.id === novoLocalId);
-      const quantidadeAtualizada = parseFloat(novaQuantidade);
-      
-      if (isNaN(quantidadeAtualizada) || quantidadeAtualizada <= 0) {
-        throw new Error("Quantidade inválida");
-      }
-      
-      const { data: movimentacaoAtualizada, error } = await supabase
-        .from('movements')
-        .update({ 
-          local_utilizacao_id: novoLocalId || null,
-          quantidade: quantidadeAtualizada
-        })
-        .eq('id', movimentoEditando.id)
-        .select('id')
-        .maybeSingle();
-        
+      const { error } = await supabase.from('movements').update({
+        quantidade: qtd,
+        local_utilizacao_id: novoLocalId || null,
+      }).eq('id', movimentoEditando.id);
       if (error) throw error;
-      if (!movimentacaoAtualizada) {
-        throw new Error('A movimentação não foi alterada. Verifique se seu usuário tem permissão para editar movimentações.');
-      }
-
-      // Atualiza a tabela imediatamente, sem depender da entrega do evento realtime.
-      await carregarDados(true);
-      
-      // Registrar log de auditoria
       await (supabase as any).from('action_logs').insert({
         user_id: user?.id,
         action: 'EDICAO_MOVIMENTACAO',
         entity_type: 'movements',
         entity_id: movimentoEditando.id,
-        details: {
-          antiga_quantidade: movimentoEditando.quantidade,
-          nova_quantidade: quantidadeAtualizada,
-          antigo_local_id: movimentoEditando.localUtilizacaoId,
-          antigo_local_nome: movimentoEditando.localUtilizacaoNome,
-          novo_local_id: novoLocalId,
-          novo_local_nome: localSelecionado?.nome,
-          item_nome: movimentoEditando.itemSnapshot?.nome
-        }
+        details: { antiga_quantidade: movimentoEditando.quantidade, nova_quantidade: qtd, antigo_local_id: movimentoEditando.localUtilizacaoId, novo_local_id: novoLocalId || null, item_nome: movimentoEditando.itemSnapshot?.nome },
       });
-      
-      toast({
-        title: "Movimentação atualizada",
-        description: "A movimentação foi alterada com sucesso."
-      });
-      
       setMovimentoEditando(null);
-    } catch (error: any) {
-      console.error('Erro ao atualizar movimentação:', error);
-      toast({
-        title: "Erro ao atualizar",
-        description: error.message || "Não foi possível alterar a movimentação.",
-        variant: "destructive"
-      });
+      await carregarPagina(true);
+      toast({ title: 'Movimentação atualizada' });
+    } catch (e: any) {
+      toast({ title: 'Erro ao atualizar', description: e?.message || 'Não foi possível atualizar.', variant: 'destructive' });
     } finally {
       setSalvandoEdicao(false);
     }
   };
 
-  const excluirMovimentacao = async (movId: string) => {
+  const excluirMovimentacao = async (id: string) => {
     try {
-      const { error } = await supabase.from('movements').delete().eq('id', movId);
+      const { error } = await supabase.from('movements').delete().eq('id', id);
       if (error) throw error;
-      toast({ title: "Movimentação excluída", description: "O registro foi removido com sucesso." });
-    } catch (error: any) {
-      console.error('Erro ao excluir movimentação:', error);
-      toast({ title: "Erro ao excluir", description: error.message || "Não foi possível excluir a movimentação.", variant: "destructive" });
+      await carregarPagina(true);
+      toast({ title: 'Movimentação excluída' });
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir', description: e?.message || 'Não foi possível excluir.', variant: 'destructive' });
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground animate-pulse" />
-          <p className="text-muted-foreground">Carregando movimentações...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {/* Tabs para tipo de visualização */}
-      <Tabs value={tipoVisualizacao} onValueChange={(value) => setTipoVisualizacao(value as any)} className="w-full">
+      <Tabs value={tipoVisualizacao} onValueChange={(v) => setTipoVisualizacao(v as Visualizacao)}>
         <TabsList className="grid w-full grid-cols-4 mb-6">
-          <TabsTrigger value="todas" className="flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            Todas
-          </TabsTrigger>
-          <TabsTrigger value="saidas" className="flex items-center gap-2">
-            <ArrowUpCircle className="h-4 w-4" />
-            Saídas
-          </TabsTrigger>
-          <TabsTrigger value="devolucoes" className="flex items-center gap-2">
-            <RotateCcw className="h-4 w-4" />
-            Devoluções
-          </TabsTrigger>
-          <TabsTrigger value="pendentes" className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            Pendentes
-          </TabsTrigger>
+          <TabsTrigger value="todas"><Package className="h-4 w-4 mr-2" />Todas</TabsTrigger>
+          <TabsTrigger value="saidas"><ArrowDownCircle className="h-4 w-4 mr-2" />Saídas</TabsTrigger>
+          <TabsTrigger value="devolucoes"><RotateCcw className="h-4 w-4 mr-2" />Devoluções</TabsTrigger>
+          <TabsTrigger value="pendentes"><AlertTriangle className="h-4 w-4 mr-2" />Pendentes</TabsTrigger>
         </TabsList>
+      </Tabs>
 
-        {/* Visões Operacionais (Tabela de Movimentações Padrão) */}
-        {['todas', 'saidas', 'devolucoes', 'pendentes'].map((tab) => (
-          <TabsContent key={tab} value={tab} className="space-y-6">
-            <div className="space-y-6">
-          {/* Estatísticas */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total</p>
-                    <p className="text-2xl font-bold">{estatisticas.total}</p>
-                  </div>
-                  <Package className="h-8 w-8 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Hoje</p>
-                    <p className="text-2xl font-bold text-primary">{estatisticas.hoje}</p>
-                  </div>
-                  <CalendarIcon className="h-8 w-8 text-primary" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Entradas</p>
-                    <p className="text-2xl font-bold text-success">{estatisticas.entradas}</p>
-                  </div>
-                  <ArrowUpCircle className="h-8 w-8 text-success" />
-                </div>
-              </CardContent>
-            </Card>
-        
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Saídas</p>
-                    <p className="text-2xl font-bold text-warning">{estatisticas.saidas}</p>
-                  </div>
-                  <ArrowDownCircle className="h-8 w-8 text-warning" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Devoluções</p>
-                    <p className="text-2xl font-bold text-info">{estatisticas.devolucoes}</p>
-                  </div>
-                  <RotateCcw className="h-8 w-8 text-info" />
-                </div>
-              </CardContent>
-            </Card>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {[
+          ['Total', stats.total, <Package className="h-8 w-8 text-muted-foreground" key="a" />],
+          ['Hoje', stats.hoje, <CalendarIcon className="h-8 w-8 text-primary" key="b" />],
+          ['Entradas', stats.entradas, <ArrowUpCircle className="h-8 w-8 text-success" key="c" />],
+          ['Saídas', stats.saidas, <ArrowDownCircle className="h-8 w-8 text-warning" key="d" />],
+          ['Devoluções', stats.devolucoes, <RotateCcw className="h-8 w-8 text-info" key="e" />],
+        ].map(([label, valor, icon]) => (
+          <Card key={String(label)}><CardContent className="p-4 flex items-center justify-between"><div><p className="text-sm text-muted-foreground">{label}</p><p className="text-2xl font-bold">{valor}</p></div>{icon}</CardContent></Card>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Search className="h-5 w-5" />Filtros de Movimentação</CardTitle><CardDescription>Os filtros são processados no servidor; somente a página solicitada é carregada.</CardDescription></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input placeholder="Buscar por item, código, responsável..." value={filtroTexto} onChange={(e) => setFiltroTexto(e.target.value)} />
+            <Select value={filtroTipo} onValueChange={(v) => setFiltroTipo(v as FiltroTipo)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>
+              <SelectItem value="todas">Todos os tipos</SelectItem><SelectItem value="ENTRADA">Entrada</SelectItem><SelectItem value="ENTRADA_ACERTO">Entrada para acerto</SelectItem><SelectItem value="SAIDA">Saída</SelectItem><SelectItem value="SAIDA_ACERTO">Saída para acerto</SelectItem><SelectItem value="DEVOLUCAO">Devolução</SelectItem><SelectItem value="CADASTRO">Cadastro</SelectItem>
+            </SelectContent></Select>
+            <Select value={filtroOperacao} onValueChange={setFiltroOperacao}><SelectTrigger><SelectValue placeholder="Operação" /></SelectTrigger><SelectContent><SelectItem value="todas">Todas as operações</SelectItem>{tiposOperacao.filter((x) => x.ativo).map((op) => <SelectItem key={op.id} value={op.id}>{op.nome}</SelectItem>)}</SelectContent></Select>
+            <Select value={filtroTipoItem} onValueChange={setFiltroTipoItem}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os tipos de item</SelectItem><SelectItem value="Insumo">Insumo</SelectItem><SelectItem value="Ferramenta">Ferramenta</SelectItem><SelectItem value="Produto Acabado">Produto Acabado</SelectItem><SelectItem value="Matéria Prima">Matéria Prima</SelectItem></SelectContent></Select>
+            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todas">Todas as categorias</SelectItem>{categorias.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent></Select>
+            <Select value={filtroDestino} onValueChange={setFiltroDestino}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os estoques/destinos</SelectItem>{locaisUtilizacao.filter((l) => l.ativo).map((l) => <SelectItem key={l.id} value={l.id}>{l.nome}</SelectItem>)}</SelectContent></Select>
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Input type="date" value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} />
+            <Input type="date" value={filtroDataFim} onChange={(e) => setFiltroDataFim(e.target.value)} />
+            <Button variant="outline" onClick={exportarParaExcel}><FileSpreadsheet className="h-4 w-4 mr-2" />Exportar Excel</Button>
+            <Button variant="outline" onClick={imprimirMovimentacoes}><Printer className="h-4 w-4 mr-2" />Imprimir</Button>
+          </div>
+        </CardContent>
+      </Card>
 
-          {/* Filtros */}
-          <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            Filtros de Movimentação
-          </CardTitle>
-          <CardDescription>
-            Filtre as movimentações por tipo, responsável ou termo de busca
-          </CardDescription>
-        </CardHeader>
+      <Card>
+        <CardHeader className="pb-3"><div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3"><div><CardTitle>📋 Histórico de Movimentações</CardTitle><CardDescription>Mostrando {inicioPagina}–{fimPagina} de {totalFiltrado.toLocaleString('pt-BR')} registros filtrados</CardDescription></div><div className="flex items-center gap-2 text-sm"><span className="text-muted-foreground">Registros por página:</span><Select value={String(itensPorPagina)} onValueChange={(v) => setItensPorPagina(Number(v))}><SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger><SelectContent>{TAMANHOS_PAGINA.map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}</SelectContent></Select></div></div></CardHeader>
         <CardContent>
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por item, código, responsável..."
-                value={filtroTexto}
-                onChange={(e) => setFiltroTexto(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-             <Select 
-               value={tipoVisualizacao !== 'todas' ? (tipoVisualizacao === 'saidas' || tipoVisualizacao === 'pendentes' ? 'SAIDA' : 'DEVOLUCAO') : filtroTipo} 
-               onValueChange={(value) => setFiltroTipo(value as FiltroTipoMovimentacao)}
-               disabled={tipoVisualizacao !== 'todas'}
-             >
-              <SelectTrigger>
-                <SelectValue placeholder="Tipo de movimentação" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todos os tipos</SelectItem>
-                <SelectItem value="ENTRADA">Entrada</SelectItem>
-                <SelectItem value="ENTRADA_ACERTO">Entrada para acerto</SelectItem>
-                <SelectItem value="SAIDA">Saída</SelectItem>
-                <SelectItem value="SAIDA_ACERTO">Saída para acerto</SelectItem>
-                <SelectItem value="DEVOLUCAO">Devolução</SelectItem>
-                <SelectItem value="CADASTRO">Cadastro</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filtroTipoItem} onValueChange={setFiltroTipoItem}>
-              <SelectTrigger>
-                <SelectValue placeholder="Tipo de Item" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os tipos de item</SelectItem>
-                <SelectItem value="Insumo">Insumo</SelectItem>
-                <SelectItem value="Ferramenta">Ferramenta</SelectItem>
-                <SelectItem value="Produto Acabado">Produto Acabado</SelectItem>
-                <SelectItem value="Matéria Prima">Matéria Prima</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-              <SelectTrigger>
-                <SelectValue placeholder="Categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas as categorias</SelectItem>
-                {Array.from(new Set(subcategoriasConfig.map(s => obterPrimeiraCategoriaDeSubcategoria(s.id)))).filter(c => c && c !== '-' && c.trim() !== '').sort().map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={filtroDestino} onValueChange={setFiltroDestino}>
-              <SelectTrigger>
-                <SelectValue placeholder="Estoque/Destino" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os estoques/destinos</SelectItem>
-                {locaisUtilizacao.filter(l => l && l.trim() !== '').map(local => (
-                  <SelectItem key={local} value={local!}>
-                    {local}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
-            <div className="relative">
-              <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="date"
-                value={filtroDataInicio ? format(filtroDataInicio, "yyyy-MM-dd") : ""}
-                onChange={(e) => setFiltroDataInicio(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
-                className="pl-10"
-                placeholder="Data início"
-              />
-            </div>
-
-            <div className="relative">
-              <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="date"
-                value={filtroDataFim ? format(filtroDataFim, "yyyy-MM-dd") : ""}
-                onChange={(e) => setFiltroDataFim(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
-                className="pl-10"
-                placeholder="Data fim"
-              />
-            </div>
-
-            <div className="flex gap-2 md:col-span-2">
-              <Button 
-                onClick={exportarParaExcel}
-                variant="outline"
-                className="flex items-center gap-2 flex-1"
-              >
-                <FileSpreadsheet className="h-4 w-4" />
-                Exportar Excel
-              </Button>
-              <Button 
-                onClick={imprimirMovimentacoes}
-                variant="outline"
-                className="flex items-center gap-2 flex-1"
-              >
-                <Printer className="h-4 w-4" />
-                Imprimir
-              </Button>
-            </div>
-          </div>
-          
-          <div className="mt-4">
-            <p className="text-sm text-muted-foreground">
-              Mostrando {movimentacoesFiltradas.length} de {movimentacoes.length} movimentações
-            </p>
-          </div>
-          </CardContent>
-          </Card>
-
-          {/* Tabela de Movimentações */}
-          <Card>
-        <CardHeader>
-          <CardTitle>📋 Histórico de Movimentações</CardTitle>
-          <CardDescription>
-            Registro completo de todas as movimentações do estoque
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          {erro && <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{erro}</div>}
           <div className="w-full overflow-x-auto">
-            <Table style={{ minWidth: isAdmin() ? '1800px' : '1700px' }}>
-              <TableHeader>
-                <TableRow>
-                  {canEditMovements() && <TableHead className="w-[80px]">Ações</TableHead>}
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Data/Hora</TableHead>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Quantidade</TableHead>
-                  <TableHead>Anterior</TableHead>
-                  <TableHead>Atual</TableHead>
-                  <TableHead>Solicitante</TableHead>
-                  <TableHead>Responsável</TableHead>
-                  <TableHead>Destinatário</TableHead>
-                  <TableHead>Tipo de Item</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Estoque/Destino</TableHead>
-                  <TableHead>Observações</TableHead>
-                </TableRow>
-              </TableHeader>
+            <Table style={{ minWidth: canEditMovements() ? '1650px' : '1550px' }}>
+              <TableHeader><TableRow>{canEditMovements() && <TableHead>Ações</TableHead>}<TableHead>Operação</TableHead><TableHead>Data/Hora</TableHead><TableHead>Item</TableHead><TableHead>Código</TableHead><TableHead>Quantidade</TableHead><TableHead>Anterior</TableHead><TableHead>Atual</TableHead><TableHead>Solicitante</TableHead><TableHead>Responsável</TableHead><TableHead>Destinatário</TableHead><TableHead>Tipo de Item</TableHead><TableHead>Estoque/Destino</TableHead><TableHead>Observações</TableHead></TableRow></TableHeader>
               <TableBody>
-                {movimentacoesFiltradas.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={canEditMovements() ? 15 : 14} className="text-center py-8">
-                      <div className="flex flex-col items-center gap-2">
-                        <Package className="h-12 w-12 text-muted-foreground" />
-                        <p className="text-muted-foreground">
-                          {movimentacoes.length === 0 
-                            ? "Nenhuma movimentação registrada" 
-                            : "Nenhuma movimentação encontrada com os filtros aplicados"
-                          }
-                        </p>
-                      </div>
-                    </TableCell>
+                {loading ? <TableRow><TableCell colSpan={canEditMovements() ? 14 : 13} className="h-40 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />Carregando página...</TableCell></TableRow> : rows.length === 0 ? <TableRow><TableCell colSpan={canEditMovements() ? 14 : 13} className="h-40 text-center text-muted-foreground">Nenhuma movimentação encontrada.</TableCell></TableRow> : rows.map((mov) => (
+                  <TableRow key={mov.id}>
+                    {canEditMovements() && <TableCell><div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => { setMovimentoEditando(mov); setNovoLocalId(mov.localUtilizacaoId || ''); setNovaQuantidade(String(mov.quantidade)); }}><Pencil className="h-4 w-4" /></Button><AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir movimentação?</AlertDialogTitle><AlertDialogDescription>O registro de {operacaoLabel(mov)} do item “{mov.itemSnapshot?.nome || 'item'}” será removido.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => excluirMovimentacao(mov.id)}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></div></TableCell>}
+                    <TableCell><Badge variant="outline" className={operacaoClass(mov)}>{operacaoLabel(mov)}</Badge></TableCell>
+                    <TableCell className="whitespace-nowrap">{new Date(mov.dataHora).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</TableCell>
+                    <TableCell><div className="font-medium">{mov.itemSnapshot?.nome || 'Item não identificado'}</div>{mov.itemSnapshot?.marca && <div className="text-xs text-muted-foreground">{mov.itemSnapshot.marca}</div>}</TableCell>
+                    <TableCell className="font-mono">{mov.itemSnapshot?.codigoBarras ?? mov.itemSnapshot?.codigo_barras ?? '-'}</TableCell>
+                    <TableCell className="font-bold">{formatarQuantidade(mov)} <span className="text-xs font-normal text-muted-foreground">{mov.itemSnapshot?.unidade || ''}</span></TableCell>
+                    <TableCell className="text-right">{Number(mov.quantidadeAnterior).toLocaleString('pt-BR')}</TableCell><TableCell className="text-right font-bold">{Number(mov.quantidadeAtual).toLocaleString('pt-BR')}</TableCell>
+                    <TableCell>{mov.solicitanteNome || '-'}</TableCell><TableCell>{mov.responsavelNome || '-'}</TableCell><TableCell>{mov.destinatario || '-'}</TableCell><TableCell>{mov.itemSnapshot?.tipoItem || mov.itemSnapshot?.tipo_item || '-'}</TableCell><TableCell>{mov.localUtilizacaoNome || '-'}</TableCell><TableCell className="max-w-[260px] truncate" title={mov.observacoes || ''}>{mov.observacoes || '-'}</TableCell>
                   </TableRow>
-                ) : (
-                    movimentacoesPaginadas.map((mov) => {
-                    const tipoInfo = getTipoInfo(mov);
-                    const eDevolucao = isDevolucao(mov);
-                    const saldoCalculado = saldosCalculadosPorMovimentacao.get(mov.id);
-                    
-                    return (
-                      <TableRow key={mov.id} className="hover:bg-muted/50">
-                        {canEditMovements() && (
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
-                                onClick={() => {
-                                  setMovimentoEditando(mov);
-                                  setNovoLocalId(mov.localUtilizacaoId || '');
-                                  setNovaQuantidade(mov.quantidade.toString());
-                                }}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Excluir movimentação?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Deseja excluir o registro de {eDevolucao ? 'devolução' : tipoInfo.label.toLowerCase()} do item "{mov.itemSnapshot?.nome}" ({mov.quantidade} {mov.itemSnapshot?.unidade})? Esta ação não pode ser desfeita.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => excluirMovimentacao(mov.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                      Excluir
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </TableCell>
-                        )}
-                        <TableCell>
-                          <div className={`flex items-center gap-2 ${eDevolucao ? 'text-info' : tipoInfo.color}`}>
-                            <div className={`p-1.5 rounded-full ${eDevolucao ? 'bg-info/10' : tipoInfo.bgColor}`}>
-                              {eDevolucao ? <RotateCcw className="h-4 w-4" /> : tipoInfo.icon}
-                            </div>
-                            <span className="font-medium">{eDevolucao ? 'Devolução' : tipoInfo.label}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {formatarDataHora(mov.dataHora)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{mov.itemSnapshot?.nome || 'Item não identificado'}</p>
-                            {mov.itemSnapshot?.marca && (
-                              <p className="text-xs text-muted-foreground">{mov.itemSnapshot.marca}</p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {mov.itemSnapshot?.codigoBarras}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <span className={`font-bold ${tipoInfo.color}`}>
-                              {formatarQuantidadeMovimentacao(mov)}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {mov.itemSnapshot?.unidade}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {(saldoCalculado?.anterior ?? mov.quantidadeAnterior).toLocaleString('pt-BR')}
-                        </TableCell>
-                        <TableCell className="text-right font-bold">
-                          {(saldoCalculado?.atual ?? mov.quantidadeAtual).toLocaleString('pt-BR')}
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {mov.solicitanteNome ? (
-                              <Badge variant="outline" className={eDevolucao ? "bg-info/10 text-info border-info/20" : "bg-primary/10 text-primary border-primary/20"}>
-                                {mov.solicitanteNome}
-                              </Badge>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">-</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {mov.userId && usuariosMap[mov.userId] ? (
-                              <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-                                {usuariosMap[mov.userId]}
-                              </Badge>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">-</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {mov.destinatario ? (
-                            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                              {mov.destinatario}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {mov.itemSnapshot?.tipoItem ? (
-                            <Badge variant="outline" className="bg-muted text-foreground">
-                              {mov.itemSnapshot.tipoItem}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {mov.itemSnapshot?.subcategoriaId ? (
-                            <Badge variant="outline" className="bg-muted text-foreground">
-                              {obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId)}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {mov.localUtilizacaoNome ? (
-                            <span className="text-sm">{mov.localUtilizacaoNome}</span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {mov.observacoes && mov.tipo !== 'SAIDA' ? (
-                            <span className="text-sm">{mov.observacoes}</span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
+                ))}
               </TableBody>
             </Table>
           </div>
-          
-          {/* Paginação */}
-          {totalPaginas > 1 && (
-            <div className="mt-4 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, movimentacoesFiltradas.length)} de {movimentacoesFiltradas.length} movimentações
-              </p>
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious 
-                      onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
-                      className={paginaAtual === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                  
-                  {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((pagina) => {
-                    // Mostrar sempre primeira, última, atual e adjacentes
-                    const mostrar = 
-                      pagina === 1 || 
-                      pagina === totalPaginas || 
-                      Math.abs(pagina - paginaAtual) <= 1;
-                    
-                    if (!mostrar) {
-                      // Mostrar elipses
-                      if (pagina === 2 && paginaAtual > 3) {
-                        return (
-                          <PaginationItem key={pagina}>
-                            <span className="px-2">...</span>
-                          </PaginationItem>
-                        );
-                      }
-                      if (pagina === totalPaginas - 1 && paginaAtual < totalPaginas - 2) {
-                        return (
-                          <PaginationItem key={pagina}>
-                            <span className="px-2">...</span>
-                          </PaginationItem>
-                        );
-                      }
-                      return null;
-                    }
-                    
-                    return (
-                      <PaginationItem key={pagina}>
-                        <PaginationLink
-                          onClick={() => setPaginaAtual(pagina)}
-                          isActive={paginaAtual === pagina}
-                          className="cursor-pointer"
-                        >
-                          {pagina}
-                        </PaginationLink>
-                      </PaginationItem>
-                    );
-                  })}
-                  
-                  <PaginationItem>
-                    <PaginationNext 
-                      onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
-                      className={paginaAtual === totalPaginas ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          )}
-          </CardContent>
-        </Card>
-            </div>
-          </TabsContent>
-        ))}
-      </Tabs>
-      <Dialog open={!!movimentoEditando} onOpenChange={(open) => !open && setMovimentoEditando(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar Movimentação</DialogTitle>
-            <DialogDescription>
-              Altere a quantidade ou destino para esta movimentação de "{movimentoEditando?.itemSnapshot?.nome}".
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4 space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Quantidade</label>
-              <Input 
-                type="number" 
-                value={novaQuantidade} 
-                onChange={(e) => setNovaQuantidade(e.target.value)}
-                min="0.01"
-                step="0.01"
-              />
-            </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Novo Local de Destino</label>
-              <Select value={novoLocalId} onValueChange={setNovoLocalId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um local (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locaisAtivos.map(local => (
-                    <SelectItem key={local.id} value={local.id}>
-                      {local.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="bg-muted p-3 rounded-md text-sm space-y-1">
-              <p><strong>Item:</strong> {movimentoEditando?.itemSnapshot?.nome}</p>
-              <p><strong>Local Atual:</strong> {movimentoEditando?.localUtilizacaoNome || 'Nenhum'}</p>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setMovimentoEditando(null)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSalvarEdicaoDestino} disabled={salvandoEdicao}>
-              {salvandoEdicao ? "Salvando..." : "Salvar Alteração"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          {totalPaginas > 1 && <div className="mt-4 flex flex-col md:flex-row items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Página {paginaAtual} de {totalPaginas.toLocaleString('pt-BR')}</p><Pagination><PaginationContent><PaginationItem><PaginationPrevious onClick={() => setPaginaAtual((p) => Math.max(1, p - 1))} className={paginaAtual === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'} /></PaginationItem>{Array.from({ length: totalPaginas }, (_, i) => i + 1).filter((p) => p === 1 || p === totalPaginas || Math.abs(p - paginaAtual) <= 1).map((p, idx, arr) => { const anterior = arr[idx - 1]; return <span key={p} className="contents">{anterior && p - anterior > 1 && <PaginationItem><span className="px-2">...</span></PaginationItem>}<PaginationItem><PaginationLink isActive={p === paginaAtual} onClick={() => setPaginaAtual(p)} className="cursor-pointer">{p}</PaginationLink></PaginationItem></span>; })}<PaginationItem><PaginationNext onClick={() => setPaginaAtual((p) => Math.min(totalPaginas, p + 1))} className={paginaAtual === totalPaginas ? 'pointer-events-none opacity-50' : 'cursor-pointer'} /></PaginationItem></PaginationContent></Pagination></div>}
+        </CardContent>
+      </Card>
 
-      <RelatorioMovimentacoesDialog
-        aberto={relatorioAberto}
-        onClose={() => setRelatorioAberto(false)}
-        movimentacoes={movimentacoes}
-      />
+      <Dialog open={!!movimentoEditando} onOpenChange={(open) => !open && setMovimentoEditando(null)}><DialogContent><DialogHeader><DialogTitle>Editar Movimentação</DialogTitle><DialogDescription>Altere quantidade ou destino de “{movimentoEditando?.itemSnapshot?.nome}”.</DialogDescription></DialogHeader><div className="space-y-4 py-4"><div><label className="text-sm font-medium">Quantidade</label><Input type="number" min="0.01" step="0.01" value={novaQuantidade} onChange={(e) => setNovaQuantidade(e.target.value)} /></div><div><label className="text-sm font-medium">Novo Local de Destino</label><Select value={novoLocalId || 'sem-local'} onValueChange={(v) => setNovoLocalId(v === 'sem-local' ? '' : v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="sem-local">Nenhum</SelectItem>{locaisUtilizacao.filter((l) => l.ativo).map((l) => <SelectItem key={l.id} value={l.id}>{l.nome}</SelectItem>)}</SelectContent></Select></div></div><DialogFooter><Button variant="outline" onClick={() => setMovimentoEditando(null)}>Cancelar</Button><Button onClick={salvarEdicao} disabled={salvandoEdicao}>{salvandoEdicao ? 'Salvando...' : 'Salvar Alteração'}</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 };
