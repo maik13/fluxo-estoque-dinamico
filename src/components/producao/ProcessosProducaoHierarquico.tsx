@@ -360,7 +360,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
           await finalizarOrdemProducaoComConferencia(ordem.id, motivo);
         }
       } else {
-        const precisaJustificativa = ['cancelar', 'reabrir'].includes(acao);
+        const precisaJustificativa = acao === 'cancelar';
         const justificativa = precisaJustificativa
           ? window.prompt('Informe a justificativa para esta alteração da OP:')?.trim()
           : null;
