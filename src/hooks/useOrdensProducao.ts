@@ -102,10 +102,22 @@ export const formatarNumeroOrdemProducao = (numero: number | null | undefined) =
 export const formatarIdentificacaoOrdemProducao = (ordem: {
   numero: number | null | undefined;
   tarefa_nome_snapshot?: string | null;
+  descricao?: string | null;
 } | null | undefined) => {
   const numero = formatarNumeroOrdemProducao(ordem?.numero);
   const atividade = ordem?.tarefa_nome_snapshot?.trim();
-  return atividade ? `${numero} — ${atividade}` : numero;
+  const descricao = ordem?.descricao?.trim();
+
+  if (atividade && descricao) {
+    const atividadeNormalizada = atividade.toLocaleLowerCase('pt-BR');
+    const descricaoNormalizada = descricao.toLocaleLowerCase('pt-BR');
+    return atividadeNormalizada === descricaoNormalizada
+      ? `${numero} — ${atividade}`
+      : `${numero} — ${atividade} · ${descricao}`;
+  }
+
+  const identificacao = atividade || descricao;
+  return identificacao ? `${numero} — ${identificacao}` : numero;
 };
 
 export const useOrdensProducao = () => {
