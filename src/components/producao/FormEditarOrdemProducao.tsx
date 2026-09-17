@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Loader2, Pencil } from 'lucide-react';
+import { Loader2, Pencil, ArrowRightLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +26,7 @@ import {
   editarOrdemProducao,
   formatarNumeroOrdemProducao,
 } from '@/hooks/useOrdensProducao';
+import { supabase } from '@/integrations/supabase/client';
 import type {
   ProducaoLocalTipo,
   ProducaoOrdemProducao,
@@ -36,6 +37,13 @@ interface Props {
   ordem: ProducaoOrdemProducao;
   onSuccess: () => Promise<void> | void;
 }
+
+type EtapaDestino = {
+  id: string;
+  codigo: string;
+  nome: string;
+  status: string;
+};
 
 const numero = (value: string) => Number(value.replace(',', '.'));
 
@@ -59,8 +67,29 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
   const [instrucoes, setInstrucoes] = useState('');
   const [justificativa, setJustificativa] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [reclassificando, setReclassificando] = useState(false);
+  const [etapas, setEtapas] = useState<EtapaDestino[]>([]);
+  const [etapaSelecionada, setEtapaSelecionada] = useState(ordem.processo_id);
 
-  const editavel = ['liberada', 'em_execucao'].includes(ordem.status);
+  const editavelPlanejamento = ['liberada', 'em_execucao'].includes(ordem.status);
+  const reclassificavel = ordem.status !== 'cancelada';
+
+  const carregarEtapas = async () => {
+    const { data, error } = await supabase
+      .from('producao_processos')
+      .select('id,codigo,nome,status')
+      .eq('projeto_id', ordem.projeto_id)
+      .neq('status', 'cancelado')
+      .order('sequencia', { ascending: true })
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      toast.error('Não foi possível carregar as etapas deste projeto.');
+      return;
+    }
+
+    setEtapas((data ?? []) as EtapaDestino[]);
+  };
 
   const preencher = () => {
     setQuantidade(String(ordem.quantidade_planejada));
@@ -73,16 +102,61 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
     setDescricao(ordem.descricao ?? '');
     setInstrucoes(ordem.instrucoes ?? '');
     setJustificativa('');
+    setEtapaSelecionada(ordem.processo_id);
   };
 
   const alterarAbertura = (open: boolean) => {
-    if (salvando) return;
+    if (salvando || reclassificando) return;
     setAberto(open);
-    if (open) preencher();
+    if (open) {
+      preencher();
+      void carregarEtapas();
+    }
+  };
+
+  const alterarEtapa = async () => {
+    const motivo = justificativa.trim();
+    if (!motivo) {
+      toast.error('Informe o motivo da alteração da etapa.');
+      return;
+    }
+    if (!etapaSelecionada || etapaSelecionada === ordem.processo_id) {
+      toast.error('Selecione uma etapa diferente da atual.');
+      return;
+    }
+
+    setReclassificando(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)(
+        'reclassificar_ordem_producao_etapa_v1',
+        {
+          p_ordem_producao_id: ordem.id,
+          p_nova_etapa_id: etapaSelecionada,
+          p_justificativa: motivo,
+        },
+      );
+      if (error) throw error;
+
+      await onSuccess();
+      const destino = etapas.find((etapa) => etapa.id === etapaSelecionada);
+      toast.success(
+        `${formatarNumeroOrdemProducao(ordem.numero)} movida para ${destino?.nome ?? 'a nova etapa'}. O histórico de apontamentos foi sincronizado.`,
+      );
+      setAberto(false);
+    } catch (error: any) {
+      toast.error(error?.message ?? 'Não foi possível alterar a etapa da OP.');
+    } finally {
+      setReclassificando(false);
+    }
   };
 
   const salvar = async (event: FormEvent) => {
     event.preventDefault();
+
+    if (!editavelPlanejamento) {
+      toast.error('Esta OP não permite alteração dos dados de planejamento. Use apenas a reclassificação de etapa.');
+      return;
+    }
 
     const quantidadeNormalizada = numero(quantidade);
     const equipeNormalizada = equipe.trim() ? Number(equipe) : null;
@@ -150,7 +224,7 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
     }
   };
 
-  if (!editavel) return null;
+  if (!reclassificavel && !editavelPlanejamento) return null;
 
   return (
     <Dialog open={aberto} onOpenChange={alterarAbertura}>
@@ -172,33 +246,16 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
             Editar {formatarNumeroOrdemProducao(ordem.numero)}
           </DialogTitle>
           <DialogDescription>
-            Altere o planejamento desta OP. Projeto, Etapa, número, status e a
-            produção já apontada permanecem preservados.
+            Os dados produtivos já apontados permanecem preservados. A etapa pode ser reclassificada dentro do mesmo projeto com sincronização do histórico.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={salvar} className="space-y-5">
           <div className="rounded-lg border bg-muted/20 p-4 text-sm">
-            <p>
-              <strong>Projeto:</strong> {ordem.projeto_nome}
-            </p>
-            <p>
-              <strong>Etapa:</strong> {ordem.processo_codigo} ·{' '}
-              {ordem.processo_nome}
-            </p>
-            <p>
-              <strong>Atividade da OP:</strong>{' '}
-              {ordem.tarefa_nome_snapshot ?? 'Ainda não vinculada'}
-            </p>
-            <p>
-              <strong>Produção confirmada:</strong>{' '}
-              {formatarQuantidade(Number(ordem.quantidade_realizada))}{' '}
-              {ordem.unidade_medida ?? ''}
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              A produção realizada é controlada pelos apontamentos. Esta tela
-              altera a quantidade planejada e os demais dados de planejamento da OP.
-            </p>
+            <p><strong>Projeto:</strong> {ordem.projeto_nome}</p>
+            <p><strong>Etapa atual:</strong> {ordem.processo_codigo} · {ordem.processo_nome}</p>
+            <p><strong>Atividade da OP:</strong> {ordem.tarefa_nome_snapshot ?? 'Ainda não vinculada'}</p>
+            <p><strong>Produção confirmada:</strong> {formatarQuantidade(Number(ordem.quantidade_realizada))} {ordem.unidade_medida ?? ''}</p>
           </div>
 
           <div className="space-y-2">
@@ -210,141 +267,96 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
               rows={2}
               required
             />
-            <p className="text-xs text-muted-foreground">
-              O motivo fica registrado na auditoria da OP.
-            </p>
+            <p className="text-xs text-muted-foreground">O motivo fica registrado na auditoria.</p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Quantidade planejada da OP *</Label>
-              <Input
-                value={quantidade}
-                onChange={(event) => setQuantidade(event.target.value)}
-                inputMode="decimal"
-                className="font-medium"
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                Pode ser alterada enquanto a OP estiver liberada ou em execução,
-                mas nunca para um valor menor que a produção já confirmada.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Local operacional *</Label>
-              <Select
-                value={localTipo}
-                onValueChange={(value) =>
-                  setLocalTipo(value as ProducaoLocalTipo)
-                }
-              >
+          {reclassificavel && (
+            <div className="rounded-lg border p-4 space-y-3">
+              <div>
+                <Label>Alterar etapa da OP</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Mostra somente etapas do mesmo projeto. Ao confirmar, a OP e todos os apontamentos vinculados a ela passam a usar a nova etapa.
+                </p>
+              </div>
+              <Select value={etapaSelecionada} onValueChange={setEtapaSelecionada}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione a etapa" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Fábrica">Fábrica</SelectItem>
-                  <SelectItem value="Execução">Execução</SelectItem>
+                  {etapas.map((etapa) => (
+                    <SelectItem key={etapa.id} value={etapa.id}>
+                      {etapa.codigo} · {etapa.nome}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Início planejado *</Label>
-              <Input
-                type="date"
-                value={inicio}
-                onChange={(event) => setInicio(event.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Prazo da OP *</Label>
-              <Input
-                type="date"
-                value={fim}
-                onChange={(event) => setFim(event.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Responsável</Label>
-              <Input
-                value={responsavel}
-                onChange={(event) => setResponsavel(event.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Equipe prevista</Label>
-              <Input
-                type="number"
-                min="0"
-                step="1"
-                value={equipe}
-                onChange={(event) => setEquipe(event.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Prioridade</Label>
-              <Select
-                value={prioridade}
-                onValueChange={(value) =>
-                  setPrioridade(value as ProducaoPrioridade)
-                }
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={alterarEtapa}
+                disabled={reclassificando || etapaSelecionada === ordem.processo_id || !justificativa.trim()}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="baixa">Baixa</SelectItem>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="alta">Alta</SelectItem>
-                  <SelectItem value="urgente">Urgente</SelectItem>
-                </SelectContent>
-              </Select>
+                {reclassificando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRightLeft className="mr-2 h-4 w-4" />}
+                Alterar etapa e sincronizar histórico
+              </Button>
             </div>
-          </div>
+          )}
 
-          <div className="space-y-2">
-            <Label>Descrição</Label>
-            <CampoDescricaoComVoz
-              value={descricao}
-              onChange={setDescricao}
-              placeholder="Descreva de forma objetiva o que deve ser executado nesta OP."
-              rows={4}
-            />
-          </div>
+          {editavelPlanejamento && (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Quantidade planejada da OP *</Label>
+                  <Input value={quantidade} onChange={(event) => setQuantidade(event.target.value)} inputMode="decimal" className="font-medium" required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Local operacional *</Label>
+                  <Select value={localTipo} onValueChange={(value) => setLocalTipo(value as ProducaoLocalTipo)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Fábrica">Fábrica</SelectItem>
+                      <SelectItem value="Execução">Execução</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2"><Label>Início planejado *</Label><Input type="date" value={inicio} onChange={(event) => setInicio(event.target.value)} required /></div>
+                <div className="space-y-2"><Label>Prazo da OP *</Label><Input type="date" value={fim} onChange={(event) => setFim(event.target.value)} required /></div>
+                <div className="space-y-2"><Label>Responsável</Label><Input value={responsavel} onChange={(event) => setResponsavel(event.target.value)} /></div>
+                <div className="space-y-2"><Label>Equipe prevista</Label><Input type="number" min="0" step="1" value={equipe} onChange={(event) => setEquipe(event.target.value)} /></div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Prioridade</Label>
+                  <Select value={prioridade} onValueChange={(value) => setPrioridade(value as ProducaoPrioridade)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="baixa">Baixa</SelectItem>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="alta">Alta</SelectItem>
+                      <SelectItem value="urgente">Urgente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-          <div className="space-y-2">
-            <Label>Instruções para execução</Label>
-            <Textarea
-              value={instrucoes}
-              onChange={(event) => setInstrucoes(event.target.value)}
-              rows={4}
-            />
-          </div>
+              <div className="space-y-2">
+                <Label>Descrição</Label>
+                <CampoDescricaoComVoz value={descricao} onChange={setDescricao} placeholder="Descreva de forma objetiva o que deve ser executado nesta OP." rows={4} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Instruções para execução</Label>
+                <Textarea value={instrucoes} onChange={(event) => setInstrucoes(event.target.value)} rows={4} />
+              </div>
+            </>
+          )}
 
           <DialogFooter className="sticky -bottom-6 -mx-6 border-t bg-background px-6 py-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setAberto(false)}
-              disabled={salvando}
-            >
-              Voltar
-            </Button>
-            <Button type="submit" disabled={salvando || !justificativa.trim()}>
-              {salvando ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Pencil className="mr-2 h-4 w-4" />
-              )}
-              Salvar alterações da OP
-            </Button>
+            <Button type="button" variant="outline" onClick={() => setAberto(false)} disabled={salvando || reclassificando}>Voltar</Button>
+            {editavelPlanejamento && (
+              <Button type="submit" disabled={salvando || reclassificando || !justificativa.trim()}>
+                {salvando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Pencil className="mr-2 h-4 w-4" />}
+                Salvar alterações da OP
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>
