@@ -64,7 +64,7 @@ export interface DadosEdicaoOrdemProducao {
   instrucoes?: string | null;
   descricao?: string | null;
   prioridade: ProducaoPrioridade;
-  justificativa: string;
+  justificativa?: string | null;
   tarefa_id?: string | null;
 }
 
@@ -83,7 +83,7 @@ export const editarOrdemProducao = async (
     p_instrucoes: dados.instrucoes ?? null,
     p_descricao: dados.descricao ?? null,
     p_prioridade: dados.prioridade,
-    p_justificativa: dados.justificativa,
+    p_justificativa: dados.justificativa ?? null,
     p_tarefa_id: dados.tarefa_id ?? null,
   });
 
