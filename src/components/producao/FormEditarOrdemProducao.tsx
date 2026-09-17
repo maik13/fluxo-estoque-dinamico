@@ -65,7 +65,6 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
     useState<ProducaoPrioridade>('normal');
   const [descricao, setDescricao] = useState('');
   const [instrucoes, setInstrucoes] = useState('');
-  const [justificativa, setJustificativa] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [reclassificando, setReclassificando] = useState(false);
   const [etapas, setEtapas] = useState<EtapaDestino[]>([]);
@@ -101,7 +100,6 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
     setPrioridade(ordem.prioridade);
     setDescricao(ordem.descricao ?? '');
     setInstrucoes(ordem.instrucoes ?? '');
-    setJustificativa('');
     setEtapaSelecionada(ordem.processo_id);
   };
 
@@ -115,11 +113,6 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
   };
 
   const alterarEtapa = async () => {
-    const motivo = justificativa.trim();
-    if (!motivo) {
-      toast.error('Informe o motivo da alteração da etapa.');
-      return;
-    }
     if (!etapaSelecionada || etapaSelecionada === ordem.processo_id) {
       toast.error('Selecione uma etapa diferente da atual.');
       return;
@@ -127,12 +120,12 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
 
     setReclassificando(true);
     try {
-      const { data, error } = await (supabase.rpc as any)(
+      const { error } = await (supabase.rpc as any)(
         'reclassificar_ordem_producao_etapa_v1',
         {
           p_ordem_producao_id: ordem.id,
           p_nova_etapa_id: etapaSelecionada,
-          p_justificativa: motivo,
+          p_justificativa: null,
         },
       );
       if (error) throw error;
@@ -160,7 +153,6 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
 
     const quantidadeNormalizada = numero(quantidade);
     const equipeNormalizada = equipe.trim() ? Number(equipe) : null;
-    const motivo = justificativa.trim();
 
     if (!Number.isFinite(quantidadeNormalizada) || quantidadeNormalizada <= 0) {
       toast.error('Informe uma quantidade maior que zero.');
@@ -187,11 +179,6 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
       return;
     }
 
-    if (!motivo) {
-      toast.error('Informe o motivo da alteração da OP.');
-      return;
-    }
-
     setSalvando(true);
     try {
       await editarOrdemProducao({
@@ -206,7 +193,7 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
         descricao: descricao.trim() || null,
         instrucoes: instrucoes.trim() || null,
         prioridade,
-        justificativa: motivo,
+        justificativa: null,
         tarefa_id: ordem.tarefa_id,
       });
 
@@ -258,18 +245,6 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
             <p><strong>Produção confirmada:</strong> {formatarQuantidade(Number(ordem.quantidade_realizada))} {ordem.unidade_medida ?? ''}</p>
           </div>
 
-          <div className="space-y-2">
-            <Label>Motivo da alteração *</Label>
-            <Textarea
-              value={justificativa}
-              onChange={(event) => setJustificativa(event.target.value)}
-              placeholder="Explique por que esta OP está sendo alterada."
-              rows={2}
-              required
-            />
-            <p className="text-xs text-muted-foreground">O motivo fica registrado na auditoria.</p>
-          </div>
-
           {reclassificavel && (
             <div className="rounded-lg border p-4 space-y-3">
               <div>
@@ -294,7 +269,7 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
                 type="button"
                 variant="secondary"
                 onClick={alterarEtapa}
-                disabled={reclassificando || etapaSelecionada === ordem.processo_id || !justificativa.trim()}
+                disabled={reclassificando || etapaSelecionada === ordem.processo_id}
               >
                 {reclassificando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRightLeft className="mr-2 h-4 w-4" />}
                 Alterar etapa e sincronizar histórico
@@ -352,7 +327,7 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
           <DialogFooter className="sticky -bottom-6 -mx-6 border-t bg-background px-6 py-4">
             <Button type="button" variant="outline" onClick={() => setAberto(false)} disabled={salvando || reclassificando}>Voltar</Button>
             {editavelPlanejamento && (
-              <Button type="submit" disabled={salvando || reclassificando || !justificativa.trim()}>
+              <Button type="submit" disabled={salvando || reclassificando}>
                 {salvando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Pencil className="mr-2 h-4 w-4" />}
                 Salvar alterações da OP
               </Button>
