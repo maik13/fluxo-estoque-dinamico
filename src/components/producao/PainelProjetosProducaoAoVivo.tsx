@@ -84,6 +84,7 @@ type ProjetoPainel = {
 };
 
 const STORAGE_PROJETOS = 'gerencial-producao-projetos-exibidos-v1';
+const STORAGE_SOMENTE_COM_OPS = 'gerencial-producao-somente-com-ops-v1';
 
 const numero = (valor: number) =>
   Number(valor || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
@@ -168,6 +169,10 @@ export const PainelProjetosProducaoAoVivo = () => {
   const [erro, setErro] = useState<string | null>(null);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
   const [tipoGrafico, setTipoGrafico] = useState<TipoGrafico>('barras');
+  const [somenteComOps, setSomenteComOps] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(STORAGE_SOMENTE_COM_OPS) === 'true';
+  });
   const [projetosSelecionados, setProjetosSelecionados] = useState<string[] | null>(() => {
     if (typeof window === 'undefined') return null;
     try {
@@ -264,11 +269,21 @@ export const PainelProjetosProducaoAoVivo = () => {
     }
   }, [projetosSelecionados]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(STORAGE_SOMENTE_COM_OPS, String(somenteComOps));
+  }, [somenteComOps]);
+
+  const projetosElegiveis = useMemo(
+    () => (somenteComOps ? projetos.filter((projeto) => Number(projeto.ops_total ?? 0) > 0) : projetos),
+    [projetos, somenteComOps],
+  );
+
   const projetosExibidos = useMemo(() => {
-    if (projetosSelecionados === null) return projetos;
+    if (projetosSelecionados === null) return projetosElegiveis;
     const ids = new Set(projetosSelecionados);
-    return projetos.filter((projeto) => ids.has(projeto.projeto_id));
-  }, [projetos, projetosSelecionados]);
+    return projetosElegiveis.filter((projeto) => ids.has(projeto.projeto_id));
+  }, [projetosElegiveis, projetosSelecionados]);
 
   const alternarProjeto = (projetoId: string) => {
     setProjetosSelecionados((atual) => {
@@ -393,6 +408,14 @@ export const PainelProjetosProducaoAoVivo = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-72">
               <DropdownMenuLabel>Projetos exibidos no monitor</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={somenteComOps}
+                onCheckedChange={(checked) => setSomenteComOps(checked === true)}
+                onSelect={(event) => event.preventDefault()}
+              >
+                Somente projetos com OP
+              </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
               <DropdownMenuCheckboxItem
                 checked={projetosSelecionados === null}
