@@ -94,8 +94,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     cleanupAuthState();
     redirectingRef.current = false;
     try {
+      // Não revogar sessões globais antes do login: isso desconectava outros dispositivos
+      // e podia deixar o usuário preso em ciclos de autenticação.
       try {
-        await supabase.auth.signOut({ scope: "global" });
+        await supabase.auth.signOut({ scope: "local" });
       } catch {}
 
       const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -128,7 +130,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     cleanupAuthState();
     try {
-      await supabase.auth.signOut({ scope: "global" });
+      await supabase.auth.signOut({ scope: "local" });
     } catch {}
     window.location.href = "/auth";
   };
