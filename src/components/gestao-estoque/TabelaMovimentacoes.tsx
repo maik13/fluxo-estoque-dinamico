@@ -53,12 +53,12 @@ export const TabelaMovimentacoes = () => {
   const { canEditMovements } = usePermissions();
   const {
     estoqueAtivo,
-    obterEstoqueAtivoInfo,
-    isEstoqueAtivoPrincipal,
+    estoques,
+    categorias: categoriasConfig,
+    categoriasSubcategorias,
     tiposOperacao,
     locaisUtilizacao,
     subcategorias,
-    obterPrimeiraCategoriaDeSubcategoria,
   } = useConfiguracoes();
 
   const [rows, setRows] = useState<MovimentacaoServidor[]>([]);
@@ -85,23 +85,48 @@ export const TabelaMovimentacoes = () => {
   const [novaQuantidade, setNovaQuantidade] = useState('');
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
   const refreshTimerRef = useRef<number | null>(null);
+  const requestSeqRef = useRef(0);
+
+  // Evita usar funções inline de useConfiguracoes como dependências da carga:
+  // elas mudam de identidade a cada render e podem disparar um loop de RPCs.
+  const estoqueAtivoInfo = useMemo(
+    () => estoques.find((e) => e.id === estoqueAtivo),
+    [estoques, estoqueAtivo],
+  );
+
+  const estoqueAtivoPrincipal = useMemo(() => {
+    const principal = estoques.find(
+      (e) => e.nome.trim().toLocaleLowerCase('pt-BR') === 'almoxarifado principal',
+    );
+    return Boolean(principal?.id && principal.id === estoqueAtivo);
+  }, [estoques, estoqueAtivo]);
+
+  const categoriaPorSubcategoria = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const rel of categoriasSubcategorias) {
+      if (map.has(rel.subcategoria_id)) continue;
+      const categoria = categoriasConfig.find((cat) => cat.id === rel.categoria_id && cat.ativo);
+      if (categoria) map.set(rel.subcategoria_id, categoria.nome);
+    }
+    return map;
+  }, [categoriasSubcategorias, categoriasConfig]);
 
   const categorias = useMemo(() => {
     return Array.from(
       new Set(
         subcategorias
-          .map((s) => obterPrimeiraCategoriaDeSubcategoria(s.id))
-          .filter((nome) => nome && nome.trim() !== '')
+          .map((s) => categoriaPorSubcategoria.get(s.id) || '')
+          .filter((nome) => nome.trim() !== '')
       )
     ).sort();
-  }, [subcategorias, obterPrimeiraCategoriaDeSubcategoria]);
+  }, [subcategorias, categoriaPorSubcategoria]);
 
   const subcategoriaIdsFiltro = useMemo(() => {
     if (filtroCategoria === 'todas') return null;
     return subcategorias
-      .filter((s) => obterPrimeiraCategoriaDeSubcategoria(s.id) === filtroCategoria)
+      .filter((s) => categoriaPorSubcategoria.get(s.id) === filtroCategoria)
       .map((s) => s.id);
-  }, [filtroCategoria, subcategorias, obterPrimeiraCategoriaDeSubcategoria]);
+  }, [filtroCategoria, subcategorias, categoriaPorSubcategoria]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setBuscaAplicada(filtroTexto.trim()), 350);
@@ -113,13 +138,12 @@ export const TabelaMovimentacoes = () => {
   }, [buscaAplicada, filtroTipo, tipoVisualizacao, filtroOperacao, filtroDestino, filtroTipoItem, filtroCategoria, filtroDataInicio, filtroDataFim, itensPorPagina, estoqueAtivo]);
 
   const montarParametros = useCallback((pagina: number, limite: number) => {
-    const estoqueInfo = obterEstoqueAtivoInfo();
     const inicio = filtroDataInicio ? new Date(`${filtroDataInicio}T00:00:00-03:00`).toISOString() : null;
     const fim = filtroDataFim ? new Date(`${filtroDataFim}T23:59:59.999-03:00`).toISOString() : null;
 
     return {
-      p_estoque_id: estoqueInfo?.id ?? null,
-      p_incluir_sem_estoque: isEstoqueAtivoPrincipal(),
+      p_estoque_id: estoqueAtivoInfo?.id ?? null,
+      p_incluir_sem_estoque: estoqueAtivoPrincipal,
       p_pagina: pagina,
       p_limite: limite,
       p_busca: buscaAplicada || null,
@@ -132,10 +156,11 @@ export const TabelaMovimentacoes = () => {
       p_data_inicio: inicio,
       p_data_fim: fim,
     };
-  }, [obterEstoqueAtivoInfo, isEstoqueAtivoPrincipal, filtroDataInicio, filtroDataFim, buscaAplicada, filtroTipo, filtroOperacao, tipoVisualizacao, filtroDestino, filtroTipoItem, subcategoriaIdsFiltro]);
+  }, [estoqueAtivoInfo?.id, estoqueAtivoPrincipal, filtroDataInicio, filtroDataFim, buscaAplicada, filtroTipo, filtroOperacao, tipoVisualizacao, filtroDestino, filtroTipoItem, subcategoriaIdsFiltro]);
 
   const carregarPagina = useCallback(async (silencioso = false) => {
     if (!estoqueAtivo) return;
+    const requestId = ++requestSeqRef.current;
     if (!silencioso) setLoading(true);
     setErro(null);
 
@@ -144,6 +169,7 @@ export const TabelaMovimentacoes = () => {
         'listar_movimentacoes_paginadas_v1',
         montarParametros(paginaAtual, itensPorPagina),
       );
+      if (requestId !== requestSeqRef.current) return;
       if (error) throw error;
 
       const payload = data ?? {};
@@ -166,11 +192,14 @@ export const TabelaMovimentacoes = () => {
         devolucoes: Number(payload.stats?.devolucoes ?? 0),
       });
     } catch (e: any) {
+      if (requestId !== requestSeqRef.current) return;
       console.error('Erro ao carregar movimentações paginadas:', e);
       setErro(e?.message || 'Não foi possível carregar as movimentações.');
-      toast({ title: 'Erro ao carregar dados', description: 'Não foi possível carregar as movimentações do servidor.', variant: 'destructive' });
+      if (!silencioso) {
+        toast({ title: 'Erro ao carregar dados', description: 'Não foi possível carregar as movimentações do servidor.', variant: 'destructive' });
+      }
     } finally {
-      if (!silencioso) setLoading(false);
+      if (requestId === requestSeqRef.current && !silencioso) setLoading(false);
     }
   }, [estoqueAtivo, paginaAtual, itensPorPagina, montarParametros]);
 
