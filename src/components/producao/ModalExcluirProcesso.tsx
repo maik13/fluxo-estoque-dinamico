@@ -76,7 +76,7 @@ export const ModalExcluirProcesso = ({
                   <p className="text-lg font-semibold">{resumo.total_apontamentos_conferidos}</p>
                 </div>
                 <div className="rounded-md border p-3">
-                  <p className="text-muted-foreground">Eventos</p>
+                  <p className="text-muted-foreground">Eventos da etapa</p>
                   <p className="text-lg font-semibold">{resumo.total_eventos}</p>
                 </div>
               </div>
@@ -85,8 +85,8 @@ export const ModalExcluirProcesso = ({
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Exclusão definitiva</AlertTitle>
                 <AlertDescription>
-                  A Etapa, suas Ordens de Produção, apontamentos — inclusive conferidos —,
-                  vínculos de equipe, planejamento e eventos internos serão removidos.
+                  A Etapa e seus eventos próprios serão removidos. Ordens de Produção e
+                  apontamentos que já foram movidos para outra etapa permanecem preservados.
                 </AlertDescription>
               </Alert>
             </>
