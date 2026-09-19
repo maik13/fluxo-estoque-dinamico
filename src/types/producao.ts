@@ -79,6 +79,22 @@ export interface HorarioMembroApontamento {
   inicio: string;
   termino: string;
 }
+export interface ConsumoTintaInput {
+  cor?: string | null;
+  quantidade_ml: number;
+}
+
+export interface ProducaoConsumoTinta {
+  id: string;
+  ordem_producao_id: string;
+  apontamento_id: string | null;
+  cor: string | null;
+  quantidade_ml: number;
+  criado_por_id: string;
+  criado_por_nome_snapshot: string;
+  created_at: string;
+}
+
 export interface ProducaoMembro {
   id: string; nome: string; nome_snapshot: string; solicitante_id: string | null; origem: ProducaoMembroOrigem;
   apelido: string | null; funcao: string | null; valor_hora: number | null; jornada_diaria_minutos: number | null;
