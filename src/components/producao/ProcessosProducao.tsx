@@ -83,8 +83,8 @@ const mensagemErro = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 
 const statusOpLabel: Record<string, string> = {
-  rascunho: 'Rascunho',
-  liberada: 'Liberada',
+  rascunho: 'A programar',
+  liberada: 'Programada',
   em_execucao: 'Em execução',
   concluida: 'Concluída',
   cancelada: 'Cancelada',
@@ -153,9 +153,9 @@ const configuracaoAcaoOp: Record<
 const proximoPassoOp = (ordem: ProducaoOrdemProducao) => {
   switch (ordem.status) {
     case 'rascunho':
-      return 'Revise os dados e libere a OP para iniciar a execução.';
+      return 'A OP já faz parte do planejamento. Informe início e prazo para programá-la no calendário.';
     case 'liberada':
-      return 'A OP já está criada e salva. Clique em “Iniciar OP”. Ela só aparecerá no Histórico depois do primeiro apontamento.';
+      return 'A OP está programada. Quando chegar o momento, clique em “Iniciar OP”.';
     case 'em_execucao':
       return 'Registre a execução em Produção → Apontamentos. Depois clique em “Finalizar OP”; os apontamentos pendentes serão conferidos automaticamente.';
     case 'concluida':
@@ -695,13 +695,18 @@ export const ProcessosProducao = ({ tarefas }: Props) => {
                                 {ordem.percentual_realizado}%
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {new Date(
-                                  `${ordem.data_inicio_prevista}T12:00:00`,
-                                ).toLocaleDateString('pt-BR')}{' '}
-                                a{' '}
-                                {new Date(
-                                  `${ordem.data_fim_prevista}T12:00:00`,
-                                ).toLocaleDateString('pt-BR')}
+                                {ordem.data_inicio_prevista && ordem.data_fim_prevista
+                                  ? `${new Date(`${ordem.data_inicio_prevista}T12:00:00`).toLocaleDateString('pt-BR')} a ${new Date(`${ordem.data_fim_prevista}T12:00:00`).toLocaleDateString('pt-BR')}`
+                                  : 'A programar'}
+                                {ordem.duracao_estimada_horas
+                                  ? ` · ${ordem.duracao_estimada_horas} h estimadas`
+                                  : ''}
+                                {ordem.equipe_prevista
+                                  ? ` · ${ordem.equipe_prevista} pessoa(s)`
+                                  : ''}
+                                {ordem.esforco_estimado_horas_homem
+                                  ? ` · ${ordem.esforco_estimado_horas_homem} h-h`
+                                  : ''}
                                 {ordem.responsavel_nome_snapshot
                                   ? ` · Responsável: ${ordem.responsavel_nome_snapshot}`
                                   : ''}
@@ -729,7 +734,7 @@ export const ProcessosProducao = ({ tarefas }: Props) => {
                                 <Printer className="mr-2 h-4 w-4" />
                                 Imprimir OP
                               </Button>
-                              {['liberada', 'em_execucao'].includes(
+                              {['rascunho', 'liberada', 'em_execucao'].includes(
                                 ordem.status,
                               ) &&
                                 canConfigurarProducao() && (
@@ -762,7 +767,7 @@ export const ProcessosProducao = ({ tarefas }: Props) => {
                                   Finalizar OP
                                 </Button>
                               )}
-                              {['liberada', 'em_execucao'].includes(
+                              {['rascunho', 'liberada', 'em_execucao'].includes(
                                 ordem.status,
                               ) && (
                                 <Button
