@@ -3670,6 +3670,23 @@ export type Database = {
           file_path: string
         }[]
       }
+      retificar_apontamento_producao_com_consumos_tinta_v1: {
+        Args: {
+          p_apontamento_id: string
+          p_consumos_tinta?: Json
+          p_data: string
+          p_horarios_membros?: Json
+          p_inicio: string
+          p_membros?: string[]
+          p_minutos_improdutivos?: number
+          p_motivo_improdutivo?: string
+          p_motivo_retificacao?: string
+          p_observacoes?: string
+          p_quantidade_produzida: number
+          p_termino: string
+        }
+        Returns: Json
+      }
       retificar_apontamento_producao_v2: {
         Args: {
           p_apontamento_id: string
