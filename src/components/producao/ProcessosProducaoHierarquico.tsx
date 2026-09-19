@@ -41,6 +41,7 @@ import {
   type JornadaOpAberta,
 } from '@/services/producao/jornadasOrdemProducao';
 import type {
+  ProducaoMembro,
   ProducaoOrdemProducao,
   ProducaoProcesso,
   ProducaoProjeto,
@@ -55,9 +56,14 @@ import { MateriaisEtapaProducao } from './MateriaisEtapaProducao';
 import { MateriaisOrdemProducao } from './MateriaisOrdemProducao';
 import { ModalExcluirProcesso } from './ModalExcluirProcesso';
 import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
+import {
+  ModalIniciarOpComEquipe,
+  type OcupacaoMembroProducao,
+} from './ModalIniciarOpComEquipe';
 
 interface Props {
   tarefas: ProducaoTarefa[];
+  membros: ProducaoMembro[];
   onFecharJornada: (contexto: ContextoFechamentoJornadaOp) => void;
 }
 
@@ -171,7 +177,7 @@ const progressoEtapa = (
   return progressoPonderadoOps(ordens);
 };
 
-export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props) => {
+export const ProcessosProducaoHierarquico = ({ tarefas, membros, onFecharJornada }: Props) => {
   const [busca, setBusca] = useState('');
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
   const [projetoSelecionadoId, setProjetoSelecionadoId] = useState<string | null>(null);
@@ -184,6 +190,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
   const [executandoId, setExecutandoId] = useState<string | null>(null);
   const [opsComImagem, setOpsComImagem] = useState<Set<string>>(new Set());
   const [jornadasAbertas, setJornadasAbertas] = useState<JornadaOpAberta[]>([]);
+  const [ordemParaIniciar, setOrdemParaIniciar] = useState<ProducaoOrdemProducao | null>(null);
 
   const { isAdmin, canConfigurarProducao } = usePermissions();
   const { projetos, loading: loadingProjetos, listarProjetos } = useProjetosProducao();
@@ -381,14 +388,47 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
     toast.success('Etapa finalizada. O status global do projeto foi recalculado.');
   };
 
-  const iniciarTrabalhoOp = async (ordem: ProducaoOrdemProducao) => {
+  const ocupacoesMembros = useMemo(() => {
+    const resultado: Record<string, OcupacaoMembroProducao> = {};
+    jornadasAbertas.forEach((jornada) => {
+      const op = ordens.find((ordem) => ordem.id === jornada.ordem_producao_id);
+      if (!op) return;
+      jornada.membros_ids.forEach((membroId) => {
+        resultado[membroId] = {
+          ordemNumero: op.numero,
+          atividade:
+            op.tarefa_nome_snapshot ||
+            op.descricao ||
+            `OP ${String(op.numero).padStart(5, '0')}`,
+        };
+      });
+    });
+    return resultado;
+  }, [jornadasAbertas, ordens]);
+
+  const iniciarTrabalhoOp = (ordem: ProducaoOrdemProducao) => {
+    setOrdemParaIniciar(ordem);
+  };
+
+  const confirmarInicioTrabalhoOp = async (membrosIds: string[]) => {
+    const ordem = ordemParaIniciar;
+    if (!ordem) return;
+
     setExecutandoId(ordem.id);
     try {
-      await iniciarJornadaOp(ordem.id);
+      await iniciarJornadaOp(ordem.id, membrosIds);
+      setOrdemParaIniciar(null);
       await recarregar();
-      toast.success(`${formatarIdentificacaoOrdemProducao(ordem)} iniciada. O horário real foi registrado automaticamente.`);
+      toast.success(
+        `${formatarIdentificacaoOrdemProducao(ordem)} iniciada com ${membrosIds.length} membro(s). O horário real foi registrado automaticamente.`,
+      );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Não foi possível iniciar o trabalho na OP.');
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível iniciar o trabalho na OP.',
+      );
+      await carregarJornadas();
     } finally {
       setExecutandoId(null);
     }
@@ -670,7 +710,18 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
           )}
         </div>
 
-        <ModalFinalizarProcesso
+        <ModalIniciarOpComEquipe
+        ordem={ordemParaIniciar}
+        membros={membros}
+        ocupacoes={ocupacoesMembros}
+        iniciando={Boolean(ordemParaIniciar && executandoId === ordemParaIniciar.id)}
+        onOpenChange={(open) => {
+          if (!open && !executandoId) setOrdemParaIniciar(null);
+        }}
+        onConfirmar={(membrosIds) => void confirmarInicioTrabalhoOp(membrosIds)}
+      />
+
+      <ModalFinalizarProcesso
           processo={processoParaFinalizar}
           onClose={() => setProcessoParaFinalizar(null)}
           onConfirm={finalizarEtapa}
