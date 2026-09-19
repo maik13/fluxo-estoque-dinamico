@@ -43,6 +43,7 @@ export interface ProducaoOrdemProducao {
   data_inicio_prevista: string; data_fim_prevista: string; data_inicio_real: string | null; data_fim_real: string | null;
   responsavel_id: string | null; responsavel_nome_snapshot: string | null; equipe_prevista: number | null;
   prioridade: ProducaoPrioridade; status: ProducaoOrdemStatus; motivo_cancelamento: string | null;
+  pendencia_consumo_tinta?: boolean;
   criado_por_id: string | null; criado_por_nome_snapshot: string | null; created_at: string; updated_at: string;
 }
 
