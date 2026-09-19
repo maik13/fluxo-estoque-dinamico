@@ -99,6 +99,16 @@ export const notificarOrdensProducaoAlteradas = () => {
 export const formatarNumeroOrdemProducao = (numero: number | null | undefined) =>
   numero ? `OP ${String(numero).padStart(6, '0')}` : 'OP sem número';
 
+export const ordemProducaoEDePintura = (ordem: {
+  tarefa_nome_snapshot?: string | null;
+  descricao?: string | null;
+} | null | undefined) =>
+  /pintura/i.test(
+    [ordem?.tarefa_nome_snapshot, ordem?.descricao]
+      .filter(Boolean)
+      .join(' '),
+  );
+
 export const formatarIdentificacaoOrdemProducao = (ordem: {
   numero: number | null | undefined;
   tarefa_nome_snapshot?: string | null;
