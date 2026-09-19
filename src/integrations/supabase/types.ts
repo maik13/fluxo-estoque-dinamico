@@ -3422,6 +3422,12 @@ export type Database = {
         }
         Returns: Json
       }
+      listar_ops_pintura_pendentes_v1: {
+        Args: never
+        Returns: {
+          ordem_producao_id: string
+        }[]
+      }
       listar_ordens_producao: {
         Args: { p_processo_id?: string; p_status?: string }
         Returns: {
