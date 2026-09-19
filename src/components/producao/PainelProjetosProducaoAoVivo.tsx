@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   BarChart3,
+  Droplets,
   Expand,
   Factory,
   ListFilter,
@@ -75,6 +76,8 @@ type ProjetoPainel = {
   ops_concluidas: number;
   horas_homem: number;
   membros_distintos: number;
+  consumo_tinta_ml: number;
+  registros_tinta: number;
   custo_mao_obra: number | null;
   custo_mao_obra_incompleto: boolean;
   custo_materiais: number | null;
@@ -85,6 +88,7 @@ type ProjetoPainel = {
 
 const STORAGE_PROJETOS = 'gerencial-producao-projetos-exibidos-v1';
 const STORAGE_SOMENTE_COM_OPS = 'gerencial-producao-somente-com-ops-v1';
+const STORAGE_SOMENTE_COM_TINTA = 'gerencial-producao-somente-com-tinta-v1';
 
 const numero = (valor: number) =>
   Number(valor || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
@@ -173,6 +177,10 @@ export const PainelProjetosProducaoAoVivo = () => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(STORAGE_SOMENTE_COM_OPS) === 'true';
   });
+  const [somenteComTinta, setSomenteComTinta] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(STORAGE_SOMENTE_COM_TINTA) === 'true';
+  });
   const [projetosSelecionados, setProjetosSelecionados] = useState<string[] | null>(() => {
     if (typeof window === 'undefined') return null;
     try {
@@ -192,29 +200,56 @@ export const PainelProjetosProducaoAoVivo = () => {
     else setSincronizando(true);
 
     try {
-      const { data, error } = await (supabase.rpc as any)('listar_painel_gerencial_producao_v1');
-      if (error) throw error;
+      const [
+        { data, error },
+        { data: consumosTinta, error: erroTinta },
+      ] = await Promise.all([
+        (supabase.rpc as any)('listar_painel_gerencial_producao_v1'),
+        (supabase.rpc as any)('listar_consumo_tinta_por_projeto_v1'),
+      ]);
 
-      const proximo = ((data ?? []) as ProjetoPainel[]).map((projeto) => ({
-        ...projeto,
-        percentual_realizado: Number(projeto.percentual_realizado ?? 0),
-        horas_homem: Number(projeto.horas_homem ?? 0),
-        membros_distintos: Number(projeto.membros_distintos ?? 0),
-        custo_mao_obra:
-          projeto.custo_mao_obra === null ? null : Number(projeto.custo_mao_obra ?? 0),
-        custo_materiais:
-          projeto.custo_materiais === null ? null : Number(projeto.custo_materiais ?? 0),
-        etapas: (Array.isArray(projeto.etapas) ? projeto.etapas : []).map((etapa) => ({
-          ...etapa,
-          percentual_realizado: Number(etapa.percentual_realizado ?? 0),
-          ordens: (Array.isArray(etapa.ordens) ? etapa.ordens : []).map((op) => ({
-            ...op,
-            percentual_realizado: Number(op.percentual_realizado ?? 0),
-            quantidade_planejada: Number(op.quantidade_planejada ?? 0),
-            quantidade_realizada: Number(op.quantidade_realizada ?? 0),
+      if (error) throw error;
+      if (erroTinta) throw erroTinta;
+
+      const tintaPorProjeto = new Map(
+        (consumosTinta ?? []).map((item: any) => [
+          String(item.projeto_id),
+          {
+            consumo_tinta_ml: Number(item.consumo_tinta_ml ?? 0),
+            registros_tinta: Number(item.registros_tinta ?? 0),
+          },
+        ]),
+      );
+
+      const proximo = ((data ?? []) as ProjetoPainel[]).map((projeto) => {
+        const tinta = tintaPorProjeto.get(projeto.projeto_id) ?? {
+          consumo_tinta_ml: 0,
+          registros_tinta: 0,
+        };
+
+        return {
+          ...projeto,
+          percentual_realizado: Number(projeto.percentual_realizado ?? 0),
+          horas_homem: Number(projeto.horas_homem ?? 0),
+          membros_distintos: Number(projeto.membros_distintos ?? 0),
+          consumo_tinta_ml: tinta.consumo_tinta_ml,
+          registros_tinta: tinta.registros_tinta,
+          custo_mao_obra:
+            projeto.custo_mao_obra === null ? null : Number(projeto.custo_mao_obra ?? 0),
+          custo_materiais:
+            projeto.custo_materiais === null ? null : Number(projeto.custo_materiais ?? 0),
+          etapas: (Array.isArray(projeto.etapas) ? projeto.etapas : []).map((etapa) => ({
+            ...etapa,
+            percentual_realizado: Number(etapa.percentual_realizado ?? 0),
+            ordens: (Array.isArray(etapa.ordens) ? etapa.ordens : []).map((op) => ({
+              ...op,
+              percentual_realizado: Number(op.percentual_realizado ?? 0),
+              quantidade_planejada: Number(op.quantidade_planejada ?? 0),
+              quantidade_realizada: Number(op.quantidade_realizada ?? 0),
+            })),
           })),
-        })),
-      }));
+        };
+      });
 
       // Só troca o snapshot depois que a leitura completa chega. Enquanto
       // sincroniza, a TV continua exibindo o último estado válido.
@@ -247,6 +282,7 @@ export const PainelProjetosProducaoAoVivo = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'producao_ordens_producao' }, agendarAtualizacao)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'producao_apontamentos' }, agendarAtualizacao)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'producao_apontamento_membros' }, agendarAtualizacao)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'producao_consumos_tinta' }, agendarAtualizacao)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'producao_materiais_projeto' }, agendarAtualizacao)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, agendarAtualizacao)
       .subscribe();
@@ -274,10 +310,28 @@ export const PainelProjetosProducaoAoVivo = () => {
     window.localStorage.setItem(STORAGE_SOMENTE_COM_OPS, String(somenteComOps));
   }, [somenteComOps]);
 
-  const projetosElegiveis = useMemo(
-    () => (somenteComOps ? projetos.filter((projeto) => Number(projeto.ops_total ?? 0) > 0) : projetos),
-    [projetos, somenteComOps],
-  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(
+      STORAGE_SOMENTE_COM_TINTA,
+      String(somenteComTinta),
+    );
+  }, [somenteComTinta]);
+
+  const projetosElegiveis = useMemo(() => {
+    let resultado = projetos;
+    if (somenteComOps) {
+      resultado = resultado.filter(
+        (projeto) => Number(projeto.ops_total ?? 0) > 0,
+      );
+    }
+    if (somenteComTinta) {
+      resultado = resultado.filter(
+        (projeto) => Number(projeto.consumo_tinta_ml ?? 0) > 0,
+      );
+    }
+    return resultado;
+  }, [projetos, somenteComOps, somenteComTinta]);
 
   const projetosExibidos = useMemo(() => {
     if (projetosSelecionados === null) return projetosElegiveis;
@@ -319,6 +373,10 @@ export const PainelProjetosProducaoAoVivo = () => {
           0,
         )
       : null;
+    const consumoTintaMl = projetosExibidos.reduce(
+      (total, projeto) => total + Number(projeto.consumo_tinta_ml ?? 0),
+      0,
+    );
     const opsAbertas = projetosExibidos.reduce(
       (total, projeto) =>
         total +
@@ -327,7 +385,7 @@ export const PainelProjetosProducaoAoVivo = () => {
         ).length,
       0,
     );
-    return { horasHomem, progressoMedio, custo, opsAbertas };
+    return { horasHomem, progressoMedio, custo, consumoTintaMl, opsAbertas };
   }, [projetosExibidos]);
 
   const custosPorProjeto = projetosExibidos.map((projeto) =>
@@ -337,6 +395,9 @@ export const PainelProjetosProducaoAoVivo = () => {
   );
   const progressos = projetosExibidos.map((projeto) => projeto.percentual_realizado);
   const horasPorProjeto = projetosExibidos.map((projeto) => projeto.horas_homem);
+  const tintaPorProjeto = projetosExibidos.map(
+    (projeto) => projeto.consumo_tinta_ml,
+  );
   const opsPorProjeto = projetosExibidos.map((projeto) =>
     projeto.etapas.flatMap((etapa) => etapa.ordens ?? []).filter(
       (op) => !['concluida', 'cancelada'].includes(op.status),
@@ -416,6 +477,13 @@ export const PainelProjetosProducaoAoVivo = () => {
               >
                 Somente projetos com OP
               </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={somenteComTinta}
+                onCheckedChange={(checked) => setSomenteComTinta(checked === true)}
+                onSelect={(event) => event.preventDefault()}
+              >
+                Somente projetos com consumo de tinta
+              </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
               <DropdownMenuCheckboxItem
                 checked={projetosSelecionados === null}
@@ -471,7 +539,7 @@ export const PainelProjetosProducaoAoVivo = () => {
         </Alert>
       )}
 
-      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
         <KpiCompacto
           titulo="Projetos exibidos"
           valor={String(projetosExibidos.length)}
@@ -499,6 +567,13 @@ export const PainelProjetosProducaoAoVivo = () => {
           apoio="Horas-homem acumuladas"
           bars={horasPorProjeto}
           icon={Users}
+        />
+        <KpiCompacto
+          titulo="Consumo de tinta"
+          valor={`${numero(totais.consumoTintaMl)} mL`}
+          apoio="Volume registrado nas OPs de pintura"
+          bars={tintaPorProjeto}
+          icon={Droplets}
         />
       </div>
 
@@ -589,7 +664,7 @@ export const PainelProjetosProducaoAoVivo = () => {
                   />
                 </div>
 
-                <div className="mt-2.5 grid grid-cols-4 gap-1.5">
+                <div className="mt-2.5 grid grid-cols-5 gap-1.5">
                   <div className="rounded-md bg-muted/45 px-2 py-1.5">
                     <p className="text-[9px] uppercase text-muted-foreground">Custo</p>
                     <p className="truncate text-xs font-bold" title={moeda(custoTotal)}>{moeda(custoTotal)}</p>
@@ -605,6 +680,10 @@ export const PainelProjetosProducaoAoVivo = () => {
                   <div className="rounded-md bg-muted/45 px-2 py-1.5">
                     <p className="text-[9px] uppercase text-muted-foreground">OPs</p>
                     <p className="text-xs font-bold">{projeto.ops_concluidas}/{projeto.ops_total}</p>
+                  </div>
+                  <div className="rounded-md bg-muted/45 px-2 py-1.5">
+                    <p className="text-[9px] uppercase text-muted-foreground">Tinta</p>
+                    <p className="text-xs font-bold">{numero(projeto.consumo_tinta_ml)} mL</p>
                   </div>
                 </div>
 
