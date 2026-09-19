@@ -215,6 +215,7 @@ export const FormFechamentoJornadaOp = ({
     dataOriginal && inicioOriginal && (data !== dataOriginal || inicio !== inicioOriginal),
   );
   const atividade = tarefas.find((tarefa) => tarefa.id === tarefaId) ?? null;
+  const equipeDefinidaNoInicio = jornadaContexto.membrosIds.length > 0;
 
   const duracao = useMemo(() => {
     if (!inicio || !termino) return null;
@@ -578,28 +579,36 @@ export const FormFechamentoJornadaOp = ({
       <div className="space-y-3">
         <div>
           <Label>Equipe *</Label>
-          <p className="mt-1 text-xs text-muted-foreground">A equipe pertence somente a este apontamento. Adicione ou remova pessoas livremente.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {equipeDefinidaNoInicio
+              ? 'Equipe reservada no início desta execução. Os integrantes ficam indisponíveis para outras OPs até o encerramento deste apontamento.'
+              : 'Este é um apontamento legado sem equipe reservada no início. Selecione a equipe para concluir o registro.'}
+          </p>
         </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" value={buscaMembro} onChange={(e) => setBuscaMembro(e.target.value)} placeholder="Buscar membro" />
-        </div>
-        {buscaMembro.trim() && (
-          <div className="max-h-40 overflow-y-auto rounded-md border p-1">
-            {membrosFiltrados.map((membro) => (
-              <button
-                key={membro.id}
-                type="button"
-                className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-accent"
-                onClick={() => {
-                  setMembrosIds((atuais) => [...new Set([...atuais, membro.id])]);
-                  setBuscaMembro('');
-                }}
-              >
-                {membro.nome}{membro.funcao ? ` · ${membro.funcao}` : ''}
-              </button>
-            ))}
-          </div>
+        {!equipeDefinidaNoInicio && (
+          <>
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input className="pl-9" value={buscaMembro} onChange={(e) => setBuscaMembro(e.target.value)} placeholder="Buscar membro" />
+            </div>
+            {buscaMembro.trim() && (
+              <div className="max-h-40 overflow-y-auto rounded-md border p-1">
+                {membrosFiltrados.map((membro) => (
+                  <button
+                    key={membro.id}
+                    type="button"
+                    className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-accent"
+                    onClick={() => {
+                      setMembrosIds((atuais) => [...new Set([...atuais, membro.id])]);
+                      setBuscaMembro('');
+                    }}
+                  >
+                    {membro.nome}{membro.funcao ? ` · ${membro.funcao}` : ''}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {membrosIds.length > 0 && (
