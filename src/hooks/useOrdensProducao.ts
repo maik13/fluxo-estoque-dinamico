@@ -140,12 +140,34 @@ export const useOrdensProducao = () => {
   ) => {
     setLoading(true);
     try {
-      const { data, error } = await (supabase.rpc as any)('listar_ordens_producao_v2', {
-        p_processo_id: processoId ?? null,
-        p_status: status ?? null,
-      });
+      const [{ data, error }, { data: pendentes, error: pendentesError }] =
+        await Promise.all([
+          (supabase.rpc as any)('listar_ordens_producao_v2', {
+            p_processo_id: processoId ?? null,
+            p_status: status ?? null,
+          }),
+          (supabase.rpc as any)('listar_ops_pintura_pendentes_v1'),
+        ]);
+
       if (error) throw erro(error, 'Não foi possível carregar as Ordens de Produção.');
-      const resultado = (data ?? []) as ProducaoOrdemProducao[];
+      if (pendentesError) {
+        throw erro(
+          pendentesError,
+          'Não foi possível verificar as pendências de consumo de tinta.',
+        );
+      }
+
+      const idsPendentes = new Set(
+        (pendentes ?? []).map(
+          (item: { ordem_producao_id: string }) => item.ordem_producao_id,
+        ),
+      );
+
+      const resultado = ((data ?? []) as ProducaoOrdemProducao[]).map((ordem) => ({
+        ...ordem,
+        pendencia_consumo_tinta: idsPendentes.has(ordem.id),
+      }));
+
       setOrdens(resultado);
       return resultado;
     } finally {
