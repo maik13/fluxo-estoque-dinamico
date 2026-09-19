@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type {
+  ConsumoTintaInput,
   HorarioMembroApontamento,
   ProducaoApontamento,
 } from '@/types/producao';
@@ -57,6 +58,7 @@ export interface FinalizarJornadaOpInput {
   concluirOp: boolean;
   motivoRegularizacao: string | null;
   justificativaConclusao: string | null;
+  consumosTinta: ConsumoTintaInput[];
 }
 
 export interface SalvarContextoJornadaOpInput {
@@ -220,6 +222,7 @@ export const salvarContextoJornadaOp = async (
       p_observacoes: dados.observacoes,
       p_motivo_regularizacao: dados.motivoRegularizacao,
       p_justificativa_conclusao: dados.justificativaConclusao,
+      p_consumos_tinta: dados.consumosTinta,
     },
   );
 
@@ -270,7 +273,7 @@ export const finalizarJornadaOp = async (
   dados: FinalizarJornadaOpInput,
 ): Promise<ProducaoApontamento> => {
   const { data, error } = await (supabase.rpc as any)(
-    'finalizar_jornada_op_v1',
+    'finalizar_jornada_op_com_consumos_v1',
     {
       p_jornada_id: dados.jornadaId,
       p_tarefa_id: dados.tarefaId,
