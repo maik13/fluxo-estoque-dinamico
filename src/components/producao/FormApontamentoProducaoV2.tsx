@@ -8,9 +8,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
-import { useOrdensProducao, formatarIdentificacaoOrdemProducao } from '@/hooks/useOrdensProducao';
+import {
+  useOrdensProducao,
+  formatarIdentificacaoOrdemProducao,
+  ordemProducaoEDePintura,
+} from '@/hooks/useOrdensProducao';
 import { calcularDuracaoProducao } from '@/hooks/useProducao';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
+import { registrarConsumosTintaOp } from '@/services/producao/consumoTinta';
 import {
   finalizarJornadaOp,
   obterJornadaOpAberta,
@@ -38,6 +43,9 @@ interface Props {
 }
 
 type HorarioPersonalizado = { inicio: string; termino: string };
+type ConsumoTintaForm = { cor: string; quantidadeMl: string };
+
+const consumoTintaVazio = (): ConsumoTintaForm => ({ cor: '', quantidadeMl: '' });
 
 const dataLocal = (valor = new Date()) => {
   const ano = valor.getFullYear();
@@ -100,6 +108,9 @@ export const FormApontamentoProducaoV2 = ({
   const [motivoRegularizacao, setMotivoRegularizacao] = useState('');
   const [motivoRegularizacaoOutro, setMotivoRegularizacaoOutro] = useState('');
   const [justificativaConclusao, setJustificativaConclusao] = useState('');
+  const [consumosTinta, setConsumosTinta] = useState<ConsumoTintaForm[]>([
+    consumoTintaVazio(),
+  ]);
   const inputFotosRef = useRef<HTMLInputElement>(null);
   const { ordens, listarOrdens } = useOrdensProducao();
   const { anexarImagem } = useProducaoAnexos();
@@ -113,6 +124,7 @@ export const FormApontamentoProducaoV2 = ({
     [ordens],
   );
   const ordemSelecionada = ordensDisponiveis.find((ordem) => ordem.id === origem) ?? null;
+  const opDePintura = ordemProducaoEDePintura(ordemSelecionada);
   const avulso = origem === ORIGEM_AVULSA;
   const fechamentoRetroativo = Boolean(jornadaContexto && data < hoje());
 
@@ -375,6 +387,7 @@ export const FormApontamentoProducaoV2 = ({
     setMotivoRegularizacao('');
     setMotivoRegularizacaoOutro('');
     setJustificativaConclusao('');
+    setConsumosTinta([consumoTintaVazio()]);
     setContextoPronto(false);
     if (inputFotosRef.current) inputFotosRef.current.value = '';
   };
@@ -531,6 +544,30 @@ export const FormApontamentoProducaoV2 = ({
       return;
     }
 
+    const consumosTintaNormalizados: Array<{
+      cor: string | null;
+      quantidade_ml: number;
+    }> = [];
+
+    if (opDePintura) {
+      for (const consumo of consumosTinta) {
+        const cor = consumo.cor.trim();
+        const quantidadeTexto = consumo.quantidadeMl.trim();
+        if (!cor && !quantidadeTexto) continue;
+
+        const quantidadeMl = Number(quantidadeTexto.replace(',', '.'));
+        if (!Number.isFinite(quantidadeMl) || quantidadeMl <= 0) {
+          toast.error('Informe um consumo de tinta maior que zero em mL.');
+          return;
+        }
+
+        consumosTintaNormalizados.push({
+          cor: cor || null,
+          quantidade_ml: quantidadeMl,
+        });
+      }
+    }
+
     const motivoRetroativo =
       motivoRegularizacao === 'Outro'
         ? motivoRegularizacaoOutro.trim()
@@ -560,6 +597,7 @@ export const FormApontamentoProducaoV2 = ({
               : null,
             justificativaConclusao:
               justificativaConclusao.trim() || null,
+            consumosTinta: consumosTintaNormalizados,
           })
         : await criarApontamento({
             data,
@@ -579,6 +617,19 @@ export const FormApontamentoProducaoV2 = ({
             membros_ids: membrosIds,
             horarios_membros: horariosPersonalizados,
           });
+
+      if (
+        !jornadaContexto &&
+        ordemSelecionada &&
+        opDePintura &&
+        consumosTintaNormalizados.length > 0
+      ) {
+        await registrarConsumosTintaOp(
+          ordemSelecionada.id,
+          apontamento.id,
+          consumosTintaNormalizados,
+        );
+      }
 
       let falhas = 0;
       for (const foto of fotos) {
@@ -942,6 +993,90 @@ export const FormApontamentoProducaoV2 = ({
             A ocorrência ficará marcada no Histórico com quem regularizou,
             quando regularizou e o motivo informado.
           </p>
+        </div>
+      )}
+
+      {opDePintura && (
+        <div className="space-y-4 rounded-lg border-2 border-lime-400 bg-lime-300/10 p-4 shadow-lg shadow-lime-400/20">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Label className="text-base font-bold">Consumo de tinta</Label>
+              <span className="rounded-full bg-lime-400 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-black">
+                OP de pintura
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Registre um ou vários consumos em mL. Nos apontamentos intermediários
+              o preenchimento pode ficar vazio; para concluir a OP deve existir ao
+              menos um consumo válido maior que zero registrado na ordem.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {consumosTinta.map((consumo, indice) => (
+              <div
+                key={indice}
+                className="grid gap-3 rounded-md border border-lime-400/50 bg-background/70 p-3 sm:grid-cols-[1fr_180px_auto] sm:items-end"
+              >
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Tinta / cor</Label>
+                  <Input
+                    value={consumo.cor}
+                    onChange={(event) =>
+                      setConsumosTinta((atuais) =>
+                        atuais.map((item, i) =>
+                          i === indice ? { ...item, cor: event.target.value } : item,
+                        ),
+                      )
+                    }
+                    placeholder="Ex.: Branco"
+                    maxLength={120}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Quantidade (mL)</Label>
+                  <Input
+                    inputMode="decimal"
+                    value={consumo.quantidadeMl}
+                    onChange={(event) =>
+                      setConsumosTinta((atuais) =>
+                        atuais.map((item, i) =>
+                          i === indice
+                            ? { ...item, quantidadeMl: event.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                    placeholder="350"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  title="Remover consumo"
+                  disabled={consumosTinta.length === 1}
+                  onClick={() =>
+                    setConsumosTinta((atuais) =>
+                      atuais.filter((_, i) => i !== indice),
+                    )
+                  }
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              setConsumosTinta((atuais) => [...atuais, consumoTintaVazio()])
+            }
+          >
+            + Adicionar outro consumo
+          </Button>
         </div>
       )}
 
