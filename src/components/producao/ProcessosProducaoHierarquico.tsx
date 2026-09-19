@@ -544,7 +544,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
                   <div
                     key={ordem.id}
                     className={
-                      ordemProducaoEDePintura(ordem)
+                      ordemProducaoEDePintura(ordem) && ordem.pendencia_consumo_tinta
                         ? 'animate-pulse rounded-xl border-2 border-lime-400 bg-lime-300/30 p-4 shadow-lg shadow-lime-400/40 ring-2 ring-lime-400/60'
                         : 'rounded-xl border bg-card p-4 shadow-sm'
                     }
