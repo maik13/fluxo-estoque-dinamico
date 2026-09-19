@@ -15,7 +15,6 @@ import {
 } from '@/hooks/useOrdensProducao';
 import { calcularDuracaoProducao } from '@/hooks/useProducao';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
-import { registrarConsumosTintaOp } from '@/services/producao/consumoTinta';
 import {
   finalizarJornadaOp,
   obterJornadaOpAberta,
@@ -616,20 +615,11 @@ export const FormApontamentoProducaoV2 = ({
             observacoes: observacoes.trim() || null,
             membros_ids: membrosIds,
             horarios_membros: horariosPersonalizados,
+            consumos_tinta:
+              opDePintura && consumosTintaNormalizados.length > 0
+                ? consumosTintaNormalizados
+                : undefined,
           });
-
-      if (
-        !jornadaContexto &&
-        ordemSelecionada &&
-        opDePintura &&
-        consumosTintaNormalizados.length > 0
-      ) {
-        await registrarConsumosTintaOp(
-          ordemSelecionada.id,
-          apontamento.id,
-          consumosTintaNormalizados,
-        );
-      }
 
       let falhas = 0;
       for (const foto of fotos) {
