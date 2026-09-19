@@ -81,8 +81,8 @@ const statusOpClass: Record<string, string> = {
 };
 
 const statusOpLabel: Record<string, string> = {
-  rascunho: 'Rascunho',
-  liberada: 'Liberada',
+  rascunho: 'A programar',
+  liberada: 'Programada',
   em_execucao: 'Em execução',
   concluida: 'Concluída',
   cancelada: 'Cancelada',
