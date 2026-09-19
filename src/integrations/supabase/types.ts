@@ -1649,11 +1649,12 @@ export type Database = {
           created_at: string
           criado_por_id: string | null
           criado_por_nome_snapshot: string | null
-          data_fim_prevista: string
+          data_fim_prevista: string | null
           data_fim_real: string | null
-          data_inicio_prevista: string
+          data_inicio_prevista: string | null
           data_inicio_real: string | null
           descricao: string | null
+          duracao_estimada_horas: number | null
           equipe_prevista: number | null
           id: string
           instrucoes: string | null
@@ -1679,11 +1680,12 @@ export type Database = {
           created_at?: string
           criado_por_id?: string | null
           criado_por_nome_snapshot?: string | null
-          data_fim_prevista: string
+          data_fim_prevista?: string | null
           data_fim_real?: string | null
-          data_inicio_prevista: string
+          data_inicio_prevista?: string | null
           data_inicio_real?: string | null
           descricao?: string | null
+          duracao_estimada_horas?: number | null
           equipe_prevista?: number | null
           id?: string
           instrucoes?: string | null
@@ -1709,11 +1711,12 @@ export type Database = {
           created_at?: string
           criado_por_id?: string | null
           criado_por_nome_snapshot?: string | null
-          data_fim_prevista?: string
+          data_fim_prevista?: string | null
           data_fim_real?: string | null
-          data_inicio_prevista?: string
+          data_inicio_prevista?: string | null
           data_inicio_real?: string | null
           descricao?: string | null
+          duracao_estimada_horas?: number | null
           equipe_prevista?: number | null
           id?: string
           instrucoes?: string | null
@@ -3135,6 +3138,24 @@ export type Database = {
         }
         Returns: string
       }
+      criar_ordem_producao_planejada_v1: {
+        Args: {
+          p_data_fim_prevista?: string
+          p_data_inicio_prevista?: string
+          p_descricao?: string
+          p_duracao_estimada_horas: number
+          p_equipe_prevista: number
+          p_instrucoes?: string
+          p_local_tipo: string
+          p_prioridade?: string
+          p_processo_id: string
+          p_quantidade_planejada: number
+          p_responsavel_id?: string
+          p_responsavel_nome?: string
+          p_tarefa_id: string
+        }
+        Returns: string
+      }
       criar_ordem_producao_sem_limite_v2: {
         Args: {
           p_data_fim_prevista: string
@@ -3217,6 +3238,25 @@ export type Database = {
           p_quantidade: number
         }
         Returns: Json
+      }
+      editar_ordem_producao_planejamento_v1: {
+        Args: {
+          p_data_fim_prevista?: string
+          p_data_inicio_prevista?: string
+          p_descricao?: string
+          p_duracao_estimada_horas: number
+          p_equipe_prevista: number
+          p_instrucoes?: string
+          p_justificativa?: string
+          p_local_tipo: string
+          p_ordem_producao_id: string
+          p_prioridade?: string
+          p_quantidade_planejada: number
+          p_responsavel_id?: string
+          p_responsavel_nome?: string
+          p_tarefa_id?: string
+        }
+        Returns: undefined
       }
       editar_ordem_producao_v1: {
         Args: {
@@ -3331,6 +3371,14 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_gestor_or_admin: { Args: never; Returns: boolean }
+      listar_estimativas_ops_v1: {
+        Args: never
+        Returns: {
+          duracao_estimada_horas: number
+          esforco_estimado_horas_homem: number
+          ordem_producao_id: string
+        }[]
+      }
       listar_gantt_producao: {
         Args: never
         Returns: {
