@@ -112,6 +112,7 @@ export interface NovoApontamentoProducao {
   local_tipo: ProducaoLocalTipo; quantidade_produzida?: number | null; inicio: string; termino: string;
   minutos_produtivos?: number | null; minutos_improdutivos?: number | null; motivo_improdutivo?: string | null;
   observacoes?: string | null; membros_ids: string[]; horarios_membros?: HorarioMembroApontamento[];
+  consumos_tinta?: ConsumoTintaInput[];
 }
 export interface FiltrosProducao { data_inicio?: string; data_fim?: string; projeto_local_id?: string; processo_id?: string; ordem_producao_id?: string; tarefa_id?: string; status?: ProducaoStatus; local_tipo?: ProducaoLocalTipo; }
 export interface FiltrosProducaoGerencial extends FiltrosProducao { membro_id?: string; }
