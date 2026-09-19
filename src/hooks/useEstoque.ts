@@ -9,6 +9,8 @@ import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';
 export const useEstoque = () => {
   const [itens, setItens] = useState<Item[]>([]);
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
+  const [saldosEstoque, setSaldosEstoque] = useState<Map<string, number>>(new Map());
+  const [ultimasMovimentacoesEstoque, setUltimasMovimentacoesEstoque] = useState<Map<string, Movimentacao>>(new Map());
   const [loading, setLoading] = useState(true);
   const { estoqueAtivo, obterEstoqueAtivoInfo, isEstoqueAtivoPrincipal } = useConfiguracoes();
   const { user } = useAuth();
@@ -56,6 +58,8 @@ export const useEstoque = () => {
       // Se não há estoque ativo, limpar os dados
       setItens([]);
       setMovimentacoes([]);
+      setSaldosEstoque(new Map());
+      setUltimasMovimentacoesEstoque(new Map());
       setLoading(false);
     }
   }, [estoqueAtivo]);
@@ -313,25 +317,25 @@ export const useEstoque = () => {
     };
   }, [estoqueAtivo]);
 
-  // Função para carregar dados do Supabase com proteção contra chamadas múltiplas
+  // Carrega catálogo e saldo atual de forma independente do histórico completo.
+  // Assim a tela de Estoque não fica vazia se a carga de milhares de movimentações falhar.
   const carregarDados = async (forcar = false) => {
-    // Prevenir múltiplas chamadas simultâneas
     if (isLoadingRef.current) return;
-    
+
     const now = Date.now();
-    // Evitar recarregar se foi carregado há menos de 500ms
     if (!forcar && now - lastLoadTimeRef.current < 500) return;
-    
+
     isLoadingRef.current = true;
     lastLoadTimeRef.current = now;
-    
+
     try {
       setLoading(true);
       const estoqueAtivoInfo = obterEstoqueAtivoInfo();
       const estoqueId = estoqueAtivoInfo?.id;
-
-      // Buscar todos os itens em lotes de 1000 (limite do PostgREST)
+      const incluirSemEstoque = isEstoqueAtivoPrincipal();
       const pageSize = 1000;
+
+      // 1) Catálogo completo de itens
       let from = 0;
       let itensData: any[] = [];
       while (true) {
@@ -347,69 +351,93 @@ export const useEstoque = () => {
         from += pageSize;
       }
 
-      // Filtrar movimentações pelo estoque ativo e buscar em lotes
-      let movsQueryBase = supabase
-        .from('movements')
-        .select(`
-          *,
-          locais_utilizacao:local_utilizacao_id (
-            nome
-          ),
-          solicitacoes:solicitacao_id (
-            solicitante_nome,
-            tipo_operacao
-          )
-        `)
-        .order('data_hora', { ascending: true });
-      
-      if (estoqueId) {
-        const incluirSemEstoque = isEstoqueAtivoPrincipal();
-        movsQueryBase = incluirSemEstoque
-          ? movsQueryBase.or(`estoque_id.eq.${estoqueId},estoque_id.is.null`)
-          : movsQueryBase.eq('estoque_id', estoqueId);
-      }
-
-      let movsData: any[] = [];
-      let movFrom = 0;
-      while (true) {
-        const { data, error } = await movsQueryBase.range(movFrom, movFrom + pageSize - 1);
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-        movsData = movsData.concat(data);
-        if (data.length < pageSize) break;
-        movFrom += pageSize;
-      }
-
-      const { data: tiposOperacaoData, error: tiposOperacaoError } = await supabase
-        .from('tipos_operacao')
-        .select('id, nome');
-      if (tiposOperacaoError) throw tiposOperacaoError;
-      const tipoOperacaoMap = new Map((tiposOperacaoData ?? []).map(op => [op.id, op.nome]));
-
-      // Mapear DB -> Tipos locais
-      const itensMapped: Item[] = (itensData ?? []).map((row: any) => ({
-          id: row.id,
-          codigoBarras: Number(row.codigo_barras),
-          codigoAntigo: row.codigo_antigo ?? undefined,
-          origem: row.origem ?? '',
-          caixaOrganizador: row.caixa_organizador ?? '',
-          localizacao: row.localizacao ?? '',
-          nome: row.nome,
-          tipoItem: (row.tipo_item ?? 'Insumo') as 'Insumo' | 'Ferramenta',
-          especificacao: row.especificacao ?? '',
-          marca: row.marca ?? '',
-          unidade: row.unidade,
-          condicao: row.condicao ?? 'Novo',
-          subcategoriaId: row.subcategoria_id ?? undefined,
-          categoriaId: row.categoria_id ?? undefined,
-          quantidadeMinima: row.quantidade_minima ?? undefined,
+      const itensMapped: Item[] = itensData.map((row: any) => ({
+        id: row.id,
+        codigoBarras: Number(row.codigo_barras),
+        codigoAntigo: row.codigo_antigo ?? undefined,
+        origem: row.origem ?? '',
+        caixaOrganizador: row.caixa_organizador ?? '',
+        localizacao: row.localizacao ?? '',
+        nome: row.nome,
+        tipoItem: (row.tipo_item ?? 'Insumo') as Item['tipoItem'],
+        especificacao: row.especificacao ?? '',
+        marca: row.marca ?? '',
+        unidade: row.unidade,
+        condicao: row.condicao ?? 'Novo',
+        subcategoriaId: row.subcategoria_id ?? undefined,
+        categoriaId: row.categoria_id ?? undefined,
+        quantidadeMinima: row.quantidade_minima ?? undefined,
         ncm: row.ncm ?? '',
         valor: row.valor ?? undefined,
         fotoUrl: row.foto_url ?? undefined,
         ativo: row.ativo ?? true,
       }));
 
-      const movsMapped: Movimentacao[] = (movsData ?? []).map((row: any) => ({
+      // Publica o catálogo imediatamente. O usuário não precisa esperar 10 mil+ movimentações.
+      setItens(itensMapped);
+
+      // 2) Saldos e última movimentação calculados no servidor
+      const { data: saldosData, error: saldosError } = await (supabase as any).rpc(
+        'listar_saldos_estoque_v1',
+        {
+          p_estoque_id: estoqueId ?? null,
+          p_incluir_sem_estoque: incluirSemEstoque,
+        },
+      );
+      if (saldosError) throw saldosError;
+
+      const novoMapaSaldos = new Map<string, number>();
+      const novoMapaUltimas = new Map<string, Movimentacao>();
+      for (const row of (saldosData ?? [])) {
+        novoMapaSaldos.set(row.item_id, Number(row.saldo_atual ?? 0));
+        if (row.ultima_movimentacao) {
+          novoMapaUltimas.set(row.item_id, row.ultima_movimentacao as Movimentacao);
+        }
+      }
+      setSaldosEstoque(novoMapaSaldos);
+      setUltimasMovimentacoesEstoque(novoMapaUltimas);
+
+      // 3) Histórico legado para componentes que ainda dependem dele.
+      // Falha aqui não pode mais apagar/bloquear a tela de Estoque.
+      try {
+        let movsQueryBase = supabase
+          .from('movements')
+          .select(`
+            *,
+            locais_utilizacao:local_utilizacao_id (
+              nome
+            ),
+            solicitacoes:solicitacao_id (
+              solicitante_nome,
+              tipo_operacao
+            )
+          `)
+          .order('data_hora', { ascending: true });
+
+        if (estoqueId) {
+          movsQueryBase = incluirSemEstoque
+            ? movsQueryBase.or(`estoque_id.eq.${estoqueId},estoque_id.is.null`)
+            : movsQueryBase.eq('estoque_id', estoqueId);
+        }
+
+        let movsData: any[] = [];
+        let movFrom = 0;
+        while (true) {
+          const { data, error } = await movsQueryBase.range(movFrom, movFrom + pageSize - 1);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          movsData = movsData.concat(data);
+          if (data.length < pageSize) break;
+          movFrom += pageSize;
+        }
+
+        const { data: tiposOperacaoData, error: tiposOperacaoError } = await supabase
+          .from('tipos_operacao')
+          .select('id, nome');
+        if (tiposOperacaoError) throw tiposOperacaoError;
+        const tipoOperacaoMap = new Map((tiposOperacaoData ?? []).map(op => [op.id, op.nome]));
+
+        const movsMapped: Movimentacao[] = movsData.map((row: any) => ({
           id: row.id,
           itemId: row.item_id,
           tipo: row.tipo,
@@ -418,26 +446,28 @@ export const useEstoque = () => {
           quantidadeAtual: Number(row.quantidade_atual),
           userId: row.user_id ?? undefined,
           observacoes: row.observacoes ?? undefined,
-        dataHora: row.data_hora,
-        localUtilizacaoId: row.local_utilizacao_id ?? undefined,
-        localUtilizacaoNome: row.locais_utilizacao?.nome ?? undefined,
-        solicitacaoId: row.solicitacao_id ?? undefined,
-        solicitanteNome: row.solicitacoes?.solicitante_nome ?? undefined,
-        solicitacaoTipoOperacao: row.solicitacoes?.tipo_operacao ?? undefined,
-        destinatario: row.destinatario ?? undefined,
-        estoqueId: row.estoque_id ?? undefined,
-        tipoOperacaoId: row.tipo_operacao_id ?? undefined,
-        tipoOperacaoNome: row.tipo_operacao_id ? tipoOperacaoMap.get(row.tipo_operacao_id) : undefined,
-        itemSnapshot: row.item_snapshot as Partial<Item>,
-      }));
-
-      setItens(itensMapped);
-      setMovimentacoes(movsMapped);
+          dataHora: row.data_hora,
+          localUtilizacaoId: row.local_utilizacao_id ?? undefined,
+          localUtilizacaoNome: row.locais_utilizacao?.nome ?? undefined,
+          solicitacaoId: row.solicitacao_id ?? undefined,
+          solicitanteNome: row.solicitacoes?.solicitante_nome ?? undefined,
+          solicitacaoTipoOperacao: row.solicitacoes?.tipo_operacao ?? undefined,
+          destinatario: row.destinatario ?? undefined,
+          estoqueId: row.estoque_id ?? undefined,
+          tipoOperacaoId: row.tipo_operacao_id ?? undefined,
+          tipoOperacaoNome: row.tipo_operacao_id ? tipoOperacaoMap.get(row.tipo_operacao_id) : undefined,
+          itemSnapshot: row.item_snapshot as Partial<Item>,
+        }));
+        setMovimentacoes(movsMapped);
+      } catch (historicoError) {
+        console.error('Erro ao carregar histórico completo de movimentações:', historicoError);
+        // Não exibir erro global: catálogo e saldos já foram carregados com sucesso.
+      }
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('Erro ao carregar catálogo/saldos do estoque:', error);
       toast({
-        title: 'Erro ao carregar dados',
-        description: 'Não foi possível carregar os dados do servidor.',
+        title: 'Erro ao carregar estoque',
+        description: 'Não foi possível carregar o catálogo ou os saldos do servidor.',
         variant: 'destructive',
       });
     } finally {
@@ -530,62 +560,18 @@ export const useEstoque = () => {
   const isEntradaParaAcerto = (mov: Pick<Movimentacao, 'tipo' | 'tipoOperacaoNome'>) =>
     mov.tipo === 'ENTRADA' && normalizarTexto(mov.tipoOperacaoNome).includes('acerto');
 
-  // Função para calcular estoque atual de um item considerando apenas o estoque ativo
-  // Movimentações sem estoque_id são atribuídas ao "almoxarifado principal" (dados legados)
+  // Saldo oficial da tela vem do servidor; não depende de baixar o histórico inteiro no navegador.
   const calcularEstoqueAtual = (itemId: string): number => {
-    const incluirSemEstoque = isEstoqueAtivoPrincipal();
-    const movimentacoesItem = movimentacoes.filter(mov => 
-      mov.itemId === itemId && 
-      (mov.estoqueId === estoqueAtivo || (incluirSemEstoque && !mov.estoqueId))
-    ).sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime());
-    let estoque = 0;
-    
-    movimentacoesItem.forEach(mov => {
-      if (isEntradaParaAcerto(mov)) {
-        estoque = mov.quantidadeAtual;
-      } else if (mov.tipo === 'ENTRADA') {
-        estoque += mov.quantidade;
-      } else if (mov.tipo === 'SAIDA') {
-        estoque -= mov.quantidade;
-      }
-    });
-    
-    return estoque;
+    return saldosEstoque.get(itemId) ?? 0;
   };
 
-  // Cache do estoque calculado - usa useMemo para evitar recálculo a cada render
   const estoqueCalculado = useMemo(() => {
-    const incluirSemEstoque = isEstoqueAtivoPrincipal();
-    return itens.map(item => {
-      // Filtrar movimentações do item E do estoque ativo
-      // Movimentações sem estoque_id (legado) contam para o "almoxarifado principal"
-      const movimentacoesItem = movimentacoes.filter(mov => 
-        mov.itemId === item.id && 
-        (mov.estoqueId === estoqueAtivo || (incluirSemEstoque && !mov.estoqueId))
-      ).sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime());
-      
-      let estoqueAtual = 0;
-      movimentacoesItem.forEach(mov => {
-        if (isEntradaParaAcerto(mov)) {
-          estoqueAtual = mov.quantidadeAtual;
-        } else if (mov.tipo === 'ENTRADA') {
-          estoqueAtual += mov.quantidade;
-        } else if (mov.tipo === 'SAIDA') {
-          estoqueAtual -= mov.quantidade;
-        }
-      });
-      
-      // Encontrar última movimentação
-      const ultimaMovimentacao = movimentacoesItem
-        .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())[0];
-
-      return {
-        ...item,
-        estoqueAtual,
-        ultimaMovimentacao: ultimaMovimentacao || null
-      };
-    });
-  }, [itens, movimentacoes, estoqueAtivo, isEstoqueAtivoPrincipal]);
+    return itens.map(item => ({
+      ...item,
+      estoqueAtual: saldosEstoque.get(item.id) ?? 0,
+      ultimaMovimentacao: ultimasMovimentacoesEstoque.get(item.id) || null,
+    }));
+  }, [itens, saldosEstoque, ultimasMovimentacoesEstoque]);
 
   // Obter estoque com quantidades atuais - agora retorna o cache
   const obterEstoque = useCallback((): EstoqueItem[] => {
