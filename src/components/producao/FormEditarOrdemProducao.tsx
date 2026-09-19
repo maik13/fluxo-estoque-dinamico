@@ -55,6 +55,7 @@ const formatarQuantidade = (value: number) =>
 export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
   const [aberto, setAberto] = useState(false);
   const [quantidade, setQuantidade] = useState('');
+  const [duracaoHoras, setDuracaoHoras] = useState('');
   const [inicio, setInicio] = useState('');
   const [fim, setFim] = useState('');
   const [localTipo, setLocalTipo] =
@@ -70,7 +71,7 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
   const [etapas, setEtapas] = useState<EtapaDestino[]>([]);
   const [etapaSelecionada, setEtapaSelecionada] = useState(ordem.processo_id);
 
-  const editavelPlanejamento = ['liberada', 'em_execucao'].includes(ordem.status);
+  const editavelPlanejamento = ['rascunho', 'liberada', 'em_execucao'].includes(ordem.status);
   const reclassificavel = ordem.status !== 'cancelada';
 
   const carregarEtapas = async () => {
@@ -92,8 +93,13 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
 
   const preencher = () => {
     setQuantidade(String(ordem.quantidade_planejada));
-    setInicio(ordem.data_inicio_prevista);
-    setFim(ordem.data_fim_prevista);
+    setDuracaoHoras(
+      ordem.duracao_estimada_horas == null
+        ? ''
+        : String(ordem.duracao_estimada_horas).replace('.', ','),
+    );
+    setInicio(ordem.data_inicio_prevista ?? '');
+    setFim(ordem.data_fim_prevista ?? '');
     setLocalTipo(ordem.local_tipo);
     setResponsavel(ordem.responsavel_nome_snapshot ?? '');
     setEquipe(ordem.equipe_prevista == null ? '' : String(ordem.equipe_prevista));
@@ -152,6 +158,7 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
     }
 
     const quantidadeNormalizada = numero(quantidade);
+    const duracaoNormalizada = numero(duracaoHoras);
     const equipeNormalizada = equipe.trim() ? Number(equipe) : null;
 
     if (!Number.isFinite(quantidadeNormalizada) || quantidadeNormalizada <= 0) {
@@ -166,16 +173,22 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
       return;
     }
 
-    if (!inicio || !fim || fim < inicio) {
-      toast.error('Informe um período planejado válido.');
+    if (!Number.isFinite(duracaoNormalizada) || duracaoNormalizada <= 0) {
+      toast.error('Informe o tempo estimado de execução da OP em horas.');
+      return;
+    }
+
+    if ((inicio && !fim) || (!inicio && fim) || (inicio && fim && fim < inicio)) {
+      toast.error('Informe as duas datas da programação ou deixe ambas em branco.');
       return;
     }
 
     if (
-      equipeNormalizada !== null &&
-      (!Number.isInteger(equipeNormalizada) || equipeNormalizada < 0)
+      equipeNormalizada === null ||
+      !Number.isInteger(equipeNormalizada) ||
+      equipeNormalizada <= 0
     ) {
-      toast.error('Informe uma quantidade válida de pessoas.');
+      toast.error('Informe uma equipe necessária de pelo menos 1 pessoa.');
       return;
     }
 
@@ -184,8 +197,9 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
       await editarOrdemProducao({
         ordem_producao_id: ordem.id,
         quantidade_planejada: quantidadeNormalizada,
-        data_inicio_prevista: inicio,
-        data_fim_prevista: fim,
+        duracao_estimada_horas: duracaoNormalizada,
+        data_inicio_prevista: inicio || null,
+        data_fim_prevista: fim || null,
         local_tipo: localTipo,
         responsavel_id: ordem.responsavel_id,
         responsavel_nome: responsavel.trim() || null,
@@ -294,10 +308,23 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2"><Label>Início planejado *</Label><Input type="date" value={inicio} onChange={(event) => setInicio(event.target.value)} required /></div>
-                <div className="space-y-2"><Label>Prazo da OP *</Label><Input type="date" value={fim} onChange={(event) => setFim(event.target.value)} required /></div>
-                <div className="space-y-2"><Label>Responsável</Label><Input value={responsavel} onChange={(event) => setResponsavel(event.target.value)} /></div>
-                <div className="space-y-2"><Label>Equipe prevista</Label><Input type="number" min="0" step="1" value={equipe} onChange={(event) => setEquipe(event.target.value)} /></div>
+                <div className="space-y-2">
+                  <Label>Tempo estimado de execução (horas) *</Label>
+                  <Input value={duracaoHoras} onChange={(event) => setDuracaoHoras(event.target.value)} inputMode="decimal" placeholder="Ex.: 16" required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Equipe necessária *</Label>
+                  <Input type="number" min="1" step="1" value={equipe} onChange={(event) => setEquipe(event.target.value)} required />
+                </div>
+                <div className="space-y-2 sm:col-span-2 rounded-lg border bg-muted/20 p-3">
+                  <p className="text-sm font-medium">Programação da OP</p>
+                  <p className="text-xs text-muted-foreground">
+                    Sem datas, a OP fica como “A programar”. Ao informar início e prazo, ela passa para “Programada”.
+                  </p>
+                </div>
+                <div className="space-y-2"><Label>Início planejado</Label><Input type="date" value={inicio} onChange={(event) => setInicio(event.target.value)} /></div>
+                <div className="space-y-2"><Label>Prazo da OP</Label><Input type="date" value={fim} onChange={(event) => setFim(event.target.value)} /></div>
+                <div className="space-y-2 sm:col-span-2"><Label>Responsável</Label><Input value={responsavel} onChange={(event) => setResponsavel(event.target.value)} /></div>
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Prioridade</Label>
                   <Select value={prioridade} onValueChange={(value) => setPrioridade(value as ProducaoPrioridade)}>
