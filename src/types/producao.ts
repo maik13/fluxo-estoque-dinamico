@@ -40,7 +40,8 @@ export interface ProducaoOrdemProducao {
   projeto_nome: string; projeto_cidade: string | null; projeto_uf: string | null; tarefa_id: string | null; tarefa_nome_snapshot: string | null; local_tipo: ProducaoLocalTipo;
   descricao: string | null; instrucoes: string | null; produto_entregavel: string | null; unidade_medida: string | null;
   quantidade_planejada: number; quantidade_realizada: number; percentual_realizado: number;
-  data_inicio_prevista: string; data_fim_prevista: string; data_inicio_real: string | null; data_fim_real: string | null;
+  duracao_estimada_horas: number | null; esforco_estimado_horas_homem?: number | null;
+  data_inicio_prevista: string | null; data_fim_prevista: string | null; data_inicio_real: string | null; data_fim_real: string | null;
   responsavel_id: string | null; responsavel_nome_snapshot: string | null; equipe_prevista: number | null;
   prioridade: ProducaoPrioridade; status: ProducaoOrdemStatus; motivo_cancelamento: string | null;
   pendencia_consumo_tinta?: boolean;
@@ -48,9 +49,10 @@ export interface ProducaoOrdemProducao {
 }
 
 export interface NovaOrdemProducao {
-  processo_id: string; tarefa_id: string; quantidade_planejada: number; data_inicio_prevista: string; data_fim_prevista: string;
+  processo_id: string; tarefa_id: string; quantidade_planejada: number;
+  duracao_estimada_horas: number; data_inicio_prevista?: string | null; data_fim_prevista?: string | null;
   local_tipo: ProducaoLocalTipo; responsavel_id?: string | null; responsavel_nome?: string | null;
-  equipe_prevista?: number | null; instrucoes?: string | null; descricao?: string | null; prioridade?: ProducaoPrioridade;
+  equipe_prevista: number; instrucoes?: string | null; descricao?: string | null; prioridade?: ProducaoPrioridade;
 }
 
 export interface ProducaoApontamento {
