@@ -55,12 +55,13 @@ const erroRpcEdicao = (value: unknown) => {
 export interface DadosEdicaoOrdemProducao {
   ordem_producao_id: string;
   quantidade_planejada: number;
-  data_inicio_prevista: string;
-  data_fim_prevista: string;
+  data_inicio_prevista?: string | null;
+  data_fim_prevista?: string | null;
+  duracao_estimada_horas: number;
   local_tipo: ProducaoLocalTipo;
   responsavel_id?: string | null;
   responsavel_nome?: string | null;
-  equipe_prevista?: number | null;
+  equipe_prevista: number;
   instrucoes?: string | null;
   descricao?: string | null;
   prioridade: ProducaoPrioridade;
@@ -71,15 +72,16 @@ export interface DadosEdicaoOrdemProducao {
 export const editarOrdemProducao = async (
   dados: DadosEdicaoOrdemProducao,
 ) => {
-  const { error } = await (supabase.rpc as any)('editar_ordem_producao_v2', {
+  const { error } = await (supabase.rpc as any)('editar_ordem_producao_planejamento_v1', {
     p_ordem_producao_id: dados.ordem_producao_id,
     p_quantidade_planejada: dados.quantidade_planejada,
-    p_data_inicio_prevista: dados.data_inicio_prevista,
-    p_data_fim_prevista: dados.data_fim_prevista,
     p_local_tipo: dados.local_tipo,
+    p_duracao_estimada_horas: dados.duracao_estimada_horas,
+    p_equipe_prevista: dados.equipe_prevista,
+    p_data_inicio_prevista: dados.data_inicio_prevista ?? null,
+    p_data_fim_prevista: dados.data_fim_prevista ?? null,
     p_responsavel_id: dados.responsavel_id ?? null,
     p_responsavel_nome: dados.responsavel_nome ?? null,
-    p_equipe_prevista: dados.equipe_prevista ?? null,
     p_instrucoes: dados.instrucoes ?? null,
     p_descricao: dados.descricao ?? null,
     p_prioridade: dados.prioridade,
@@ -140,20 +142,30 @@ export const useOrdensProducao = () => {
   ) => {
     setLoading(true);
     try {
-      const [{ data, error }, { data: pendentes, error: pendentesError }] =
-        await Promise.all([
-          (supabase.rpc as any)('listar_ordens_producao_v2', {
-            p_processo_id: processoId ?? null,
-            p_status: status ?? null,
-          }),
-          (supabase.rpc as any)('listar_ops_pintura_pendentes_v1'),
-        ]);
+      const [
+        { data, error },
+        { data: pendentes, error: pendentesError },
+        { data: estimativas, error: estimativasError },
+      ] = await Promise.all([
+        (supabase.rpc as any)('listar_ordens_producao_v2', {
+          p_processo_id: processoId ?? null,
+          p_status: status ?? null,
+        }),
+        (supabase.rpc as any)('listar_ops_pintura_pendentes_v1'),
+        (supabase.rpc as any)('listar_estimativas_ops_v1'),
+      ]);
 
       if (error) throw erro(error, 'Não foi possível carregar as Ordens de Produção.');
       if (pendentesError) {
         throw erro(
           pendentesError,
           'Não foi possível verificar as pendências de consumo de tinta.',
+        );
+      }
+      if (estimativasError) {
+        throw erro(
+          estimativasError,
+          'Não foi possível carregar as estimativas de esforço das OPs.',
         );
       }
 
@@ -163,10 +175,26 @@ export const useOrdensProducao = () => {
         ),
       );
 
-      const resultado = ((data ?? []) as ProducaoOrdemProducao[]).map((ordem) => ({
-        ...ordem,
-        pendencia_consumo_tinta: idsPendentes.has(ordem.id),
-      }));
+      const estimativasPorOp = new Map(
+        (estimativas ?? []).map(
+          (item: {
+            ordem_producao_id: string;
+            duracao_estimada_horas: number | null;
+            esforco_estimado_horas_homem: number | null;
+          }) => [item.ordem_producao_id, item],
+        ),
+      );
+
+      const resultado = ((data ?? []) as ProducaoOrdemProducao[]).map((ordem) => {
+        const estimativa = estimativasPorOp.get(ordem.id);
+        return {
+          ...ordem,
+          duracao_estimada_horas: estimativa?.duracao_estimada_horas ?? null,
+          esforco_estimado_horas_homem:
+            estimativa?.esforco_estimado_horas_homem ?? null,
+          pendencia_consumo_tinta: idsPendentes.has(ordem.id),
+        };
+      });
 
       setOrdens(resultado);
       return resultado;
@@ -188,17 +216,18 @@ export const useOrdensProducao = () => {
 
   const criarOrdem = useCallback(async (dados: NovaOrdemProducao) => {
     const { data: id, error } = await (supabase.rpc as any)(
-      'criar_ordem_producao_sem_limite_v3',
+      'criar_ordem_producao_planejada_v1',
       {
         p_processo_id: dados.processo_id,
         p_tarefa_id: dados.tarefa_id,
         p_quantidade_planejada: dados.quantidade_planejada,
-        p_data_inicio_prevista: dados.data_inicio_prevista,
-        p_data_fim_prevista: dados.data_fim_prevista,
         p_local_tipo: dados.local_tipo,
+        p_duracao_estimada_horas: dados.duracao_estimada_horas,
+        p_equipe_prevista: dados.equipe_prevista,
+        p_data_inicio_prevista: dados.data_inicio_prevista ?? null,
+        p_data_fim_prevista: dados.data_fim_prevista ?? null,
         p_responsavel_id: dados.responsavel_id ?? null,
         p_responsavel_nome: dados.responsavel_nome ?? null,
-        p_equipe_prevista: dados.equipe_prevista ?? null,
         p_instrucoes: dados.instrucoes ?? null,
         p_descricao: dados.descricao ?? null,
         p_prioridade: dados.prioridade ?? 'normal',
