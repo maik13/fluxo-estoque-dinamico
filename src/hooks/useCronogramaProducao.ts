@@ -18,8 +18,8 @@ export interface GanttOrdemProducao {
   quantidade_planejada: number;
   quantidade_realizada: number;
   percentual_realizado: number;
-  data_inicio_prevista: string;
-  data_fim_prevista: string;
+  data_inicio_prevista: string | null;
+  data_fim_prevista: string | null;
   data_inicio_real: string | null;
   data_fim_real: string | null;
   responsavel_nome: string | null;
