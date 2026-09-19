@@ -3056,6 +3056,27 @@ export type Database = {
             }
             Returns: string
           }
+      criar_apontamento_producao_com_consumos_tinta_v1: {
+        Args: {
+          p_consumos_tinta: Json
+          p_data: string
+          p_duracao_minutos: number
+          p_inicio: string
+          p_local_tipo: string
+          p_membros: string[]
+          p_minutos_improdutivos: number
+          p_minutos_produtivos: number
+          p_motivo_improdutivo: string
+          p_observacoes: string
+          p_ordem_producao_id: string
+          p_processo_id: string
+          p_projeto_local_id: string
+          p_quantidade_produzida: number
+          p_tarefa_id: string
+          p_termino: string
+        }
+        Returns: string
+      }
       criar_apontamento_producao_com_horarios: {
         Args: {
           p_data: string
