@@ -665,7 +665,7 @@ export const ProcessosProducao = ({ tarefas }: Props) => {
                         <div
                           key={ordem.id}
                           className={
-                            ordemProducaoEDePintura(ordem)
+                            ordemProducaoEDePintura(ordem) && ordem.pendencia_consumo_tinta
                               ? 'animate-pulse rounded-lg border-2 border-lime-400 bg-lime-300/30 p-4 shadow-lg shadow-lime-400/40 ring-2 ring-lime-400/60'
                               : 'rounded-lg border bg-muted/10 p-4'
                           }
