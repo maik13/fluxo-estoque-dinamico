@@ -3365,12 +3365,35 @@ export type Database = {
         Args: { p_ordem_producao_id: string }
         Returns: number
       }
+      iniciar_jornada_op_com_equipe_v1: {
+        Args: { p_membros: string[]; p_ordem_producao_id: string }
+        Returns: Json
+      }
       iniciar_jornada_op_v1: {
         Args: { p_ordem_producao_id: string }
         Returns: Json
       }
       is_admin: { Args: never; Returns: boolean }
       is_gestor_or_admin: { Args: never; Returns: boolean }
+      listar_consumo_tinta_por_projeto_v1: {
+        Args: never
+        Returns: {
+          consumo_tinta_ml: number
+          projeto_id: string
+          registros_tinta: number
+        }[]
+      }
+      listar_consumos_tinta_historico_v1: {
+        Args: never
+        Returns: {
+          apontamento_id: string
+          cor: string
+          created_at: string
+          id: string
+          ordem_producao_id: string
+          quantidade_ml: number
+        }[]
+      }
       listar_estimativas_ops_v1: {
         Args: never
         Returns: {
@@ -3450,6 +3473,18 @@ export type Database = {
           quantidade_produzida_rascunho: number
           tarefa_id: string
           termino_rascunho: string
+        }[]
+      }
+      listar_membros_ocupados_jornadas_v1: {
+        Args: never
+        Returns: {
+          atividade: string
+          iniciado_em: string
+          jornada_id: string
+          membro_id: string
+          membro_nome: string
+          ordem_numero: number
+          ordem_producao_id: string
         }[]
       }
       listar_movimentacoes_paginadas_v1: {
