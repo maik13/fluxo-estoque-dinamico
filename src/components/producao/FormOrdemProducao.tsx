@@ -49,12 +49,9 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
   const [aberto, setAberto] = useState(false);
   const [quantidade, setQuantidade] = useState('');
   const [tarefaId, setTarefaId] = useState('');
-  const [inicio, setInicio] = useState(
-    processo.data_inicio_prevista ?? processo.data_inicio_desejada ?? '',
-  );
-  const [fim, setFim] = useState(
-    processo.data_fim_prevista ?? processo.data_limite ?? '',
-  );
+  const [duracaoHoras, setDuracaoHoras] = useState('');
+  const [inicio, setInicio] = useState('');
+  const [fim, setFim] = useState('');
   const [localTipo, setLocalTipo] =
     useState<ProducaoLocalTipo>('Fábrica');
   const [responsavel, setResponsavel] = useState(
@@ -115,10 +112,9 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
     if (!open) return;
     setQuantidade('');
     setTarefaId('');
-    setInicio(
-      processo.data_inicio_prevista ?? processo.data_inicio_desejada ?? '',
-    );
-    setFim(processo.data_fim_prevista ?? processo.data_limite ?? '');
+    setDuracaoHoras('');
+    setInicio('');
+    setFim('');
   };
 
   const emitir = async (event: FormEvent) => {
@@ -129,20 +125,26 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
       return;
     }
     const equipeNormalizada = equipe.trim() ? Number(equipe) : null;
+    const duracaoNormalizada = numero(duracaoHoras);
 
     if (!Number.isFinite(quantidadeNormalizada) || quantidadeNormalizada <= 0) {
       toast.error('Informe uma quantidade maior que zero.');
       return;
     }
-    if (!inicio || !fim || fim < inicio) {
-      toast.error('Informe um período planejado válido.');
+    if (!Number.isFinite(duracaoNormalizada) || duracaoNormalizada <= 0) {
+      toast.error('Informe o tempo estimado de execução da OP em horas.');
+      return;
+    }
+    if ((inicio && !fim) || (!inicio && fim) || (inicio && fim && fim < inicio)) {
+      toast.error('Informe as duas datas da programação ou deixe ambas em branco.');
       return;
     }
     if (
-      equipeNormalizada !== null &&
-      (!Number.isInteger(equipeNormalizada) || equipeNormalizada < 0)
+      equipeNormalizada === null ||
+      !Number.isInteger(equipeNormalizada) ||
+      equipeNormalizada <= 0
     ) {
-      toast.error('Informe uma quantidade válida de pessoas.');
+      toast.error('Informe uma equipe necessária de pelo menos 1 pessoa.');
       return;
     }
 
@@ -152,8 +154,9 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
         processo_id: processo.id,
         tarefa_id: tarefaId,
         quantidade_planejada: quantidadeNormalizada,
-        data_inicio_prevista: inicio,
-        data_fim_prevista: fim,
+        duracao_estimada_horas: duracaoNormalizada,
+        data_inicio_prevista: inicio || null,
+        data_fim_prevista: fim || null,
         local_tipo: localTipo,
         responsavel_nome: responsavel.trim() || null,
         equipe_prevista: equipeNormalizada,
@@ -162,11 +165,14 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
         prioridade,
       });
       toast.success(
-        'OP criada e liberada. Você pode emitir outras OPs nesta Etapa enquanto ela permanecer aberta.',
+        inicio
+          ? 'OP criada e programada. Ela já pode entrar no fluxo de execução.'
+          : 'OP criada como “A programar”. Defina as datas quando organizar o calendário da produção.',
       );
       setAberto(false);
       setQuantidade('');
       setTarefaId('');
+      setDuracaoHoras('');
       setDescricao('');
       setInstrucoes('');
     } catch (error) {
@@ -310,21 +316,52 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Início planejado *</Label>
+              <Label>Tempo estimado de execução (horas) *</Label>
+              <Input
+                value={duracaoHoras}
+                onChange={(event) => setDuracaoHoras(event.target.value)}
+                inputMode="decimal"
+                placeholder="Ex.: 16"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Tempo de relógio previsto para executar esta OP.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Equipe necessária *</Label>
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                value={equipe}
+                onChange={(event) => setEquipe(event.target.value)}
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                O sistema usará tempo × equipe para ponderar o progresso do projeto.
+              </p>
+            </div>
+            <div className="space-y-2 sm:col-span-2 rounded-lg border bg-muted/20 p-3">
+              <p className="text-sm font-medium">Programação da OP — opcional agora</p>
+              <p className="text-xs text-muted-foreground">
+                Você pode criar todas as OPs primeiro e informar as datas depois. Sem datas, a OP ficará como “A programar”.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Início planejado</Label>
               <Input
                 type="date"
                 value={inicio}
                 onChange={(event) => setInicio(event.target.value)}
-                required
               />
             </div>
             <div className="space-y-2">
-              <Label>Prazo da OP *</Label>
+              <Label>Prazo da OP</Label>
               <Input
                 type="date"
                 value={fim}
                 onChange={(event) => setFim(event.target.value)}
-                required
               />
             </div>
             <div className="space-y-2">
@@ -334,16 +371,7 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
                 onChange={(event) => setResponsavel(event.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Equipe prevista</Label>
-              <Input
-                type="number"
-                min="0"
-                step="1"
-                value={equipe}
-                onChange={(event) => setEquipe(event.target.value)}
-              />
-            </div>
+
             <div className="space-y-2 sm:col-span-2">
               <Label>Prioridade</Label>
               <Select
@@ -400,7 +428,7 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
               ) : (
                 <Plus className="mr-2 h-4 w-4" />
               )}
-              Criar e liberar OP
+              Criar OP
             </Button>
           </DialogFooter>
         </form>
