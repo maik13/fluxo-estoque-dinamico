@@ -1,8 +1,8 @@
 import type { ProducaoOrdemProducao } from '@/types/producao';
 
 const statusLabel: Record<string, string> = {
-  rascunho: 'Rascunho',
-  liberada: 'Liberada',
+  rascunho: 'A programar',
+  liberada: 'Programada',
   em_execucao: 'Em execução',
   concluida: 'Concluída',
   cancelada: 'Cancelada',
