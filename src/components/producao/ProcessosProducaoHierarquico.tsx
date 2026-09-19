@@ -71,8 +71,8 @@ const statusEtapaLabel: Record<string, string> = {
 };
 
 const statusOpLabel: Record<string, string> = {
-  rascunho: 'Rascunho',
-  liberada: 'Liberada',
+  rascunho: 'A programar',
+  liberada: 'Programada',
   em_execucao: 'Em execução',
   concluida: 'Concluída',
   cancelada: 'Cancelada',
@@ -108,20 +108,47 @@ const pertenceAoProjeto = (processo: ProducaoProcesso, projeto: ProducaoProjeto)
   processo.projeto_id === projeto.config_id ||
   processo.projeto?.local_utilizacao_id === projeto.local_utilizacao_id;
 
+const pesoEsforcoOp = (ordem: ProducaoOrdemProducao) => {
+  const esforco = Number(ordem.esforco_estimado_horas_homem || 0);
+  return esforco > 0 ? esforco : 1;
+};
+
+const percentualExecucaoOp = (ordem: ProducaoOrdemProducao) =>
+  ordem.status === 'concluida'
+    ? 100
+    : Number(ordem.percentual_realizado || 0);
+
+const progressoPonderadoOps = (ordens: ProducaoOrdemProducao[]) => {
+  const validas = ordens.filter((ordem) => ordem.status !== 'cancelada');
+  if (validas.length === 0) return 0;
+  const pesoTotal = validas.reduce((soma, ordem) => soma + pesoEsforcoOp(ordem), 0);
+  if (pesoTotal <= 0) return 0;
+  return clampPercent(
+    validas.reduce(
+      (soma, ordem) =>
+        soma + percentualExecucaoOp(ordem) * pesoEsforcoOp(ordem),
+      0,
+    ) / pesoTotal,
+  );
+};
+
+const percentualProgramadoOps = (ordens: ProducaoOrdemProducao[]) => {
+  const validas = ordens.filter((ordem) => ordem.status !== 'cancelada');
+  if (validas.length === 0) return 0;
+  const pesoTotal = validas.reduce((soma, ordem) => soma + pesoEsforcoOp(ordem), 0);
+  const pesoProgramado = validas
+    .filter((ordem) => Boolean(ordem.data_inicio_prevista && ordem.data_fim_prevista))
+    .reduce((soma, ordem) => soma + pesoEsforcoOp(ordem), 0);
+  return pesoTotal > 0 ? clampPercent((pesoProgramado / pesoTotal) * 100) : 0;
+};
+
 const progressoEtapa = (
   processo: ProducaoProcesso,
   ordens: ProducaoOrdemProducao[],
 ) => {
   if (processo.status === 'finalizado') return 100;
   if (processo.status === 'cancelado') return 0;
-  const validas = ordens.filter((ordem) => ordem.status !== 'cancelada');
-  if (validas.length === 0) return 0;
-  return clampPercent(
-    validas.reduce(
-      (soma, ordem) => soma + Number(ordem.percentual_realizado || 0),
-      0,
-    ) / validas.length,
-  );
+  return progressoPonderadoOps(ordens);
 };
 
 export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props) => {
@@ -237,16 +264,11 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
         const iniciado = etapasValidas.some((processo) =>
           ['em_andamento', 'pausado', 'bloqueado', 'finalizado'].includes(processo.status),
         );
-        const percentual =
-          etapasValidas.length === 0
-            ? 0
-            : clampPercent(
-                etapasValidas.reduce(
-                  (soma, etapa) =>
-                    soma + progressoEtapa(etapa, ordensPorProcesso[etapa.id] ?? []),
-                  0,
-                ) / etapasValidas.length,
-              );
+        const opsValidasProjeto = ops.filter(
+          (ordem) => ordem.status !== 'cancelada',
+        );
+        const percentual = progressoPonderadoOps(opsValidasProjeto);
+        const percentualProgramado = percentualProgramadoOps(opsValidasProjeto);
         const datasInicioReal = etapasValidas
           .map((etapa) => etapa.data_inicio_real)
           .filter((data): data is string => Boolean(data))
@@ -261,6 +283,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
           etapas,
           ops,
           percentual,
+          percentualProgramado,
           status: concluido ? 'Concluído' : iniciado ? 'Em andamento' : 'Planejado',
           dataInicioReal: datasInicioReal[0] ?? null,
           dataFimReal: concluido ? datasFimReal.at(-1) ?? null : null,
@@ -632,8 +655,16 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
   }
 
   if (resumoProjetoSelecionado) {
-    const { projeto, etapas, ops, percentual, status, dataInicioReal, dataFimReal } =
-      resumoProjetoSelecionado;
+    const {
+      projeto,
+      etapas,
+      ops,
+      percentual,
+      percentualProgramado,
+      status,
+      dataInicioReal,
+      dataFimReal,
+    } = resumoProjetoSelecionado;
 
     return (
       <div className="space-y-5">
@@ -691,7 +722,13 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
               </p>
             </div>
           </div>
-          <div className="mt-4"><BarraProgresso valor={percentual} /></div>
+          <div className="mt-4 space-y-2">
+            <BarraProgresso valor={percentual} />
+            <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
+              <span>Falta executar: <strong className="text-foreground">{Math.max(0, 100 - percentual)}%</strong></span>
+              <span>Trabalho já programado: <strong className="text-foreground">{percentualProgramado}%</strong></span>
+            </div>
+          </div>
         </div>
 
         <div>
@@ -783,7 +820,16 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {projetosFiltrados.map((resumo) => {
-            const { projeto, etapas, ops, percentual, status, dataInicioReal, dataFimReal } = resumo;
+            const {
+              projeto,
+              etapas,
+              ops,
+              percentual,
+              percentualProgramado,
+              status,
+              dataInicioReal,
+              dataFimReal,
+            } = resumo;
             const possuiImagem = ops.some((ordem) => opsComImagem.has(ordem.id));
 
             return (
@@ -859,6 +905,10 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
                     <span className="text-lg font-bold leading-none text-primary">{percentual}%</span>
                   </div>
                   <BarraProgresso valor={percentual} />
+                  <div className="mt-2 flex justify-between gap-2 text-[11px] text-muted-foreground">
+                    <span>Falta {Math.max(0, 100 - percentual)}%</span>
+                    <span>Programado {percentualProgramado}%</span>
+                  </div>
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
