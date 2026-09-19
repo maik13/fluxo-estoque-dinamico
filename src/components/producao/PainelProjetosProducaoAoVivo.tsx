@@ -102,8 +102,8 @@ const nomeCurto = (nome: string) =>
   nome.replace(/^RFM-|^BNO\s*-\s*|^BPE\s*-\s*|^E2D\s*-\s*/i, '').trim();
 
 const statusOpLabel: Record<string, string> = {
-  rascunho: 'Rascunho',
-  liberada: 'Liberada',
+  rascunho: 'A programar',
+  liberada: 'Programada',
   em_execucao: 'Em execução',
   concluida: 'Concluída',
   cancelada: 'Cancelada',
