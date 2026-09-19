@@ -118,11 +118,21 @@ const percentualExecucaoOp = (ordem: ProducaoOrdemProducao) =>
     ? 100
     : Number(ordem.percentual_realizado || 0);
 
+const todasOpsTemEsforco = (ordens: ProducaoOrdemProducao[]) =>
+  ordens.every((ordem) => Number(ordem.esforco_estimado_horas_homem || 0) > 0);
+
 const progressoPonderadoOps = (ordens: ProducaoOrdemProducao[]) => {
   const validas = ordens.filter((ordem) => ordem.status !== 'cancelada');
   if (validas.length === 0) return 0;
+
+  if (!todasOpsTemEsforco(validas)) {
+    return clampPercent(
+      validas.reduce((soma, ordem) => soma + percentualExecucaoOp(ordem), 0) /
+        validas.length,
+    );
+  }
+
   const pesoTotal = validas.reduce((soma, ordem) => soma + pesoEsforcoOp(ordem), 0);
-  if (pesoTotal <= 0) return 0;
   return clampPercent(
     validas.reduce(
       (soma, ordem) =>
@@ -135,11 +145,21 @@ const progressoPonderadoOps = (ordens: ProducaoOrdemProducao[]) => {
 const percentualProgramadoOps = (ordens: ProducaoOrdemProducao[]) => {
   const validas = ordens.filter((ordem) => ordem.status !== 'cancelada');
   if (validas.length === 0) return 0;
+
+  const programadas = validas.filter(
+    (ordem) => Boolean(ordem.data_inicio_prevista && ordem.data_fim_prevista),
+  );
+
+  if (!todasOpsTemEsforco(validas)) {
+    return clampPercent((programadas.length / validas.length) * 100);
+  }
+
   const pesoTotal = validas.reduce((soma, ordem) => soma + pesoEsforcoOp(ordem), 0);
-  const pesoProgramado = validas
-    .filter((ordem) => Boolean(ordem.data_inicio_prevista && ordem.data_fim_prevista))
-    .reduce((soma, ordem) => soma + pesoEsforcoOp(ordem), 0);
-  return pesoTotal > 0 ? clampPercent((pesoProgramado / pesoTotal) * 100) : 0;
+  const pesoProgramado = programadas.reduce(
+    (soma, ordem) => soma + pesoEsforcoOp(ordem),
+    0,
+  );
+  return clampPercent((pesoProgramado / pesoTotal) * 100);
 };
 
 const progressoEtapa = (
@@ -267,8 +287,13 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
         const opsValidasProjeto = ops.filter(
           (ordem) => ordem.status !== 'cancelada',
         );
-        const percentual = progressoPonderadoOps(opsValidasProjeto);
-        const percentualProgramado = percentualProgramadoOps(opsValidasProjeto);
+        const percentual = concluido ? 100 : progressoPonderadoOps(opsValidasProjeto);
+        const percentualProgramado = concluido
+          ? 100
+          : percentualProgramadoOps(opsValidasProjeto);
+        const opsSemEstimativa = opsValidasProjeto.filter(
+          (ordem) => Number(ordem.esforco_estimado_horas_homem || 0) <= 0,
+        ).length;
         const datasInicioReal = etapasValidas
           .map((etapa) => etapa.data_inicio_real)
           .filter((data): data is string => Boolean(data))
@@ -284,6 +309,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
           ops,
           percentual,
           percentualProgramado,
+          opsSemEstimativa,
           status: concluido ? 'Concluído' : iniciado ? 'Em andamento' : 'Planejado',
           dataInicioReal: datasInicioReal[0] ?? null,
           dataFimReal: concluido ? datasFimReal.at(-1) ?? null : null,
@@ -590,7 +616,18 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
                         </p>
                         <BarraProgresso valor={Number(ordem.percentual_realizado || 0)} />
                         <p className="text-xs text-muted-foreground">
-                          {formatarData(ordem.data_inicio_prevista)} → {formatarData(ordem.data_fim_prevista)}
+                          {ordem.data_inicio_prevista && ordem.data_fim_prevista
+                            ? `${formatarData(ordem.data_inicio_prevista)} → ${formatarData(ordem.data_fim_prevista)}`
+                            : 'A programar'}
+                          {ordem.duracao_estimada_horas
+                            ? ` · ${ordem.duracao_estimada_horas} h`
+                            : ' · estimativa de tempo pendente'}
+                          {ordem.equipe_prevista
+                            ? ` · ${ordem.equipe_prevista} pessoa(s)`
+                            : ''}
+                          {ordem.esforco_estimado_horas_homem
+                            ? ` · ${ordem.esforco_estimado_horas_homem} h-h`
+                            : ''}
                           {ordem.responsavel_nome_snapshot ? ` · ${ordem.responsavel_nome_snapshot}` : ''}
                         </p>
                       </div>
@@ -611,7 +648,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
                             <RotateCcw className="mr-2 h-4 w-4" /> Reabrir
                           </Button>
                         )}
-                        {['liberada', 'em_execucao'].includes(ordem.status) && (
+                        {['rascunho', 'liberada', 'em_execucao'].includes(ordem.status) && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -661,6 +698,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
       ops,
       percentual,
       percentualProgramado,
+      opsSemEstimativa,
       status,
       dataInicioReal,
       dataFimReal,
@@ -727,6 +765,11 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
             <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
               <span>Falta executar: <strong className="text-foreground">{Math.max(0, 100 - percentual)}%</strong></span>
               <span>Trabalho já programado: <strong className="text-foreground">{percentualProgramado}%</strong></span>
+              {opsSemEstimativa > 0 && (
+                <span className="text-amber-600 dark:text-amber-400">
+                  {opsSemEstimativa} OP(s) ainda sem estimativa de esforço
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -826,6 +869,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
               ops,
               percentual,
               percentualProgramado,
+              opsSemEstimativa,
               status,
               dataInicioReal,
               dataFimReal,
@@ -909,6 +953,11 @@ export const ProcessosProducaoHierarquico = ({ tarefas, onFecharJornada }: Props
                     <span>Falta {Math.max(0, 100 - percentual)}%</span>
                     <span>Programado {percentualProgramado}%</span>
                   </div>
+                  {opsSemEstimativa > 0 && (
+                    <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
+                      {opsSemEstimativa} OP(s) sem duração/equipe estimada
+                    </p>
+                  )}
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
