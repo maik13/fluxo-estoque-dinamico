@@ -25,6 +25,7 @@ import { CampoDescricaoComVoz } from './CampoDescricaoComVoz';
 import {
   editarOrdemProducao,
   formatarNumeroOrdemProducao,
+  regularizarEstimativaEsforcoOrdemProducao,
 } from '@/hooks/useOrdensProducao';
 import { supabase } from '@/integrations/supabase/client';
 import type {
@@ -72,6 +73,7 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
   const [etapaSelecionada, setEtapaSelecionada] = useState(ordem.processo_id);
 
   const editavelPlanejamento = ['rascunho', 'liberada', 'em_execucao'].includes(ordem.status);
+  const regularizavelEstimativa = ordem.status === 'concluida';
   const reclassificavel = ordem.status !== 'cancelada';
 
   const carregarEtapas = async () => {
@@ -225,7 +227,48 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
     }
   };
 
-  if (!reclassificavel && !editavelPlanejamento) return null;
+  const salvarEstimativaLegada = async () => {
+    const duracaoNormalizada = numero(duracaoHoras);
+    const equipeNormalizada = equipe.trim() ? Number(equipe) : null;
+
+    if (!Number.isFinite(duracaoNormalizada) || duracaoNormalizada <= 0) {
+      toast.error('Informe o tempo estimado de execução da OP em horas.');
+      return;
+    }
+
+    if (
+      equipeNormalizada === null ||
+      !Number.isInteger(equipeNormalizada) ||
+      equipeNormalizada <= 0
+    ) {
+      toast.error('Informe uma equipe necessária de pelo menos 1 pessoa.');
+      return;
+    }
+
+    setSalvando(true);
+    try {
+      await regularizarEstimativaEsforcoOrdemProducao(
+        ordem.id,
+        duracaoNormalizada,
+        equipeNormalizada,
+      );
+      await onSuccess();
+      toast.success(
+        `${formatarNumeroOrdemProducao(ordem.numero)} teve sua estimativa de esforço regularizada sem alterar a execução.`,
+      );
+      setAberto(false);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível regularizar a estimativa da OP.',
+      );
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  if (!reclassificavel && !editavelPlanejamento && !regularizavelEstimativa) return null;
 
   return (
     <Dialog open={aberto} onOpenChange={alterarAbertura}>
@@ -287,6 +330,47 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
               >
                 {reclassificando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRightLeft className="mr-2 h-4 w-4" />}
                 Alterar etapa e sincronizar histórico
+              </Button>
+            </div>
+          )}
+
+          {regularizavelEstimativa && (
+            <div className="space-y-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+              <div>
+                <Label className="text-base font-semibold">Estimativa de esforço da OP concluída</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Preencha somente a estimativa original de execução. Isso não reabre a OP, não altera quantidade produzida, datas reais nem apontamentos; serve para ponderar corretamente o progresso do projeto.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Tempo estimado de execução (horas) *</Label>
+                  <Input
+                    value={duracaoHoras}
+                    onChange={(event) => setDuracaoHoras(event.target.value)}
+                    inputMode="decimal"
+                    placeholder="Ex.: 16"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Equipe necessária *</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={equipe}
+                    onChange={(event) => setEquipe(event.target.value)}
+                  />
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void salvarEstimativaLegada()}
+                disabled={salvando || reclassificando}
+              >
+                {salvando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Pencil className="mr-2 h-4 w-4" />}
+                Salvar estimativa de esforço
               </Button>
             </div>
           )}
