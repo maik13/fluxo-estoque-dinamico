@@ -84,6 +84,7 @@ interface Props {
 const TODOS = '__todos__';
 const AVULSOS = '__avulsos__';
 const RETROATIVOS = '__retroativos__';
+const RETIFICADOS = '__retificados__';
 const SEM_OCORRENCIA = '__sem_ocorrencia__';
 
 const statusLabel: Record<ProducaoStatus, string> = {
@@ -217,25 +218,69 @@ export const HistoricoApontamentosProducaoV3 = ({
     [idsProjetosDoLocal, ordens, processoId, projetoId],
   );
 
+  const filtradosBase = useMemo(
+    () =>
+      apontamentos.filter((apontamento) => {
+        const processo = apontamento.processo_id
+          ? processosPorId[apontamento.processo_id]
+          : null;
+        const ordem = apontamento.ordem_producao_id
+          ? ordensPorId[apontamento.ordem_producao_id]
+          : null;
+        const localId =
+          apontamento.projeto_local_id ??
+          processo?.projeto?.local_utilizacao_id ??
+          null;
+        const correspondeProjeto =
+          projetoId === TODOS ||
+          localId === projetoId ||
+          Boolean(ordem && idsProjetosDoLocal.has(ordem.projeto_id));
+        const correspondeOrdem =
+          ordemId === TODOS ||
+          (ordemId === AVULSOS
+            ? !apontamento.ordem_producao_id
+            : apontamento.ordem_producao_id === ordemId);
+
+        return (
+          (!dataInicio || apontamento.data >= dataInicio) &&
+          (!dataFim || apontamento.data <= dataFim) &&
+          correspondeProjeto &&
+          (processoId === TODOS || apontamento.processo_id === processoId) &&
+          correspondeOrdem
+        );
+      }),
+    [
+      apontamentos,
+      dataFim,
+      dataInicio,
+      idsProjetosDoLocal,
+      ordemId,
+      ordensPorId,
+      processoId,
+      processosPorId,
+      projetoId,
+    ],
+  );
+
   const filtrados = useMemo(
-    () => apontamentos.filter((apontamento) => {
-      const processo = apontamento.processo_id ? processosPorId[apontamento.processo_id] : null;
-      const ordem = apontamento.ordem_producao_id ? ordensPorId[apontamento.ordem_producao_id] : null;
-      const localId = apontamento.projeto_local_id ?? processo?.projeto?.local_utilizacao_id ?? null;
-      const correspondeProjeto = projetoId === TODOS || localId === projetoId || Boolean(ordem && idsProjetosDoLocal.has(ordem.projeto_id));
-      const correspondeOrdem = ordemId === TODOS || (ordemId === AVULSOS ? !apontamento.ordem_producao_id : apontamento.ordem_producao_id === ordemId);
-      const correspondeOcorrencia = ocorrencia === TODOS || (ocorrencia === RETROATIVOS && apontamento.fechamento_retroativo) || (ocorrencia === SEM_OCORRENCIA && !apontamento.fechamento_retroativo);
-      return (
-        (!dataInicio || apontamento.data >= dataInicio) &&
-        (!dataFim || apontamento.data <= dataFim) &&
-        (status === TODOS || apontamento.status === status) &&
-        correspondeProjeto &&
-        (processoId === TODOS || apontamento.processo_id === processoId) &&
-        correspondeOrdem &&
-        correspondeOcorrencia
-      );
-    }),
-    [apontamentos, dataFim, dataInicio, idsProjetosDoLocal, ocorrencia, ordemId, ordensPorId, processoId, processosPorId, projetoId, status],
+    () =>
+      filtradosBase.filter((apontamento) => {
+        const retificado =
+          Number((apontamento as any).retificacoes_count || 0) > 0;
+        const correspondeOcorrencia =
+          ocorrencia === TODOS ||
+          (ocorrencia === RETROATIVOS && apontamento.fechamento_retroativo) ||
+          (ocorrencia === RETIFICADOS && retificado) ||
+          (ocorrencia === SEM_OCORRENCIA &&
+            !apontamento.fechamento_retroativo &&
+            !retificado);
+
+        return (
+          (status === TODOS || apontamento.status === status) &&
+          correspondeOcorrencia
+        );
+      }),
+    [filtradosBase, ocorrencia, status],
   );
 
   const resumoFiltrado = useMemo(() => {
@@ -246,7 +291,7 @@ export const HistoricoApontamentosProducaoV3 = ({
     let retroativos = 0;
     let retificados = 0;
 
-    filtrados.forEach((apontamento) => {
+    filtradosBase.forEach((apontamento) => {
       if (apontamento.ordem_producao_id) {
         idsOrdens.add(apontamento.ordem_producao_id);
       }
@@ -268,7 +313,43 @@ export const HistoricoApontamentosProducaoV3 = ({
       retroativos,
       retificados,
     };
-  }, [filtrados]);
+  }, [filtradosBase]);
+
+  const aplicarFiltroRapido = (
+    tipo: 'conferidos' | 'pendentes' | 'cancelados' | 'retroativos' | 'retificados',
+  ) => {
+    if (tipo === 'conferidos') {
+      const ativo = status === 'conferido' && ocorrencia === TODOS;
+      setStatus(ativo ? TODOS : 'conferido');
+      setOcorrencia(TODOS);
+      return;
+    }
+
+    if (tipo === 'pendentes') {
+      const ativo = status === 'lancado' && ocorrencia === TODOS;
+      setStatus(ativo ? TODOS : 'lancado');
+      setOcorrencia(TODOS);
+      return;
+    }
+
+    if (tipo === 'cancelados') {
+      const ativo = status === 'cancelado' && ocorrencia === TODOS;
+      setStatus(ativo ? TODOS : 'cancelado');
+      setOcorrencia(TODOS);
+      return;
+    }
+
+    if (tipo === 'retroativos') {
+      const ativo = ocorrencia === RETROATIVOS && status === TODOS;
+      setStatus(TODOS);
+      setOcorrencia(ativo ? TODOS : RETROATIVOS);
+      return;
+    }
+
+    const ativo = ocorrencia === RETIFICADOS && status === TODOS;
+    setStatus(TODOS);
+    setOcorrencia(ativo ? TODOS : RETIFICADOS);
+  };
 
   const cancelar = async (apontamento: ProducaoApontamento) => {
     const justificativa = window.prompt('Justificativa para cancelar o apontamento:')?.trim();
@@ -399,7 +480,7 @@ export const HistoricoApontamentosProducaoV3 = ({
               <Label>Ocorrência</Label>
               <Select value={ocorrencia} onValueChange={setOcorrencia}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value={TODOS}>Todas</SelectItem><SelectItem value={RETROATIVOS}>Fechamento retroativo</SelectItem><SelectItem value={SEM_OCORRENCIA}>Sem ocorrência</SelectItem></SelectContent>
+                <SelectContent><SelectItem value={TODOS}>Todas</SelectItem><SelectItem value={RETROATIVOS}>Fechamento retroativo</SelectItem><SelectItem value={RETIFICADOS}>Retificado</SelectItem><SelectItem value={SEM_OCORRENCIA}>Sem ocorrência</SelectItem></SelectContent>
               </Select>
             </div>
           </div>
@@ -416,31 +497,76 @@ export const HistoricoApontamentosProducaoV3 = ({
             <p className="text-xl font-semibold">{resumoFiltrado.apontamentos}</p>
             <p className="text-[10px] text-muted-foreground">registros totais</p>
           </div>
-          <div className="rounded-lg border p-3">
+          <button
+            type="button"
+            aria-pressed={status === 'conferido' && ocorrencia === TODOS}
+            onClick={() => aplicarFiltroRapido('conferidos')}
+            className={
+              status === 'conferido' && ocorrencia === TODOS
+                ? 'rounded-lg border border-emerald-500 bg-emerald-500/10 p-3 text-left ring-2 ring-emerald-500/30 transition'
+                : 'rounded-lg border p-3 text-left transition hover:border-emerald-500/50 hover:bg-emerald-500/5'
+            }
+          >
             <p className="text-xs text-muted-foreground">Conferidos</p>
             <p className="text-xl font-semibold text-emerald-500">{resumoFiltrado.conferidos}</p>
-            <p className="text-[10px] text-muted-foreground">apontamentos</p>
-          </div>
-          <div className="rounded-lg border p-3">
+            <p className="text-[10px] text-muted-foreground">clique para filtrar</p>
+          </button>
+          <button
+            type="button"
+            aria-pressed={status === 'lancado' && ocorrencia === TODOS}
+            onClick={() => aplicarFiltroRapido('pendentes')}
+            className={
+              status === 'lancado' && ocorrencia === TODOS
+                ? 'rounded-lg border border-amber-500 bg-amber-500/10 p-3 text-left ring-2 ring-amber-500/30 transition'
+                : 'rounded-lg border p-3 text-left transition hover:border-amber-500/50 hover:bg-amber-500/5'
+            }
+          >
             <p className="text-xs text-muted-foreground">Pendentes</p>
             <p className="text-xl font-semibold text-amber-500">{resumoFiltrado.pendentes}</p>
-            <p className="text-[10px] text-muted-foreground">apontamentos</p>
-          </div>
-          <div className="rounded-lg border p-3">
+            <p className="text-[10px] text-muted-foreground">clique para filtrar</p>
+          </button>
+          <button
+            type="button"
+            aria-pressed={status === 'cancelado' && ocorrencia === TODOS}
+            onClick={() => aplicarFiltroRapido('cancelados')}
+            className={
+              status === 'cancelado' && ocorrencia === TODOS
+                ? 'rounded-lg border border-red-500 bg-red-500/10 p-3 text-left ring-2 ring-red-500/30 transition'
+                : 'rounded-lg border p-3 text-left transition hover:border-red-500/50 hover:bg-red-500/5'
+            }
+          >
             <p className="text-xs text-muted-foreground">Cancelados</p>
             <p className="text-xl font-semibold text-red-500">{resumoFiltrado.cancelados}</p>
-            <p className="text-[10px] text-muted-foreground">apontamentos</p>
-          </div>
-          <div className="rounded-lg border p-3">
+            <p className="text-[10px] text-muted-foreground">clique para filtrar</p>
+          </button>
+          <button
+            type="button"
+            aria-pressed={ocorrencia === RETROATIVOS && status === TODOS}
+            onClick={() => aplicarFiltroRapido('retroativos')}
+            className={
+              ocorrencia === RETROATIVOS && status === TODOS
+                ? 'rounded-lg border border-amber-600 bg-amber-500/10 p-3 text-left ring-2 ring-amber-500/30 transition'
+                : 'rounded-lg border p-3 text-left transition hover:border-amber-600/50 hover:bg-amber-500/5'
+            }
+          >
             <p className="text-xs text-muted-foreground">Retroativos</p>
             <p className="text-xl font-semibold text-amber-600">{resumoFiltrado.retroativos}</p>
-            <p className="text-[10px] text-muted-foreground">apontamentos</p>
-          </div>
-          <div className="rounded-lg border p-3">
+            <p className="text-[10px] text-muted-foreground">clique para filtrar</p>
+          </button>
+          <button
+            type="button"
+            aria-pressed={ocorrencia === RETIFICADOS && status === TODOS}
+            onClick={() => aplicarFiltroRapido('retificados')}
+            className={
+              ocorrencia === RETIFICADOS && status === TODOS
+                ? 'rounded-lg border border-primary bg-primary/10 p-3 text-left ring-2 ring-primary/30 transition'
+                : 'rounded-lg border p-3 text-left transition hover:border-primary/50 hover:bg-primary/5'
+            }
+          >
             <p className="text-xs text-muted-foreground">Retificados</p>
             <p className="text-xl font-semibold">{resumoFiltrado.retificados}</p>
-            <p className="text-[10px] text-muted-foreground">apontamentos</p>
-          </div>
+            <p className="text-[10px] text-muted-foreground">clique para filtrar</p>
+          </button>
         </div>
 
         <div className="overflow-x-auto rounded-lg border">
