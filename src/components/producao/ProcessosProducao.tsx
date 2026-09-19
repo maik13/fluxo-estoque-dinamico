@@ -30,6 +30,7 @@ import {
   useOrdensProducao,
   formatarNumeroOrdemProducao,
   formatarIdentificacaoOrdemProducao,
+  ordemProducaoEDePintura,
 } from '@/hooks/useOrdensProducao';
 import {
   useProcessosProducao,
@@ -663,7 +664,11 @@ export const ProcessosProducao = ({ tarefas }: Props) => {
                       {ordensDaEtapa.map((ordem) => (
                         <div
                           key={ordem.id}
-                          className="rounded-lg border bg-muted/10 p-4"
+                          className={
+                            ordemProducaoEDePintura(ordem)
+                              ? 'animate-pulse rounded-lg border-2 border-lime-400 bg-lime-300/30 p-4 shadow-lg shadow-lime-400/40 ring-2 ring-lime-400/60'
+                              : 'rounded-lg border bg-muted/10 p-4'
+                          }
                         >
                           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                             <div className="min-w-0 flex-1">
@@ -671,6 +676,11 @@ export const ProcessosProducao = ({ tarefas }: Props) => {
                                 <span className="font-semibold">
                                   {formatarIdentificacaoOrdemProducao(ordem)}
                                 </span>
+                                {ordemProducaoEDePintura(ordem) && (
+                                  <span className="rounded-full bg-lime-400 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-black shadow shadow-lime-400/70">
+                                    PINTURA
+                                  </span>
+                                )}
                                 <span className="rounded-full border px-2 py-0.5 text-xs">
                                   {statusOpLabel[ordem.status] ?? ordem.status}
                                 </span>
