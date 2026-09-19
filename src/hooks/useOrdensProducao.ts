@@ -40,12 +40,12 @@ const erroRpcEdicao = (value: unknown) => {
   );
 
   if (
-    /editar_ordem_producao_v2|schema cache|could not find the function/i.test(
+    /editar_ordem_producao_planejamento_v1|schema cache|could not find the function/i.test(
       mensagem,
     )
   ) {
     return new Error(
-      'A atualização do banco para edição de OP ainda não foi aplicada neste ambiente. Execute a migration 20260910160500_op_atividade_nome_v1.sql no Supabase conectado ao sistema.',
+      'A atualização do banco para planejamento e programação de OP ainda não foi aplicada neste ambiente.',
     );
   }
 
@@ -90,6 +90,28 @@ export const editarOrdemProducao = async (
   });
 
   if (error) throw erroRpcEdicao(error);
+};
+
+export const regularizarEstimativaEsforcoOrdemProducao = async (
+  ordemProducaoId: string,
+  duracaoEstimadaHoras: number,
+  equipePrevista: number,
+) => {
+  const { error } = await (supabase.rpc as any)(
+    'regularizar_estimativa_esforco_op_v1',
+    {
+      p_ordem_producao_id: ordemProducaoId,
+      p_duracao_estimada_horas: duracaoEstimadaHoras,
+      p_equipe_prevista: equipePrevista,
+    },
+  );
+
+  if (error) {
+    throw erro(
+      error,
+      'Não foi possível regularizar a estimativa de esforço desta OP.',
+    );
+  }
 };
 
 export const notificarOrdensProducaoAlteradas = () => {
