@@ -123,6 +123,9 @@ export const HistoricoApontamentosProducaoV3 = ({
   const [membrosPorApontamento, setMembrosPorApontamento] = useState<Record<string, ProducaoApontamentoMembro[]>>({});
   const [anexosPorApontamento, setAnexosPorApontamento] = useState<Record<string, ProducaoApontamentoAnexo[]>>({});
   const [urls, setUrls] = useState<Record<string, string>>({});
+  const [consumosTintaPorApontamento, setConsumosTintaPorApontamento] = useState<
+    Record<string, Array<{ cor: string | null; quantidade_ml: number }>>
+  >({});
 
   const { isAdmin } = usePermissions();
   const { processos, listarProcessos } = useProcessosProducao();
@@ -163,6 +166,38 @@ export const HistoricoApontamentosProducaoV3 = ({
       .catch(() => undefined);
     return () => { ativo = false; };
   }, [apontamentos, listarAnexosPorApontamentos]);
+
+  useEffect(() => {
+    let ativo = true;
+    void (supabase.rpc as any)('listar_consumos_tinta_historico_v1')
+      .then(({ data, error }: any) => {
+        if (!ativo || error) return;
+        const agrupados = (data ?? []).reduce(
+          (
+            acc: Record<
+              string,
+              Array<{ cor: string | null; quantidade_ml: number }>
+            >,
+            item: any,
+          ) => {
+            if (!item.apontamento_id) return acc;
+            acc[item.apontamento_id] = acc[item.apontamento_id] ?? [];
+            acc[item.apontamento_id].push({
+              cor: item.cor ?? null,
+              quantidade_ml: Number(item.quantidade_ml ?? 0),
+            });
+            return acc;
+          },
+          {},
+        );
+        setConsumosTintaPorApontamento(agrupados);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      ativo = false;
+    };
+  }, [apontamentos]);
 
   useEffect(() => {
     if (!galeria) return;
@@ -573,12 +608,12 @@ export const HistoricoApontamentosProducaoV3 = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>OP vinculada</TableHead><TableHead>Data / horário</TableHead><TableHead>Projeto / Etapa</TableHead><TableHead>Atividade</TableHead><TableHead>Equipe</TableHead><TableHead>Quantidade</TableHead><TableHead>Fotos</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead>
+                <TableHead>OP vinculada</TableHead><TableHead>Data / horário</TableHead><TableHead>Projeto / Etapa</TableHead><TableHead>Atividade</TableHead><TableHead>Equipe</TableHead><TableHead>Quantidade</TableHead><TableHead>Consumo de tinta</TableHead><TableHead>Fotos</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={9} className="h-28 text-center">Carregando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="h-28 text-center">Carregando...</TableCell></TableRow>
               ) : filtrados.length === 0 ? (
                 <TableRow><TableCell colSpan={9} className="h-28 text-center text-muted-foreground">Nenhum apontamento encontrado.</TableCell></TableRow>
               ) : filtrados.map((apontamento) => {
@@ -588,6 +623,11 @@ export const HistoricoApontamentosProducaoV3 = ({
                 const projetoAvulso = localId ? projetosPorLocal[localId] : null;
                 const equipe = membrosPorApontamento[apontamento.id] ?? [];
                 const anexos = anexosPorApontamento[apontamento.id] ?? [];
+                const consumosTinta = consumosTintaPorApontamento[apontamento.id] ?? [];
+                const totalTintaMl = consumosTinta.reduce(
+                  (total, item) => total + Number(item.quantidade_ml || 0),
+                  0,
+                );
                 const quantidade = apontamento.quantidade_produzida == null ? null : Number(apontamento.quantidade_produzida);
                 const retificado = Number((apontamento as any).retificacoes_count || 0) > 0;
                 const explicacaoQuantidade = apontamento.status === 'conferido' ? 'Contabilizada' : apontamento.status === 'cancelado' ? 'Não contabilizada' : 'Aguardando conferência';
@@ -611,6 +651,24 @@ export const HistoricoApontamentosProducaoV3 = ({
                     <TableCell>{tarefasPorId[apontamento.tarefa_id] ?? '—'}</TableCell>
                     <TableCell>{equipe.map((m) => m.nome_snapshot).join(', ') || '—'}</TableCell>
                     <TableCell><span className={apontamento.status === 'conferido' ? 'font-semibold text-emerald-500' : apontamento.status === 'cancelado' ? 'text-muted-foreground line-through' : 'font-medium text-amber-500'}>{quantidade == null ? '—' : formatarQuantidade(quantidade)}</span><div className="text-xs text-muted-foreground">{explicacaoQuantidade}</div></TableCell>
+                    <TableCell>
+                      {consumosTinta.length > 0 ? (
+                        <div>
+                          <span className="font-semibold">{formatarQuantidade(totalTintaMl)} mL</span>
+                          <div className="mt-0.5 max-w-44 text-[10px] leading-snug text-muted-foreground">
+                            {consumosTinta
+                              .map((item) =>
+                                item.cor
+                                  ? `${item.cor}: ${formatarQuantidade(item.quantidade_ml)} mL`
+                                  : `${formatarQuantidade(item.quantidade_ml)} mL`,
+                              )
+                              .join(' · ')}
+                          </div>
+                        </div>
+                      ) : (
+                        '—'
+                      )}
+                    </TableCell>
                     <TableCell>{anexos.length > 0 ? <Button type="button" variant="link" className="h-auto p-0" onClick={() => setGaleria(apontamento)}><ImageIcon className="mr-1 h-4 w-4" />{anexos.length}</Button> : '—'}</TableCell>
                     <TableCell><Badge variant="outline">{statusLabel[apontamento.status]}</Badge></TableCell>
                     <TableCell>
