@@ -158,6 +158,7 @@ export const Producao = () => {
           <ProcessosProducaoHierarquico
             key={versaoEtapas}
             tarefas={tarefas}
+            membros={membrosProducao}
             onFecharJornada={abrirFechamentoJornada}
           />
         </TabsContent>
