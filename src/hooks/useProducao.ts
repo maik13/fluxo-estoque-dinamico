@@ -213,6 +213,25 @@ export const useProducao = () => {
       p_membros: [...new Set(novo.membros_ids)],
     };
 
+    if (
+      rpc === 'criar_apontamento_producao' &&
+      novo.consumos_tinta &&
+      novo.consumos_tinta.length > 0
+    ) {
+      const { data, error } = await (supabase.rpc as any)(
+        'criar_apontamento_producao_com_consumos_tinta_v1',
+        {
+          ...parametrosBase,
+          p_ordem_producao_id: novo.ordem_producao_id ?? null,
+          p_consumos_tinta: novo.consumos_tinta,
+        },
+      );
+      if (error) {
+        throw erro(error, 'Não foi possível salvar o apontamento e o consumo de tinta.');
+      }
+      return data as string;
+    }
+
     const parametros = rpc === 'criar_apontamento_producao'
       ? { ...parametrosBase, p_ordem_producao_id: novo.ordem_producao_id ?? null }
       : parametrosBase;
