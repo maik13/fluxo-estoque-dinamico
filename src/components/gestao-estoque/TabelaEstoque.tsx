@@ -52,7 +52,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   
   // Estados para paginação
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const itensPorPagina = 20;
+  const [itensPorPagina, setItensPorPagina] = useState(20);
   
   // Estado para controlar se deve buscar - inicia como true para carregar automaticamente
   const [deveBuscar, setDeveBuscar] = useState(true);
@@ -163,7 +163,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   // Resetar página quando filtros mudarem
   useEffect(() => {
     setPaginaAtual(1);
-  }, [filtroTexto, filtroCategoria, filtroSubcategoria, filtroCondicao, filtroEstoque, filtroFoto]);
+  }, [filtroTexto, filtroCategoria, filtroSubcategoria, filtroCondicao, filtroEstoque, filtroFoto, filtroStatus, itensPorPagina]);
   
   // Calcular itens da página atual
   const itensPaginados = useMemo(() => {
@@ -685,6 +685,23 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
               <p className="text-sm text-muted-foreground">
                 Mostrando {itensPaginados.length} de {itensFiltrados.length} itens (Total: {estoque.length})
               </p>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">Itens por página</span>
+                <Select
+                  value={String(itensPorPagina)}
+                  onValueChange={(value) => setItensPorPagina(Number(value))}
+                >
+                  <SelectTrigger className="w-[92px] h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                    <SelectItem value="200">200</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex bg-muted p-1 rounded-lg">
@@ -787,6 +804,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                   <TableHead>Marca</TableHead>
                   <TableHead>Localização</TableHead>
                   <TableHead>Estoque</TableHead>
+                  <TableHead>Valor Unit.</TableHead>
                   <TableHead>Est. Mínimo</TableHead>
                   <TableHead>Unidade</TableHead>
                   <TableHead>Condição</TableHead>
@@ -798,7 +816,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
               <TableBody>
                 {itensFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin() ? 14 : 13} className="text-center py-8">
+                    <TableCell colSpan={isAdmin() ? 15 : 14} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-muted-foreground">
@@ -874,6 +892,11 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                           disabled={false}
                         />
                       </TableCell>
+                      <TableCell className="font-medium whitespace-nowrap">
+                        {item.valor != null
+                          ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.valor))
+                          : <span className="text-muted-foreground text-xs">-</span>}
+                      </TableCell>
                       <TableCell>
                         {item.quantidadeMinima ? (
                           <Badge variant="outline" className="font-mono">
@@ -893,7 +916,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                         {getEstoqueBadge(item)}
                       </TableCell>
                       <TableCell>
-                        <TableCell>{item.ultimaMovimentacao ? (
+                        {item.ultimaMovimentacao ? (
                           <div className="text-xs">
                             <p>{formatarData(item.ultimaMovimentacao.dataHora)}</p>
                             <p className="text-muted-foreground">
@@ -902,7 +925,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                           </div>
                         ) : (
                           <span className="text-muted-foreground text-xs">Sem movimentação</span>
-                        )}</TableCell>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
