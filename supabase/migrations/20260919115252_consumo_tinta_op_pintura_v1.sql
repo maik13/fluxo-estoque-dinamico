@@ -292,9 +292,9 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.finalizar_ordem_producao_com_conferencia_v1(UUID, TEXT)
-  FROM PUBLIC;
+  FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.finalizar_ordem_producao_com_conferencia_v1(UUID, TEXT)
-  TO authenticated;
+  TO authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.finalizar_jornada_op_com_consumos_v1(
   p_jornada_id UUID,
