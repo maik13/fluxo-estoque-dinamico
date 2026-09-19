@@ -305,7 +305,7 @@ export const HistoricoApontamentosProducaoV3 = ({
     });
 
     return {
-      apontamentos: filtrados.length,
+      apontamentos: filtradosBase.length,
       ordens: idsOrdens.size,
       conferidos,
       pendentes,
