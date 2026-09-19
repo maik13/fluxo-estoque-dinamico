@@ -20,6 +20,9 @@ export const useEstoque = () => {
   const lastLoadTimeRef = useRef<number>(0);
   const processedItemsRef = useRef<Set<string>>(new Set());
   const processedMovementsRef = useRef<Set<string>>(new Set());
+  const historicoLoadingRef = useRef(false);
+  const historicoCarregadoRef = useRef(false);
+  const historicoChaveRef = useRef<string>('');
 
   const verificarEntradaRecenteSimilar = async (
     itemId: string,
@@ -52,6 +55,10 @@ export const useEstoque = () => {
 
   // Obter dados iniciais quando o estoque ativo mudar
   useEffect(() => {
+    historicoCarregadoRef.current = false;
+    historicoLoadingRef.current = false;
+    historicoChaveRef.current = '';
+    setMovimentacoes([]);
     if (estoqueAtivo) {
       carregarDados();
     } else {
@@ -397,71 +404,88 @@ export const useEstoque = () => {
       setSaldosEstoque(novoMapaSaldos);
       setUltimasMovimentacoesEstoque(novoMapaUltimas);
 
-      // 3) Histórico legado para componentes que ainda dependem dele.
-      // Falha aqui não pode mais apagar/bloquear a tela de Estoque.
-      try {
-        let movsQueryBase = supabase
-          .from('movements')
-          .select(`
-            *,
-            locais_utilizacao:local_utilizacao_id (
-              nome
-            ),
-            solicitacoes:solicitacao_id (
-              solicitante_nome,
-              tipo_operacao
-            )
-          `)
-          .order('data_hora', { ascending: true });
+      // 3) O estoque já está pronto neste ponto. O histórico completo é legado e
+      // passa a carregar em segundo plano, uma única vez por estoque, sem bloquear a tela.
+      const historicoChave = `${estoqueId ?? 'sem-estoque'}:${incluirSemEstoque ? 'legado' : 'estrito'}`;
+      if (historicoChaveRef.current !== historicoChave) {
+        historicoChaveRef.current = historicoChave;
+        historicoCarregadoRef.current = false;
+      }
 
-        if (estoqueId) {
-          movsQueryBase = incluirSemEstoque
-            ? movsQueryBase.or(`estoque_id.eq.${estoqueId},estoque_id.is.null`)
-            : movsQueryBase.eq('estoque_id', estoqueId);
-        }
+      if (!historicoCarregadoRef.current && !historicoLoadingRef.current) {
+        historicoLoadingRef.current = true;
 
-        let movsData: any[] = [];
-        let movFrom = 0;
-        while (true) {
-          const { data, error } = await movsQueryBase.range(movFrom, movFrom + pageSize - 1);
-          if (error) throw error;
-          if (!data || data.length === 0) break;
-          movsData = movsData.concat(data);
-          if (data.length < pageSize) break;
-          movFrom += pageSize;
-        }
+        void (async () => {
+          try {
+            let movsQueryBase = supabase
+              .from('movements')
+              .select(`
+                *,
+                locais_utilizacao:local_utilizacao_id (
+                  nome
+                ),
+                solicitacoes:solicitacao_id (
+                  solicitante_nome,
+                  tipo_operacao
+                )
+              `)
+              .order('data_hora', { ascending: true });
 
-        const { data: tiposOperacaoData, error: tiposOperacaoError } = await supabase
-          .from('tipos_operacao')
-          .select('id, nome');
-        if (tiposOperacaoError) throw tiposOperacaoError;
-        const tipoOperacaoMap = new Map((tiposOperacaoData ?? []).map(op => [op.id, op.nome]));
+            if (estoqueId) {
+              movsQueryBase = incluirSemEstoque
+                ? movsQueryBase.or(`estoque_id.eq.${estoqueId},estoque_id.is.null`)
+                : movsQueryBase.eq('estoque_id', estoqueId);
+            }
 
-        const movsMapped: Movimentacao[] = movsData.map((row: any) => ({
-          id: row.id,
-          itemId: row.item_id,
-          tipo: row.tipo,
-          quantidade: Number(row.quantidade),
-          quantidadeAnterior: Number(row.quantidade_anterior),
-          quantidadeAtual: Number(row.quantidade_atual),
-          userId: row.user_id ?? undefined,
-          observacoes: row.observacoes ?? undefined,
-          dataHora: row.data_hora,
-          localUtilizacaoId: row.local_utilizacao_id ?? undefined,
-          localUtilizacaoNome: row.locais_utilizacao?.nome ?? undefined,
-          solicitacaoId: row.solicitacao_id ?? undefined,
-          solicitanteNome: row.solicitacoes?.solicitante_nome ?? undefined,
-          solicitacaoTipoOperacao: row.solicitacoes?.tipo_operacao ?? undefined,
-          destinatario: row.destinatario ?? undefined,
-          estoqueId: row.estoque_id ?? undefined,
-          tipoOperacaoId: row.tipo_operacao_id ?? undefined,
-          tipoOperacaoNome: row.tipo_operacao_id ? tipoOperacaoMap.get(row.tipo_operacao_id) : undefined,
-          itemSnapshot: row.item_snapshot as Partial<Item>,
-        }));
-        setMovimentacoes(movsMapped);
-      } catch (historicoError) {
-        console.error('Erro ao carregar histórico completo de movimentações:', historicoError);
-        // Não exibir erro global: catálogo e saldos já foram carregados com sucesso.
+            let movsData: any[] = [];
+            let movFrom = 0;
+            while (true) {
+              const { data, error } = await movsQueryBase.range(movFrom, movFrom + pageSize - 1);
+              if (error) throw error;
+              if (!data || data.length === 0) break;
+              movsData = movsData.concat(data);
+              if (data.length < pageSize) break;
+              movFrom += pageSize;
+            }
+
+            const { data: tiposOperacaoData, error: tiposOperacaoError } = await supabase
+              .from('tipos_operacao')
+              .select('id, nome');
+            if (tiposOperacaoError) throw tiposOperacaoError;
+            const tipoOperacaoMap = new Map((tiposOperacaoData ?? []).map(op => [op.id, op.nome]));
+
+            const movsMapped: Movimentacao[] = movsData.map((row: any) => ({
+              id: row.id,
+              itemId: row.item_id,
+              tipo: row.tipo,
+              quantidade: Number(row.quantidade),
+              quantidadeAnterior: Number(row.quantidade_anterior),
+              quantidadeAtual: Number(row.quantidade_atual),
+              userId: row.user_id ?? undefined,
+              observacoes: row.observacoes ?? undefined,
+              dataHora: row.data_hora,
+              localUtilizacaoId: row.local_utilizacao_id ?? undefined,
+              localUtilizacaoNome: row.locais_utilizacao?.nome ?? undefined,
+              solicitacaoId: row.solicitacao_id ?? undefined,
+              solicitanteNome: row.solicitacoes?.solicitante_nome ?? undefined,
+              solicitacaoTipoOperacao: row.solicitacoes?.tipo_operacao ?? undefined,
+              destinatario: row.destinatario ?? undefined,
+              estoqueId: row.estoque_id ?? undefined,
+              tipoOperacaoId: row.tipo_operacao_id ?? undefined,
+              tipoOperacaoNome: row.tipo_operacao_id ? tipoOperacaoMap.get(row.tipo_operacao_id) : undefined,
+              itemSnapshot: row.item_snapshot as Partial<Item>,
+            }));
+
+            if (historicoChaveRef.current === historicoChave) {
+              setMovimentacoes(movsMapped);
+              historicoCarregadoRef.current = true;
+            }
+          } catch (historicoError) {
+            console.error('Erro ao carregar histórico completo de movimentações:', historicoError);
+          } finally {
+            historicoLoadingRef.current = false;
+          }
+        })();
       }
     } catch (error) {
       console.error('Erro ao carregar catálogo/saldos do estoque:', error);
