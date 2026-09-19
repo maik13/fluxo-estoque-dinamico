@@ -168,10 +168,19 @@ export const contextoFechamentoJornada = (
 
 export const iniciarJornadaOp = async (
   ordemProducaoId: string,
+  membrosIds: string[],
 ): Promise<JornadaOpAberta> => {
+  const membrosUnicos = [...new Set(membrosIds)];
+  if (membrosUnicos.length === 0) {
+    throw new Error('Selecione pelo menos um membro da equipe antes de iniciar a OP.');
+  }
+
   const { data, error } = await (supabase.rpc as any)(
-    'iniciar_jornada_op_v1',
-    { p_ordem_producao_id: ordemProducaoId },
+    'iniciar_jornada_op_com_equipe_v1',
+    {
+      p_ordem_producao_id: ordemProducaoId,
+      p_membros: membrosUnicos,
+    },
   );
 
   if (error) {
@@ -192,7 +201,9 @@ export const iniciarJornadaOp = async (
     iniciado_por_nome_snapshot: null,
     pendente_dia_anterior: false,
     tarefa_id: null,
-    membros_ids: [],
+    membros_ids: Array.isArray(resultado.membros_ids)
+      ? resultado.membros_ids
+      : membrosUnicos,
     horarios_membros_rascunho: [],
     termino_rascunho: null,
     quantidade_produzida_rascunho: null,
@@ -221,8 +232,7 @@ export const salvarContextoJornadaOp = async (
       p_motivo_improdutivo: dados.motivoImprodutivo,
       p_observacoes: dados.observacoes,
       p_motivo_regularizacao: dados.motivoRegularizacao,
-      p_justificativa_conclusao: dados.justificativaConclusao,
-      p_consumos_tinta: dados.consumosTinta,
+        p_justificativa_conclusao: dados.justificativaConclusao,
     },
   );
 
