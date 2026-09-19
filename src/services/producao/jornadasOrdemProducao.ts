@@ -191,6 +191,7 @@ export const iniciarJornadaOp = async (
     jornada_id: string;
     ordem_producao_id: string;
     iniciado_em: string;
+    membros_ids?: string[];
   };
 
   return {
