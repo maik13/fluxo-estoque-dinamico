@@ -3718,6 +3718,14 @@ export type Database = {
         }
         Returns: Json
       }
+      regularizar_estimativa_esforco_op_v1: {
+        Args: {
+          p_duracao_estimada_horas: number
+          p_equipe_prevista: number
+          p_ordem_producao_id: string
+        }
+        Returns: undefined
+      }
       remover_anexo_producao: {
         Args: { p_anexo_id: string }
         Returns: {
