@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      _backup_recovery_producao_20260912: {
+        Row: {
+          backed_up_at: string
+          pk: string
+          row_data: Json
+          table_name: string
+        }
+        Insert: {
+          backed_up_at?: string
+          pk: string
+          row_data: Json
+          table_name: string
+        }
+        Update: {
+          backed_up_at?: string
+          pk?: string
+          row_data?: Json
+          table_name?: string
+        }
+        Relationships: []
+      }
       action_logs: {
         Row: {
           action: string
@@ -686,34 +707,43 @@ export type Database = {
         Row: {
           apontamento_id: string
           created_at: string
+          duracao_minutos_snapshot: number | null
           id: string
+          inicio_individual: string | null
           jornada_diaria_minutos_snapshot: number | null
           membro_id: string
           minutos_improdutivos_snapshot: number | null
           minutos_produtivos_snapshot: number | null
           nome_snapshot: string
+          termino_individual: string | null
           valor_hora_snapshot: number | null
         }
         Insert: {
           apontamento_id: string
           created_at?: string
+          duracao_minutos_snapshot?: number | null
           id?: string
+          inicio_individual?: string | null
           jornada_diaria_minutos_snapshot?: number | null
           membro_id: string
           minutos_improdutivos_snapshot?: number | null
           minutos_produtivos_snapshot?: number | null
           nome_snapshot: string
+          termino_individual?: string | null
           valor_hora_snapshot?: number | null
         }
         Update: {
           apontamento_id?: string
           created_at?: string
+          duracao_minutos_snapshot?: number | null
           id?: string
+          inicio_individual?: string | null
           jornada_diaria_minutos_snapshot?: number | null
           membro_id?: string
           minutos_improdutivos_snapshot?: number | null
           minutos_produtivos_snapshot?: number | null
           nome_snapshot?: string
+          termino_individual?: string | null
           valor_hora_snapshot?: number | null
         }
         Relationships: [
@@ -746,22 +776,34 @@ export type Database = {
           criado_por_nome_snapshot: string | null
           data: string
           duracao_minutos: number
+          fechamento_retroativo: boolean
           id: string
           inicio: string
+          jornada_op_id: string | null
           jornada_total_equipe_minutos_snapshot: number | null
           local_tipo: string
           minutos_improdutivos: number
           minutos_produtivos: number | null
           motivo_cancelamento: string | null
           motivo_improdutivo: string | null
+          motivo_regularizacao: string | null
+          motivo_ultima_retificacao: string | null
           observacoes: string | null
           ordem_producao_id: string | null
           processo_id: string | null
           projeto_local_id: string | null
           quantidade_produzida: number | null
+          regularizado_em: string | null
+          regularizado_por_id: string | null
+          regularizado_por_nome_snapshot: string | null
+          retificacoes_count: number
+          retificado_em: string | null
+          retificado_por_id: string | null
+          retificado_por_nome_snapshot: string | null
           status: string
           tarefa_id: string
           termino: string
+          termino_real_em: string | null
           ultima_edicao_em: string | null
           ultima_edicao_por_id: string | null
           ultima_edicao_por_nome_snapshot: string | null
@@ -779,22 +821,34 @@ export type Database = {
           criado_por_nome_snapshot?: string | null
           data: string
           duracao_minutos: number
+          fechamento_retroativo?: boolean
           id?: string
           inicio: string
+          jornada_op_id?: string | null
           jornada_total_equipe_minutos_snapshot?: number | null
           local_tipo: string
           minutos_improdutivos?: number
           minutos_produtivos?: number | null
           motivo_cancelamento?: string | null
           motivo_improdutivo?: string | null
+          motivo_regularizacao?: string | null
+          motivo_ultima_retificacao?: string | null
           observacoes?: string | null
           ordem_producao_id?: string | null
           processo_id?: string | null
           projeto_local_id?: string | null
           quantidade_produzida?: number | null
+          regularizado_em?: string | null
+          regularizado_por_id?: string | null
+          regularizado_por_nome_snapshot?: string | null
+          retificacoes_count?: number
+          retificado_em?: string | null
+          retificado_por_id?: string | null
+          retificado_por_nome_snapshot?: string | null
           status?: string
           tarefa_id: string
           termino: string
+          termino_real_em?: string | null
           ultima_edicao_em?: string | null
           ultima_edicao_por_id?: string | null
           ultima_edicao_por_nome_snapshot?: string | null
@@ -812,28 +866,47 @@ export type Database = {
           criado_por_nome_snapshot?: string | null
           data?: string
           duracao_minutos?: number
+          fechamento_retroativo?: boolean
           id?: string
           inicio?: string
+          jornada_op_id?: string | null
           jornada_total_equipe_minutos_snapshot?: number | null
           local_tipo?: string
           minutos_improdutivos?: number
           minutos_produtivos?: number | null
           motivo_cancelamento?: string | null
           motivo_improdutivo?: string | null
+          motivo_regularizacao?: string | null
+          motivo_ultima_retificacao?: string | null
           observacoes?: string | null
           ordem_producao_id?: string | null
           processo_id?: string | null
           projeto_local_id?: string | null
           quantidade_produzida?: number | null
+          regularizado_em?: string | null
+          regularizado_por_id?: string | null
+          regularizado_por_nome_snapshot?: string | null
+          retificacoes_count?: number
+          retificado_em?: string | null
+          retificado_por_id?: string | null
+          retificado_por_nome_snapshot?: string | null
           status?: string
           tarefa_id?: string
           termino?: string
+          termino_real_em?: string | null
           ultima_edicao_em?: string | null
           ultima_edicao_por_id?: string | null
           ultima_edicao_por_nome_snapshot?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "producao_apontamentos_jornada_op_id_fkey"
+            columns: ["jornada_op_id"]
+            isOneToOne: false
+            referencedRelation: "producao_op_jornadas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "producao_apontamentos_ordem_producao_id_fkey"
             columns: ["ordem_producao_id"]
@@ -860,6 +933,54 @@ export type Database = {
             columns: ["tarefa_id"]
             isOneToOne: false
             referencedRelation: "producao_tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producao_consumos_tinta: {
+        Row: {
+          apontamento_id: string | null
+          cor: string | null
+          created_at: string
+          criado_por_id: string
+          criado_por_nome_snapshot: string
+          id: string
+          ordem_producao_id: string
+          quantidade_ml: number
+        }
+        Insert: {
+          apontamento_id?: string | null
+          cor?: string | null
+          created_at?: string
+          criado_por_id: string
+          criado_por_nome_snapshot: string
+          id?: string
+          ordem_producao_id: string
+          quantidade_ml: number
+        }
+        Update: {
+          apontamento_id?: string | null
+          cor?: string | null
+          created_at?: string
+          criado_por_id?: string
+          criado_por_nome_snapshot?: string
+          id?: string
+          ordem_producao_id?: string
+          quantidade_ml?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_consumos_tinta_apontamento_id_fkey"
+            columns: ["apontamento_id"]
+            isOneToOne: false
+            referencedRelation: "producao_apontamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_consumos_tinta_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "producao_ordens_producao"
             referencedColumns: ["id"]
           },
         ]
@@ -1159,6 +1280,157 @@ export type Database = {
         }
         Relationships: []
       }
+      producao_op_jornadas: {
+        Row: {
+          apontamento_id: string | null
+          contexto_atualizado_em: string | null
+          contexto_atualizado_por_id: string | null
+          contexto_atualizado_por_nome_snapshot: string | null
+          created_at: string
+          descartada: boolean
+          descartada_em: string | null
+          descartada_por_id: string | null
+          descartada_por_nome_snapshot: string | null
+          encerrado_em: string | null
+          encerrado_por_id: string | null
+          encerrado_por_nome_snapshot: string | null
+          encerrado_registrado_em: string | null
+          fechamento_retroativo: boolean
+          horarios_membros_rascunho: Json | null
+          id: string
+          iniciado_em: string
+          iniciado_em_original: string | null
+          iniciado_por_id: string | null
+          iniciado_por_nome_snapshot: string | null
+          inicio_ajustado: boolean
+          inicio_ajustado_em: string | null
+          inicio_ajustado_por_id: string | null
+          inicio_ajustado_por_nome_snapshot: string | null
+          inicio_ajuste_motivo: string | null
+          inicio_ajuste_retroativo: boolean
+          justificativa_conclusao_rascunho: string | null
+          membros_ids: string[] | null
+          minutos_improdutivos_rascunho: number | null
+          motivo_descarte: string | null
+          motivo_improdutivo_rascunho: string | null
+          motivo_regularizacao: string | null
+          motivo_regularizacao_rascunho: string | null
+          observacoes_rascunho: string | null
+          ordem_producao_id: string
+          quantidade_produzida_rascunho: number | null
+          status: string
+          tarefa_id: string | null
+          termino_rascunho: string | null
+          updated_at: string
+        }
+        Insert: {
+          apontamento_id?: string | null
+          contexto_atualizado_em?: string | null
+          contexto_atualizado_por_id?: string | null
+          contexto_atualizado_por_nome_snapshot?: string | null
+          created_at?: string
+          descartada?: boolean
+          descartada_em?: string | null
+          descartada_por_id?: string | null
+          descartada_por_nome_snapshot?: string | null
+          encerrado_em?: string | null
+          encerrado_por_id?: string | null
+          encerrado_por_nome_snapshot?: string | null
+          encerrado_registrado_em?: string | null
+          fechamento_retroativo?: boolean
+          horarios_membros_rascunho?: Json | null
+          id?: string
+          iniciado_em?: string
+          iniciado_em_original?: string | null
+          iniciado_por_id?: string | null
+          iniciado_por_nome_snapshot?: string | null
+          inicio_ajustado?: boolean
+          inicio_ajustado_em?: string | null
+          inicio_ajustado_por_id?: string | null
+          inicio_ajustado_por_nome_snapshot?: string | null
+          inicio_ajuste_motivo?: string | null
+          inicio_ajuste_retroativo?: boolean
+          justificativa_conclusao_rascunho?: string | null
+          membros_ids?: string[] | null
+          minutos_improdutivos_rascunho?: number | null
+          motivo_descarte?: string | null
+          motivo_improdutivo_rascunho?: string | null
+          motivo_regularizacao?: string | null
+          motivo_regularizacao_rascunho?: string | null
+          observacoes_rascunho?: string | null
+          ordem_producao_id: string
+          quantidade_produzida_rascunho?: number | null
+          status?: string
+          tarefa_id?: string | null
+          termino_rascunho?: string | null
+          updated_at?: string
+        }
+        Update: {
+          apontamento_id?: string | null
+          contexto_atualizado_em?: string | null
+          contexto_atualizado_por_id?: string | null
+          contexto_atualizado_por_nome_snapshot?: string | null
+          created_at?: string
+          descartada?: boolean
+          descartada_em?: string | null
+          descartada_por_id?: string | null
+          descartada_por_nome_snapshot?: string | null
+          encerrado_em?: string | null
+          encerrado_por_id?: string | null
+          encerrado_por_nome_snapshot?: string | null
+          encerrado_registrado_em?: string | null
+          fechamento_retroativo?: boolean
+          horarios_membros_rascunho?: Json | null
+          id?: string
+          iniciado_em?: string
+          iniciado_em_original?: string | null
+          iniciado_por_id?: string | null
+          iniciado_por_nome_snapshot?: string | null
+          inicio_ajustado?: boolean
+          inicio_ajustado_em?: string | null
+          inicio_ajustado_por_id?: string | null
+          inicio_ajustado_por_nome_snapshot?: string | null
+          inicio_ajuste_motivo?: string | null
+          inicio_ajuste_retroativo?: boolean
+          justificativa_conclusao_rascunho?: string | null
+          membros_ids?: string[] | null
+          minutos_improdutivos_rascunho?: number | null
+          motivo_descarte?: string | null
+          motivo_improdutivo_rascunho?: string | null
+          motivo_regularizacao?: string | null
+          motivo_regularizacao_rascunho?: string | null
+          observacoes_rascunho?: string | null
+          ordem_producao_id?: string
+          quantidade_produzida_rascunho?: number | null
+          status?: string
+          tarefa_id?: string | null
+          termino_rascunho?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_op_jornadas_apontamento_id_fkey"
+            columns: ["apontamento_id"]
+            isOneToOne: false
+            referencedRelation: "producao_apontamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_op_jornadas_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "producao_ordens_producao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_op_jornadas_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "producao_tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       producao_ordem_eventos: {
         Row: {
           created_at: string
@@ -1290,6 +1562,86 @@ export type Database = {
           },
         ]
       }
+      producao_ordens_etapas_auditoria: {
+        Row: {
+          alterado_por_id: string | null
+          alterado_por_nome_snapshot: string | null
+          apontamentos_reclassificados: number
+          created_at: string
+          etapa_destino_codigo_snapshot: string | null
+          etapa_destino_id: string | null
+          etapa_destino_nome_snapshot: string | null
+          etapa_origem_codigo_snapshot: string | null
+          etapa_origem_id: string | null
+          etapa_origem_nome_snapshot: string | null
+          id: string
+          justificativa: string | null
+          ordem_producao_id: string
+          projeto_id: string
+        }
+        Insert: {
+          alterado_por_id?: string | null
+          alterado_por_nome_snapshot?: string | null
+          apontamentos_reclassificados?: number
+          created_at?: string
+          etapa_destino_codigo_snapshot?: string | null
+          etapa_destino_id?: string | null
+          etapa_destino_nome_snapshot?: string | null
+          etapa_origem_codigo_snapshot?: string | null
+          etapa_origem_id?: string | null
+          etapa_origem_nome_snapshot?: string | null
+          id?: string
+          justificativa?: string | null
+          ordem_producao_id: string
+          projeto_id: string
+        }
+        Update: {
+          alterado_por_id?: string | null
+          alterado_por_nome_snapshot?: string | null
+          apontamentos_reclassificados?: number
+          created_at?: string
+          etapa_destino_codigo_snapshot?: string | null
+          etapa_destino_id?: string | null
+          etapa_destino_nome_snapshot?: string | null
+          etapa_origem_codigo_snapshot?: string | null
+          etapa_origem_id?: string | null
+          etapa_origem_nome_snapshot?: string | null
+          id?: string
+          justificativa?: string | null
+          ordem_producao_id?: string
+          projeto_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_ordens_etapas_auditoria_etapa_destino_id_fkey"
+            columns: ["etapa_destino_id"]
+            isOneToOne: false
+            referencedRelation: "producao_processos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_ordens_etapas_auditoria_etapa_origem_id_fkey"
+            columns: ["etapa_origem_id"]
+            isOneToOne: false
+            referencedRelation: "producao_processos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_ordens_etapas_auditoria_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "producao_ordens_producao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_ordens_etapas_auditoria_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "producao_projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       producao_ordens_producao: {
         Row: {
           atualizado_por_id: string | null
@@ -1316,6 +1668,8 @@ export type Database = {
           responsavel_id: string | null
           responsavel_nome_snapshot: string | null
           status: string
+          tarefa_id: string | null
+          tarefa_nome_snapshot: string | null
           unidade_medida: string | null
           updated_at: string
         }
@@ -1344,6 +1698,8 @@ export type Database = {
           responsavel_id?: string | null
           responsavel_nome_snapshot?: string | null
           status?: string
+          tarefa_id?: string | null
+          tarefa_nome_snapshot?: string | null
           unidade_medida?: string | null
           updated_at?: string
         }
@@ -1372,6 +1728,8 @@ export type Database = {
           responsavel_id?: string | null
           responsavel_nome_snapshot?: string | null
           status?: string
+          tarefa_id?: string | null
+          tarefa_nome_snapshot?: string | null
           unidade_medida?: string | null
           updated_at?: string
         }
@@ -1388,6 +1746,13 @@ export type Database = {
             columns: ["projeto_id"]
             isOneToOne: false
             referencedRelation: "producao_projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_ordens_producao_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "producao_tarefas"
             referencedColumns: ["id"]
           },
         ]
@@ -1740,7 +2105,9 @@ export type Database = {
           criado_por_id: string | null
           criado_por_nome_snapshot: string | null
           data_fim_prevista: string | null
+          data_fim_real: string | null
           data_inicio_prevista: string | null
+          data_inicio_real: string | null
           descricao: string | null
           endereco_execucao: string | null
           id: string
@@ -1750,6 +2117,7 @@ export type Database = {
           observacoes: string | null
           responsavel_id: string | null
           responsavel_nome_snapshot: string | null
+          status: string
           uf: string | null
           updated_at: string
         }
@@ -1763,7 +2131,9 @@ export type Database = {
           criado_por_id?: string | null
           criado_por_nome_snapshot?: string | null
           data_fim_prevista?: string | null
+          data_fim_real?: string | null
           data_inicio_prevista?: string | null
+          data_inicio_real?: string | null
           descricao?: string | null
           endereco_execucao?: string | null
           id?: string
@@ -1773,6 +2143,7 @@ export type Database = {
           observacoes?: string | null
           responsavel_id?: string | null
           responsavel_nome_snapshot?: string | null
+          status?: string
           uf?: string | null
           updated_at?: string
         }
@@ -1786,7 +2157,9 @@ export type Database = {
           criado_por_id?: string | null
           criado_por_nome_snapshot?: string | null
           data_fim_prevista?: string | null
+          data_fim_real?: string | null
           data_inicio_prevista?: string | null
+          data_inicio_real?: string | null
           descricao?: string | null
           endereco_execucao?: string | null
           id?: string
@@ -1796,6 +2169,7 @@ export type Database = {
           observacoes?: string | null
           responsavel_id?: string | null
           responsavel_nome_snapshot?: string | null
+          status?: string
           uf?: string | null
           updated_at?: string
         }
@@ -2562,6 +2936,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      ajustar_inicio_jornada_op_v1: {
+        Args: {
+          p_jornada_id: string
+          p_motivo: string
+          p_nova_data: string
+          p_novo_inicio: string
+        }
+        Returns: Json
+      }
       atualizar_status_ordem_producao: {
         Args: { p_ordem_id: string }
         Returns: undefined
@@ -2598,6 +2981,23 @@ export type Database = {
           p_ativo?: boolean
           p_cidade?: string
           p_cliente?: string
+          p_descricao?: string
+          p_endereco_execucao?: string
+          p_local_execucao?: string
+          p_local_utilizacao_id: string
+          p_responsavel_id?: string
+          p_responsavel_nome?: string
+          p_uf?: string
+        }
+        Returns: string
+      }
+      configurar_projeto_producao_v2: {
+        Args: {
+          p_ativo?: boolean
+          p_cidade?: string
+          p_cliente?: string
+          p_data_fim_prevista?: string
+          p_data_inicio_prevista?: string
           p_descricao?: string
           p_endereco_execucao?: string
           p_local_execucao?: string
@@ -2656,6 +3056,27 @@ export type Database = {
             }
             Returns: string
           }
+      criar_apontamento_producao_com_horarios: {
+        Args: {
+          p_data: string
+          p_duracao_minutos: number
+          p_horarios_membros?: Json
+          p_inicio: string
+          p_local_tipo: string
+          p_membros: string[]
+          p_minutos_improdutivos: number
+          p_minutos_produtivos: number
+          p_motivo_improdutivo: string
+          p_observacoes: string
+          p_ordem_producao_id: string
+          p_processo_id: string
+          p_projeto_local_id: string
+          p_quantidade_produzida: number
+          p_tarefa_id: string
+          p_termino: string
+        }
+        Returns: string
+      }
       criar_etapa_producao: {
         Args: {
           p_aceita_producao_proporcional?: boolean
@@ -2709,6 +3130,23 @@ export type Database = {
         }
         Returns: string
       }
+      criar_ordem_producao_sem_limite_v3: {
+        Args: {
+          p_data_fim_prevista: string
+          p_data_inicio_prevista: string
+          p_descricao?: string
+          p_equipe_prevista?: number
+          p_instrucoes?: string
+          p_local_tipo: string
+          p_prioridade?: string
+          p_processo_id: string
+          p_quantidade_planejada: number
+          p_responsavel_id?: string
+          p_responsavel_nome?: string
+          p_tarefa_id: string
+        }
+        Returns: string
+      }
       criar_processo_producao: {
         Args: {
           p_codigo?: string
@@ -2725,6 +3163,10 @@ export type Database = {
       criar_tarefa_producao: {
         Args: { p_categoria?: string; p_nome: string }
         Returns: string
+      }
+      descartar_jornada_op_v1: {
+        Args: { p_jornada_id: string; p_motivo: string }
+        Returns: Json
       }
       diagnosticar_integridade_modulo_producao: { Args: never; Returns: Json }
       editar_apontamento_producao: {
@@ -2772,6 +3214,24 @@ export type Database = {
         }
         Returns: undefined
       }
+      editar_ordem_producao_v2: {
+        Args: {
+          p_data_fim_prevista: string
+          p_data_inicio_prevista: string
+          p_descricao?: string
+          p_equipe_prevista?: number
+          p_instrucoes?: string
+          p_justificativa?: string
+          p_local_tipo: string
+          p_ordem_producao_id: string
+          p_prioridade?: string
+          p_quantidade_planejada: number
+          p_responsavel_id?: string
+          p_responsavel_nome?: string
+          p_tarefa_id?: string
+        }
+        Returns: undefined
+      }
       excluir_apontamento_producao_admin: {
         Args: { p_apontamento_id: string }
         Returns: undefined
@@ -2787,6 +3247,41 @@ export type Database = {
           p_processo_id: string
         }
         Returns: undefined
+      }
+      finalizar_jornada_op_com_consumos_v1: {
+        Args: {
+          p_concluir_op: boolean
+          p_consumos_tinta: Json
+          p_horarios_membros: Json
+          p_jornada_id: string
+          p_justificativa_conclusao: string
+          p_membros: string[]
+          p_minutos_improdutivos: number
+          p_motivo_improdutivo: string
+          p_motivo_regularizacao: string
+          p_observacoes: string
+          p_quantidade_produzida: number
+          p_tarefa_id: string
+          p_termino: string
+        }
+        Returns: Json
+      }
+      finalizar_jornada_op_v1: {
+        Args: {
+          p_concluir_op?: boolean
+          p_horarios_membros?: Json
+          p_jornada_id: string
+          p_justificativa_conclusao?: string
+          p_membros?: string[]
+          p_minutos_improdutivos?: number
+          p_motivo_improdutivo?: string
+          p_motivo_regularizacao?: string
+          p_observacoes?: string
+          p_quantidade_produzida: number
+          p_tarefa_id: string
+          p_termino: string
+        }
+        Returns: Json
       }
       finalizar_ordem_producao_com_conferencia_v1: {
         Args: { p_justificativa?: string; p_ordem_producao_id: string }
@@ -2808,6 +3303,10 @@ export type Database = {
       incorporar_materiais_pcp_op: {
         Args: { p_ordem_producao_id: string }
         Returns: number
+      }
+      iniciar_jornada_op_v1: {
+        Args: { p_ordem_producao_id: string }
+        Returns: Json
       }
       is_admin: { Args: never; Returns: boolean }
       is_gestor_or_admin: { Args: never; Returns: boolean }
@@ -2862,6 +3361,46 @@ export type Database = {
           ocupacao_percentual: number
         }[]
       }
+      listar_jornadas_op_abertas_v1: {
+        Args: never
+        Returns: {
+          contexto_atualizado_em: string
+          horarios_membros_rascunho: Json
+          id: string
+          iniciado_em: string
+          iniciado_por_id: string
+          iniciado_por_nome_snapshot: string
+          justificativa_conclusao_rascunho: string
+          membros_ids: string[]
+          minutos_improdutivos_rascunho: number
+          motivo_improdutivo_rascunho: string
+          motivo_regularizacao_rascunho: string
+          observacoes_rascunho: string
+          ordem_producao_id: string
+          pendente_dia_anterior: boolean
+          quantidade_produzida_rascunho: number
+          tarefa_id: string
+          termino_rascunho: string
+        }[]
+      }
+      listar_movimentacoes_paginadas_v1: {
+        Args: {
+          p_busca?: string
+          p_data_fim?: string
+          p_data_inicio?: string
+          p_estoque_id?: string
+          p_incluir_sem_estoque?: boolean
+          p_limite?: number
+          p_local_utilizacao_id?: string
+          p_pagina?: number
+          p_subcategoria_ids?: string[]
+          p_tipo?: string
+          p_tipo_item?: string
+          p_tipo_operacao_id?: string
+          p_visualizacao?: string
+        }
+        Returns: Json
+      }
       listar_ordens_producao: {
         Args: { p_processo_id?: string; p_status?: string }
         Returns: {
@@ -2898,6 +3437,68 @@ export type Database = {
           updated_at: string
         }[]
       }
+      listar_ordens_producao_v2: {
+        Args: { p_processo_id?: string; p_status?: string }
+        Returns: {
+          created_at: string
+          criado_por_id: string
+          criado_por_nome_snapshot: string
+          data_fim_prevista: string
+          data_fim_real: string
+          data_inicio_prevista: string
+          data_inicio_real: string
+          descricao: string
+          equipe_prevista: number
+          id: string
+          instrucoes: string
+          local_tipo: string
+          motivo_cancelamento: string
+          numero: number
+          percentual_realizado: number
+          prioridade: string
+          processo_codigo: string
+          processo_id: string
+          processo_nome: string
+          produto_entregavel: string
+          projeto_cidade: string
+          projeto_id: string
+          projeto_nome: string
+          projeto_uf: string
+          quantidade_planejada: number
+          quantidade_realizada: number
+          responsavel_id: string
+          responsavel_nome_snapshot: string
+          status: string
+          tarefa_id: string
+          tarefa_nome_snapshot: string
+          unidade_medida: string
+          updated_at: string
+        }[]
+      }
+      listar_painel_gerencial_producao_v1: {
+        Args: never
+        Returns: {
+          cliente: string
+          custo_mao_obra: number
+          custo_mao_obra_incompleto: boolean
+          custo_materiais: number
+          custo_materiais_incompleto: boolean
+          data_fim_prevista: string
+          data_inicio_prevista: string
+          etapas: Json
+          etapas_concluidas: number
+          etapas_total: number
+          horas_homem: number
+          local_utilizacao_id: string
+          membros_distintos: number
+          ops_concluidas: number
+          ops_total: number
+          percentual_realizado: number
+          projeto_id: string
+          projeto_nome: string
+          ultima_atualizacao: string
+        }[]
+      }
       listar_permissoes_usuario: {
         Args: { p_user_id: string }
         Returns: {
@@ -2931,9 +3532,21 @@ export type Database = {
           unidade_medida: string
         }[]
       }
+      listar_saldos_estoque_v1: {
+        Args: { p_estoque_id?: string; p_incluir_sem_estoque?: boolean }
+        Returns: {
+          item_id: string
+          saldo_atual: number
+          ultima_movimentacao: Json
+        }[]
+      }
       make_user_admin_by_email: {
         Args: { user_email: string }
         Returns: undefined
+      }
+      membros_ultimo_apontamento_op_v1: {
+        Args: { p_ordem_producao_id: string }
+        Returns: string[]
       }
       nome_usuario_producao: { Args: { p_user_id: string }; Returns: string }
       obter_minhas_permissoes: { Args: never; Returns: Json }
@@ -2969,6 +3582,10 @@ export type Database = {
           total_apontamentos: number
         }[]
       }
+      ordem_producao_e_pintura_v1: {
+        Args: { p_ordem_producao_id: string }
+        Returns: boolean
+      }
       permissao_individual_efetiva: {
         Args: { p_permissao: string; p_user_id: string }
         Returns: boolean
@@ -2985,10 +3602,28 @@ export type Database = {
         Args: { target_email: string }
         Returns: undefined
       }
+      proximo_codigo_etapa_producao_definitivo: { Args: never; Returns: string }
+      proximo_numero_ordem_producao: { Args: never; Returns: number }
       recalcular_cronograma_producao: { Args: never; Returns: string }
       recalcular_cronograma_producao_interno: {
         Args: { p_usuario_id: string; p_usuario_nome: string }
         Returns: string
+      }
+      recalcular_status_projeto_producao: {
+        Args: { p_projeto_id: string }
+        Returns: undefined
+      }
+      reclassificar_ordem_producao_etapa_v1: {
+        Args: {
+          p_justificativa?: string
+          p_nova_etapa_id: string
+          p_ordem_producao_id: string
+        }
+        Returns: Json
+      }
+      recovery_import_production_20260912: {
+        Args: { p_rows: Json; p_table: string; p_token: string }
+        Returns: Json
       }
       registrar_anexo_producao: {
         Args: {
@@ -3000,11 +3635,35 @@ export type Database = {
         }
         Returns: string
       }
+      registrar_consumos_tinta_op_v1: {
+        Args: {
+          p_apontamento_id: string
+          p_consumos: Json
+          p_ordem_producao_id: string
+        }
+        Returns: Json
+      }
       remover_anexo_producao: {
         Args: { p_anexo_id: string }
         Returns: {
           file_path: string
         }[]
+      }
+      retificar_apontamento_producao_v2: {
+        Args: {
+          p_apontamento_id: string
+          p_data: string
+          p_horarios_membros?: Json
+          p_inicio: string
+          p_membros?: string[]
+          p_minutos_improdutivos?: number
+          p_motivo_improdutivo?: string
+          p_motivo_retificacao?: string
+          p_observacoes?: string
+          p_quantidade_produzida: number
+          p_termino: string
+        }
+        Returns: Json
       }
       retificar_etapa_producao: {
         Args: {
@@ -3035,6 +3694,26 @@ export type Database = {
           p_trabalha_sabado: boolean
         }
         Returns: string
+      }
+      salvar_contexto_jornada_op_v1: {
+        Args: {
+          p_horarios_membros?: Json
+          p_jornada_id: string
+          p_justificativa_conclusao?: string
+          p_membros?: string[]
+          p_minutos_improdutivos?: number
+          p_motivo_improdutivo?: string
+          p_motivo_regularizacao?: string
+          p_observacoes?: string
+          p_quantidade_produzida?: number
+          p_tarefa_id: string
+          p_termino?: string
+        }
+        Returns: undefined
+      }
+      salvar_horarios_membros_apontamento: {
+        Args: { p_apontamento_id: string; p_horarios?: Json }
+        Returns: undefined
       }
       salvar_materiais_etapa_producao: {
         Args: { p_materiais?: Json; p_processo_id: string }
