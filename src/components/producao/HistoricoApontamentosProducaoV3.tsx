@@ -240,21 +240,34 @@ export const HistoricoApontamentosProducaoV3 = ({
 
   const resumoFiltrado = useMemo(() => {
     const idsOrdens = new Set<string>();
-    let confirmada = 0;
-    let pendente = 0;
-    let cancelada = 0;
+    let conferidos = 0;
+    let pendentes = 0;
+    let cancelados = 0;
     let retroativos = 0;
     let retificados = 0;
+
     filtrados.forEach((apontamento) => {
-      if (apontamento.ordem_producao_id) idsOrdens.add(apontamento.ordem_producao_id);
-      const quantidade = Number(apontamento.quantidade_produzida || 0);
-      if (apontamento.status === 'conferido') confirmada += quantidade;
-      if (apontamento.status === 'lancado') pendente += quantidade;
-      if (apontamento.status === 'cancelado') cancelada += quantidade;
+      if (apontamento.ordem_producao_id) {
+        idsOrdens.add(apontamento.ordem_producao_id);
+      }
+      if (apontamento.status === 'conferido') conferidos += 1;
+      if (apontamento.status === 'lancado') pendentes += 1;
+      if (apontamento.status === 'cancelado') cancelados += 1;
       if (apontamento.fechamento_retroativo) retroativos += 1;
-      if (Number((apontamento as any).retificacoes_count || 0) > 0) retificados += 1;
+      if (Number((apontamento as any).retificacoes_count || 0) > 0) {
+        retificados += 1;
+      }
     });
-    return { apontamentos: filtrados.length, ordens: idsOrdens.size, confirmada, pendente, cancelada, retroativos, retificados };
+
+    return {
+      apontamentos: filtrados.length,
+      ordens: idsOrdens.size,
+      conferidos,
+      pendentes,
+      cancelados,
+      retroativos,
+      retificados,
+    };
   }, [filtrados]);
 
   const cancelar = async (apontamento: ProducaoApontamento) => {
@@ -393,13 +406,41 @@ export const HistoricoApontamentosProducaoV3 = ({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
-          <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">OPs distintas</p><p className="text-xl font-semibold">{resumoFiltrado.ordens}</p></div>
-          <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Apontamentos</p><p className="text-xl font-semibold">{resumoFiltrado.apontamentos}</p></div>
-          <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Produção confirmada</p><p className="text-xl font-semibold text-emerald-500">{formatarQuantidade(resumoFiltrado.confirmada)}</p></div>
-          <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Pendente</p><p className="text-xl font-semibold text-amber-500">{formatarQuantidade(resumoFiltrado.pendente)}</p></div>
-          <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Cancelada</p><p className="text-xl font-semibold text-red-500">{formatarQuantidade(resumoFiltrado.cancelada)}</p></div>
-          <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Retroativos</p><p className="text-xl font-semibold text-amber-600">{resumoFiltrado.retroativos}</p></div>
-          <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Retificados</p><p className="text-xl font-semibold">{resumoFiltrado.retificados}</p></div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">OPs distintas</p>
+            <p className="text-xl font-semibold">{resumoFiltrado.ordens}</p>
+            <p className="text-[10px] text-muted-foreground">com apontamentos</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Apontamentos</p>
+            <p className="text-xl font-semibold">{resumoFiltrado.apontamentos}</p>
+            <p className="text-[10px] text-muted-foreground">registros totais</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Conferidos</p>
+            <p className="text-xl font-semibold text-emerald-500">{resumoFiltrado.conferidos}</p>
+            <p className="text-[10px] text-muted-foreground">apontamentos</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Pendentes</p>
+            <p className="text-xl font-semibold text-amber-500">{resumoFiltrado.pendentes}</p>
+            <p className="text-[10px] text-muted-foreground">apontamentos</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Cancelados</p>
+            <p className="text-xl font-semibold text-red-500">{resumoFiltrado.cancelados}</p>
+            <p className="text-[10px] text-muted-foreground">apontamentos</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Retroativos</p>
+            <p className="text-xl font-semibold text-amber-600">{resumoFiltrado.retroativos}</p>
+            <p className="text-[10px] text-muted-foreground">apontamentos</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Retificados</p>
+            <p className="text-xl font-semibold">{resumoFiltrado.retificados}</p>
+            <p className="text-[10px] text-muted-foreground">apontamentos</p>
+          </div>
         </div>
 
         <div className="overflow-x-auto rounded-lg border">
