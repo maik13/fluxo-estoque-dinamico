@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
+import { ordemProducaoEDePintura } from '@/hooks/useOrdensProducao';
 import { supabase } from '@/integrations/supabase/client';
 import type {
   ProducaoApontamento,
@@ -41,6 +42,9 @@ type HorarioPersonalizado = {
   inicio: string;
   termino: string;
 };
+
+type ConsumoTintaForm = { cor: string; quantidadeMl: string };
+const consumoTintaVazio = (): ConsumoTintaForm => ({ cor: '', quantidadeMl: '' });
 
 const normalizarHora = (valor: string | null | undefined) =>
   valor ? valor.slice(0, 5) : '';
@@ -78,6 +82,9 @@ export const FormRetificarApontamentoProducao = ({
   const [motivoImprodutivo, setMotivoImprodutivo] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [motivoRetificacao, setMotivoRetificacao] = useState('');
+  const [consumosTinta, setConsumosTinta] = useState<ConsumoTintaForm[]>([
+    consumoTintaVazio(),
+  ]);
   const [membrosIds, setMembrosIds] = useState<string[]>([]);
   const [horarios, setHorarios] = useState<Record<string, HorarioPersonalizado>>({});
   const [anexosAtuais, setAnexosAtuais] = useState<ProducaoApontamentoAnexo[]>([]);
@@ -101,6 +108,7 @@ export const FormRetificarApontamentoProducao = ({
     setMotivoImprodutivo(apontamento.motivo_improdutivo ?? '');
     setObservacoes(apontamento.observacoes ?? '');
     setMotivoRetificacao('');
+    setConsumosTinta([consumoTintaVazio()]);
     setMembrosIds(membrosAtuais.map((membro) => membro.membro_id));
     setHorarios(
       Object.fromEntries(
@@ -124,6 +132,7 @@ export const FormRetificarApontamentoProducao = ({
   const opEncerrada = Boolean(
     ordem && ['concluida', 'cancelada'].includes(ordem.status),
   );
+  const opDePintura = ordemProducaoEDePintura(ordem);
 
   const opcoesMembros = useMemo(() => {
     const mapa = new Map<string, { id: string; nome: string; ativo: boolean }>();
@@ -220,6 +229,30 @@ export const FormRetificarApontamentoProducao = ({
       return;
     }
 
+    const consumosTintaNormalizados: Array<{
+      cor: string | null;
+      quantidade_ml: number;
+    }> = [];
+
+    if (opDePintura) {
+      for (const consumo of consumosTinta) {
+        const cor = consumo.cor.trim();
+        const quantidadeTexto = consumo.quantidadeMl.trim();
+        if (!cor && !quantidadeTexto) continue;
+
+        const quantidadeMl = Number(quantidadeTexto.replace(',', '.'));
+        if (!Number.isFinite(quantidadeMl) || quantidadeMl <= 0) {
+          toast.error('Informe um consumo de tinta maior que zero em mL.');
+          return;
+        }
+
+        consumosTintaNormalizados.push({
+          cor: cor || null,
+          quantidade_ml: quantidadeMl,
+        });
+      }
+    }
+
     const improdutivos = Number(minutosImprodutivos || 0);
     if (!Number.isInteger(improdutivos) || improdutivos < 0) {
       toast.error('Minutos improdutivos inválidos.');
@@ -251,7 +284,7 @@ export const FormRetificarApontamentoProducao = ({
     setSalvando(true);
     try {
       const { data: resultado, error } = await (supabase.rpc as any)(
-        'retificar_apontamento_producao_v2',
+        'retificar_apontamento_producao_com_consumos_tinta_v1',
         {
           p_apontamento_id: apontamento.id,
           p_data: data,
@@ -264,6 +297,7 @@ export const FormRetificarApontamentoProducao = ({
           p_membros: membrosIds,
           p_horarios_membros: horariosPersonalizados,
           p_motivo_retificacao: motivoRetificacao.trim(),
+          p_consumos_tinta: consumosTintaNormalizados,
         },
       );
       if (error) {
@@ -347,6 +381,89 @@ export const FormRetificarApontamentoProducao = ({
                 <Input type="time" value={termino} onChange={(e) => setTermino(e.target.value)} required />
               </div>
             </div>
+
+            {opDePintura && (
+              <div className="space-y-4 rounded-lg border-2 border-lime-400 bg-lime-300/10 p-4 shadow-lg shadow-lime-400/20">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Label className="text-base font-bold">Consumo de tinta</Label>
+                    <span className="rounded-full bg-lime-400 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-black">
+                      OP de pintura
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Use este campo para regularizar ou acrescentar consumo de tinta deste apontamento.
+                    Os novos valores são adicionados ao histórico; consumos anteriores não são apagados.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {consumosTinta.map((consumo, indice) => (
+                    <div
+                      key={indice}
+                      className="grid gap-3 rounded-md border border-lime-400/50 bg-background/70 p-3 sm:grid-cols-[1fr_180px_auto] sm:items-end"
+                    >
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Tinta / cor</Label>
+                        <Input
+                          value={consumo.cor}
+                          onChange={(event) =>
+                            setConsumosTinta((atuais) =>
+                              atuais.map((item, i) =>
+                                i === indice ? { ...item, cor: event.target.value } : item,
+                              ),
+                            )
+                          }
+                          placeholder="Ex.: Verniz / Stain"
+                          maxLength={120}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Quantidade (mL)</Label>
+                        <Input
+                          inputMode="decimal"
+                          value={consumo.quantidadeMl}
+                          onChange={(event) =>
+                            setConsumosTinta((atuais) =>
+                              atuais.map((item, i) =>
+                                i === indice
+                                  ? { ...item, quantidadeMl: event.target.value }
+                                  : item,
+                              ),
+                            )
+                          }
+                          placeholder="350"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        title="Remover consumo"
+                        disabled={consumosTinta.length === 1}
+                        onClick={() =>
+                          setConsumosTinta((atuais) =>
+                            atuais.filter((_, i) => i !== indice),
+                          )
+                        }
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    setConsumosTinta((atuais) => [...atuais, consumoTintaVazio()])
+                  }
+                >
+                  + Adicionar outro consumo
+                </Button>
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
