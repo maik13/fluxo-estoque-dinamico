@@ -284,19 +284,6 @@ export const FormFechamentoJornadaOp = ({
       ? quantidadeNumerica
       : null;
     const improdutivos = Number(minutosImprodutivos || 0);
-    if (opDePintura) {
-      if (quantidadeNormalizada == null || quantidadeNormalizada <= 0) {
-        return toast.error('Informe a quantidade de peças pintadas nesta demão.');
-      }
-      if (!demaoNumero || Number(demaoNumero) !== proximaDemao) {
-        return toast.error(`Selecione a ${proximaDemao ?? ''}ª demão para este apontamento.`);
-      }
-      const tintaUnitario = Number(tintaUnitarioMl.replace(',', '.'));
-      if (!Number.isFinite(tintaUnitario) || tintaUnitario <= 0) {
-        return toast.error('Informe o valor de tinta unitário por peça em mL.');
-      }
-    }
-
     const motivoRetroativo = motivoRegularizacao === 'Outro'
       ? motivoRegularizacaoOutro.trim()
       : motivoRegularizacao.trim();
@@ -446,6 +433,19 @@ export const FormFechamentoJornadaOp = ({
     const quantidadeNormalizada = quantidade.trim() ? Number(quantidade.replace(',', '.')) : null;
     if (quantidadeNormalizada !== null && (!Number.isFinite(quantidadeNormalizada) || quantidadeNormalizada < 0)) {
       return toast.error('Informe uma quantidade válida.');
+    }
+
+    if (opDePintura) {
+      if (quantidadeNormalizada == null || quantidadeNormalizada <= 0) {
+        return toast.error('Informe a quantidade de peças pintadas nesta demão.');
+      }
+      if (!demaoNumero || Number(demaoNumero) !== proximaDemao) {
+        return toast.error(`Selecione a ${proximaDemao ?? ''}ª demão para este apontamento.`);
+      }
+      const tintaUnitario = Number(tintaUnitarioMl.replace(',', '.'));
+      if (!Number.isFinite(tintaUnitario) || tintaUnitario <= 0) {
+        return toast.error('Informe o valor de tinta unitário por peça em mL.');
+      }
     }
 
     const motivoRetroativo = motivoRegularizacao === 'Outro'
