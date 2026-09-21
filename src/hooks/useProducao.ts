@@ -219,11 +219,12 @@ export const useProducao = () => {
       novo.consumos_tinta.length > 0
     ) {
       const { data, error } = await (supabase.rpc as any)(
-        'criar_apontamento_producao_com_consumos_tinta_v1',
+        'criar_apontamento_producao_com_consumos_tinta_v2',
         {
           ...parametrosBase,
           p_ordem_producao_id: novo.ordem_producao_id ?? null,
           p_consumos_tinta: novo.consumos_tinta,
+          p_demao_numero: novo.demao_numero ?? null,
         },
       );
       if (error) {
