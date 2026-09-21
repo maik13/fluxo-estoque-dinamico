@@ -9,6 +9,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ordemProducaoEDePintura } from '@/hooks/useOrdensProducao';
 import { Button } from '@/components/ui/button';
 import type { ProducaoOrdemProducao } from '@/types/producao';
 import { descartarJornadaOp } from '@/services/producao/descartarJornadaOp';
@@ -175,6 +176,7 @@ export const ControlesJornadaOp = ({
   };
 
   const quantidadeRascunho = jornada.quantidade_produzida_rascunho;
+  const opDePintura = ordemProducaoEDePintura(ordem);
   const producaoCompleta =
     Number(ordem.quantidade_planejada ?? 0) > 0 &&
     Number(ordem.quantidade_realizada ?? 0) >= Number(ordem.quantidade_planejada ?? 0);
@@ -217,8 +219,17 @@ export const ControlesJornadaOp = ({
 
         {producaoCompleta && (
           <div className="mt-3 rounded-md border border-amber-500/35 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-700 dark:text-amber-300">
-            <strong>OP já está em 100%.</strong> Se este registro ficou aberto por engano ou é duplicado,
-            descarte-o. Não lance produção novamente.
+            {opDePintura ? (
+              <>
+                <strong>Quantidade de peças coberta.</strong> Em pintura, novos apontamentos continuam permitidos
+                e serão registrados como novas demãos até a OP ser concluída.
+              </>
+            ) : (
+              <>
+                <strong>OP já está em 100%.</strong> Se este registro ficou aberto por engano ou é duplicado,
+                descarte-o. Não lance produção novamente.
+              </>
+            )}
           </div>
         )}
 
