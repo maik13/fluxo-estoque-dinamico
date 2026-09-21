@@ -43,8 +43,8 @@ type HorarioPersonalizado = {
   termino: string;
 };
 
-type ConsumoTintaForm = { cor: string; quantidadeMl: string };
-const consumoTintaVazio = (): ConsumoTintaForm => ({ cor: '', quantidadeMl: '' });
+type ConsumoTintaForm = { cor: string; quantidadeUnitariaMl: string };
+const consumoTintaVazio = (): ConsumoTintaForm => ({ cor: '', quantidadeUnitariaMl: '' });
 
 const normalizarHora = (valor: string | null | undefined) =>
   valor ? valor.slice(0, 5) : '';
@@ -231,24 +231,42 @@ export const FormRetificarApontamentoProducao = ({
 
     const consumosTintaNormalizados: Array<{
       cor: string | null;
-      quantidade_ml: number;
+      quantidade_unitaria_ml: number;
     }> = [];
 
     if (opDePintura) {
       for (const consumo of consumosTinta) {
         const cor = consumo.cor.trim();
-        const quantidadeTexto = consumo.quantidadeMl.trim();
+        const quantidadeTexto = consumo.quantidadeUnitariaMl.trim();
         if (!cor && !quantidadeTexto) continue;
 
-        const quantidadeMl = Number(quantidadeTexto.replace(',', '.'));
-        if (!Number.isFinite(quantidadeMl) || quantidadeMl <= 0) {
-          toast.error('Informe um consumo de tinta maior que zero em mL.');
+        if (
+          quantidadeNormalizada == null ||
+          !Number.isFinite(quantidadeNormalizada) ||
+          quantidadeNormalizada <= 0
+        ) {
+          toast.error(
+            'Informe a quantidade de peças produzidas para calcular o consumo total de tinta.',
+          );
+          return;
+        }
+
+        const quantidadeUnitariaMl = Number(
+          quantidadeTexto.replace(',', '.'),
+        );
+        if (
+          !Number.isFinite(quantidadeUnitariaMl) ||
+          quantidadeUnitariaMl <= 0
+        ) {
+          toast.error(
+            'Informe o valor de tinta unitário por peça, em mL, maior que zero.',
+          );
           return;
         }
 
         consumosTintaNormalizados.push({
           cor: cor || null,
-          quantidade_ml: quantidadeMl,
+          quantidade_unitaria_ml: quantidadeUnitariaMl,
         });
       }
     }
@@ -392,7 +410,8 @@ export const FormRetificarApontamentoProducao = ({
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Use este campo para regularizar ou acrescentar consumo de tinta deste apontamento.
+                    Para acrescentar consumo, informe o valor de tinta unitário usado em uma peça.
+                    O sistema multiplica automaticamente pela quantidade produzida deste apontamento.
                     Os novos valores são adicionados ao histórico; consumos anteriores não são apagados.
                   </p>
                 </div>
@@ -419,21 +438,49 @@ export const FormRetificarApontamentoProducao = ({
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Quantidade (mL)</Label>
+                        <Label className="text-xs">
+                          Valor de tinta unitário por peça (mL)
+                        </Label>
                         <Input
                           inputMode="decimal"
-                          value={consumo.quantidadeMl}
+                          value={consumo.quantidadeUnitariaMl}
                           onChange={(event) =>
                             setConsumosTinta((atuais) =>
                               atuais.map((item, i) =>
                                 i === indice
-                                  ? { ...item, quantidadeMl: event.target.value }
+                                  ? {
+                                      ...item,
+                                      quantidadeUnitariaMl: event.target.value,
+                                    }
                                   : item,
                               ),
                             )
                           }
-                          placeholder="350"
+                          placeholder="35"
                         />
+                        {(() => {
+                          const unitario = Number(
+                            consumo.quantidadeUnitariaMl.replace(',', '.'),
+                          );
+                          const pecas = quantidade.trim()
+                            ? Number(quantidade.replace(',', '.'))
+                            : 0;
+                          if (
+                            !Number.isFinite(unitario) ||
+                            unitario <= 0 ||
+                            !Number.isFinite(pecas) ||
+                            pecas <= 0
+                          ) {
+                            return null;
+                          }
+                          return (
+                            <p className="text-[11px] font-medium text-lime-700 dark:text-lime-300">
+                              Total calculado: {new Intl.NumberFormat('pt-BR', {
+                                maximumFractionDigits: 2,
+                              }).format(unitario * pecas)} mL
+                            </p>
+                          );
+                        })()}
                       </div>
                       <Button
                         type="button"
@@ -467,7 +514,9 @@ export const FormRetificarApontamentoProducao = ({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Quantidade produzida</Label>
+                <Label>
+                  {opDePintura ? 'Quantidade produzida (peças)' : 'Quantidade produzida'}
+                </Label>
                 <Input inputMode="decimal" value={quantidade} onChange={(e) => setQuantidade(e.target.value)} placeholder="0" />
               </div>
               <div className="space-y-2">
