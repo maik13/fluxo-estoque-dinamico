@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
 import { ordemProducaoEDePintura } from '@/hooks/useOrdensProducao';
@@ -85,6 +86,7 @@ export const FormRetificarApontamentoProducao = ({
   const [consumosTinta, setConsumosTinta] = useState<ConsumoTintaForm[]>([
     consumoTintaVazio(),
   ]);
+  const [demaoNumero, setDemaoNumero] = useState('');
   const [membrosIds, setMembrosIds] = useState<string[]>([]);
   const [horarios, setHorarios] = useState<Record<string, HorarioPersonalizado>>({});
   const [anexosAtuais, setAnexosAtuais] = useState<ProducaoApontamentoAnexo[]>([]);
@@ -109,6 +111,9 @@ export const FormRetificarApontamentoProducao = ({
     setObservacoes(apontamento.observacoes ?? '');
     setMotivoRetificacao('');
     setConsumosTinta([consumoTintaVazio()]);
+    setDemaoNumero(
+      apontamento.demao_numero == null ? '' : String(apontamento.demao_numero),
+    );
     setMembrosIds(membrosAtuais.map((membro) => membro.membro_id));
     setHorarios(
       Object.fromEntries(
@@ -235,6 +240,12 @@ export const FormRetificarApontamentoProducao = ({
     }> = [];
 
     if (opDePintura) {
+      const demao = Number(demaoNumero);
+      if (!demaoNumero || !Number.isInteger(demao) || demao <= 0) {
+        toast.error('Informe a demão real deste apontamento de pintura.');
+        return;
+      }
+
       for (const consumo of consumosTinta) {
         const cor = consumo.cor.trim();
         const quantidadeTexto = consumo.quantidadeUnitariaMl.trim();
@@ -302,7 +313,7 @@ export const FormRetificarApontamentoProducao = ({
     setSalvando(true);
     try {
       const { data: resultado, error } = await (supabase.rpc as any)(
-        'retificar_apontamento_producao_com_consumos_tinta_v1',
+        'retificar_apontamento_producao_com_consumos_tinta_v2',
         {
           p_apontamento_id: apontamento.id,
           p_data: data,
@@ -316,6 +327,7 @@ export const FormRetificarApontamentoProducao = ({
           p_horarios_membros: horariosPersonalizados,
           p_motivo_retificacao: motivoRetificacao.trim(),
           p_consumos_tinta: consumosTintaNormalizados,
+          p_demao_numero: opDePintura ? Number(demaoNumero) : null,
         },
       );
       if (error) {
@@ -365,6 +377,9 @@ export const FormRetificarApontamentoProducao = ({
               <p><strong>Atividade:</strong> {tarefaNome}</p>
               <p><strong>Status atual:</strong> {apontamento.status === 'conferido' ? 'Conferido' : 'Pendente'}</p>
               <p><strong>Quantidade atual:</strong> {formatarNumero(apontamento.quantidade_produzida == null ? null : Number(apontamento.quantidade_produzida))}</p>
+              {opDePintura && (
+                <p><strong>Demão registrada:</strong> {apontamento.demao_numero ? `${apontamento.demao_numero}ª demão` : 'Não informada (histórico legado)'}</p>
+              )}
             </div>
 
             {apontamento.status === 'conferido' && (
@@ -404,10 +419,51 @@ export const FormRetificarApontamentoProducao = ({
               <div className="space-y-4 rounded-lg border-2 border-lime-400 bg-lime-300/10 p-4 shadow-lg shadow-lime-400/20">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Label className="text-base font-bold">Consumo de tinta</Label>
+                    <Label className="text-base font-bold">Regularização da pintura</Label>
                     <span className="rounded-full bg-lime-400 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-black">
                       OP de pintura
                     </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Nos apontamentos antigos, informe a demão real executada. Esta informação passa a fazer parte
+                    do histórico auditável e não é inferida automaticamente pelo sistema.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Demão deste apontamento *</Label>
+                  <Select value={demaoNumero} onValueChange={setDemaoNumero}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a demão real" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from(
+                        {
+                          length: Math.max(
+                            20,
+                            (apontamento.demao_numero ?? 0) + 5,
+                          ),
+                        },
+                        (_, i) => i + 1,
+                      ).map((numeroDemao) => (
+                        <SelectItem
+                          key={numeroDemao}
+                          value={String(numeroDemao)}
+                        >
+                          {numeroDemao}ª demão
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">
+                    Aqui você está regularizando um registro histórico; por isso pode escolher a demão que realmente
+                    ocorreu, inclusive quando mais de um apontamento pertence à mesma demão.
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Label className="text-base font-bold">Consumo de tinta</Label>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Para acrescentar consumo, informe o valor de tinta unitário usado em uma peça.
