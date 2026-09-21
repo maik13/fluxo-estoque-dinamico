@@ -63,7 +63,7 @@ export interface ProducaoApontamento {
   jornada_op_id: string | null; termino_real_em: string | null; fechamento_retroativo: boolean;
   motivo_regularizacao: string | null; regularizado_por_id: string | null; regularizado_por_nome_snapshot: string | null;
   regularizado_em: string | null;
-  demao_numero: number | null;
+  demao_numero?: number | null;
   criado_por_id: string | null; criado_por_nome_snapshot: string | null; ultima_edicao_por_id: string | null;
   ultima_edicao_por_nome_snapshot: string | null; ultima_edicao_em: string | null; conferido_por_id: string | null;
   conferido_por_nome_snapshot: string | null; conferido_em: string | null; cancelado_por_id: string | null;
@@ -94,8 +94,8 @@ export interface ProducaoConsumoTinta {
   apontamento_id: string | null;
   cor: string | null;
   quantidade_ml: number;
-  quantidade_unitaria_ml: number | null;
-  quantidade_pecas: number | null;
+  quantidade_unitaria_ml?: number | null;
+  quantidade_pecas?: number | null;
   criado_por_id: string;
   criado_por_nome_snapshot: string;
   created_at: string;
