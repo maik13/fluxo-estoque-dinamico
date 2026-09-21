@@ -15,6 +15,88 @@ interface ExportOptions {
 const itemEstaPrecificado = (item: EstoqueItem): boolean =>
   typeof item.valor === 'number' && Number.isFinite(item.valor) && item.valor > 0;
 
+interface ClassificacaoItemExportacao {
+  categoriasPorId: Map<string, string>;
+  subcategoriasPorId: Map<string, string>;
+  categoriasPorSubcategoria: Map<string, string[]>;
+}
+
+const carregarClassificacoesItens = async (): Promise<ClassificacaoItemExportacao> => {
+  const [
+    { data: categorias, error: erroCategorias },
+    { data: subcategorias, error: erroSubcategorias },
+    { data: relacoes, error: erroRelacoes },
+  ] = await Promise.all([
+    supabase.from('categorias').select('id,nome'),
+    supabase.from('subcategorias').select('id,nome'),
+    supabase
+      .from('categoria_subcategoria')
+      .select('categoria_id,subcategoria_id'),
+  ]);
+
+  if (erroCategorias || erroSubcategorias || erroRelacoes) {
+    throw new Error(
+      'Não foi possível carregar categorias e subcategorias para o relatório.',
+    );
+  }
+
+  const categoriasPorId = new Map<string, string>(
+    (categorias ?? []).map((item: any) => [String(item.id), String(item.nome ?? '')]),
+  );
+  const subcategoriasPorId = new Map<string, string>(
+    (subcategorias ?? []).map((item: any) => [String(item.id), String(item.nome ?? '')]),
+  );
+  const categoriasPorSubcategoria = new Map<string, string[]>();
+
+  for (const relacao of relacoes ?? []) {
+    const subcategoriaId = String((relacao as any).subcategoria_id ?? '');
+    const categoriaId = String((relacao as any).categoria_id ?? '');
+    const nomeCategoria = categoriasPorId.get(categoriaId);
+    if (!subcategoriaId || !nomeCategoria) continue;
+
+    const atuais = categoriasPorSubcategoria.get(subcategoriaId) ?? [];
+    if (!atuais.includes(nomeCategoria)) {
+      atuais.push(nomeCategoria);
+      atuais.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    }
+    categoriasPorSubcategoria.set(subcategoriaId, atuais);
+  }
+
+  return {
+    categoriasPorId,
+    subcategoriasPorId,
+    categoriasPorSubcategoria,
+  };
+};
+
+const obterCategoriaItem = (
+  item: EstoqueItem,
+  classificacoes: ClassificacaoItemExportacao,
+): string => {
+  if (item.categoriaId) {
+    const nomeDireto = classificacoes.categoriasPorId.get(item.categoriaId);
+    if (nomeDireto) return nomeDireto;
+  }
+
+  if (item.subcategoriaId) {
+    return (
+      classificacoes.categoriasPorSubcategoria
+        .get(item.subcategoriaId)
+        ?.join(' / ') ?? ''
+    );
+  }
+
+  return '';
+};
+
+const obterSubcategoriaItem = (
+  item: EstoqueItem,
+  classificacoes: ClassificacaoItemExportacao,
+): string =>
+  item.subcategoriaId
+    ? classificacoes.subcategoriasPorId.get(item.subcategoriaId) ?? ''
+    : '';
+
 const carregarUltimaAtualizacaoValor = async (): Promise<Map<string, string>> => {
   const mapa = new Map<string, string>();
 
@@ -99,7 +181,10 @@ export const exportarExcel = async ({
 
   // Consulta somente de leitura. Se o recurso de auditoria ainda não estiver aplicado,
   // o Excel continua sendo gerado normalmente e sinaliza os itens sem histórico específico.
-  const datasAtualizacaoValor = await carregarUltimaAtualizacaoValor();
+  const [datasAtualizacaoValor, classificacoes] = await Promise.all([
+    carregarUltimaAtualizacaoValor(),
+    carregarClassificacoesItens(),
+  ]);
 
   // Criar workbook
   const workbook = XLSX.utils.book_new();
@@ -108,6 +193,8 @@ export const exportarExcel = async ({
   const dadosOrganizados = itensExportacao.map(item => ({
     'Código de Barras': item.codigoBarras,
     'Nome do Item': item.nome,
+    'Categoria': obterCategoriaItem(item, classificacoes),
+    'Subcategoria': obterSubcategoriaItem(item, classificacoes),
     'Marca': item.marca || '',
     'Especificação': item.especificacao || '',
     'Localização': item.localizacao || '',
@@ -134,6 +221,8 @@ export const exportarExcel = async ({
   const columnWidths = [
     { wch: 15 }, // Código de Barras
     { wch: 30 }, // Nome do Item
+    { wch: 22 }, // Categoria
+    { wch: 22 }, // Subcategoria
     { wch: 15 }, // Marca
     { wch: 25 }, // Especificação
     { wch: 20 }, // Localização
@@ -167,6 +256,8 @@ export const exportarExcel = async ({
       'Código de Barras': item.codigoBarras,
       'Código Antigo': item.codigoAntigo || '',
       'Nome do Item': item.nome,
+      'Categoria': obterCategoriaItem(item, classificacoes),
+      'Subcategoria': obterSubcategoriaItem(item, classificacoes),
       'Marca': item.marca || '',
       'Especificação': item.especificacao || '',
       'Localização': item.localizacao || '',
@@ -194,6 +285,8 @@ export const exportarExcel = async ({
         { wch: 15 },
         { wch: 15 },
         { wch: 32 },
+        { wch: 22 },
+        { wch: 22 },
         { wch: 18 },
         { wch: 30 },
         { wch: 22 },
