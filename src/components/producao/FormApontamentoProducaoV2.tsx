@@ -1117,27 +1117,32 @@ export const FormApontamentoProducaoV2 = ({
             <Select
               value={demaoNumero}
               onValueChange={setDemaoNumero}
-              disabled={carregandoDemao || proximaDemao == null}
+              disabled={carregandoDemao}
             >
               <SelectTrigger><SelectValue placeholder="Selecione a demão" /></SelectTrigger>
               <SelectContent>
                 {(proximaDemao == null
-                  ? []
-                  : Array.from({ length: 8 }, (_, i) => proximaDemao + i)
+                  ? Array.from({ length: 8 }, (_, i) => i + 1)
+                  : Array.from(
+                      { length: Math.max(8, proximaDemao) },
+                      (_, i) => i + 1,
+                    )
                 ).map((numero) => (
                   <SelectItem
                     key={numero}
                     value={String(numero)}
                     disabled={proximaDemao != null && numero !== proximaDemao}
                   >
-                    {numero}ª demão{numero === proximaDemao ? ' — próxima obrigatória' : ''}
+                    {numero}ª demão
+                    {numero === proximaDemao ? ' — próxima obrigatória' : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-[11px] text-muted-foreground">
-              Demãos já concluídas não aparecem novamente. Após fechar a demão atual,
-              o próximo apontamento avança automaticamente para a seguinte.
+              {proximaDemao == null
+                ? 'Não foi possível carregar a sequência automaticamente. Selecione a demão real; o sistema validará a sequência ao salvar.'
+                : 'Demãos já concluídas não aparecem novamente. Após fechar a demão atual, o próximo apontamento avança automaticamente para a seguinte.'}
             </p>
           </div>
 
