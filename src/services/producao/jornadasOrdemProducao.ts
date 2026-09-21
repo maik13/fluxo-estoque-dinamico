@@ -234,9 +234,7 @@ export const salvarContextoJornadaOp = async (
       p_motivo_improdutivo: dados.motivoImprodutivo,
       p_observacoes: dados.observacoes,
       p_motivo_regularizacao: dados.motivoRegularizacao,
-        p_justificativa_conclusao: dados.justificativaConclusao,
-      p_consumos_tinta: dados.consumosTinta,
-      p_demao_numero: dados.demaoNumero ?? null,
+      p_justificativa_conclusao: dados.justificativaConclusao,
     },
   );
 
@@ -301,6 +299,8 @@ export const finalizarJornadaOp = async (
       p_concluir_op: dados.concluirOp,
       p_motivo_regularizacao: dados.motivoRegularizacao,
       p_justificativa_conclusao: dados.justificativaConclusao,
+      p_consumos_tinta: dados.consumosTinta,
+      p_demao_numero: dados.demaoNumero ?? null,
     },
   );
 
