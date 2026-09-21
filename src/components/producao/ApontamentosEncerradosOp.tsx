@@ -139,6 +139,11 @@ export const ApontamentosEncerradosOp = ({ ordem }: Props) => {
                     <Badge variant="outline" className="text-[10px]">
                       {statusLabel[apontamento.status] ?? apontamento.status}
                     </Badge>
+                    {apontamento.demao_numero != null && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {apontamento.demao_numero}ª demão
+                      </Badge>
+                    )}
                     {retificado && (
                       <Badge variant="outline" className="text-[10px]">
                         Retificado
