@@ -246,7 +246,7 @@ export const FormFechamentoJornadaOp = ({
       if (error) {
         setProximaDemao(null);
         setDemaoNumero('');
-        toast.error('Não foi possível identificar a próxima demão desta OP.');
+        toast.warning('Não foi possível carregar a próxima demão automaticamente. Selecione a demão real para continuar.');
         setCarregandoDemao(false);
         return;
       }
@@ -464,28 +464,35 @@ export const FormFechamentoJornadaOp = ({
         return toast.error('Não foi possível identificar a OP para validar a demão.');
       }
 
+      const informada = Number(demaoNumero);
+      if (!demaoNumero || !Number.isInteger(informada) || informada <= 0) {
+        return toast.error('Selecione a demão deste apontamento.');
+      }
+
       const { data: proximaAtual, error: erroDemao } = await (supabase.rpc as any)(
         'proxima_demao_pintura_v1',
         { p_ordem_producao_id: ordem.id },
       );
-      if (erroDemao) {
-        return toast.error('Não foi possível validar a demão desta OP. Atualize a tela e tente novamente.');
-      }
 
-      const esperada = Number(proximaAtual);
-      if (!Number.isInteger(esperada) || esperada <= 0) {
-        return toast.error('A sequência de demãos desta OP está inconsistente.');
-      }
+      if (!erroDemao) {
+        const esperada = Number(proximaAtual);
+        if (!Number.isInteger(esperada) || esperada <= 0) {
+          return toast.error('A sequência de demãos desta OP está inconsistente.');
+        }
 
-      setProximaDemao(esperada);
-      if (!demaoNumero) setDemaoNumero(String(esperada));
-
-      const informada = demaoNumero ? Number(demaoNumero) : esperada;
-      if (informada !== esperada) {
-        setDemaoNumero(String(esperada));
-        return toast.error(`A demão selecionada já não é válida. A próxima demão desta OP é a ${esperada}ª.`);
+        setProximaDemao(esperada);
+        if (informada !== esperada) {
+          setDemaoNumero(String(esperada));
+          return toast.error(
+            `A demão selecionada já não é válida. A próxima demão desta OP é a ${esperada}ª.`,
+          );
+        }
+        demaoValidada = esperada;
+      } else {
+        // A consulta auxiliar pode falhar sem bloquear a operação.
+        // A função transacional valida a sequência novamente no banco.
+        demaoValidada = informada;
       }
-      demaoValidada = esperada;
 
       const tintaUnitario = Number(tintaUnitarioMl.replace(',', '.'));
       if (!Number.isFinite(tintaUnitario) || tintaUnitario <= 0) {
