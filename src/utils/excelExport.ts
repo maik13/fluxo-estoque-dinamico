@@ -8,6 +8,8 @@ interface ExportOptions {
   nomeEstoque: string;
   itens: EstoqueItem[];
   incluirEstatisticas?: boolean;
+  estoqueId?: string | null;
+  incluirSemEstoque?: boolean;
 }
 
 const itemEstaPrecificado = (item: EstoqueItem): boolean =>
@@ -53,8 +55,48 @@ export const exportarExcel = async ({
   titulo,
   nomeEstoque,
   itens,
-  incluirEstatisticas = true
+  incluirEstatisticas = true,
+  estoqueId = null,
+  incluirSemEstoque = false,
 }: ExportOptions) => {
+  // O relatório não pode depender de um snapshot antigo da tela. Quando houver
+  // um estoque identificado, recarrega a posição oficial imediatamente antes
+  // de montar a planilha.
+  let itensExportacao = itens;
+
+  if (estoqueId) {
+    const { data: saldosData, error: saldosError } = await (supabase as any).rpc(
+      'listar_saldos_estoque_v1',
+      {
+        p_estoque_id: estoqueId,
+        p_incluir_sem_estoque: incluirSemEstoque,
+      },
+    );
+
+    if (saldosError) {
+      throw new Error(
+        `Não foi possível confirmar os saldos atuais antes da exportação: ${saldosError.message ?? 'erro desconhecido'}`,
+      );
+    }
+
+    const saldos = new Map<string, { saldo: number; ultima: any | null }>();
+    for (const row of saldosData ?? []) {
+      saldos.set(String(row.item_id), {
+        saldo: Number(row.saldo_atual ?? 0),
+        ultima: row.ultima_movimentacao ?? null,
+      });
+    }
+
+    itensExportacao = itens.map((item) => {
+      const posicao = saldos.get(item.id);
+      return {
+        ...item,
+        estoqueAtual: posicao?.saldo ?? 0,
+        ultimaMovimentacao: posicao?.ultima ?? null,
+      };
+    });
+  }
+
   // Consulta somente de leitura. Se o recurso de auditoria ainda não estiver aplicado,
   // o Excel continua sendo gerado normalmente e sinaliza os itens sem histórico específico.
   const datasAtualizacaoValor = await carregarUltimaAtualizacaoValor();
@@ -63,7 +105,7 @@ export const exportarExcel = async ({
   const workbook = XLSX.utils.book_new();
 
   // Preparar dados organizados
-  const dadosOrganizados = itens.map(item => ({
+  const dadosOrganizados = itensExportacao.map(item => ({
     'Código de Barras': item.codigoBarras,
     'Nome do Item': item.nome,
     'Marca': item.marca || '',
@@ -116,7 +158,7 @@ export const exportarExcel = async ({
 
   // Criar uma aba dedicada somente aos itens que já possuem valor cadastrado.
   // Para fins operacionais, valor nulo, inválido ou igual a zero é tratado como não precificado.
-  const itensPrecificados = itens.filter(itemEstaPrecificado);
+  const itensPrecificados = itensExportacao.filter(itemEstaPrecificado);
   const dadosPrecificados = itensPrecificados.map(item => {
     const valorUnitario = item.valor as number;
     const valorTotalEstoque = valorUnitario * item.estoqueAtual;
@@ -173,10 +215,10 @@ export const exportarExcel = async ({
   // Se incluir estatísticas, criar aba de resumo
   if (incluirEstatisticas) {
     // Estatísticas gerais
-    const totalItens = itens.length;
-    const comEstoque = itens.filter(item => item.estoqueAtual > 0).length;
-    const estoqueZero = itens.filter(item => item.estoqueAtual === 0).length;
-    const estoqueBaixo = itens.filter(item =>
+    const totalItens = itensExportacao.length;
+    const comEstoque = itensExportacao.filter(item => item.estoqueAtual > 0).length;
+    const estoqueZero = itensExportacao.filter(item => item.estoqueAtual === 0).length;
+    const estoqueBaixo = itensExportacao.filter(item =>
       item.quantidadeMinima && item.estoqueAtual <= item.quantidadeMinima
     ).length;
     const totalPrecificados = itensPrecificados.length;
