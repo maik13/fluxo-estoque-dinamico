@@ -674,7 +674,7 @@ export const FormFechamentoJornadaOp = ({
               <Select
               value={demaoNumero}
               onValueChange={setDemaoNumero}
-              disabled={carregandoDemao || proximaDemao == null}
+              disabled={carregandoDemao}
             >
                 <SelectTrigger>
                   <SelectValue
