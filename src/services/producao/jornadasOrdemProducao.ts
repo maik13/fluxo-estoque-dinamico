@@ -234,6 +234,7 @@ export const salvarContextoJornadaOp = async (
       p_observacoes: dados.observacoes,
       p_motivo_regularizacao: dados.motivoRegularizacao,
         p_justificativa_conclusao: dados.justificativaConclusao,
+      p_consumos_tinta: dados.consumosTinta,
     },
   );
 
