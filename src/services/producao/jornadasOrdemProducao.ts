@@ -59,6 +59,7 @@ export interface FinalizarJornadaOpInput {
   motivoRegularizacao: string | null;
   justificativaConclusao: string | null;
   consumosTinta: ConsumoTintaInput[];
+  demaoNumero?: number | null;
 }
 
 export interface SalvarContextoJornadaOpInput {
@@ -235,6 +236,7 @@ export const salvarContextoJornadaOp = async (
       p_motivo_regularizacao: dados.motivoRegularizacao,
         p_justificativa_conclusao: dados.justificativaConclusao,
       p_consumos_tinta: dados.consumosTinta,
+      p_demao_numero: dados.demaoNumero ?? null,
     },
   );
 
@@ -285,7 +287,7 @@ export const finalizarJornadaOp = async (
   dados: FinalizarJornadaOpInput,
 ): Promise<ProducaoApontamento> => {
   const { data, error } = await (supabase.rpc as any)(
-    'finalizar_jornada_op_com_consumos_v1',
+    'finalizar_jornada_op_com_consumos_v2',
     {
       p_jornada_id: dados.jornadaId,
       p_tarefa_id: dados.tarefaId,
