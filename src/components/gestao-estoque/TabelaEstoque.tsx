@@ -35,7 +35,13 @@ type FiltroFoto = 'todas' | 'com-foto' | 'sem-foto';
 
 export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   const { obterEstoque, loading, editarItem, registrarEntrada, registrarSaida } = useEstoqueContext();
-  const { obterEstoqueAtivoInfo, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria } = useConfiguracoes();
+  const {
+    obterEstoqueAtivoInfo,
+    obterSubcategoriasAtivas,
+    obterCategoriasUnicas,
+    obterSubcategoriasPorCategoria,
+    isEstoqueAtivoPrincipal,
+  } = useConfiguracoes();
   const { canEditItems, canDeleteItems, isAdmin, canManageStock } = usePermissions();
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
@@ -319,16 +325,32 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   };
 
   // Função para exportar dados em Excel
-  const exportarExcelCompleto = () => {
-    if (modoVisualizacao === 'contado') {
-      exportarExcelContado(estoqueContado.dados, filtroTexto, estoqueInfo?.nome || 'Estoque Atual');
-    } else {
-      exportarExcel({
+  const exportarExcelCompleto = async () => {
+    try {
+      if (modoVisualizacao === 'contado') {
+        exportarExcelContado(
+          estoqueContado.dados,
+          filtroTexto,
+          estoqueInfo?.nome || 'Estoque Atual',
+        );
+        return;
+      }
+
+      await exportarExcel({
         titulo: 'RELATÓRIO DE ESTOQUE',
         nomeEstoque: estoqueInfo?.nome || 'Estoque Atual',
         itens: itensFiltrados,
-        incluirEstatisticas: true
+        incluirEstatisticas: true,
+        estoqueId: estoqueInfo?.id ?? null,
+        incluirSemEstoque: isEstoqueAtivoPrincipal(),
       });
+    } catch (error) {
+      console.error('Erro ao exportar estoque em Excel:', error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível gerar o Excel com os saldos atuais.',
+      );
     }
   };
 
