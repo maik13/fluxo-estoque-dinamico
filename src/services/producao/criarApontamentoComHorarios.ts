@@ -18,27 +18,56 @@ export const criarApontamentoComHorarios = async (
     throw new Error('A soma dos tempos deve ser igual à duração do apontamento.');
   }
 
-  const { data: id, error } = await (supabase.rpc as any)(
-    'criar_apontamento_producao_com_horarios',
-    {
-      p_data: dados.data,
-      p_ordem_producao_id: dados.ordem_producao_id ?? null,
-      p_processo_id: dados.processo_id ?? null,
-      p_projeto_local_id: dados.projeto_local_id ?? null,
-      p_tarefa_id: dados.tarefa_id,
-      p_local_tipo: dados.local_tipo,
-      p_quantidade_produzida: dados.quantidade_produzida ?? null,
-      p_inicio: dados.inicio,
-      p_termino: dados.termino,
-      p_duracao_minutos: duracao,
-      p_minutos_produtivos: minutosProdutivos,
-      p_minutos_improdutivos: minutosImprodutivos,
-      p_motivo_improdutivo: dados.motivo_improdutivo ?? null,
-      p_observacoes: dados.observacoes?.trim() || null,
-      p_membros: [...new Set(dados.membros_ids)],
-      p_horarios_membros: dados.horarios_membros ?? [],
-    },
+  const pinturaComConsumo = Boolean(
+    dados.ordem_producao_id &&
+    dados.consumos_tinta &&
+    dados.consumos_tinta.length > 0,
   );
+
+  const rpc = pinturaComConsumo
+    ? 'criar_apontamento_producao_com_consumos_tinta_v2'
+    : 'criar_apontamento_producao_com_horarios';
+
+  const parametros = pinturaComConsumo
+    ? {
+        p_data: dados.data,
+        p_ordem_producao_id: dados.ordem_producao_id ?? null,
+        p_processo_id: dados.processo_id ?? null,
+        p_projeto_local_id: dados.projeto_local_id ?? null,
+        p_tarefa_id: dados.tarefa_id,
+        p_local_tipo: dados.local_tipo,
+        p_quantidade_produzida: dados.quantidade_produzida ?? null,
+        p_inicio: dados.inicio,
+        p_termino: dados.termino,
+        p_duracao_minutos: duracao,
+        p_minutos_produtivos: minutosProdutivos,
+        p_minutos_improdutivos: minutosImprodutivos,
+        p_motivo_improdutivo: dados.motivo_improdutivo ?? null,
+        p_observacoes: dados.observacoes?.trim() || null,
+        p_membros: [...new Set(dados.membros_ids)],
+        p_consumos_tinta: dados.consumos_tinta ?? [],
+        p_demao_numero: dados.demao_numero ?? null,
+      }
+    : {
+        p_data: dados.data,
+        p_ordem_producao_id: dados.ordem_producao_id ?? null,
+        p_processo_id: dados.processo_id ?? null,
+        p_projeto_local_id: dados.projeto_local_id ?? null,
+        p_tarefa_id: dados.tarefa_id,
+        p_local_tipo: dados.local_tipo,
+        p_quantidade_produzida: dados.quantidade_produzida ?? null,
+        p_inicio: dados.inicio,
+        p_termino: dados.termino,
+        p_duracao_minutos: duracao,
+        p_minutos_produtivos: minutosProdutivos,
+        p_minutos_improdutivos: minutosImprodutivos,
+        p_motivo_improdutivo: dados.motivo_improdutivo ?? null,
+        p_observacoes: dados.observacoes?.trim() || null,
+        p_membros: [...new Set(dados.membros_ids)],
+        p_horarios_membros: dados.horarios_membros ?? [],
+      };
+
+  const { data: id, error } = await (supabase.rpc as any)(rpc, parametros);
 
   if (error) {
     throw new Error(
@@ -47,6 +76,24 @@ export const criarApontamentoComHorarios = async (
         'Não foi possível salvar os horários individuais da equipe.',
       ),
     );
+  }
+
+  if (pinturaComConsumo && dados.horarios_membros?.length) {
+    const { error: horariosError } = await (supabase.rpc as any)(
+      'salvar_horarios_membros_apontamento',
+      {
+        p_apontamento_id: id,
+        p_horarios: dados.horarios_membros,
+      },
+    );
+    if (horariosError) {
+      throw new Error(
+        formatarErroSupabase(
+          horariosError,
+          'O apontamento foi salvo, mas os horários individuais não puderam ser aplicados.',
+        ),
+      );
+    }
   }
 
   const { data: apontamento, error: readError } = await (
