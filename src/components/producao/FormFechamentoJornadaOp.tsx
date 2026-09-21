@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { formatarNumeroOrdemProducao } from '@/hooks/useOrdensProducao';
+import { formatarNumeroOrdemProducao, ordemProducaoEDePintura } from '@/hooks/useOrdensProducao';
 import { calcularDuracaoProducao } from '@/hooks/useProducao';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,6 +40,7 @@ type OrdemContexto = {
   numero: number | null;
   tarefa_id: string | null;
   tarefa_nome_snapshot: string | null;
+  descricao: string | null;
   processo_id: string | null;
   local_tipo: string | null;
   quantidade_planejada: number | null;
@@ -104,6 +105,10 @@ export const FormFechamentoJornadaOp = ({
   const [motivoRegularizacao, setMotivoRegularizacao] = useState('');
   const [motivoRegularizacaoOutro, setMotivoRegularizacaoOutro] = useState('');
   const [justificativaConclusao, setJustificativaConclusao] = useState('');
+  const [demaoNumero, setDemaoNumero] = useState('');
+  const [proximaDemao, setProximaDemao] = useState<number | null>(null);
+  const [tintaCor, setTintaCor] = useState('');
+  const [tintaUnitarioMl, setTintaUnitarioMl] = useState('');
   const inputFotosRef = useRef<HTMLInputElement>(null);
   const { anexarImagem } = useProducaoAnexos();
 
@@ -216,6 +221,35 @@ export const FormFechamentoJornadaOp = ({
   );
   const atividade = tarefas.find((tarefa) => tarefa.id === tarefaId) ?? null;
   const equipeDefinidaNoInicio = jornadaContexto.membrosIds.length > 0;
+  const opDePintura = ordemProducaoEDePintura(ordem);
+
+  useEffect(() => {
+    if (!opDePintura || !ordem?.id) {
+      setProximaDemao(null);
+      setDemaoNumero('');
+      return;
+    }
+
+    let ativo = true;
+    void (async () => {
+      const { data, error } = await (supabase.rpc as any)(
+        'proxima_demao_pintura_v1',
+        { p_ordem_producao_id: ordem.id },
+      );
+      if (!ativo) return;
+      if (error) {
+        toast.error('Não foi possível identificar a próxima demão desta OP.');
+        return;
+      }
+      const proxima = Number(data);
+      setProximaDemao(proxima);
+      setDemaoNumero(String(proxima));
+    })();
+
+    return () => {
+      ativo = false;
+    };
+  }, [opDePintura, ordem?.id]);
 
   const duracao = useMemo(() => {
     if (!inicio || !termino) return null;
@@ -250,6 +284,19 @@ export const FormFechamentoJornadaOp = ({
       ? quantidadeNumerica
       : null;
     const improdutivos = Number(minutosImprodutivos || 0);
+    if (opDePintura) {
+      if (quantidadeNormalizada == null || quantidadeNormalizada <= 0) {
+        return toast.error('Informe a quantidade de peças pintadas nesta demão.');
+      }
+      if (!demaoNumero || Number(demaoNumero) !== proximaDemao) {
+        return toast.error(`Selecione a ${proximaDemao ?? ''}ª demão para este apontamento.`);
+      }
+      const tintaUnitario = Number(tintaUnitarioMl.replace(',', '.'));
+      if (!Number.isFinite(tintaUnitario) || tintaUnitario <= 0) {
+        return toast.error('Informe o valor de tinta unitário por peça em mL.');
+      }
+    }
+
     const motivoRetroativo = motivoRegularizacao === 'Outro'
       ? motivoRegularizacaoOutro.trim()
       : motivoRegularizacao.trim();
@@ -430,6 +477,13 @@ export const FormFechamentoJornadaOp = ({
         concluirOp: jornadaContexto.concluirOp,
         motivoRegularizacao: fechamentoRetroativo ? motivoRetroativo : null,
         justificativaConclusao: justificativaConclusao.trim() || null,
+        consumosTinta: opDePintura
+          ? [{
+              cor: tintaCor.trim() || null,
+              quantidade_unitaria_ml: Number(tintaUnitarioMl.replace(',', '.')),
+            }]
+          : [],
+        demaoNumero: opDePintura ? Number(demaoNumero) : null,
       });
 
       let falhas = 0;
@@ -561,9 +615,47 @@ export const FormFechamentoJornadaOp = ({
         </div>
       )}
 
+      {opDePintura && (
+        <div className="space-y-4 rounded-lg border-2 border-lime-400 bg-lime-300/10 p-4">
+          <div>
+            <p className="font-semibold">Controle de pintura por demão</p>
+            <p className="text-xs text-muted-foreground">
+              Cada apontamento representa uma demão. A quantidade de peças pode se repetir nas demãos seguintes.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label>Demão deste apontamento *</Label>
+              <Select value={demaoNumero} onValueChange={setDemaoNumero}>
+                <SelectTrigger><SelectValue placeholder="Selecione a demão" /></SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: Math.max(8, (proximaDemao ?? 1) + 2) }, (_, i) => i + 1).map((numero) => (
+                    <SelectItem
+                      key={numero}
+                      value={String(numero)}
+                      disabled={proximaDemao != null && numero !== proximaDemao}
+                    >
+                      {numero}ª demão{numero === proximaDemao ? ' — próxima' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tinta / cor</Label>
+              <Input value={tintaCor} onChange={(e) => setTintaCor(e.target.value)} placeholder="Ex.: Branco" />
+            </div>
+            <div className="space-y-2">
+              <Label>Valor de tinta unitário por peça (mL) *</Label>
+              <Input inputMode="decimal" value={tintaUnitarioMl} onChange={(e) => setTintaUnitarioMl(e.target.value)} placeholder="35" />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-3">
         <div className="space-y-2">
-          <Label>Quantidade produzida</Label>
+          <Label>{opDePintura ? 'Quantidade de peças pintadas nesta demão *' : 'Quantidade produzida'}</Label>
           <Input inputMode="decimal" value={quantidade} onChange={(e) => setQuantidade(e.target.value)} />
         </div>
         <div className="space-y-2">
