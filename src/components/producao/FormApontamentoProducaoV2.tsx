@@ -297,7 +297,7 @@ export const FormApontamentoProducaoV2 = ({
       if (error) {
         setDemaoNumero('');
         setProximaDemao(null);
-        toast.error('Não foi possível identificar a próxima demão desta OP.');
+        toast.warning('Não foi possível carregar a próxima demão automaticamente. Selecione a demão real para continuar.');
         setCarregandoDemao(false);
         return;
       }
@@ -606,31 +606,38 @@ export const FormApontamentoProducaoV2 = ({
         return;
       }
 
+      const informada = Number(demaoNumero);
+      if (!demaoNumero || !Number.isInteger(informada) || informada <= 0) {
+        toast.error('Selecione a demão deste apontamento.');
+        return;
+      }
+
       const { data: proximaAtual, error: erroDemao } = await (supabase.rpc as any)(
         'proxima_demao_pintura_v1',
         { p_ordem_producao_id: ordemSelecionada.id },
       );
-      if (erroDemao) {
-        toast.error('Não foi possível validar a demão desta OP. Atualize a tela e tente novamente.');
-        return;
-      }
 
-      const esperada = Number(proximaAtual);
-      if (!Number.isInteger(esperada) || esperada <= 0) {
-        toast.error('A sequência de demãos desta OP está inconsistente.');
-        return;
-      }
+      if (!erroDemao) {
+        const esperada = Number(proximaAtual);
+        if (!Number.isInteger(esperada) || esperada <= 0) {
+          toast.error('A sequência de demãos desta OP está inconsistente.');
+          return;
+        }
 
-      setProximaDemao(esperada);
-      if (!demaoNumero) setDemaoNumero(String(esperada));
-
-      const informada = demaoNumero ? Number(demaoNumero) : esperada;
-      if (informada !== esperada) {
-        setDemaoNumero(String(esperada));
-        toast.error(`A demão selecionada já não é válida. A próxima demão desta OP é a ${esperada}ª.`);
-        return;
+        setProximaDemao(esperada);
+        if (informada !== esperada) {
+          setDemaoNumero(String(esperada));
+          toast.error(
+            `A demão selecionada já não é válida. A próxima demão desta OP é a ${esperada}ª.`,
+          );
+          return;
+        }
+        demaoValidada = esperada;
+      } else {
+        // Não bloqueia o formulário por falha da consulta auxiliar.
+        // A RPC transacional de gravação valida a sequência novamente no banco.
+        demaoValidada = informada;
       }
-      demaoValidada = esperada;
 
       if (
         quantidadeNormalizada === null ||
