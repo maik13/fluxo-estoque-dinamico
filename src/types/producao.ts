@@ -84,7 +84,7 @@ export interface HorarioMembroApontamento {
 }
 export interface ConsumoTintaInput {
   cor?: string | null;
-  quantidade_ml: number;
+  quantidade_unitaria_ml: number;
 }
 
 export interface ProducaoConsumoTinta {
@@ -93,6 +93,8 @@ export interface ProducaoConsumoTinta {
   apontamento_id: string | null;
   cor: string | null;
   quantidade_ml: number;
+  quantidade_unitaria_ml: number | null;
+  quantidade_pecas: number | null;
   criado_por_id: string;
   criado_por_nome_snapshot: string;
   created_at: string;
