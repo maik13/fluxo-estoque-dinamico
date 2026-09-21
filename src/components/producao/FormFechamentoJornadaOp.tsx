@@ -629,17 +629,24 @@ export const FormFechamentoJornadaOp = ({
               <Select value={demaoNumero} onValueChange={setDemaoNumero}>
                 <SelectTrigger><SelectValue placeholder="Selecione a demão" /></SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: Math.max(8, (proximaDemao ?? 1) + 2) }, (_, i) => i + 1).map((numero) => (
+                  {Array.from(
+                    { length: 8 },
+                    (_, i) => (proximaDemao ?? 1) + i,
+                  ).map((numero) => (
                     <SelectItem
                       key={numero}
                       value={String(numero)}
                       disabled={proximaDemao != null && numero !== proximaDemao}
                     >
-                      {numero}ª demão{numero === proximaDemao ? ' — próxima' : ''}
+                      {numero}ª demão{numero === proximaDemao ? ' — próxima obrigatória' : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Demãos já concluídas não aparecem novamente. Após fechar a demão atual,
+                o próximo apontamento avança automaticamente para a seguinte.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Tinta / cor</Label>
