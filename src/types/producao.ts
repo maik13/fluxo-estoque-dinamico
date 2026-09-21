@@ -63,6 +63,7 @@ export interface ProducaoApontamento {
   jornada_op_id: string | null; termino_real_em: string | null; fechamento_retroativo: boolean;
   motivo_regularizacao: string | null; regularizado_por_id: string | null; regularizado_por_nome_snapshot: string | null;
   regularizado_em: string | null;
+  demao_numero: number | null;
   criado_por_id: string | null; criado_por_nome_snapshot: string | null; ultima_edicao_por_id: string | null;
   ultima_edicao_por_nome_snapshot: string | null; ultima_edicao_em: string | null; conferido_por_id: string | null;
   conferido_por_nome_snapshot: string | null; conferido_em: string | null; cancelado_por_id: string | null;
@@ -118,6 +119,7 @@ export interface NovoApontamentoProducao {
   minutos_produtivos?: number | null; minutos_improdutivos?: number | null; motivo_improdutivo?: string | null;
   observacoes?: string | null; membros_ids: string[]; horarios_membros?: HorarioMembroApontamento[];
   consumos_tinta?: ConsumoTintaInput[];
+  demao_numero?: number | null;
 }
 export interface FiltrosProducao { data_inicio?: string; data_fim?: string; projeto_local_id?: string; processo_id?: string; ordem_producao_id?: string; tarefa_id?: string; status?: ProducaoStatus; local_tipo?: ProducaoLocalTipo; }
 export interface FiltrosProducaoGerencial extends FiltrosProducao { membro_id?: string; }
