@@ -107,6 +107,7 @@ export const FormFechamentoJornadaOp = ({
   const [justificativaConclusao, setJustificativaConclusao] = useState('');
   const [demaoNumero, setDemaoNumero] = useState('');
   const [proximaDemao, setProximaDemao] = useState<number | null>(null);
+  const [carregandoDemao, setCarregandoDemao] = useState(false);
   const [tintaCor, setTintaCor] = useState('');
   const [tintaUnitarioMl, setTintaUnitarioMl] = useState('');
   const inputFotosRef = useRef<HTMLInputElement>(null);
@@ -227,10 +228,15 @@ export const FormFechamentoJornadaOp = ({
     if (!opDePintura || !ordem?.id) {
       setProximaDemao(null);
       setDemaoNumero('');
+      setCarregandoDemao(false);
       return;
     }
 
     let ativo = true;
+    setCarregandoDemao(true);
+    setProximaDemao(null);
+    setDemaoNumero('');
+
     void (async () => {
       const { data, error } = await (supabase.rpc as any)(
         'proxima_demao_pintura_v1',
@@ -238,12 +244,25 @@ export const FormFechamentoJornadaOp = ({
       );
       if (!ativo) return;
       if (error) {
+        setProximaDemao(null);
+        setDemaoNumero('');
         toast.error('Não foi possível identificar a próxima demão desta OP.');
+        setCarregandoDemao(false);
         return;
       }
+
       const proxima = Number(data);
+      if (!Number.isInteger(proxima) || proxima <= 0) {
+        setProximaDemao(null);
+        setDemaoNumero('');
+        toast.error('A sequência de demãos desta OP está inconsistente.');
+        setCarregandoDemao(false);
+        return;
+      }
+
       setProximaDemao(proxima);
       setDemaoNumero(String(proxima));
+      setCarregandoDemao(false);
     })();
 
     return () => {
@@ -435,13 +454,39 @@ export const FormFechamentoJornadaOp = ({
       return toast.error('Informe uma quantidade válida.');
     }
 
+    let demaoValidada: number | null = null;
     if (opDePintura) {
       if (quantidadeNormalizada == null || quantidadeNormalizada <= 0) {
         return toast.error('Informe a quantidade de peças pintadas nesta demão.');
       }
-      if (!demaoNumero || Number(demaoNumero) !== proximaDemao) {
-        return toast.error(`Selecione a ${proximaDemao ?? ''}ª demão para este apontamento.`);
+
+      if (!ordem?.id) {
+        return toast.error('Não foi possível identificar a OP para validar a demão.');
       }
+
+      const { data: proximaAtual, error: erroDemao } = await (supabase.rpc as any)(
+        'proxima_demao_pintura_v1',
+        { p_ordem_producao_id: ordem.id },
+      );
+      if (erroDemao) {
+        return toast.error('Não foi possível validar a demão desta OP. Atualize a tela e tente novamente.');
+      }
+
+      const esperada = Number(proximaAtual);
+      if (!Number.isInteger(esperada) || esperada <= 0) {
+        return toast.error('A sequência de demãos desta OP está inconsistente.');
+      }
+
+      setProximaDemao(esperada);
+      if (!demaoNumero) setDemaoNumero(String(esperada));
+
+      const informada = demaoNumero ? Number(demaoNumero) : esperada;
+      if (informada !== esperada) {
+        setDemaoNumero(String(esperada));
+        return toast.error(`A demão selecionada já não é válida. A próxima demão desta OP é a ${esperada}ª.`);
+      }
+      demaoValidada = esperada;
+
       const tintaUnitario = Number(tintaUnitarioMl.replace(',', '.'));
       if (!Number.isFinite(tintaUnitario) || tintaUnitario <= 0) {
         return toast.error('Informe o valor de tinta unitário por peça em mL.');
@@ -483,7 +528,7 @@ export const FormFechamentoJornadaOp = ({
               quantidade_unitaria_ml: Number(tintaUnitarioMl.replace(',', '.')),
             }]
           : [],
-        demaoNumero: opDePintura ? Number(demaoNumero) : null,
+        demaoNumero: opDePintura ? demaoValidada : null,
       });
 
       let falhas = 0;
@@ -626,12 +671,20 @@ export const FormFechamentoJornadaOp = ({
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label>Demão deste apontamento *</Label>
-              <Select value={demaoNumero} onValueChange={setDemaoNumero}>
-                <SelectTrigger><SelectValue placeholder="Selecione a demão" /></SelectTrigger>
+              <Select
+              value={demaoNumero}
+              onValueChange={setDemaoNumero}
+              disabled={carregandoDemao || proximaDemao == null}
+            >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={carregandoDemao ? 'Carregando próxima demão...' : 'Selecione a demão'}
+                  />
+                </SelectTrigger>
                 <SelectContent>
-                  {Array.from(
-                    { length: 8 },
-                    (_, i) => (proximaDemao ?? 1) + i,
+                  {(proximaDemao == null
+                    ? []
+                    : Array.from({ length: 8 }, (_, i) => proximaDemao + i)
                   ).map((numero) => (
                     <SelectItem
                       key={numero}
