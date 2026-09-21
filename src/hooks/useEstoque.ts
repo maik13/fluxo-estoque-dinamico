@@ -610,18 +610,85 @@ export const useEstoque = () => {
   const isEntradaParaAcerto = (mov: Pick<Movimentacao, 'tipo' | 'tipoOperacaoNome'>) =>
     mov.tipo === 'ENTRADA' && normalizarTexto(mov.tipoOperacaoNome).includes('acerto');
 
-  // Saldo oficial da tela vem do servidor; não depende de baixar o histórico inteiro no navegador.
+  const ultimasMovimentacoesDoHistorico = useMemo(() => {
+    const mapa = new Map<string, Movimentacao>();
+
+    for (const movimentacao of movimentacoes) {
+      const atual = mapa.get(movimentacao.itemId);
+      if (!atual) {
+        mapa.set(movimentacao.itemId, movimentacao);
+        continue;
+      }
+
+      const dataNova = new Date(movimentacao.dataHora).getTime();
+      const dataAtual = new Date(atual.dataHora).getTime();
+
+      if (
+        dataNova > dataAtual ||
+        (dataNova === dataAtual && movimentacao.id > atual.id)
+      ) {
+        mapa.set(movimentacao.itemId, movimentacao);
+      }
+    }
+
+    return mapa;
+  }, [movimentacoes]);
+
+  const resolverPosicaoAtual = useCallback(
+    (itemId: string) => {
+      const ultimaServidor = ultimasMovimentacoesEstoque.get(itemId);
+      const ultimaHistorico = ultimasMovimentacoesDoHistorico.get(itemId);
+
+      let ultima = ultimaServidor ?? ultimaHistorico ?? null;
+
+      if (ultimaServidor && ultimaHistorico) {
+        const dataServidor = new Date(ultimaServidor.dataHora).getTime();
+        const dataHistorico = new Date(ultimaHistorico.dataHora).getTime();
+
+        if (
+          dataHistorico > dataServidor ||
+          (dataHistorico === dataServidor &&
+            ultimaHistorico.id > ultimaServidor.id)
+        ) {
+          ultima = ultimaHistorico;
+        }
+      }
+
+      if (ultima) {
+        return {
+          saldo: Number(ultima.quantidadeAtual ?? 0),
+          ultima,
+        };
+      }
+
+      return {
+        saldo: saldosEstoque.get(itemId) ?? 0,
+        ultima: null,
+      };
+    },
+    [
+      saldosEstoque,
+      ultimasMovimentacoesDoHistorico,
+      ultimasMovimentacoesEstoque,
+    ],
+  );
+
+  // A posição exibida e o histórico compartilham a mesma verdade: quantidade_atual
+  // da última movimentação conhecida para o item.
   const calcularEstoqueAtual = (itemId: string): number => {
-    return saldosEstoque.get(itemId) ?? 0;
+    return resolverPosicaoAtual(itemId).saldo;
   };
 
   const estoqueCalculado = useMemo(() => {
-    return itens.map(item => ({
-      ...item,
-      estoqueAtual: saldosEstoque.get(item.id) ?? 0,
-      ultimaMovimentacao: ultimasMovimentacoesEstoque.get(item.id) || null,
-    }));
-  }, [itens, saldosEstoque, ultimasMovimentacoesEstoque]);
+    return itens.map((item) => {
+      const posicao = resolverPosicaoAtual(item.id);
+      return {
+        ...item,
+        estoqueAtual: posicao.saldo,
+        ultimaMovimentacao: posicao.ultima,
+      };
+    });
+  }, [itens, resolverPosicaoAtual]);
 
   // Obter estoque com quantidades atuais - agora retorna o cache
   const obterEstoque = useCallback((): EstoqueItem[] => {
