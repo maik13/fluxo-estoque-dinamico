@@ -229,6 +229,19 @@ export const useEstoque = () => {
               if (prev.some(m => m.id === novaMovimentacao.id)) return prev;
               return [...prev, novaMovimentacao];
             });
+            setSaldosEstoque((prev) => {
+              const proximo = new Map(prev);
+              proximo.set(
+                payload.new.item_id,
+                Number(payload.new.quantidade_atual ?? 0),
+              );
+              return proximo;
+            });
+            setUltimasMovimentacoesEstoque((prev) => {
+              const proximo = new Map(prev);
+              proximo.set(payload.new.item_id, novaMovimentacao);
+              return proximo;
+            });
           }
         }
       )
@@ -303,6 +316,19 @@ export const useEstoque = () => {
             itemSnapshot: payload.new.item_snapshot as Partial<Item>,
           };
           setMovimentacoes(prev => prev.map(m => m.id === movimentacaoAtualizada.id ? movimentacaoAtualizada : m));
+          setSaldosEstoque((prev) => {
+            const proximo = new Map(prev);
+            proximo.set(
+              payload.new.item_id,
+              Number(payload.new.quantidade_atual ?? 0),
+            );
+            return proximo;
+          });
+          setUltimasMovimentacoesEstoque((prev) => {
+            const proximo = new Map(prev);
+            proximo.set(payload.new.item_id, movimentacaoAtualizada);
+            return proximo;
+          });
         }
       )
       .on(
