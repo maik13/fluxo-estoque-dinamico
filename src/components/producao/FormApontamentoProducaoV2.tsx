@@ -110,6 +110,8 @@ export const FormApontamentoProducaoV2 = ({
   const [consumosTinta, setConsumosTinta] = useState<ConsumoTintaForm[]>([
     consumoTintaVazio(),
   ]);
+  const [demaoNumero, setDemaoNumero] = useState('');
+  const [proximaDemao, setProximaDemao] = useState<number | null>(null);
   const inputFotosRef = useRef<HTMLInputElement>(null);
   const { ordens, listarOrdens } = useOrdensProducao();
   const { anexarImagem } = useProducaoAnexos();
@@ -272,6 +274,34 @@ export const FormApontamentoProducaoV2 = ({
     }
   }, [jornadaContexto, membros, ordemSelecionada, tarefas]);
 
+  useEffect(() => {
+    if (!opDePintura || !ordemSelecionada?.id) {
+      setDemaoNumero('');
+      setProximaDemao(null);
+      return;
+    }
+
+    let ativo = true;
+    void (async () => {
+      const { data, error } = await (supabase.rpc as any)(
+        'proxima_demao_pintura_v1',
+        { p_ordem_producao_id: ordemSelecionada.id },
+      );
+      if (!ativo) return;
+      if (error) {
+        toast.error('Não foi possível identificar a próxima demão desta OP.');
+        return;
+      }
+      const proxima = Number(data);
+      setProximaDemao(proxima);
+      setDemaoNumero(String(proxima));
+    })();
+
+    return () => {
+      ativo = false;
+    };
+  }, [opDePintura, ordemSelecionada?.id]);
+
   const duracao = useMemo(() => {
     if (!inicio || !termino) return null;
     try {
@@ -387,6 +417,8 @@ export const FormApontamentoProducaoV2 = ({
     setMotivoRegularizacaoOutro('');
     setJustificativaConclusao('');
     setConsumosTinta([consumoTintaVazio()]);
+    setDemaoNumero('');
+    setProximaDemao(null);
     setContextoPronto(false);
     if (inputFotosRef.current) inputFotosRef.current.value = '';
   };
@@ -549,6 +581,10 @@ export const FormApontamentoProducaoV2 = ({
     }> = [];
 
     if (opDePintura) {
+      if (!demaoNumero || Number(demaoNumero) !== proximaDemao) {
+        toast.error(`Selecione a ${proximaDemao ?? ''}ª demão para este apontamento.`);
+        return;
+      }
       if (
         quantidadeNormalizada === null ||
         !Number.isFinite(quantidadeNormalizada) ||
@@ -622,6 +658,7 @@ export const FormApontamentoProducaoV2 = ({
             justificativaConclusao:
               justificativaConclusao.trim() || null,
             consumosTinta: consumosTintaNormalizados,
+            demaoNumero: opDePintura ? Number(demaoNumero) : null,
           })
         : await criarApontamento({
             data,
@@ -644,6 +681,7 @@ export const FormApontamentoProducaoV2 = ({
               opDePintura && consumosTintaNormalizados.length > 0
                 ? consumosTintaNormalizados
                 : undefined,
+            demao_numero: opDePintura ? Number(demaoNumero) : null,
           });
 
       let falhas = 0;
@@ -1025,6 +1063,24 @@ export const FormApontamentoProducaoV2 = ({
               obrigatório. O sistema multiplica automaticamente o valor informado
               pela quantidade de peças produzidas neste apontamento.
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Demão deste apontamento *</Label>
+            <Select value={demaoNumero} onValueChange={setDemaoNumero}>
+              <SelectTrigger><SelectValue placeholder="Selecione a demão" /></SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: Math.max(8, (proximaDemao ?? 1) + 2) }, (_, i) => i + 1).map((numero) => (
+                  <SelectItem
+                    key={numero}
+                    value={String(numero)}
+                    disabled={proximaDemao != null && numero !== proximaDemao}
+                  >
+                    {numero}ª demão{numero === proximaDemao ? ' — próxima' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-3">
