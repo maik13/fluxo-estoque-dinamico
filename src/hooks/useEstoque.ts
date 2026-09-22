@@ -5,6 +5,7 @@ import { useConfiguracoes } from './useConfiguracoes';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';
+import { itemEhFerramenta } from '@/utils/itemClassification';
 
 export const useEstoque = () => {
   const [itens, setItens] = useState<Item[]>([]);
@@ -12,7 +13,7 @@ export const useEstoque = () => {
   const [saldosEstoque, setSaldosEstoque] = useState<Map<string, number>>(new Map());
   const [ultimasMovimentacoesEstoque, setUltimasMovimentacoesEstoque] = useState<Map<string, Movimentacao>>(new Map());
   const [loading, setLoading] = useState(true);
-  const { estoqueAtivo, obterEstoqueAtivoInfo, isEstoqueAtivoPrincipal } = useConfiguracoes();
+  const { estoqueAtivo, obterEstoqueAtivoInfo, isEstoqueAtivoPrincipal, categorias } = useConfiguracoes();
   const { user } = useAuth();
   
   // Refs para controle de carregamento e prevenção de duplicatas
@@ -910,7 +911,7 @@ const registrarSaida = async (
     const estoqueAtivoInfo = obterEstoqueAtivoInfo();
     
     // Regra para ferramentas: bloqueio de duplicidade e quantidade
-    if (item.tipoItem === 'Ferramenta') {
+    if (itemEhFerramenta(item, categorias)) {
       if (quantidade > 1) {
         toast({ 
           title: 'Quantidade inválida', 
