@@ -25,6 +25,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { materialRequestSchema } from '@/schemas/validation';
 import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';
+import { itemEhFerramenta } from '@/utils/itemClassification';
 
 export const SolicitarMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
@@ -54,7 +55,7 @@ export const SolicitarMaterial = () => {
   const { obterEstoque } = useEstoqueContext();
   const { criarSolicitacao, solicitacoes, loading, atualizarAceites } = useSolicitacoes();
   const { canManageStock, userProfile } = usePermissions();
-  const { obterTiposOperacaoAtivos, obterSolicitantesAtivos, obterLocaisUtilizacaoAtivos } = useConfiguracoes();
+  const { obterTiposOperacaoAtivos, obterSolicitantesAtivos, obterLocaisUtilizacaoAtivos, categorias } = useConfiguracoes();
   
   // ── Regra 1: Apenas itens ativos COM saldo > 0 podem ser solicitados ──
   const itensDisponiveis = obterEstoque().filter(
@@ -135,7 +136,7 @@ export const SolicitarMaterial = () => {
 
   const adicionarItem = (item: Item, quantidade: number) => {
     // Regra para ferramentas: quantidade máxima 1 e não pode repetir na lista
-    if (item.tipoItem === 'Ferramenta') {
+    if (itemEhFerramenta(item, categorias)) {
       const toolAlreadyInList = itensSolicitados.find(i => i.item_id === item.id);
       if (toolAlreadyInList) {
         toast.warning(`A ferramenta "${item.nome}" já está na lista.`);
@@ -170,8 +171,7 @@ export const SolicitarMaterial = () => {
             codigoBarras: item.codigoBarras,
             unidade: item.unidade,
             marca: item.marca,
-            especificacao: item.especificacao,
-            tipoItem: item.tipoItem
+            especificacao: item.especificacao
           }
         }
       ]);
@@ -209,7 +209,7 @@ export const SolicitarMaterial = () => {
 
     // ── Regra 2: Ferramenta sempre fica com quantidade 1 ──
     const itemNaLista = itensSolicitados.find(i => i.item_id === itemId);
-    const eFerramenta = (itemNaLista?.item_snapshot as any)?.tipoItem === 'Ferramenta';
+    const eFerramenta = itemEhFerramenta((itemNaLista?.item_snapshot as any), categorias);
     if (eFerramenta) {
       // Bloqueia silenciosamente — UI já impede, mas garantimos aqui
       return;
@@ -266,7 +266,7 @@ export const SolicitarMaterial = () => {
     // Validar ferramentas e insumos
     for (const item of itensSolicitados) {
       const itemFull = item.item_snapshot as any;
-      if (itemFull?.tipoItem === 'Ferramenta') {
+      if (itemEhFerramenta(itemFull, categorias)) {
         const { alocada, localAtual } = await verificarFerramentaAlocada(item.item_id);
         if (alocada) {
           toast.error(`A ferramenta "${itemFull.nome}" já está alocada e possui devolução pendente.${localAtual ? ` Local atual: ${localAtual}` : ''}. Faça a devolução antes de retirá-la novamente.`);
@@ -550,7 +550,7 @@ export const SolicitarMaterial = () => {
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                   {itensSolicitados.map((itemSolicitado) => {
                     const item = itemSolicitado.item_snapshot;
-                    const eFerramenta = (item as any)?.tipoItem === 'Ferramenta';
+                    const eFerramenta = itemEhFerramenta((item as any), categorias);
                     return (
                       <Card key={itemSolicitado.item_id} className="border-border/60">
                         <CardContent className="p-3">
