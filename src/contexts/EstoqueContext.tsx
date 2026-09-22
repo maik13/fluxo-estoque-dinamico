@@ -22,7 +22,6 @@ const itemToDbPayload = (item: any) => ({
   caixa_organizador: item.caixaOrganizador ?? '',
   localizacao: item.localizacao ?? '',
   nome: item.nome,
-  tipo_item: item.tipoItem,
   especificacao: item.especificacao ?? '',
   marca: item.marca ?? '',
   unidade: item.unidade,
@@ -50,7 +49,7 @@ const rpcOfflineInventarioIndisponivel = (mensagem?: string) => {
 
 export const EstoqueProvider = ({ children }: { children: React.ReactNode }) => {
   const estoque = useEstoque();
-  const { obterEstoqueAtivoInfo, isEstoqueAtivoPrincipal } = useConfiguracoes();
+  const { obterEstoqueAtivoInfo, isEstoqueAtivoPrincipal, categorias } = useConfiguracoes();
   const carregarDadosRef = useRef(estoque.carregarDados);
 
   useEffect(() => {
@@ -275,7 +274,10 @@ export const EstoqueProvider = ({ children }: { children: React.ReactNode }) => 
       toast({ title: 'Estoque insuficiente', description: `Saldo disponível/projetado: ${saldoProjetado} ${item.unidade}.`, variant: 'destructive' });
       return false;
     }
-    if (item.tipoItem === 'Ferramenta' && quantidade > 1) {
+    const categoriaFerramentaId = categorias.find(
+      (categoria) => categoria.ativo && categoria.nome === 'Ferramenta',
+    )?.id;
+    if (categoriaFerramentaId && item.categoriaId === categoriaFerramentaId && quantidade > 1) {
       toast({ title: 'Quantidade inválida', description: 'Ferramentas devem ser retiradas individualmente.', variant: 'destructive' });
       return false;
     }
