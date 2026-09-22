@@ -103,6 +103,21 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
     return obterCategoriasUnicas();
   }, [obterCategoriasUnicas]);
 
+  const categoriasPorId = useMemo(
+    () => new Map(categorias.map((categoria) => [categoria.id, categoria.nome])),
+    [categorias],
+  );
+
+  const subcategoriasPorId = useMemo(
+    () => new Map(todasSubcategorias.map((subcategoria) => [subcategoria.id, subcategoria.nome])),
+    [todasSubcategorias],
+  );
+
+  const categoriaSelecionadaId = useMemo(() => {
+    if (filtroCategoria === 'todas') return null;
+    return categorias.find((categoria) => categoria.nome === filtroCategoria)?.id ?? null;
+  }, [categorias, filtroCategoria]);
+
   // Filtrar subcategorias baseado na categoria selecionada
   const subcategoriasFiltradas = useMemo(() => {
     if (filtroCategoria === 'todas') return todasSubcategorias;
@@ -115,12 +130,6 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   }, [filtroCategoria]);
 
   // Filtrar itens baseado nos filtros ativos
-  // IDs de subcategorias válidas para a categoria selecionada
-  const subcategoriaIdsDaCategoria = useMemo(() => {
-    if (filtroCategoria === 'todas') return null;
-    return new Set(subcategoriasFiltradas.map(s => s.id));
-  }, [filtroCategoria, subcategoriasFiltradas]);
-
   const itensFiltrados = useMemo(() => {
     return estoque.filter(item => {
       const textoFiltro = filtroTexto.trim().toLowerCase();
@@ -134,9 +143,8 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
             item.especificacao.toLowerCase().includes(textoFiltro)
       );
 
-      // Filtro por categoria (via subcategorias vinculadas)
-      const matchCategoria = !subcategoriaIdsDaCategoria || 
-        (item.subcategoriaId ? subcategoriaIdsDaCategoria.has(item.subcategoriaId) : false);
+      // Categoria explícita do item é a fonte oficial.
+      const matchCategoria = !categoriaSelecionadaId || item.categoriaId === categoriaSelecionadaId;
 
       // Filtro por subcategoria
       const matchSubcategoria = filtroSubcategoria === 'todas' || item.subcategoriaId === filtroSubcategoria;
@@ -171,7 +179,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
 
       return matchTexto && matchCategoria && matchSubcategoria && matchCondicao && matchEstoque && matchFoto && matchStatus;
     });
-  }, [estoque, filtroTexto, subcategoriaIdsDaCategoria, filtroSubcategoria, filtroCondicao, filtroEstoque, filtroFoto, filtroStatus]);
+  }, [estoque, filtroTexto, categoriaSelecionadaId, filtroSubcategoria, filtroCondicao, filtroEstoque, filtroFoto, filtroStatus]);
   
   // Resetar página quando filtros mudarem
   useEffect(() => {
@@ -829,7 +837,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                   <TableHead>Código</TableHead>
                   <TableHead>Foto</TableHead>
                   <TableHead>Nome</TableHead>
-                  <TableHead>Tipo</TableHead>
+                  <TableHead>Categoria</TableHead>
                   <TableHead>Marca</TableHead>
                   <TableHead>Localização</TableHead>
                   <TableHead>Estoque</TableHead>
@@ -901,9 +909,18 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={item.tipoItem === 'Ferramenta' ? 'default' : 'secondary'}>
-                          {item.tipoItem}
-                        </Badge>
+                        <div className="min-w-[130px]">
+                          <Badge variant="secondary">
+                            {item.categoriaId
+                              ? categoriasPorId.get(item.categoriaId) || 'Sem categoria'
+                              : 'Sem categoria'}
+                          </Badge>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {item.subcategoriaId
+                              ? subcategoriasPorId.get(item.subcategoriaId) || 'Sem subcategoria'
+                              : 'Sem subcategoria'}
+                          </p>
+                        </div>
                       </TableCell>
                       <TableCell>{item.marca}</TableCell>
                       <TableCell>
