@@ -85,27 +85,44 @@ export const useConsolidacao = (
   };
 
   const dadosConsolidados = useMemo(() => {
-    // Lookup de categorias para performance
-    const catSubMap = new Map<string, string>(); // subcatId -> catId
-    categoriasSubcategorias.forEach(rel => {
-      if (!catSubMap.has(rel.subcategoria_id)) {
-        catSubMap.set(rel.subcategoria_id, rel.categoria_id);
-      }
+    // Fallback por subcategoria somente quando a relação é inequívoca.
+    // Na taxonomia atual uma mesma subcategoria pode pertencer a várias categorias.
+    const relacoesPorSubcategoria = new Map<string, string[]>();
+    categoriasSubcategorias.forEach((rel) => {
+      const atuais = relacoesPorSubcategoria.get(rel.subcategoria_id) ?? [];
+      atuais.push(rel.categoria_id);
+      relacoesPorSubcategoria.set(rel.subcategoria_id, atuais);
+    });
+
+    const catSubMap = new Map<string, string>();
+    relacoesPorSubcategoria.forEach((categoriaIds, subcategoriaId) => {
+      const unicas = [...new Set(categoriaIds)];
+      if (unicas.length === 1) catSubMap.set(subcategoriaId, unicas[0]);
     });
 
     const catMap = new Map<string, string>(categorias.map(c => [c.id, c.nome]));
 
     const resolveClassificacao = (snapshot?: any) => {
       if (!snapshot) return '-';
-      
-      // 1. Tentar obter o nome diretamente pelo ID da categoria (mais preciso e moderno)
+
+      // 1. Categoria direta do item/snapshot: fonte oficial.
       const catIdDirect = snapshot.categoriaId || snapshot.categoria_id;
       if (catIdDirect) {
         const nomeDireto = catMap.get(catIdDirect);
         if (nomeDireto) return nomeDireto;
       }
 
-      // 2. Fallback: Tentar resolver via subcategoria (para movimentações antigas)
+      // 2. Nome gravado no snapshot sincronizado.
+      const nomeSnapshot =
+        snapshot.categoriaNome ||
+        snapshot.categoria ||
+        snapshot.categoria_nome;
+      if (typeof nomeSnapshot === 'string' && nomeSnapshot.trim()) {
+        return nomeSnapshot.trim();
+      }
+
+      // 3. Compatibilidade com snapshots antigos: só resolve por subcategoria
+      // quando ela pertence a uma única categoria.
       const subcatId = snapshot.subcategoriaId || snapshot.subcategoria_id;
       if (subcatId) {
         const catIdFromSub = catSubMap.get(subcatId);
@@ -114,7 +131,7 @@ export const useConsolidacao = (
           if (nomePelaSub) return nomePelaSub;
         }
       }
-      
+
       return '-';
     };
 
