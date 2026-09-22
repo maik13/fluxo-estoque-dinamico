@@ -612,32 +612,7 @@ export const FormApontamentoProducaoV2 = ({
         return;
       }
 
-      const { data: proximaAtual, error: erroDemao } = await (supabase.rpc as any)(
-        'proxima_demao_pintura_v1',
-        { p_ordem_producao_id: ordemSelecionada.id },
-      );
-
-      if (!erroDemao) {
-        const esperada = Number(proximaAtual);
-        if (!Number.isInteger(esperada) || esperada <= 0) {
-          toast.error('A sequência de demãos desta OP está inconsistente.');
-          return;
-        }
-
-        setProximaDemao(esperada);
-        if (informada !== esperada) {
-          setDemaoNumero(String(esperada));
-          toast.error(
-            `A demão selecionada já não é válida. A próxima demão desta OP é a ${esperada}ª.`,
-          );
-          return;
-        }
-        demaoValidada = esperada;
-      } else {
-        // Não bloqueia o formulário por falha da consulta auxiliar.
-        // A RPC transacional de gravação valida a sequência novamente no banco.
-        demaoValidada = informada;
-      }
+      demaoValidada = informada;
 
       if (
         quantidadeNormalizada === null ||
@@ -1138,10 +1113,9 @@ export const FormApontamentoProducaoV2 = ({
                   <SelectItem
                     key={numero}
                     value={String(numero)}
-                    disabled={proximaDemao != null && numero !== proximaDemao}
                   >
                     {numero}ª demão
-                    {numero === proximaDemao ? ' — próxima obrigatória' : ''}
+                    {numero === proximaDemao ? ' — sugerida' : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
