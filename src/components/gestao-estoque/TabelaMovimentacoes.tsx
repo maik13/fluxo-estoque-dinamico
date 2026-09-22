@@ -224,6 +224,25 @@ export const TabelaMovimentacoes = () => {
     };
   }, [carregarPagina]);
 
+
+  // Revalida a página ao retornar para a aba. Isso evita manter na tela
+  // saldos históricos antigos após uma correção administrativa no servidor.
+  useEffect(() => {
+    const recarregarAoRetomar = () => {
+      if (document.visibilityState === 'visible') {
+        void carregarPagina(true);
+      }
+    };
+
+    window.addEventListener('focus', recarregarAoRetomar);
+    document.addEventListener('visibilitychange', recarregarAoRetomar);
+
+    return () => {
+      window.removeEventListener('focus', recarregarAoRetomar);
+      document.removeEventListener('visibilitychange', recarregarAoRetomar);
+    };
+  }, [carregarPagina]);
+
   const totalPaginas = Math.max(1, Math.ceil(totalFiltrado / itensPorPagina));
   const inicioPagina = totalFiltrado === 0 ? 0 : (paginaAtual - 1) * itensPorPagina + 1;
   const fimPagina = Math.min(paginaAtual * itensPorPagina, totalFiltrado);
