@@ -24,6 +24,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { ItemFotoMiniatura } from './ItemFotoMiniatura';
+import { itemEhFerramenta } from '@/utils/itemClassification';
 
 interface ItemSolicitacaoMaterial {
   item_id?: string;
@@ -88,7 +89,7 @@ export const SolicitacaoMaterial = () => {
   const { obterEstoque } = useEstoqueContext();
   const { user, loading: authLoading } = useAuth();
   const { userProfile, canManageStock, isAdmin, loading: permissionsLoading } = usePermissions();
-  const { obterEstoqueAtivoInfo, obterLocaisUtilizacaoAtivos, loading: configLoading } = useConfiguracoes();
+  const { obterEstoqueAtivoInfo, obterLocaisUtilizacaoAtivos, categorias, loading: configLoading } = useConfiguracoes();
 
   const isInicializandoSolicitacao = authLoading || permissionsLoading || configLoading;
 
@@ -201,7 +202,7 @@ export const SolicitacaoMaterial = () => {
 
     // Regra para Ferramentas: Somente 1 unidade
     let qtdEfetiva = quantidade;
-    if (item.tipoItem === 'Ferramenta') {
+    if (itemEhFerramenta(item, categorias)) {
       qtdEfetiva = 1;
       if (quantidade > 1) {
         toast.info('Ferramentas são limitadas a 1 unidade por item. Adicione outro item se precisar de mais.');
@@ -220,8 +221,7 @@ export const SolicitacaoMaterial = () => {
         marca: item.marca,
         unidade: item.unidade,
         especificacao: item.especificacao,
-        fotoUrl: item.fotoUrl,
-        tipoItem: item.tipoItem
+        fotoUrl: item.fotoUrl
       },
       observacoes: obsItem || undefined,
       isCustom: false
