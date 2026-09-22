@@ -34,13 +34,20 @@ type FiltroEstoque = 'todos' | 'com-estoque' | 'baixo' | 'zerado' | 'negativo';
 type FiltroFoto = 'todas' | 'com-foto' | 'sem-foto';
 
 export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
-  const { obterEstoque, loading, editarItem, registrarEntrada, registrarSaida } = useEstoqueContext();
+  const {
+    obterEstoque,
+    loading,
+    editarItem,
+    registrarEntrada,
+    registrarSaida,
+    estoqueAtivoInfo,
+    incluirSemEstoqueAtivo,
+  } = useEstoqueContext();
   const {
     obterEstoqueAtivoInfo,
     obterSubcategoriasAtivas,
     obterCategoriasUnicas,
     obterSubcategoriasPorCategoria,
-    isEstoqueAtivoPrincipal,
   } = useConfiguracoes();
   const { canEditItems, canDeleteItems, isAdmin, canManageStock } = usePermissions();
   const [filtroTexto, setFiltroTexto] = useState('');
@@ -181,7 +188,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   // Calcular número total de páginas
   const totalPaginas = Math.ceil(itensFiltrados.length / itensPorPagina);
 
-  const estoqueInfo = obterEstoqueAtivoInfo();
+  const estoqueInfo = estoqueAtivoInfo ?? obterEstoqueAtivoInfo();
   const estoqueContado = useEstoqueContado({
     itens: itensFiltrados,
     estoqueId: estoqueInfo?.id,
@@ -341,8 +348,8 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
         nomeEstoque: estoqueInfo?.nome || 'Estoque Atual',
         itens: itensFiltrados,
         incluirEstatisticas: true,
-        estoqueId: estoqueInfo?.id ?? null,
-        incluirSemEstoque: isEstoqueAtivoPrincipal(),
+        estoqueId: estoqueAtivoInfo?.id ?? null,
+        incluirSemEstoque: incluirSemEstoqueAtivo,
       });
     } catch (error) {
       console.error('Erro ao exportar estoque em Excel:', error);
