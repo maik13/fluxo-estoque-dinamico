@@ -73,7 +73,6 @@ export const TabelaMovimentacoes = () => {
   const [tipoVisualizacao, setTipoVisualizacao] = useState<Visualizacao>('todas');
   const [filtroOperacao, setFiltroOperacao] = useState('todas');
   const [filtroDestino, setFiltroDestino] = useState('todos');
-  const [filtroTipoItem, setFiltroTipoItem] = useState('todos');
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroDataInicio, setFiltroDataInicio] = useState('');
   const [filtroDataFim, setFiltroDataFim] = useState('');
@@ -121,7 +120,7 @@ export const TabelaMovimentacoes = () => {
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [buscaAplicada, filtroTipo, tipoVisualizacao, filtroOperacao, filtroDestino, filtroTipoItem, filtroCategoria, filtroDataInicio, filtroDataFim, itensPorPagina, estoqueAtivo]);
+  }, [buscaAplicada, filtroTipo, tipoVisualizacao, filtroOperacao, filtroDestino, filtroCategoria, filtroDataInicio, filtroDataFim, itensPorPagina, estoqueAtivo]);
 
   const montarParametros = useCallback((pagina: number, limite: number) => {
     const inicio = filtroDataInicio ? new Date(`${filtroDataInicio}T00:00:00-03:00`).toISOString() : null;
@@ -137,13 +136,13 @@ export const TabelaMovimentacoes = () => {
       p_tipo_operacao_id: filtroOperacao === 'todas' ? null : filtroOperacao,
       p_visualizacao: tipoVisualizacao,
       p_local_utilizacao_id: filtroDestino === 'todos' ? null : filtroDestino,
-      p_tipo_item: filtroTipoItem === 'todos' ? null : filtroTipoItem,
+      p_tipo_item: null,
       p_categoria_id: categoriaSelecionadaId,
       p_subcategoria_ids: null,
       p_data_inicio: inicio,
       p_data_fim: fim,
     };
-  }, [estoqueAtivoInfo?.id, estoqueAtivoPrincipal, filtroDataInicio, filtroDataFim, buscaAplicada, filtroTipo, filtroOperacao, tipoVisualizacao, filtroDestino, filtroTipoItem, categoriaSelecionadaId]);
+  }, [estoqueAtivoInfo?.id, estoqueAtivoPrincipal, filtroDataInicio, filtroDataFim, buscaAplicada, filtroTipo, filtroOperacao, tipoVisualizacao, filtroDestino, categoriaSelecionadaId]);
 
   const carregarPagina = useCallback(async (silencioso = false) => {
     if (!estoqueAtivo) return;
@@ -260,7 +259,7 @@ export const TabelaMovimentacoes = () => {
   };
 
   const buscarTodosFiltrados = async () => {
-    const primeira = await (supabase as any).rpc('listar_movimentacoes_paginadas_v1', montarParametros(1, 1000));
+    const primeira = await (supabase as any).rpc('listar_movimentacoes_paginadas_v2', montarParametros(1, 1000));
     if (primeira.error) throw primeira.error;
     const total = Number(primeira.data?.totalFiltrado ?? 0);
     const acumulado: MovimentacaoServidor[] = [...(primeira.data?.rows ?? [])];
@@ -289,7 +288,6 @@ export const TabelaMovimentacoes = () => {
         Solicitante: mov.solicitanteNome || '-',
         Responsável: mov.responsavelNome || '-',
         Destinatário: mov.destinatario || '-',
-        'Tipo de Item': mov.itemSnapshot?.tipoItem || mov.itemSnapshot?.tipo_item || '-',
         'Estoque/Destino': mov.localUtilizacaoNome || '-',
         Observações: mov.observacoes || '-',
       }));
@@ -395,7 +393,6 @@ export const TabelaMovimentacoes = () => {
               <SelectItem value="todas">Todos os tipos</SelectItem><SelectItem value="ENTRADA">Entrada</SelectItem><SelectItem value="ENTRADA_ACERTO">Entrada para acerto</SelectItem><SelectItem value="SAIDA">Saída</SelectItem><SelectItem value="SAIDA_ACERTO">Saída para acerto</SelectItem><SelectItem value="DEVOLUCAO">Devolução</SelectItem><SelectItem value="CADASTRO">Cadastro</SelectItem>
             </SelectContent></Select>
             <Select value={filtroOperacao} onValueChange={setFiltroOperacao}><SelectTrigger><SelectValue placeholder="Operação" /></SelectTrigger><SelectContent><SelectItem value="todas">Todas as operações</SelectItem>{tiposOperacao.filter((x) => x.ativo).map((op) => <SelectItem key={op.id} value={op.id}>{op.nome}</SelectItem>)}</SelectContent></Select>
-            <Select value={filtroTipoItem} onValueChange={setFiltroTipoItem}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os tipos de item</SelectItem><SelectItem value="Insumo">Insumo</SelectItem><SelectItem value="Ferramenta">Ferramenta</SelectItem><SelectItem value="Produto Acabado">Produto Acabado</SelectItem><SelectItem value="Matéria Prima">Matéria Prima</SelectItem></SelectContent></Select>
             <Select value={filtroCategoria} onValueChange={setFiltroCategoria}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todas">Todas as categorias</SelectItem>{categorias.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent></Select>
             <Select value={filtroDestino} onValueChange={setFiltroDestino}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os estoques/destinos</SelectItem>{locaisUtilizacao.filter((l) => l.ativo).map((l) => <SelectItem key={l.id} value={l.id}>{l.nome}</SelectItem>)}</SelectContent></Select>
           </div>
@@ -414,9 +411,9 @@ export const TabelaMovimentacoes = () => {
           {erro && <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{erro}</div>}
           <div className="w-full overflow-x-auto">
             <Table style={{ minWidth: canEditMovements() ? '1650px' : '1550px' }}>
-              <TableHeader><TableRow>{canEditMovements() && <TableHead>Ações</TableHead>}<TableHead>Operação</TableHead><TableHead>Data/Hora</TableHead><TableHead>Item</TableHead><TableHead>Código</TableHead><TableHead>Quantidade</TableHead><TableHead>Anterior</TableHead><TableHead>Atual</TableHead><TableHead>Solicitante</TableHead><TableHead>Responsável</TableHead><TableHead>Destinatário</TableHead><TableHead>Tipo de Item</TableHead><TableHead>Estoque/Destino</TableHead><TableHead>Observações</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow>{canEditMovements() && <TableHead>Ações</TableHead>}<TableHead>Operação</TableHead><TableHead>Data/Hora</TableHead><TableHead>Item</TableHead><TableHead>Código</TableHead><TableHead>Quantidade</TableHead><TableHead>Anterior</TableHead><TableHead>Atual</TableHead><TableHead>Solicitante</TableHead><TableHead>Responsável</TableHead><TableHead>Destinatário</TableHead><TableHead>Estoque/Destino</TableHead><TableHead>Observações</TableHead></TableRow></TableHeader>
               <TableBody>
-                {loading ? <TableRow><TableCell colSpan={canEditMovements() ? 14 : 13} className="h-40 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />Carregando página...</TableCell></TableRow> : rows.length === 0 ? <TableRow><TableCell colSpan={canEditMovements() ? 14 : 13} className="h-40 text-center text-muted-foreground">Nenhuma movimentação encontrada.</TableCell></TableRow> : rows.map((mov) => (
+                {loading ? <TableRow><TableCell colSpan={canEditMovements() ? 13 : 12} className="h-40 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />Carregando página...</TableCell></TableRow> : rows.length === 0 ? <TableRow><TableCell colSpan={canEditMovements() ? 14 : 13} className="h-40 text-center text-muted-foreground">Nenhuma movimentação encontrada.</TableCell></TableRow> : rows.map((mov) => (
                   <TableRow key={mov.id}>
                     {canEditMovements() && <TableCell><div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => { setMovimentoEditando(mov); setNovoLocalId(mov.localUtilizacaoId || ''); setNovaQuantidade(String(mov.quantidade)); }}><Pencil className="h-4 w-4" /></Button><AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir movimentação?</AlertDialogTitle><AlertDialogDescription>O registro de {operacaoLabel(mov)} do item “{mov.itemSnapshot?.nome || 'item'}” será removido.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => excluirMovimentacao(mov.id)}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></div></TableCell>}
                     <TableCell><Badge variant="outline" className={operacaoClass(mov)}>{operacaoLabel(mov)}</Badge></TableCell>
@@ -425,7 +422,7 @@ export const TabelaMovimentacoes = () => {
                     <TableCell className="font-mono">{mov.itemSnapshot?.codigoBarras ?? mov.itemSnapshot?.codigo_barras ?? '-'}</TableCell>
                     <TableCell className="font-bold">{formatarQuantidade(mov)} <span className="text-xs font-normal text-muted-foreground">{mov.itemSnapshot?.unidade || ''}</span></TableCell>
                     <TableCell className="text-right">{Number(mov.quantidadeAnterior).toLocaleString('pt-BR')}</TableCell><TableCell className="text-right font-bold">{Number(mov.quantidadeAtual).toLocaleString('pt-BR')}</TableCell>
-                    <TableCell>{mov.solicitanteNome || '-'}</TableCell><TableCell>{mov.responsavelNome || '-'}</TableCell><TableCell>{mov.destinatario || '-'}</TableCell><TableCell>{mov.itemSnapshot?.tipoItem || mov.itemSnapshot?.tipo_item || '-'}</TableCell><TableCell>{mov.localUtilizacaoNome || '-'}</TableCell><TableCell className="max-w-[260px] truncate" title={mov.observacoes || ''}>{mov.observacoes || '-'}</TableCell>
+                    <TableCell>{mov.solicitanteNome || '-'}</TableCell><TableCell>{mov.responsavelNome || '-'}</TableCell><TableCell>{mov.destinatario || '-'}</TableCell><TableCell>{mov.localUtilizacaoNome || '-'}</TableCell><TableCell className="max-w-[260px] truncate" title={mov.observacoes || ''}>{mov.observacoes || '-'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
