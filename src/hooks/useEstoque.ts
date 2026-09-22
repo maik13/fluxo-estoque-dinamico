@@ -406,10 +406,9 @@ export const useEstoque = () => {
         ativo: row.ativo ?? true,
       }));
 
-      // Publica o catálogo imediatamente. O usuário não precisa esperar 10 mil+ movimentações.
-      setItens(itensMapped);
-
-      // 2) Saldos e última movimentação calculados no servidor
+      // 2) Saldos e última movimentação calculados no servidor.
+      // O catálogo só é publicado junto com uma posição de saldo confirmada;
+      // ausência/falha de saldo nunca pode ser interpretada como estoque zero.
       const { data: saldosData, error: saldosError } = await (supabase as any).rpc(
         'listar_saldos_estoque_v1',
         {
@@ -427,6 +426,7 @@ export const useEstoque = () => {
           novoMapaUltimas.set(row.item_id, row.ultima_movimentacao as Movimentacao);
         }
       }
+      setItens(itensMapped);
       setSaldosEstoque(novoMapaSaldos);
       setUltimasMovimentacoesEstoque(novoMapaUltimas);
 
@@ -513,11 +513,14 @@ export const useEstoque = () => {
           }
         })();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar catálogo/saldos do estoque:', error);
       toast({
         title: 'Erro ao carregar estoque',
-        description: 'Não foi possível carregar o catálogo ou os saldos do servidor.',
+        description:
+          error?.message
+            ? `Não foi possível confirmar os saldos do servidor: ${error.message}`
+            : 'Não foi possível carregar o catálogo ou os saldos do servidor. A última posição válida foi preservada.',
         variant: 'destructive',
       });
     } finally {
