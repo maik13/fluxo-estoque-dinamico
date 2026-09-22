@@ -1278,8 +1278,10 @@ export const useConfiguracoes = () => {
   };
 
   const obterPrimeiraCategoriaDeSubcategoria = (subcategoriaId: string) => {
-    const cats = obterCategoriasDaSubcategoria(subcategoriaId);
-    return cats.length > 0 ? cats[0].nome : '';
+    const cats = obterCategoriasDaSubcategoria(subcategoriaId).filter((categoria) => categoria.ativo);
+    // Só existe categoria implícita quando a subcategoria possui vínculo único.
+    // Na taxonomia atual várias subcategorias são compartilhadas entre categorias.
+    return cats.length === 1 ? cats[0].nome : '';
   };
 
   const obterTiposOperacaoAtivos = () => tiposOperacao.filter(t => t.ativo);
