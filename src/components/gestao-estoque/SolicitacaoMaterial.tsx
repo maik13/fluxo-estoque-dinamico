@@ -601,99 +601,71 @@ export const SolicitacaoMaterial = () => {
       return;
     }
 
+    if (!sol.local_origem_id || !sol.local_origem?.trim()) {
+      toast.error('Informe o local de origem antes de confirmar a retirada');
+      return;
+    }
+
+    const itensEstoqueOnly = sol.itens.filter((item) => item.item_id);
+    if (itensEstoqueOnly.length === 0) {
+      toast.error('Nenhum item desta solicitação existe no estoque para retirada');
+      return;
+    }
+
+    setEnviando(true);
     try {
-      const estoqueInfo = obterEstoqueAtivoInfo();
+      // A criação e a aprovação da Solicitação de Material não alteram o estoque.
+      // Somente esta confirmação de retirada executa a baixa, de forma atômica no banco.
+      const { data, error } = await (supabase as any).rpc(
+        'converter_solicitacao_material_retirada_v1',
+        { p_solicitacao_material_id: sol.id }
+      );
 
-      if (!sol.local_origem_id || !sol.local_origem?.trim()) {
-        toast.error('Informe o local de origem antes de converter em retirada');
-        return;
+      if (error) throw error;
+
+      const resultado = data as {
+        solicitacaoRetiradaId: string;
+        numeroRetirada: number | null;
+        itensProcessados: number;
+        jaConvertida: boolean;
+      };
+
+      if (resultado.jaConvertida) {
+        toast.info(
+          `Esta Solicitação de Material já havia sido convertida na Retirada #${resultado.numeroRetirada || resultado.solicitacaoRetiradaId.slice(-8)}.`
+        );
+      } else {
+        toast.success(
+          `Retirada #${resultado.numeroRetirada || resultado.solicitacaoRetiradaId.slice(-8)} confirmada. ${resultado.itensProcessados} item(ns) baixado(s) do estoque.`
+        );
       }
 
-      // Filtrar apenas itens que existem no estoque (com item_id)
-      const itensEstoqueOnly = sol.itens.filter(i => i.item_id);
-
-      if (itensEstoqueOnly.length === 0) {
-        toast.error('Nenhum item desta solicitação existe no estoque para retirada');
-        return;
-      }
-
-      // Criar solicitação de retirada
-      const { data: solicitacaoData, error: solicitacaoError } = await supabase
-        .from('solicitacoes')
-        .insert({
-          solicitante_id: sol.solicitante_id,
-          solicitante_nome: sol.solicitante_nome,
-          observacoes: `Convertida da Solicitação de Material #${sol.numero}${sol.observacoes ? ' - ' + sol.observacoes : ''}`,
-          tipo_operacao: 'retirada',
-          criado_por_id: user.id,
-          estoque_id: estoqueInfo?.id ?? null,
-          local_utilizacao_id: sol.local_origem_id ?? null,
-          local_utilizacao: sol.local_origem ?? null
-        })
-        .select()
-        .single();
-
-      if (solicitacaoError) throw solicitacaoError;
-
-      // Criar itens da solicitação
-      const itensParaInserir = itensEstoqueOnly.map(item => ({
-        solicitacao_id: solicitacaoData.id,
-        item_id: item.item_id!,
-        quantidade_solicitada: item.quantidade,
-        quantidade_aprovada: item.quantidade,
-        item_snapshot: item.item_snapshot || {}
-      }));
-
-      const { error: itensError } = await supabase
-        .from('solicitacao_itens')
-        .insert(itensParaInserir);
-
-      if (itensError) throw itensError;
-
-      // Criar movimentações de saída
-      for (const item of itensEstoqueOnly) {
-        const movimentacaoData = {
-          item_id: item.item_id!,
-          tipo: 'SAIDA' as const,
-          quantidade: item.quantidade,
-          quantidade_anterior: 0,
-          quantidade_atual: 0,
-          user_id: user.id,
-          observacoes: `Retirada - Solicitação Material #${sol.numero} → Retirada #${solicitacaoData.numero || solicitacaoData.id.slice(-8)}`,
-          item_snapshot: item.item_snapshot || {},
-          solicitacao_id: solicitacaoData.id,
-          estoque_id: estoqueInfo?.id ?? null
-        };
-
-        const { error: movError } = await supabase
-          .from('movements')
-          .insert(movimentacaoData);
-
-        if (movError) throw movError;
-      }
-
-      // Atualizar status da solicitação de material
-      await supabase
-        .from('solicitacoes_material')
-        .update({
-          status: 'convertida',
-          solicitacao_retirada_id: solicitacaoData.id
-        })
-        .eq('id', sol.id);
-
-      toast.success(`Retirada criada com sucesso! ${itensEstoqueOnly.length} item(ns) processado(s).`);
-      
       if (sol.itens.length > itensEstoqueOnly.length) {
-        toast.info(`${sol.itens.length - itensEstoqueOnly.length} item(ns) avulso(s) não foram incluídos na retirada (não existem no estoque).`);
+        toast.info(
+          `${sol.itens.length - itensEstoqueOnly.length} item(ns) avulso(s) não foram incluídos na retirada porque não existem no cadastro do estoque.`
+        );
       }
 
-      carregarSolicitacoes();
+      await carregarSolicitacoes();
       if (solicitacaoSelecionada?.id === sol.id) {
-        setSolicitacaoSelecionada(prev => prev ? { ...prev, status: 'convertida' } : null);
+        setSolicitacaoSelecionada((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'convertida',
+                solicitacao_retirada_id: resultado.solicitacaoRetiradaId,
+              }
+            : null
+        );
       }
-    } catch (error) {
-      console.error('Erro ao converter em retirada:', error);
-      toast.error('Erro ao converter em retirada');
+    } catch (error: any) {
+      console.error('Erro ao confirmar retirada:', error);
+      toast.error(
+        error?.message ||
+          'A retirada não foi realizada. Nenhum saldo ou registro foi alterado.'
+      );
+    } finally {
+      setEnviando(false);
     }
   };
 
