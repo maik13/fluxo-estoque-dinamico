@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,46 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
   const [filtroDataFim, setFiltroDataFim] = useState<Date | undefined>(undefined);
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroTipoItem, setFiltroTipoItem] = useState('todos');
-  const { obterPrimeiraCategoriaDeSubcategoria, subcategorias: subcategoriasConfig } = useConfiguracoes();
+  const {
+    categorias: categoriasConfig,
+    obterCategoriasDaSubcategoria,
+  } = useConfiguracoes();
+
+  const categoriasAtivas = useMemo(
+    () => categoriasConfig
+      .filter((categoria) => categoria.ativo)
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+    [categoriasConfig],
+  );
+
+  const resolverCategoriaSnapshot = useCallback((snapshot?: any) => {
+    if (!snapshot) return '-';
+
+    const categoriaId = snapshot.categoriaId || snapshot.categoria_id;
+    if (categoriaId) {
+      const categoria = categoriasConfig.find(
+        (item) => item.ativo && item.id === categoriaId,
+      );
+      if (categoria) return categoria.nome;
+    }
+
+    const nomeDireto =
+      snapshot.categoriaNome ||
+      snapshot.categoria ||
+      snapshot.categoria_nome;
+    if (typeof nomeDireto === 'string' && nomeDireto.trim()) {
+      return nomeDireto.trim();
+    }
+
+    const subcategoriaId = snapshot.subcategoriaId || snapshot.subcategoria_id;
+    if (subcategoriaId) {
+      const vinculadas = obterCategoriasDaSubcategoria(subcategoriaId)
+        .filter((categoria) => categoria.ativo);
+      if (vinculadas.length === 1) return vinculadas[0].nome;
+    }
+
+    return '-';
+  }, [categoriasConfig, obterCategoriasDaSubcategoria]);
 
   const isDevolucao = (mov: Movimentacao) => {
     return mov.tipo === 'ENTRADA' && normalizarMovimentacaoTexto(mov.observacoes).includes('devolu');
@@ -102,7 +141,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
       const matchData = !dInicio || movData >= dInicio;
       const matchDataFim = !dFim || movData <= dFim;
 
-      const categoria = mov.itemSnapshot?.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId) : '-';
+      const categoria = resolverCategoriaSnapshot(mov.itemSnapshot);
       const matchCategoria = filtroCategoria === 'todas' || categoria === filtroCategoria;
       
       const tipoItem = mov.itemSnapshot?.tipoItem || '-';
@@ -110,7 +149,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
 
       return matchTexto && matchTipo && matchDestino && matchData && matchDataFim && matchCategoria && matchTipoItem;
     });
-  }, [movimentacoes, filtroTexto, filtroTipo, filtroDestino, filtroDataInicio, filtroDataFim, filtroCategoria, filtroTipoItem]);
+  }, [movimentacoes, filtroTexto, filtroTipo, filtroDestino, filtroDataInicio, filtroDataFim, filtroCategoria, filtroTipoItem, resolverCategoriaSnapshot]);
 
   // Group by item and sum exits/returns
   const resumoItens = useMemo(() => {
@@ -132,7 +171,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
           saldoPendente: 0,
           qtdMovSaida: 0,
           qtdMovDevolucao: 0,
-          categoria: mov.itemSnapshot?.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(mov.itemSnapshot.subcategoriaId) : '-',
+          categoria: resolverCategoriaSnapshot(mov.itemSnapshot),
           tipoItem: mov.itemSnapshot?.tipoItem || '-',
         });
       }
@@ -158,7 +197,7 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
 
     // Sort by most exits
     return resultado.sort((a, b) => b.totalSaidas - a.totalSaidas);
-  }, [movimentacoesFiltradas]);
+  }, [movimentacoesFiltradas, resolverCategoriaSnapshot]);
 
   // Totals
   const totais = useMemo(() => {
@@ -339,8 +378,10 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todas as categorias</SelectItem>
-                {Array.from(new Set(subcategoriasConfig.map(s => obterPrimeiraCategoriaDeSubcategoria(s.id)))).filter(c => c !== '-').sort().map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                {categoriasAtivas.map((categoria) => (
+                  <SelectItem key={categoria.id} value={categoria.nome}>
+                    {categoria.nome}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
