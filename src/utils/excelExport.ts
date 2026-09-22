@@ -147,11 +147,14 @@ export const exportarExcel = async ({
   let itensExportacao = itens;
 
   if (estoqueId) {
+    const itemIds = [...new Set(itens.map((item) => item.id))];
+
     const { data: saldosData, error: saldosError } = await (supabase as any).rpc(
-      'listar_saldos_estoque_v1',
+      'listar_posicoes_estoque_exportacao_v1',
       {
         p_estoque_id: estoqueId,
         p_incluir_sem_estoque: incluirSemEstoque,
+        p_item_ids: itemIds,
       },
     );
 
@@ -169,12 +172,24 @@ export const exportarExcel = async ({
       });
     }
 
+    if (saldos.size !== itemIds.length) {
+      throw new Error(
+        `Exportação bloqueada por inconsistência de dados: foram solicitados ${itemIds.length} itens, mas o servidor confirmou ${saldos.size}. Nenhum saldo ausente será tratado como zero.`,
+      );
+    }
+
     itensExportacao = itens.map((item) => {
       const posicao = saldos.get(item.id);
+      if (!posicao) {
+        throw new Error(
+          `Exportação bloqueada: o item ${item.codigoBarras} não recebeu posição de estoque confirmada do servidor.`,
+        );
+      }
+
       return {
         ...item,
-        estoqueAtual: posicao?.saldo ?? 0,
-        ultimaMovimentacao: posicao?.ultima ?? null,
+        estoqueAtual: posicao.saldo,
+        ultimaMovimentacao: posicao.ultima,
       };
     });
   }
