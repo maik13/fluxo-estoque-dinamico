@@ -16,11 +16,19 @@ export const exportarExcelPosicaoPatrimonio = ({
 }: ExportPosicaoOptions) => {
   const workbook = XLSX.utils.book_new();
 
+  // A quantidade considerada representa a posição patrimonial total do item.
+  // Para ferramentas, inclui o saldo no almoxarifado e as unidades alocadas.
+  const quantidadeTotalConsiderada = linhas.reduce(
+    (total, linha) => total + Math.max(0, linha.quantidadeConsiderada),
+    0
+  );
+
   const resumo = [
     { Indicador: 'Estoque', Valor: nomeEstoque, Observação: '' },
     { Indicador: 'Data/hora', Valor: new Date().toLocaleString('pt-BR'), Observação: '' },
     { Indicador: 'Filtros aplicados', Valor: descricaoFiltros || 'Nenhum', Observação: '' },
     { Indicador: 'Itens considerados', Valor: totais.itensConsiderados, Observação: 'Linhas exibidas com os filtros atuais' },
+    { Indicador: 'Quantidade total considerada', Valor: quantidadeTotalConsiderada, Observação: 'Posição patrimonial total dos itens filtrados; para ferramentas, soma almoxarifado + unidades alocadas' },
     { Indicador: 'Quantidade física no almoxarifado', Valor: totais.quantidadeFisicaAlmoxarifado, Observação: 'Saldo operacional atual; negativos não somados' },
     { Indicador: 'Ferramentas em uso/projeto', Valor: totais.ferramentasEmUso, Observação: 'Derivado da lógica de alocação existente' },
     { Indicador: 'Quantidade patrimonial de ferramentas', Valor: totais.quantidadePatrimonialFerramentas, Observação: 'Almoxarifado + em uso/projeto' },
@@ -49,9 +57,9 @@ export const exportarExcelPosicaoPatrimonio = ({
     Condição: linha.condicao,
     Unidade: linha.unidade,
     Ativo: linha.ativo ? 'Sim' : 'Não',
-    'Qtd. no Almoxarifado': linha.quantidadeAlmoxarifado,
-    'Qtd. Alocada': linha.ehFerramenta ? linha.quantidadeAlocada : '',
-    'Qtd. Considerada': linha.quantidadeConsiderada,
+    'Qtd. Considerada (Total)': linha.quantidadeConsiderada,
+    'Qtd. no Almoxarifado (Composição)': linha.quantidadeAlmoxarifado,
+    'Qtd. Alocada (Composição)': linha.ehFerramenta ? linha.quantidadeAlocada : '',
     Situação: linha.situacao,
     'Projeto/Local de uso': linha.projetoLocalUso,
     'Valor Unitário (R$)': linha.valorUnitario ?? '',
@@ -72,7 +80,7 @@ export const exportarExcelPosicaoPatrimonio = ({
       Nome: linha.nome,
       Marca: linha.marca,
       Especificação: linha.especificacao,
-      'Qtd. Considerada': linha.quantidadeConsiderada,
+      'Qtd. Considerada (Total)': linha.quantidadeConsiderada,
       Situação: linha.situacao,
       'Projeto/Local de uso': linha.projetoLocalUso,
       Observação: 'Sem preço cadastrado — não compõe nenhum valor do resumo',
