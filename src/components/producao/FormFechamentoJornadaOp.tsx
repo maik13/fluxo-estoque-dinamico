@@ -469,30 +469,7 @@ export const FormFechamentoJornadaOp = ({
         return toast.error('Selecione a demão deste apontamento.');
       }
 
-      const { data: proximaAtual, error: erroDemao } = await (supabase.rpc as any)(
-        'proxima_demao_pintura_v1',
-        { p_ordem_producao_id: ordem.id },
-      );
-
-      if (!erroDemao) {
-        const esperada = Number(proximaAtual);
-        if (!Number.isInteger(esperada) || esperada <= 0) {
-          return toast.error('A sequência de demãos desta OP está inconsistente.');
-        }
-
-        setProximaDemao(esperada);
-        if (informada !== esperada) {
-          setDemaoNumero(String(esperada));
-          return toast.error(
-            `A demão selecionada já não é válida. A próxima demão desta OP é a ${esperada}ª.`,
-          );
-        }
-        demaoValidada = esperada;
-      } else {
-        // A consulta auxiliar pode falhar sem bloquear a operação.
-        // A função transacional valida a sequência novamente no banco.
-        demaoValidada = informada;
-      }
+      demaoValidada = informada;
 
       const tintaUnitario = Number(tintaUnitarioMl.replace(',', '.'));
       if (!Number.isFinite(tintaUnitario) || tintaUnitario <= 0) {
@@ -699,18 +676,17 @@ export const FormFechamentoJornadaOp = ({
                     <SelectItem
                       key={numero}
                       value={String(numero)}
-                      disabled={proximaDemao != null && numero !== proximaDemao}
                     >
                       {numero}ª demão
-                      {numero === proximaDemao ? ' — próxima obrigatória' : ''}
+                      {numero === proximaDemao ? ' — sugerida' : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <p className="text-[11px] text-muted-foreground">
                 {proximaDemao == null
-                  ? 'Não foi possível carregar a sequência automaticamente. Selecione a demão real; o sistema validará a sequência ao salvar.'
-                  : 'Demãos já concluídas não aparecem novamente. Após fechar a demão atual, o próximo apontamento avança automaticamente para a seguinte.'}
+                  ? 'Selecione a demão real deste lote. O sistema valida a quantidade acumulada da demão ao salvar.'
+                  : `Sugestão automática: ${proximaDemao}ª demão. Você pode selecionar outra demão já em andamento para apontar outro lote.`}
               </p>
             </div>
             <div className="space-y-2">
