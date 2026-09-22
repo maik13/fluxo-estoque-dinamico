@@ -20,7 +20,6 @@ export type StatusPreco = 'Com preço' | 'Sem preço';
 export interface LinhaPosicaoPatrimonio {
   item: EstoqueItem;
   codigo: number;
-  tipo: string;
   nome: string;
   marca: string;
   especificacao: string;
@@ -69,7 +68,7 @@ export const montarLinhaPosicao = (
   alocacao: AlocacaoEstoqueContado | undefined,
   contexto: ContextoLinha = {}
 ): LinhaPosicaoPatrimonio => {
-  const ehFerramenta = item.tipoItem === 'Ferramenta';
+  const ehFerramenta = contexto.categoria === 'Ferramenta';
   const quantidadeAlmoxarifado = Number(item.estoqueAtual) || 0;
   const quantidadeAlocada = ehFerramenta ? Number(alocacao?.saldoPendente || 0) : 0;
   const almoxarifadoPositivo = Math.max(0, quantidadeAlmoxarifado);
@@ -100,7 +99,6 @@ export const montarLinhaPosicao = (
   return {
     item,
     codigo: item.codigoBarras,
-    tipo: item.tipoItem || '-',
     nome: item.nome || '-',
     marca: item.marca || '-',
     especificacao: item.especificacao || '-',
@@ -147,7 +145,7 @@ export const calcularTotaisPosicao = (linhas: LinhaPosicaoPatrimonio[]): TotaisP
     if (linha.ehFerramenta) {
       totais.ferramentasEmUso += linha.quantidadeAlocada;
       totais.quantidadePatrimonialFerramentas += Math.max(0, linha.quantidadeConsiderada);
-    } else if (linha.item.tipoItem === 'Insumo') {
+    } else {
       totais.quantidadeInsumosEstoque += almoxPositivo;
     }
 
