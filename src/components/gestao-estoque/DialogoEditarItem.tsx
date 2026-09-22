@@ -26,7 +26,7 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
     obterCategoriasUnicas, 
     obterSubcategoriasPorCategoria,
     obterSubcategoriasDaCategoria,
-    obterPrimeiraCategoriaDeSubcategoria 
+    obterCategoriasDaSubcategoria,
   } = useConfiguracoes();
   const [formItem, setFormItem] = useState<Item | null>(null);
   
@@ -49,14 +49,15 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
       return { ...item };
     });
 
-    // Fallback para itens que ainda não têm categoria_id mas têm subcategoria
+    // Compatibilidade apenas quando a subcategoria pertence a uma única categoria.
+    // Não escolhe arbitrariamente uma categoria em relações compartilhadas.
     if (!item.categoriaId && item.subcategoriaId) {
-      const primeiraCategoria = obterPrimeiraCategoriaDeSubcategoria(item.subcategoriaId);
-      
-      // Tentar encontrar o ID dessa categoria
-      const cat = categoriasUnicas.find(c => c.nome === primeiraCategoria);
-      if (cat) {
-        setFormItem(prev => prev ? { ...prev, categoriaId: cat.id } : null);
+      const categoriasDaSubcategoria = obterCategoriasDaSubcategoria(item.subcategoriaId)
+        .filter((categoria) => categoria.ativo);
+      if (categoriasDaSubcategoria.length === 1) {
+        setFormItem((prev) => prev
+          ? { ...prev, categoriaId: categoriasDaSubcategoria[0].id }
+          : null);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
