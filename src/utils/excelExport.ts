@@ -148,33 +148,52 @@ export const exportarExcel = async ({
 
   if (estoqueId) {
     const itemIds = [...new Set(itens.map((item) => item.id))];
+    const TAMANHO_LOTE = 500;
+    const lotes: string[][] = [];
 
-    const { data: saldosData, error: saldosError } = await (supabase as any).rpc(
-      'listar_posicoes_estoque_exportacao_v1',
-      {
-        p_estoque_id: estoqueId,
-        p_incluir_sem_estoque: incluirSemEstoque,
-        p_item_ids: itemIds,
-      },
-    );
-
-    if (saldosError) {
-      throw new Error(
-        `Não foi possível confirmar os saldos atuais antes da exportação: ${saldosError.message ?? 'erro desconhecido'}`,
-      );
+    for (let indice = 0; indice < itemIds.length; indice += TAMANHO_LOTE) {
+      lotes.push(itemIds.slice(indice, indice + TAMANHO_LOTE));
     }
 
     const saldos = new Map<string, { saldo: number; ultima: any | null }>();
-    for (const row of saldosData ?? []) {
-      saldos.set(String(row.item_id), {
-        saldo: Number(row.saldo_atual ?? 0),
-        ultima: row.ultima_movimentacao ?? null,
-      });
+
+    for (let indice = 0; indice < lotes.length; indice += 1) {
+      const lote = lotes[indice];
+
+      const { data: saldosData, error: saldosError } = await (supabase as any).rpc(
+        'listar_posicoes_estoque_exportacao_v1',
+        {
+          p_estoque_id: estoqueId,
+          p_incluir_sem_estoque: incluirSemEstoque,
+          p_item_ids: lote,
+        },
+      );
+
+      if (saldosError) {
+        throw new Error(
+          `Não foi possível confirmar os saldos atuais do lote ${indice + 1} de ${lotes.length}: ${saldosError.message ?? 'erro desconhecido'}`,
+        );
+      }
+
+      const linhas = saldosData ?? [];
+
+      if (linhas.length !== lote.length) {
+        throw new Error(
+          `Exportação bloqueada: o lote ${indice + 1} solicitou ${lote.length} itens, mas o servidor confirmou ${linhas.length}. Nenhum saldo ausente será tratado como zero.`,
+        );
+      }
+
+      for (const row of linhas) {
+        saldos.set(String(row.item_id), {
+          saldo: Number(row.saldo_atual ?? 0),
+          ultima: row.ultima_movimentacao ?? null,
+        });
+      }
     }
 
     if (saldos.size !== itemIds.length) {
       throw new Error(
-        `Exportação bloqueada por inconsistência de dados: foram solicitados ${itemIds.length} itens, mas o servidor confirmou ${saldos.size}. Nenhum saldo ausente será tratado como zero.`,
+        `Exportação bloqueada por inconsistência de dados: foram solicitados ${itemIds.length} itens e o servidor confirmou ${saldos.size} posições após ${lotes.length} lote(s).`,
       );
     }
 
