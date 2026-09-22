@@ -7,13 +7,14 @@ import { NovaSolicitacao, SolicitacaoCompleta, SolicitacaoItem } from '@/types/s
 import { Item } from '@/types/estoque';
 import { toast } from 'sonner';
 import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';
+import { itemEhFerramenta } from '@/utils/itemClassification';
 
 export const useSolicitacoes = () => {
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoCompleta[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, loading: authLoading, forceReauth } = useAuth();
   const { userProfile } = usePermissions();
-  const { obterEstoqueAtivoInfo, estoqueAtivo, isEstoqueAtivoPrincipal } = useConfiguracoes();
+  const { obterEstoqueAtivoInfo, estoqueAtivo, isEstoqueAtivoPrincipal, categorias } = useConfiguracoes();
   
   // Refs para controle de debounce e prevenção de duplicatas
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -217,7 +218,7 @@ export const useSolicitacoes = () => {
         const estoqueAtivoInfo = obterEstoqueAtivoInfo();
         for (const item of novaSolicitacao.itens) {
           const itemFull = item.item_snapshot as any;
-          if (itemFull?.tipoItem === 'Ferramenta') {
+          if (itemEhFerramenta(itemFull, categorias)) {
             if (item.quantidade_solicitada > 1) {
               toast.error(`A ferramenta "${itemFull.nome}" deve ser retirada individualmente (máximo 1).`);
               isCreatingRef.current = false;
