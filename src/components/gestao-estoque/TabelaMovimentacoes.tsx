@@ -55,10 +55,8 @@ export const TabelaMovimentacoes = () => {
     estoqueAtivo,
     estoques,
     categorias: categoriasConfig,
-    categoriasSubcategorias,
     tiposOperacao,
     locaisUtilizacao,
-    subcategorias,
   } = useConfiguracoes();
 
   const [rows, setRows] = useState<MovimentacaoServidor[]>([]);
@@ -101,32 +99,20 @@ export const TabelaMovimentacoes = () => {
     return Boolean(principal?.id && principal.id === estoqueAtivo);
   }, [estoques, estoqueAtivo]);
 
-  const categoriaPorSubcategoria = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const rel of categoriasSubcategorias) {
-      if (map.has(rel.subcategoria_id)) continue;
-      const categoria = categoriasConfig.find((cat) => cat.id === rel.categoria_id && cat.ativo);
-      if (categoria) map.set(rel.subcategoria_id, categoria.nome);
-    }
-    return map;
-  }, [categoriasSubcategorias, categoriasConfig]);
+  const categorias = useMemo(
+    () => categoriasConfig
+      .filter((categoria) => categoria.ativo)
+      .map((categoria) => categoria.nome)
+      .sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    [categoriasConfig],
+  );
 
-  const categorias = useMemo(() => {
-    return Array.from(
-      new Set(
-        subcategorias
-          .map((s) => categoriaPorSubcategoria.get(s.id) || '')
-          .filter((nome) => nome.trim() !== '')
-      )
-    ).sort();
-  }, [subcategorias, categoriaPorSubcategoria]);
-
-  const subcategoriaIdsFiltro = useMemo(() => {
+  const categoriaSelecionadaId = useMemo(() => {
     if (filtroCategoria === 'todas') return null;
-    return subcategorias
-      .filter((s) => categoriaPorSubcategoria.get(s.id) === filtroCategoria)
-      .map((s) => s.id);
-  }, [filtroCategoria, subcategorias, categoriaPorSubcategoria]);
+    return categoriasConfig.find(
+      (categoria) => categoria.ativo && categoria.nome === filtroCategoria,
+    )?.id ?? null;
+  }, [categoriasConfig, filtroCategoria]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setBuscaAplicada(filtroTexto.trim()), 350);
@@ -152,11 +138,12 @@ export const TabelaMovimentacoes = () => {
       p_visualizacao: tipoVisualizacao,
       p_local_utilizacao_id: filtroDestino === 'todos' ? null : filtroDestino,
       p_tipo_item: filtroTipoItem === 'todos' ? null : filtroTipoItem,
-      p_subcategoria_ids: subcategoriaIdsFiltro,
+      p_categoria_id: categoriaSelecionadaId,
+      p_subcategoria_ids: null,
       p_data_inicio: inicio,
       p_data_fim: fim,
     };
-  }, [estoqueAtivoInfo?.id, estoqueAtivoPrincipal, filtroDataInicio, filtroDataFim, buscaAplicada, filtroTipo, filtroOperacao, tipoVisualizacao, filtroDestino, filtroTipoItem, subcategoriaIdsFiltro]);
+  }, [estoqueAtivoInfo?.id, estoqueAtivoPrincipal, filtroDataInicio, filtroDataFim, buscaAplicada, filtroTipo, filtroOperacao, tipoVisualizacao, filtroDestino, filtroTipoItem, categoriaSelecionadaId]);
 
   const carregarPagina = useCallback(async (silencioso = false) => {
     if (!estoqueAtivo) return;
@@ -166,7 +153,7 @@ export const TabelaMovimentacoes = () => {
 
     try {
       const { data, error } = await (supabase as any).rpc(
-        'listar_movimentacoes_paginadas_v1',
+        'listar_movimentacoes_paginadas_v2',
         montarParametros(paginaAtual, itensPorPagina),
       );
       if (requestId !== requestSeqRef.current) return;
