@@ -23,7 +23,6 @@ export const PosicaoEstoquePatrimonio = () => {
     obterSubcategoriasAtivas,
     obterCategoriasUnicas,
     obterSubcategoriasPorCategoria,
-    obterPrimeiraCategoriaDeSubcategoria,
   } = useConfiguracoes();
 
   const [texto, setTexto] = useState('');
@@ -48,9 +47,12 @@ export const PosicaoEstoquePatrimonio = () => {
   useEffect(() => setSubcategoria('todas'), [categoria]);
 
   const nomesSubcategoria = useMemo(() => new Map(subcategorias.map((s) => [s.id, s.nome])), [subcategorias]);
-  const idsCategoria = useMemo(
-    () => categoria === 'todas' ? null : new Set(subcategoriasFiltradas.map((s) => s.id)),
-    [categoria, subcategoriasFiltradas]
+  const nomesCategoria = useMemo(() => new Map(categorias.map((c) => [c.id, c.nome])), [categorias]);
+  const categoriaSelecionadaId = useMemo(
+    () => categoria === 'todas'
+      ? null
+      : categorias.find((item) => item.nome === categoria)?.id ?? null,
+    [categoria, categorias],
   );
 
   const itensPreFiltrados = useMemo(() => estoque.filter((item) => {
@@ -61,17 +63,17 @@ export const PosicaoEstoquePatrimonio = () => {
       || item.marca.toLowerCase().includes(busca)
       || item.especificacao.toLowerCase().includes(busca);
     const matchTipo = tipo === 'todos' || item.tipoItem === tipo;
-    const matchCategoria = !idsCategoria || Boolean(item.subcategoriaId && idsCategoria.has(item.subcategoriaId));
+    const matchCategoria = !categoriaSelecionadaId || item.categoriaId === categoriaSelecionadaId;
     const matchSub = subcategoria === 'todas' || item.subcategoriaId === subcategoria;
     const matchCondicao = condicao === 'todas' || item.condicao === condicao;
     const matchStatus = status === 'todos' || (status === 'ativos' ? item.ativo !== false : item.ativo === false);
     return matchTexto && matchTipo && matchCategoria && matchSub && matchCondicao && matchStatus;
-  }), [estoque, texto, tipo, idsCategoria, subcategoria, condicao, status]);
+  }), [estoque, texto, tipo, categoriaSelecionadaId, subcategoria, condicao, status]);
 
   const obterCategoriaDoItem = useCallback((item: EstoqueItem) => ({
-    categoria: item.subcategoriaId ? obterPrimeiraCategoriaDeSubcategoria(item.subcategoriaId) : '',
+    categoria: item.categoriaId ? nomesCategoria.get(item.categoriaId) || '' : '',
     subcategoria: item.subcategoriaId ? nomesSubcategoria.get(item.subcategoriaId) || '' : '',
-  }), [obterPrimeiraCategoriaDeSubcategoria, nomesSubcategoria]);
+  }), [nomesCategoria, nomesSubcategoria]);
 
   const { linhas, carregando } = usePosicaoPatrimonio({
     itens: itensPreFiltrados,
