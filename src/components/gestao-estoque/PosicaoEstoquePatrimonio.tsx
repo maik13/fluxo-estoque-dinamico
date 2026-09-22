@@ -26,7 +26,6 @@ export const PosicaoEstoquePatrimonio = () => {
   } = useConfiguracoes();
 
   const [texto, setTexto] = useState('');
-  const [tipo, setTipo] = useState('todos');
   const [categoria, setCategoria] = useState('todas');
   const [subcategoria, setSubcategoria] = useState('todas');
   const [condicao, setCondicao] = useState('todas');
@@ -62,13 +61,12 @@ export const PosicaoEstoquePatrimonio = () => {
       || item.nome.toLowerCase().includes(busca)
       || item.marca.toLowerCase().includes(busca)
       || item.especificacao.toLowerCase().includes(busca);
-    const matchTipo = tipo === 'todos' || item.tipoItem === tipo;
     const matchCategoria = !categoriaSelecionadaId || item.categoriaId === categoriaSelecionadaId;
     const matchSub = subcategoria === 'todas' || item.subcategoriaId === subcategoria;
     const matchCondicao = condicao === 'todas' || item.condicao === condicao;
     const matchStatus = status === 'todos' || (status === 'ativos' ? item.ativo !== false : item.ativo === false);
-    return matchTexto && matchTipo && matchCategoria && matchSub && matchCondicao && matchStatus;
-  }), [estoque, texto, tipo, categoriaSelecionadaId, subcategoria, condicao, status]);
+    return matchTexto && matchCategoria && matchSub && matchCondicao && matchStatus;
+  }), [estoque, texto, categoriaSelecionadaId, subcategoria, condicao, status]);
 
   const obterCategoriaDoItem = useCallback((item: EstoqueItem) => ({
     categoria: item.categoriaId ? nomesCategoria.get(item.categoriaId) || '' : '',
@@ -94,7 +92,6 @@ export const PosicaoEstoquePatrimonio = () => {
 
   const filtrosDescricao = [
     texto.trim() ? `Busca: ${texto.trim()}` : '',
-    tipo !== 'todos' ? `Tipo: ${tipo}` : '',
     categoria !== 'todas' ? `Categoria: ${categoria}` : '',
     subcategoria !== 'todas' ? `Subcategoria: ${nomesSubcategoria.get(subcategoria) || subcategoria}` : '',
     condicao !== 'todas' ? `Condição: ${condicao}` : '',
@@ -167,16 +164,6 @@ export const PosicaoEstoquePatrimonio = () => {
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Código, nome ou marca..." value={texto} onChange={(e) => setTexto(e.target.value)} className="pl-10" />
             </div>
-            <Select value={tipo} onValueChange={setTipo}>
-              <SelectTrigger><SelectValue placeholder="Tipo de item" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os tipos</SelectItem>
-                <SelectItem value="Ferramenta">Ferramenta</SelectItem>
-                <SelectItem value="Insumo">Insumo</SelectItem>
-                <SelectItem value="Matéria Prima">Matéria Prima</SelectItem>
-                <SelectItem value="Produto Acabado">Produto Acabado</SelectItem>
-              </SelectContent>
-            </Select>
             <Select value={categoria} onValueChange={setCategoria}>
               <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
               <SelectContent>
@@ -277,7 +264,6 @@ export const PosicaoEstoquePatrimonio = () => {
                 <TableHeader>
                   <TableRow className="whitespace-nowrap">
                     <TableHead>Código</TableHead>
-                    <TableHead>Tipo</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead>Marca</TableHead>
                     <TableHead>Especificação</TableHead>
@@ -297,12 +283,11 @@ export const PosicaoEstoquePatrimonio = () => {
                 <TableBody>
                   {linhasFiltradas.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={16} className="text-center py-10 text-muted-foreground">Nenhum item encontrado.</TableCell>
+                      <TableCell colSpan={15} className="text-center py-10 text-muted-foreground">Nenhum item encontrado.</TableCell>
                     </TableRow>
                   ) : linhasFiltradas.map((linha) => (
                     <TableRow key={linha.item.id} className="whitespace-nowrap">
                       <TableCell className="font-mono">{linha.codigo}</TableCell>
-                      <TableCell><Badge variant={linha.ehFerramenta ? 'default' : 'secondary'}>{linha.tipo}</Badge></TableCell>
                       <TableCell className="font-medium">{linha.nome}</TableCell>
                       <TableCell>{linha.marca}</TableCell>
                       <TableCell className="max-w-[220px] truncate" title={linha.especificacao}>{linha.especificacao}</TableCell>
