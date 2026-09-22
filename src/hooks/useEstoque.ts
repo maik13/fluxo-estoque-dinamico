@@ -1154,10 +1154,15 @@ const importarItensServidor = async (lista: Omit<Item, 'id' | 'codigoBarras'>[])
   }
 };
 
+  const estoqueAtivoInfo = obterEstoqueAtivoInfo();
+  const incluirSemEstoqueAtivo = isEstoqueAtivoPrincipal();
+
   return {
     itens,
     movimentacoes,
     loading,
+    estoqueAtivoInfo,
+    incluirSemEstoqueAtivo,
     buscarItemPorCodigo,
     verificarCodigoExistente,
     obterProximoCodigoDisponivel,
