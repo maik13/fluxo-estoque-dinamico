@@ -69,13 +69,26 @@ export const montarLinhaPosicao = (
   contexto: ContextoLinha = {}
 ): LinhaPosicaoPatrimonio => {
   const ehFerramenta = contexto.categoria === 'Ferramenta';
-  const quantidadeAlmoxarifado = Number(item.estoqueAtual) || 0;
-  const quantidadeAlocada = ehFerramenta ? Number(alocacao?.saldoPendente || 0) : 0;
+  const ehChaveAllen = ehFerramenta && /\\ballen\\b/i.test(item.nome || '');
+  const ferramentaUnitaria = ehFerramenta && !ehChaveAllen;
+  const saldoRegistrado = Number(item.estoqueAtual) || 0;
+  const alocacaoRegistrada = ehFerramenta ? Number(alocacao?.saldoPendente || 0) : 0;
+
+  // Cada código de ferramenta não-Allen representa um único patrimônio.
+  // A unidade está no almoxarifado OU alocada; nunca pode ser somada como 2.
+  const quantidadeAlmoxarifado = ferramentaUnitaria
+    ? Math.min(1, Math.max(0, saldoRegistrado))
+    : saldoRegistrado;
+  const quantidadeAlocada = ferramentaUnitaria
+    ? (quantidadeAlmoxarifado > 0 ? 0 : Math.min(1, Math.max(0, alocacaoRegistrada)))
+    : alocacaoRegistrada;
   const almoxarifadoPositivo = Math.max(0, quantidadeAlmoxarifado);
 
-  const quantidadeConsiderada = ehFerramenta
-    ? almoxarifadoPositivo + quantidadeAlocada
-    : quantidadeAlmoxarifado;
+  const quantidadeConsiderada = ferramentaUnitaria
+    ? 1
+    : ehFerramenta
+      ? almoxarifadoPositivo + quantidadeAlocada
+      : quantidadeAlmoxarifado;
 
   const divergencia = quantidadeAlmoxarifado < 0;
 
