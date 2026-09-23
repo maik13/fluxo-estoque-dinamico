@@ -264,20 +264,25 @@ const buscarAlocacoesEmLote = async (
     movimentosPorItem.get(movimento.item_id)!.push(movimento);
   });
 
+  const itensPorId = new Map(itens.map((item) => [item.id, item]));
+
   movimentosPorItem.forEach((movimentosDoItem, itemId) => {
     let saldo = 0;
     let ultimoLocal = '';
+    const item = itensPorId.get(itemId);
+    const ferramentaUnitaria = !/\\ballen\\b/i.test(item?.nome || '');
 
     movimentosDoItem
       .sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime())
       .forEach((movimento) => {
         if (movimento.tipo === 'SAIDA') {
-          saldo += Number(movimento.quantidade);
+          // Ferramenta não-Allen é estado, não quantidade acumulada.
+          saldo = ferramentaUnitaria ? 1 : saldo + Number(movimento.quantidade);
           ultimoLocal = movimento.locais_utilizacao?.nome || 'Local não identificado';
         }
 
         if (movimento.tipo === 'ENTRADA' && movimento.observacoes?.toLowerCase().includes('devolução')) {
-          saldo = Math.max(0, saldo - Number(movimento.quantidade));
+          saldo = ferramentaUnitaria ? 0 : Math.max(0, saldo - Number(movimento.quantidade));
         }
       });
 
