@@ -114,17 +114,33 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
   }, [ordem.id]);
 
   const confirmarIncorporacao = async () => {
+    if (!estoqueAtivo?.id) {
+      toast.error('Selecione o estoque que atenderá a solicitação no cabeçalho do sistema.');
+      return;
+    }
+
     setIncorporando(true);
+    let materiaisIncorporados = false;
     try {
       const quantidade = await incorporarMateriaisPCP(ordem.id);
+      materiaisIncorporados = true;
+      const criada = await gerarSolicitacaoMaterial(ordem.id, estoqueAtivo.id);
+      setSolicitacao(criada);
       setConfirmacaoIncorporarAberta(false);
       await carregar();
       toast.success(
-        `${quantidade} item(ns) do PCP incorporado(s) à OP. Nenhuma solicitação, reserva ou baixa foi gerada.`,
-        { duration: 7000 },
+        `${quantidade} item(ns) do PCP incorporado(s) e Solicitação de Material nº ${criada.numero_solicitacao} gerada para o Almoxarifado. Nenhuma reserva ou baixa de estoque foi realizada.`,
+        { duration: 8000 },
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Não foi possível incorporar o PCP à OP.');
+      const detalhe = error instanceof Error ? error.message : 'Erro desconhecido.';
+      toast.error(
+        materiaisIncorporados
+          ? `Os materiais foram incorporados, mas a solicitação não foi confirmada pelo servidor: ${detalhe}. Use “Gerar Solicitação de Material” para concluir sem duplicar.`
+          : `Não foi possível incorporar o PCP à OP: ${detalhe}`,
+        { duration: 10000 },
+      );
+      await carregar();
     } finally {
       setIncorporando(false);
     }
@@ -200,7 +216,7 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
               <div>
                 <p className="text-sm font-semibold">O PCP atual da Etapa pode ser incorporado agora.</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  A incorporação apenas copia os materiais proporcionalmente para esta OP. Não gera solicitação, reserva ou baixa de estoque.
+                  A confirmação incorpora os materiais proporcionalmente e gera a Solicitação de Material para o Almoxarifado. Não reserva nem baixa o estoque.
                 </p>
               </div>
               <Button
@@ -335,7 +351,7 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
                 Os materiais atuais do PCP da Etapa serão copiados proporcionalmente para esta Ordem de Produção.
               </span>
               <span className="block">
-                Esta ação não cria Solicitação de Material, não reserva e não baixa o estoque. Depois da incorporação, você deverá revisar os itens e gerar a solicitação oficial separadamente.
+                Esta ação incorpora os materiais e cria imediatamente a Solicitação de Material pendente para o Almoxarifado. Não reserva nem baixa o estoque.
               </span>
               {ordem.status === 'em_execucao' && (
                 <span className="block rounded-md border border-amber-500/30 bg-amber-500/5 p-2 font-semibold">
@@ -357,7 +373,7 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
               {incorporando
                 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 : <PackagePlus className="mr-2 h-4 w-4" />}
-              Estou ciente — incorporar PCP
+              Estou ciente — incorporar e gerar solicitação
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
