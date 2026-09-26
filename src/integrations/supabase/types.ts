@@ -164,6 +164,7 @@ export type Database = {
           especificacao: string | null
           foto_url: string | null
           id: string
+          imobilizado: boolean
           localizacao: string | null
           marca: string | null
           ncm: string | null
