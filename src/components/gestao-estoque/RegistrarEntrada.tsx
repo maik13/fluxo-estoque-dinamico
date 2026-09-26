@@ -30,7 +30,7 @@ export const RegistrarEntrada = () => {
   const [processando, setProcessando] = useState(false);
 
   const { obterEstoque, registrarEntrada } = useEstoqueContext();
-  const { tiposOperacao } = useConfiguracoes();
+  const { tiposOperacao, categorias } = useConfiguracoes();
   
   const itensDisponiveis = obterEstoque().filter(item => item.ativo !== false);
 
@@ -98,10 +98,12 @@ export const RegistrarEntrada = () => {
     // Validação antecipada da regra patrimonial: evita que um lote seja iniciado
     // quando algum item classificado como ferramenta possui quantidade diferente de 1.
     const ferramentaComQuantidadeInvalida = itensEntrada.find(({ item, quantidade }) => {
-      const tipoItem = (item.tipoItem ?? '').toLocaleLowerCase('pt-BR');
+      const categoria = categorias.find((atual) => atual.id === item.categoriaId);
+      const categoriaFerramenta =
+        (categoria?.nome ?? '').trim().toLocaleLowerCase('pt-BR') === 'ferramenta';
       const nomeItem = item.nome.toLocaleLowerCase('pt-BR');
       const chaveAllen = nomeItem.includes('allen') || nomeItem.includes('alen');
-      return tipoItem === 'ferramenta' && !chaveAllen && quantidade !== 1;
+      return categoriaFerramenta && !chaveAllen && quantidade !== 1;
     });
 
     if (ferramentaComQuantidadeInvalida) {
