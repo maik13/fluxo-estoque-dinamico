@@ -103,6 +103,7 @@ export const useEstoque = () => {
             quantidadeMinima: payload.new.quantidade_minima ?? undefined,
             ncm: payload.new.ncm ?? '',
             valor: payload.new.valor ?? undefined,
+            imobilizado: payload.new.imobilizado ?? false,
             fotoUrl: payload.new.foto_url ?? undefined,
             ativo: payload.new.ativo ?? true,
           };
@@ -139,6 +140,7 @@ export const useEstoque = () => {
             quantidadeMinima: payload.new.quantidade_minima ?? undefined,
             ncm: payload.new.ncm ?? '',
             valor: payload.new.valor ?? undefined,
+            imobilizado: payload.new.imobilizado ?? false,
             fotoUrl: payload.new.foto_url ?? undefined,
             ativo: payload.new.ativo ?? true,
           };
@@ -403,6 +405,7 @@ export const useEstoque = () => {
         quantidadeMinima: row.quantidade_minima ?? undefined,
         ncm: row.ncm ?? '',
         valor: row.valor ?? undefined,
+        imobilizado: row.imobilizado ?? false,
         fotoUrl: row.foto_url ?? undefined,
         ativo: row.ativo ?? true,
       }));
