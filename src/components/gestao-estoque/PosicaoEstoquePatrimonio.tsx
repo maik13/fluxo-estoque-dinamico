@@ -32,6 +32,7 @@ export const PosicaoEstoquePatrimonio = () => {
   const [status, setStatus] = useState('ativos');
   const [situacao, setSituacao] = useState('todas');
   const [preco, setPreco] = useState('todos');
+  const [imobilizado, setImobilizado] = useState('todos');
   const [localUso, setLocalUso] = useState('');
 
   const estoque = useMemo(() => obterEstoque(), [obterEstoque]);
@@ -85,8 +86,9 @@ export const PosicaoEstoquePatrimonio = () => {
       || (preco === 'com-preco' ? linha.valorUnitario !== null : linha.valorUnitario === null);
     const buscaLocal = localUso.trim().toLowerCase();
     const matchLocal = !buscaLocal || linha.projetoLocalUso.toLowerCase().includes(buscaLocal);
-    return matchSituacao && matchPreco && matchLocal;
-  }), [linhas, situacao, preco, localUso]);
+    const matchImobilizado = imobilizado === 'todos' || (imobilizado === 'sim' ? linha.item.imobilizado === true : linha.item.imobilizado !== true);
+    return matchSituacao && matchPreco && matchLocal && matchImobilizado;
+  }), [linhas, situacao, preco, localUso, imobilizado]);
 
   const totais = useMemo(() => calcularTotaisPosicao(linhasFiltradas), [linhasFiltradas]);
 
@@ -99,6 +101,7 @@ export const PosicaoEstoquePatrimonio = () => {
     situacao !== 'todas' ? `Situação: ${situacao}` : '',
     localUso.trim() ? `Projeto/Local: ${localUso.trim()}` : '',
     preco !== 'todos' ? `Preço: ${preco === 'com-preco' ? 'Com preço' : 'Sem preço'}` : '',
+    imobilizado !== 'todos' ? `Patrimônio: ${imobilizado === 'sim' ? 'Imobilizado' : 'Não imobilizado'}` : '',
   ].filter(Boolean).join(' | ');
 
   if (loading) {
@@ -208,6 +211,14 @@ export const PosicaoEstoquePatrimonio = () => {
                 <SelectItem value="Divergência de estoque">Divergência de estoque</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={imobilizado} onValueChange={setImobilizado}>
+              <SelectTrigger><SelectValue placeholder="Patrimônio" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os patrimônios</SelectItem>
+                <SelectItem value="sim">Somente imobilizados</SelectItem>
+                <SelectItem value="nao">Não imobilizados</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={preco} onValueChange={setPreco}>
               <SelectTrigger><SelectValue placeholder="Preço" /></SelectTrigger>
               <SelectContent>
@@ -269,6 +280,7 @@ export const PosicaoEstoquePatrimonio = () => {
                     <TableHead>Especificação</TableHead>
                     <TableHead>Categoria/Subcategoria</TableHead>
                     <TableHead>Condição</TableHead>
+                    <TableHead>Patrimônio</TableHead>
                     <TableHead>Unidade</TableHead>
                     <TableHead className="text-right">Qtd. Almox.</TableHead>
                     <TableHead className="text-right">Qtd. Alocada</TableHead>
@@ -283,7 +295,7 @@ export const PosicaoEstoquePatrimonio = () => {
                 <TableBody>
                   {linhasFiltradas.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={15} className="text-center py-10 text-muted-foreground">Nenhum item encontrado.</TableCell>
+                      <TableCell colSpan={16} className="text-center py-10 text-muted-foreground">Nenhum item encontrado.</TableCell>
                     </TableRow>
                   ) : linhasFiltradas.map((linha) => (
                     <TableRow key={linha.item.id} className="whitespace-nowrap">
@@ -293,6 +305,7 @@ export const PosicaoEstoquePatrimonio = () => {
                       <TableCell className="max-w-[220px] truncate" title={linha.especificacao}>{linha.especificacao}</TableCell>
                       <TableCell>{linha.categoria} / {linha.subcategoria}</TableCell>
                       <TableCell>{linha.condicao}</TableCell>
+                      <TableCell><Badge variant={linha.item.imobilizado ? 'default' : 'secondary'}>{linha.item.imobilizado ? 'Imobilizado' : 'Não imobilizado'}</Badge></TableCell>
                       <TableCell>{linha.unidade}</TableCell>
                       <TableCell className="text-right">{qtd(linha.quantidadeAlmoxarifado)}</TableCell>
                       <TableCell className="text-right">{linha.ehFerramenta ? qtd(linha.quantidadeAlocada) : '-'}</TableCell>
