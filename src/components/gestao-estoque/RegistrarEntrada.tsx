@@ -95,6 +95,23 @@ export const RegistrarEntrada = () => {
     e.preventDefault();
     if (processando) return;
     
+    // Validação antecipada da regra patrimonial: evita que um lote seja iniciado
+    // quando algum item classificado como ferramenta possui quantidade diferente de 1.
+    const ferramentaComQuantidadeInvalida = itensEntrada.find(({ item, quantidade }) => {
+      const tipoItem = (item.tipoItem ?? '').toLocaleLowerCase('pt-BR');
+      const nomeItem = item.nome.toLocaleLowerCase('pt-BR');
+      const chaveAllen = nomeItem.includes('allen') || nomeItem.includes('alen');
+      return tipoItem === 'ferramenta' && !chaveAllen && quantidade !== 1;
+    });
+
+    if (ferramentaComQuantidadeInvalida) {
+      toast.error(
+        `O item "${ferramentaComQuantidadeInvalida.item.nome}" está classificado como ferramenta patrimonial e deve ser movimentado com quantidade 1. Corrija a quantidade ou o cadastro do item antes de registrar a entrada.`,
+        { duration: 10000 },
+      );
+      return;
+    }
+
     // Preparar dados para validação
     const dadosParaValidar = {
       tipoOperacaoId: tipoOperacaoId || '',
