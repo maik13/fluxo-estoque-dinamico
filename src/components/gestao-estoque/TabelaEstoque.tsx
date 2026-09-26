@@ -32,6 +32,7 @@ interface TabelaEstoqueProps {
 
 type FiltroEstoque = 'todos' | 'com-estoque' | 'baixo' | 'zerado' | 'negativo';
 type FiltroFoto = 'todas' | 'com-foto' | 'sem-foto';
+type FiltroImobilizado = 'todos' | 'imobilizados' | 'nao-imobilizados';
 
 export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   const {
@@ -56,6 +57,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
   const [filtroCondicao, setFiltroCondicao] = useState('todas');
   const [filtroEstoque, setFiltroEstoque] = useState<FiltroEstoque>('todos');
   const [filtroFoto, setFiltroFoto] = useState<FiltroFoto>('todas');
+  const [filtroImobilizado, setFiltroImobilizado] = useState<FiltroImobilizado>('todos');
   const [filtroStatus, setFiltroStatus] = useState('ativos'); // ativos, inativos, todos
   const [modoVisualizacao, setModoVisualizacao] = useState<'detalhado' | 'contado'>('detalhado');
   
@@ -177,14 +179,16 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
         matchStatus = item.ativo === false;
       }
 
-      return matchTexto && matchCategoria && matchSubcategoria && matchCondicao && matchEstoque && matchFoto && matchStatus;
+      const matchImobilizado = filtroImobilizado === 'todos' || (filtroImobilizado === 'imobilizados' ? item.imobilizado === true : item.imobilizado !== true);
+
+      return matchTexto && matchCategoria && matchSubcategoria && matchCondicao && matchEstoque && matchFoto && matchStatus && matchImobilizado;
     });
-  }, [estoque, filtroTexto, categoriaSelecionadaId, filtroSubcategoria, filtroCondicao, filtroEstoque, filtroFoto, filtroStatus]);
+  }, [estoque, filtroTexto, categoriaSelecionadaId, filtroSubcategoria, filtroCondicao, filtroEstoque, filtroFoto, filtroStatus, filtroImobilizado]);
   
   // Resetar página quando filtros mudarem
   useEffect(() => {
     setPaginaAtual(1);
-  }, [filtroTexto, filtroCategoria, filtroSubcategoria, filtroCondicao, filtroEstoque, filtroFoto, filtroStatus, itensPorPagina]);
+  }, [filtroTexto, filtroCategoria, filtroSubcategoria, filtroCondicao, filtroEstoque, filtroFoto, filtroStatus, filtroImobilizado, itensPorPagina]);
   
   // Calcular itens da página atual
   const itensPaginados = useMemo(() => {
@@ -705,6 +709,15 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
               </SelectContent>
             </Select>
 
+            <Select value={filtroImobilizado} onValueChange={(value) => setFiltroImobilizado(value as FiltroImobilizado)}>
+              <SelectTrigger><SelectValue placeholder="Patrimônio" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os patrimônios</SelectItem>
+                <SelectItem value="imobilizados">Somente imobilizados</SelectItem>
+                <SelectItem value="nao-imobilizados">Não imobilizados</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
               <SelectTrigger>
                 <SelectValue placeholder="Status" />
@@ -842,6 +855,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                   <TableHead>Localização</TableHead>
                   <TableHead>Estoque</TableHead>
                   <TableHead>Valor Unit.</TableHead>
+                  <TableHead>Patrimônio</TableHead>
                   <TableHead>Est. Mínimo</TableHead>
                   <TableHead>Unidade</TableHead>
                   <TableHead>Condição</TableHead>
@@ -853,7 +867,7 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
               <TableBody>
                 {itensFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin() ? 15 : 14} className="text-center py-8">
+                    <TableCell colSpan={isAdmin() ? 16 : 15} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-muted-foreground">
@@ -942,6 +956,11 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
                         {item.valor != null
                           ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.valor))
                           : <span className="text-muted-foreground text-xs">-</span>}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={item.imobilizado ? 'default' : 'secondary'}>
+                          {item.imobilizado ? 'Imobilizado' : 'Não imobilizado'}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         {item.quantidadeMinima ? (
