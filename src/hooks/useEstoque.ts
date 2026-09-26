@@ -885,7 +885,14 @@ const registrarEntrada = async (
     return true;
   } catch (error) {
     console.error('Erro ao registrar entrada:', error);
-    toast({ title: 'Erro na entrada', description: 'Ocorreu um erro ao registrar a entrada.', variant: 'destructive' });
+    const detalhe = typeof error === 'object' && error !== null && 'message' in error
+      ? String((error as { message?: unknown }).message || '')
+      : '';
+    toast({
+      title: 'Erro na entrada',
+      description: detalhe || 'Ocorreu um erro ao registrar a entrada.',
+      variant: 'destructive'
+    });
     return false;
   }
 };
