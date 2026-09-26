@@ -54,6 +54,7 @@ export const exportarExcelPosicaoPatrimonio = ({
     Especificação: linha.especificacao,
     Categoria: linha.categoria,
     Subcategoria: linha.subcategoria,
+    'Classificação Patrimonial': linha.item.imobilizado ? 'Imobilizado' : 'Não imobilizado',
     Condição: linha.condicao,
     Unidade: linha.unidade,
     Ativo: linha.ativo ? 'Sim' : 'Não',
