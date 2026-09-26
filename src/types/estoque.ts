@@ -19,6 +19,7 @@ export interface Item {
   quantidadeMinima?: number; // Para alertas de estoque baixo
   ncm?: string; // NCM - Nomenclatura Comum do Mercosul
   valor?: number; // Valor unitário do item
+  imobilizado?: boolean; // Classificação patrimonial calculada no banco
   fotoUrl?: string; // URL da foto do produto
   ativo: boolean; // Status do item (ativo/inativo)
 }
