@@ -131,6 +131,18 @@ export const MenuPrincipal = ({
     return obterSubcategoriasDaCategoria(formCadastro.categoriaId);
   }, [formCadastro.categoriaId, obterSubcategoriasDaCategoria]);
 
+  const imobilizadoCadastro = useMemo(() => {
+    const normalizar = (valor?: string) =>
+      (valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+    const categoriaNome = categoriasUnicas.find((item) => item.id === formCadastro.categoriaId)?.nome;
+    const subcategoriaNome = subcategoriasFiltradas.find((item) => item.id === formCadastro.subcategoriaId)?.nome;
+    const valor = Number(formCadastro.valor) || 0;
+    return valor > 1500 && (
+      normalizar(categoriaNome) === 'ferramenta'
+      || (normalizar(categoriaNome) === 'produto' && normalizar(subcategoriaNome) === 'locacao')
+    );
+  }, [categoriasUnicas, subcategoriasFiltradas, formCadastro.categoriaId, formCadastro.subcategoriaId, formCadastro.valor]);
+
   // Filtrar itens para busca inteligente na saída - só recalcula quando necessário
   const itensFiltrarados = useMemo(() => {
     if (!buscaSaida) return itensEstoque;
@@ -764,6 +776,18 @@ export const MenuPrincipal = ({
                     placeholder="0,00"
                   />
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-4 p-3 border rounded-lg bg-muted/30">
+                <div>
+                  <Label>Classificação patrimonial</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Calculada automaticamente pela categoria, subcategoria e valor unitário.
+                  </p>
+                </div>
+                <Badge variant={imobilizadoCadastro ? 'default' : 'secondary'}>
+                  {imobilizadoCadastro ? 'Imobilizado' : 'Não imobilizado'}
+                </Badge>
               </div>
 
               <div className="flex items-center gap-4 p-3 border rounded-lg bg-muted/30">
