@@ -41,6 +41,7 @@ import {
 import { formatarIdentificacaoOrdemProducao, formatarNumeroOrdemProducao } from '@/hooks/useOrdensProducao';
 import { cn } from '@/lib/utils';
 import { PlanoDiarioProducao } from './PlanoDiarioProducao';
+import { AgendaPlanejamentoCronograma } from './AgendaPlanejamentoCronograma';
 
 const LABEL_WIDTH = 390;
 const ROW_HEIGHT_ETAPA = 70;
@@ -316,7 +317,11 @@ export const CronogramaProducao = () => {
       </div>
 
       <Tabs defaultValue="gantt">
-        <TabsList><TabsTrigger value="gantt">Gantt</TabsTrigger><TabsTrigger value="plano-diario">Plano Diário</TabsTrigger></TabsList>
+        <TabsList>
+          <TabsTrigger value="gantt">Gantt</TabsTrigger>
+          <TabsTrigger value="plano-diario">Plano Diário</TabsTrigger>
+          <TabsTrigger value="agenda">Agenda / Marcos</TabsTrigger>
+        </TabsList>
 
         <TabsContent value="gantt" className="mt-4">
           <Card className="overflow-hidden">
@@ -342,6 +347,13 @@ export const CronogramaProducao = () => {
             <div className="border-b bg-muted/20 px-4 py-2 text-sm text-muted-foreground">
               {format(periodo.inicio, "dd 'de' MMMM", { locale: ptBR })} a {format(periodo.fim, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })} · cada coluna representa um dia
             </div>
+
+            <AgendaPlanejamentoCronograma
+              inicio={format(periodo.inicio, 'yyyy-MM-dd')}
+              fim={format(periodo.fim, 'yyyy-MM-dd')}
+              somenteMarcos
+              compacto
+            />
 
             <div ref={ganttViewportRef} className="max-h-[76vh] overflow-auto">
               <div className="flex" style={{ width: LABEL_WIDTH + largura }}>
@@ -452,6 +464,9 @@ export const CronogramaProducao = () => {
         </TabsContent>
 
         <TabsContent value="plano-diario" className="mt-4"><PlanoDiarioProducao /></TabsContent>
+        <TabsContent value="agenda" className="mt-4">
+          <AgendaPlanejamentoCronograma />
+        </TabsContent>
       </Tabs>
 
       <Dialog open={configAberta} onOpenChange={setConfigAberta}>
