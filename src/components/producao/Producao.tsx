@@ -8,6 +8,7 @@ import {
   FolderOpen,
   Activity,
   CalendarRange,
+  Calculator,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -24,6 +25,7 @@ import { FormApontamentoProducaoV2 } from './FormApontamentoProducaoV2';
 import { FormFechamentoJornadaOp } from './FormFechamentoJornadaOp';
 import { HistoricoApontamentosProducaoComBusca } from './HistoricoApontamentosProducaoComBusca';
 import { ProjetosProducao } from './ProjetosProducao';
+import { PlanejamentoProducao } from './PlanejamentoProducao';
 import { ProcessosProducaoHierarquico } from './ProcessosProducaoHierarquico';
 
 export const Producao = () => {
@@ -142,7 +144,8 @@ export const Producao = () => {
       )}
 
       <Tabs value={abaAtiva} onValueChange={trocarAba} className="w-full">
-        <TabsList className={`flex h-auto w-full flex-wrap gap-1 sm:grid ${podeConfigurar ? 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-6' : 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-5'}`}>
+        <TabsList className={`flex h-auto w-full flex-wrap gap-1 sm:grid ${podeConfigurar ? 'grid-cols-2 sm:grid-cols-4 xl:grid-cols-7' : 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-6'}`}>
+          <TabsTrigger value="planejamento" className="gap-2"><Calculator className="h-4 w-4" /><span className="hidden sm:inline">Planejamento</span></TabsTrigger>
           <TabsTrigger value="projetos" className="gap-2"><FolderOpen className="h-4 w-4" /><span className="hidden sm:inline">Projetos</span></TabsTrigger>
           <TabsTrigger value="etapas" className="gap-2"><Activity className="h-4 w-4" /><span className="hidden sm:inline">Etapas</span></TabsTrigger>
           <TabsTrigger value="cronograma" className="gap-2"><CalendarRange className="h-4 w-4" /><span className="hidden sm:inline">Cronograma</span></TabsTrigger>
@@ -151,6 +154,9 @@ export const Producao = () => {
           {podeConfigurar && <TabsTrigger value="configuracoes" className="gap-2"><Settings className="h-4 w-4" /><span className="hidden sm:inline">Configurações</span></TabsTrigger>}
         </TabsList>
 
+        <TabsContent value="planejamento" className="mt-5">
+          <PlanejamentoProducao />
+        </TabsContent>
         <TabsContent value="projetos" className="mt-5">
           <ProjetosProducao onProjetosAtualizados={sincronizarProjetosEtapas} />
         </TabsContent>
