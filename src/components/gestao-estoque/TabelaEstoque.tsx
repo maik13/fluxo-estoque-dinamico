@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, Filter, Download, AlertTriangle, Package, TrendingUp, TrendingDown, Edit, FileText, FileSpreadsheet, Printer, ShoppingCart, Trash2, Image as ImageIcon } from 'lucide-react';
@@ -641,36 +642,27 @@ export const TabelaEstoque = ({ onAbrirRetirada }: TabelaEstoqueProps) => {
               />
             </div>
             
-            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-              <SelectTrigger>
-                <SelectValue placeholder="Categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas as categorias</SelectItem>
-                {categorias.map(categoria => (
-                  <SelectItem key={categoria.id} value={categoria.nome}>
-                    {categoria.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={filtroCategoria}
+              onValueChange={setFiltroCategoria}
+              placeholder="Categoria"
+              searchPlaceholder="Buscar categoria..."
+              options={[
+                { value: 'todas', label: 'Todas as categorias' },
+                ...categorias.map((categoria) => ({ value: categoria.nome, label: categoria.nome })),
+              ]}
+            />
             
-            <Select 
-              value={filtroSubcategoria} 
+            <SearchableSelect
+              value={filtroSubcategoria}
               onValueChange={setFiltroSubcategoria}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Subcategoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas as subcategorias</SelectItem>
-                {subcategoriasFiltradas.map(subcategoria => (
-                  <SelectItem key={subcategoria.id} value={subcategoria.id}>
-                    {subcategoria.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Subcategoria"
+              searchPlaceholder="Buscar subcategoria..."
+              options={[
+                { value: 'todas', label: 'Todas as subcategorias' },
+                ...subcategoriasFiltradas.map((subcategoria) => ({ value: subcategoria.id, label: subcategoria.nome })),
+              ]}
+            />
             
             <Select value={filtroCondicao} onValueChange={setFiltroCondicao}>
               <SelectTrigger>
