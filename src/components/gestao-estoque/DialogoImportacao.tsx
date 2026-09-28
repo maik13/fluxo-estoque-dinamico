@@ -38,12 +38,12 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
       }
     }
 
-    // Determinar tipo de item (aceita ausência e infere por categoria)
-    const rawTipo = dados.tipoItem?.toString().trim();
-    if (rawTipo && !['Insumo', 'Ferramenta', 'Matéria Prima'].includes(rawTipo)) {
-      return { erro: `Tipo de item inválido: "${dados.tipoItem}". Deve ser "Insumo", "Ferramenta" ou "Matéria Prima"` };
-    }
-    const tipoInferido = rawTipo || (dados.categoria?.toString().trim() === 'Ferramenta' ? 'Ferramenta' : 'Insumo');
+    // tipoItem é legado: a classificação oficial vem de Categoria + Subcategoria.
+    // Mantemos o valor técnico apenas para compatibilidade enquanto dependências antigas existirem.
+    const categoriaInformada = dados.categoria?.toString().trim() || '';
+    const tipoLegadoCompatibilidade = categoriaInformada.toLowerCase() === 'ferramenta'
+      ? 'Ferramenta'
+      : 'Insumo';
 
     // Validar quantidade (opcional agora)
     let quantidade = 0;
@@ -89,7 +89,7 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
       caixaOrganizador: dados.caixaOrganizador?.toString().trim() || '',
       localizacao: dados.localizacao?.toString().trim() || '',
       nome: dados.nome.toString().trim(),
-      tipoItem: tipoInferido as 'Insumo' | 'Ferramenta' | 'Matéria Prima',
+      tipoItem: tipoLegadoCompatibilidade as 'Insumo' | 'Ferramenta',
       especificacao: dados.especificacao?.toString().trim() || '',
       marca: dados.marca?.toString().trim() || '',
       unidade: dados.unidade.toString().trim(),
@@ -262,7 +262,7 @@ export const DialogoImportacao = ({ aberto, onClose, onImportar }: DialogoImport
               <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
                 <li><strong>Códigos gerados automaticamente:</strong> COD-000001, COD-000002... (pode ignorar a coluna codigoBarras do modelo)</li>
                 <li><strong>Campos obrigatórios:</strong> nome, responsavel, unidade</li>
-                <li><strong>tipoItem (opcional):</strong> se ausente, será inferido pela coluna categoria (Ferramenta/Insumo)</li>
+                <li><strong>Classificação oficial:</strong> informe Categoria e Subcategoria; o campo legado tipoItem não é utilizado como classificação.</li>
                 <li><strong>Quantidade:</strong> Opcional (padrão: 0 se não informada)</li>
               </ul>
             </div>
