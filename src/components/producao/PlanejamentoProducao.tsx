@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PendenciasIntegracaoPlanejamento } from './PendenciasIntegracaoPlanejamento';
+import { DivergenciasPlanejamento } from './DivergenciasPlanejamento';
 
 type ProjetoPlanejamento = {
   id: string;
@@ -522,7 +523,8 @@ export const PlanejamentoProducao = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="integracao" className="mt-4">
+        <TabsContent value="integracao" className="mt-4 space-y-6">
+          <DivergenciasPlanejamento />
           <PendenciasIntegracaoPlanejamento />
         </TabsContent>
 
