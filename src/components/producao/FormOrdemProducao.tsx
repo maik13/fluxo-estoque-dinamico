@@ -315,18 +315,13 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
               <Label>Atividade / nome da OP *</Label>
-              <Select value={tarefaId} onValueChange={setTarefaId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a atividade que identificará esta OP" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tarefas.filter((tarefa) => tarefa.ativo).map((tarefa) => (
-                    <SelectItem key={tarefa.id} value={tarefa.id}>
-                      {tarefa.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={tarefaId}
+                onValueChange={setTarefaId}
+                placeholder="Selecione a atividade que identificará esta OP"
+                searchPlaceholder="Buscar atividade..."
+                options={tarefas.filter((tarefa) => tarefa.ativo).map((tarefa) => ({ value: tarefa.id, label: tarefa.nome }))}
+              />
               <p className="text-xs text-muted-foreground">
                 O número continuará sendo gerado automaticamente. Esta atividade ficará gravada como o nome da OP.
               </p>
@@ -361,16 +356,13 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
             <div className="space-y-2 sm:col-span-2 rounded-lg border bg-muted/20 p-3">
               <Label>Parâmetro padrão de fabricação — opcional</Label>
               <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
-                <Select value={parametroPadraoId} onValueChange={setParametroPadraoId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Consultar parâmetro padrão" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {parametrosPadrao.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>{item.tipologia}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={parametroPadraoId}
+                  onValueChange={setParametroPadraoId}
+                  placeholder="Consultar parâmetro padrão"
+                  searchPlaceholder="Buscar parâmetro..."
+                  options={parametrosPadrao.map((item) => ({ value: item.id, label: item.tipologia }))}
+                />
                 <Button type="button" variant="outline" onClick={aplicarDuracaoSugerida} disabled={!parametroSelecionado}>
                   Aplicar duração sugerida
                 </Button>
