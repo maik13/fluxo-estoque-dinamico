@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -228,58 +229,46 @@ export const RelatoriosComFiltros = () => {
                 {/* Categoria */}
                 <div>
                   <Label htmlFor="categoria">Categoria</Label>
-                  <Select 
-                    value={filtros.categoria} 
+                  <SearchableSelect
+                    value={filtros.categoria || 'todas'}
                     onValueChange={(value) => atualizarFiltro('categoria', value === 'todas' ? '' : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas as categorias" />
-                    </SelectTrigger>
-                     <SelectContent>
-                       <SelectItem value="todas">Todas as categorias</SelectItem>
-                       {categorias.map(cat => (
-                         <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
-                       ))}
-                     </SelectContent>
-                  </Select>
+                    placeholder="Todas as categorias"
+                    searchPlaceholder="Buscar categoria..."
+                    options={[
+                      { value: 'todas', label: 'Todas as categorias' },
+                      ...categorias.map((cat) => ({ value: cat.id, label: cat.nome })),
+                    ]}
+                  />
                 </div>
 
                 {/* Subcategoria */}
                 <div>
                   <Label htmlFor="subcategoria">Subcategoria</Label>
-                  <Select 
-                    value={filtros.subcategoria} 
+                  <SearchableSelect
+                    value={filtros.subcategoria || 'todas'}
                     onValueChange={(value) => atualizarFiltro('subcategoria', value === 'todas' ? '' : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas as subcategorias" />
-                    </SelectTrigger>
-                     <SelectContent>
-                       <SelectItem value="todas">Todas as subcategorias</SelectItem>
-                       {subcategorias.map(subcat => (
-                         <SelectItem key={subcat.id} value={subcat.id}>{subcat.nome}</SelectItem>
-                       ))}
-                     </SelectContent>
-                   </Select>
+                    placeholder="Todas as subcategorias"
+                    searchPlaceholder="Buscar subcategoria..."
+                    options={[
+                      { value: 'todas', label: 'Todas as subcategorias' },
+                      ...subcategorias.map((subcat) => ({ value: subcat.id, label: subcat.nome })),
+                    ]}
+                  />
                  </div>
 
                  {/* Localização */}
                  <div>
                   <Label htmlFor="localizacao">Localização</Label>
-                  <Select 
-                    value={filtros.localizacao} 
+                  <SearchableSelect
+                    value={filtros.localizacao || 'todas'}
                     onValueChange={(value) => atualizarFiltro('localizacao', value === 'todas' ? '' : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas as localizações" />
-                    </SelectTrigger>
-                     <SelectContent>
-                       <SelectItem value="todas">Todas as localizações</SelectItem>
-                       {localizacoes.map(loc => (
-                         <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                       ))}
-                     </SelectContent>
-                  </Select>
+                    placeholder="Todas as localizações"
+                    searchPlaceholder="Buscar localização..."
+                    options={[
+                      { value: 'todas', label: 'Todas as localizações' },
+                      ...localizacoes.map((loc) => ({ value: loc, label: loc })),
+                    ]}
+                  />
                 </div>
 
                 {/* Observação */}
