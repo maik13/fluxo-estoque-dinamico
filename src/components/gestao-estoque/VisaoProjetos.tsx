@@ -31,7 +31,7 @@ export const VisaoProjetos = () => {
 
   const [filtroPendentesDestino, setFiltroPendentesDestino] = useState('todos');
   const [filtroPendentesTexto, setFiltroPendentesTexto] = useState('');
-  const [filtroPendentesTipoItem, setFiltroPendentesTipoItem] = useState('todos');
+  const [filtroPendentesCategoria, setFiltroPendentesCategoria] = useState('todos');
   const [filtroPendentesStatus, setFiltroPendentesStatus] = useState('ativos');
   const [filtroDataPendentesInicio, setFiltroDataPendentesInicio] = useState<Date | undefined>(undefined);
   const [filtroDataPendentesFim, setFiltroDataPendentesFim] = useState<Date | undefined>(undefined);
@@ -110,7 +110,7 @@ export const VisaoProjetos = () => {
     {
       dataInicio: filtroDataPendentesInicio,
       dataFim: filtroDataPendentesFim,
-      tipoItem: filtroPendentesTipoItem,
+      categoria: filtroPendentesCategoria,
     },
     categorias,
     subcategorias,
@@ -298,7 +298,7 @@ export const VisaoProjetos = () => {
 
               <div className="space-y-1.5">
                 <Label htmlFor="pendentes-tipo" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Filtrar por Categoria</Label>
-                <Select value={filtroPendentesTipoItem} onValueChange={setFiltroPendentesTipoItem}>
+                <Select value={filtroPendentesCategoria} onValueChange={setFiltroPendentesCategoria}>
                   <SelectTrigger id="pendentes-tipo">
                     <SelectValue placeholder="Todos os tipos" />
                   </SelectTrigger>
