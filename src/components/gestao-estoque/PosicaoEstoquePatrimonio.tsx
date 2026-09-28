@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, Filter, FileSpreadsheet, Package, Loader2, AlertTriangle, MapPin } from 'lucide-react';
@@ -167,20 +168,26 @@ export const PosicaoEstoquePatrimonio = () => {
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Código, nome ou marca..." value={texto} onChange={(e) => setTexto(e.target.value)} className="pl-10" />
             </div>
-            <Select value={categoria} onValueChange={setCategoria}>
-              <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas as categorias</SelectItem>
-                {categorias.map((c) => <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={subcategoria} onValueChange={setSubcategoria}>
-              <SelectTrigger><SelectValue placeholder="Subcategoria" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas as subcategorias</SelectItem>
-                {subcategoriasFiltradas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={categoria}
+              onValueChange={setCategoria}
+              placeholder="Categoria"
+              searchPlaceholder="Buscar categoria..."
+              options={[
+                { value: 'todas', label: 'Todas as categorias' },
+                ...categorias.map((c) => ({ value: c.nome, label: c.nome })),
+              ]}
+            />
+            <SearchableSelect
+              value={subcategoria}
+              onValueChange={setSubcategoria}
+              placeholder="Subcategoria"
+              searchPlaceholder="Buscar subcategoria..."
+              options={[
+                { value: 'todas', label: 'Todas as subcategorias' },
+                ...subcategoriasFiltradas.map((s) => ({ value: s.id, label: s.nome })),
+              ]}
+            />
             <Select value={condicao} onValueChange={setCondicao}>
               <SelectTrigger><SelectValue placeholder="Condição" /></SelectTrigger>
               <SelectContent>
