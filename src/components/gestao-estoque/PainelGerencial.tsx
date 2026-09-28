@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { useConsolidacao, ConsolidacaoFiltros } from '@/hooks/useConsolidacao';
@@ -251,49 +252,46 @@ export const PainelGerencial = () => {
             </div>
             <div className="space-y-2">
               <Label>Classificação do Item</Label>
-              <Select value={categoriaFiltro} onValueChange={setCategoriaFiltro}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas as classificações" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todas as classificações</SelectItem>
-                  {classificacoesDinamicas.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={categoriaFiltro}
+                onValueChange={setCategoriaFiltro}
+                placeholder="Todas as classificações"
+                searchPlaceholder="Buscar classificação..."
+                options={[
+                  { value: 'todos', label: 'Todas as classificações' },
+                  ...classificacoesDinamicas.map((cat) => ({ value: cat, label: cat })),
+                ]}
+              />
             </div>
             <div className="space-y-2">
               <Label>Grupo do Projeto</Label>
-              <Select value={grupoId} onValueChange={(val) => {
-                setGrupoId(val);
-                setLocalId('todos'); // Reseta o local ao mudar o grupo
-              }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos os grupos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos os grupos</SelectItem>
-                  {gruposProjeto.map(g => (
-                    <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>
-                  ))}
-                  <SelectItem value="sem-grupo">Sem Grupo</SelectItem>
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={grupoId}
+                onValueChange={(val) => {
+                  setGrupoId(val);
+                  setLocalId('todos');
+                }}
+                placeholder="Todos os grupos"
+                searchPlaceholder="Buscar grupo..."
+                options={[
+                  { value: 'todos', label: 'Todos os grupos' },
+                  ...gruposProjeto.map((g) => ({ value: g.id, label: g.nome })),
+                  { value: 'sem-grupo', label: 'Sem Grupo' },
+                ]}
+              />
             </div>
             <div className="space-y-2">
               <Label>Projeto / Local</Label>
-              <Select value={localId} onValueChange={setLocalId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos os projetos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos os projetos</SelectItem>
-                  {locaisParaSeletor.map(l => (
-                    <SelectItem key={l.id} value={l.id}>{l.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={localId}
+                onValueChange={setLocalId}
+                placeholder="Todos os projetos"
+                searchPlaceholder="Buscar projeto/local..."
+                options={[
+                  { value: 'todos', label: 'Todos os projetos' },
+                  ...locaisParaSeletor.map((l) => ({ value: l.id, label: l.nome })),
+                ]}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="busca-grupo">Buscar na Tabela</Label>
