@@ -46,6 +46,7 @@ import { FormOrdemProducao } from './FormOrdemProducao';
 import { FormEditarOrdemProducao } from './FormEditarOrdemProducao';
 import { MateriaisEtapaProducao } from './MateriaisEtapaProducao';
 import { MateriaisOrdemProducao } from './MateriaisOrdemProducao';
+import { ControlePrevistoRealOrdemProducao } from './ControlePrevistoRealOrdemProducao';
 import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
 import { ModalExcluirProcesso } from './ModalExcluirProcesso';
 import type {
@@ -805,6 +806,7 @@ export const ProcessosProducao = ({ tarefas }: Props) => {
                             />
                           </div>
                           <MateriaisOrdemProducao ordem={ordem} />
+                    <ControlePrevistoRealOrdemProducao ordem={ordem} />
                         </div>
                       ))}
                     </div>
