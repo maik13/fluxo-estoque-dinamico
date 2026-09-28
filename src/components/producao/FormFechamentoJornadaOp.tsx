@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
 import { formatarNumeroOrdemProducao, ordemProducaoEDePintura } from '@/hooks/useOrdensProducao';
 import { calcularDuracaoProducao } from '@/hooks/useProducao';
@@ -574,14 +575,14 @@ export const FormFechamentoJornadaOp = ({
           {tarefaId ? (
             <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm">{nomeAtividade}</div>
           ) : (
-            <Select value={tarefaId} onValueChange={setTarefaId} disabled={!podeApontar}>
-              <SelectTrigger><SelectValue placeholder="Selecione a atividade" /></SelectTrigger>
-              <SelectContent>
-                {tarefas.filter((tarefa) => tarefa.ativo).map((tarefa) => (
-                  <SelectItem key={tarefa.id} value={tarefa.id}>{tarefa.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={tarefaId}
+              onValueChange={setTarefaId}
+              disabled={!podeApontar}
+              placeholder="Selecione a atividade"
+              searchPlaceholder="Buscar atividade..."
+              options={tarefas.filter((tarefa) => tarefa.ativo).map((tarefa) => ({ value: tarefa.id, label: tarefa.nome }))}
+            />
           )}
         </div>
       </div>
