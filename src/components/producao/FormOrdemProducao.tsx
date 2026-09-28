@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ClipboardList, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { CampoDescricaoComVoz } from './CampoDescricaoComVoz';
+import { supabase } from '@/integrations/supabase/client';
 import type {
   NovaOrdemProducao,
   ProducaoLocalTipo,
@@ -30,6 +31,17 @@ import type {
   ProducaoProcesso,
   ProducaoTarefa,
 } from '@/types/producao';
+
+type ParametroPadrao = {
+  id: string;
+  tipologia: string;
+  detalhamento: string | null;
+  tempo_unitario_horas: number | null;
+  tempo_unitario_texto: string | null;
+  ritmo_padrao: string | null;
+  complexidade: string | null;
+  gargalos_criticos: string | null;
+};
 
 interface Props {
   processo: ProducaoProcesso;
@@ -67,6 +79,36 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
   const [descricao, setDescricao] = useState('');
   const [instrucoes, setInstrucoes] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [parametrosPadrao, setParametrosPadrao] = useState<ParametroPadrao[]>([]);
+  const [parametroPadraoId, setParametroPadraoId] = useState('');
+
+  useEffect(() => {
+    if (!aberto) return;
+    void (async () => {
+      const { data, error } = await (supabase as any)
+        .from('producao_parametros_padrao')
+        .select('id,tipologia,detalhamento,tempo_unitario_horas,tempo_unitario_texto,ritmo_padrao,complexidade,gargalos_criticos')
+        .eq('ativo', true)
+        .order('fonte_linha');
+      if (!error) setParametrosPadrao((data ?? []) as ParametroPadrao[]);
+    })();
+  }, [aberto]);
+
+  const parametroSelecionado = useMemo(
+    () => parametrosPadrao.find((item) => item.id === parametroPadraoId) ?? null,
+    [parametroPadraoId, parametrosPadrao],
+  );
+
+  const aplicarDuracaoSugerida = () => {
+    if (!parametroSelecionado?.tempo_unitario_horas) {
+      toast.error('Este parâmetro não possui duração numérica cadastrada.');
+      return;
+    }
+    const qtd = numero(quantidade || '1');
+    const fator = Number.isFinite(qtd) && qtd > 0 ? qtd : 1;
+    setDuracaoHoras(String(Number(parametroSelecionado.tempo_unitario_horas) * fator));
+    toast.success('Duração sugerida aplicada. Você ainda pode editar o valor antes de criar a OP.');
+  };
 
   const ordensDaEtapa = useMemo(
     () => ordens.filter((ordem) => ordem.processo_id === processo.id),
@@ -115,6 +157,7 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
     setDuracaoHoras('');
     setInicio('');
     setFim('');
+    setParametroPadraoId('');
   };
 
   const emitir = async (event: FormEvent) => {
@@ -314,6 +357,36 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
                   <SelectItem value="Execução">Execução</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2 sm:col-span-2 rounded-lg border bg-muted/20 p-3">
+              <Label>Parâmetro padrão de fabricação — opcional</Label>
+              <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+                <Select value={parametroPadraoId} onValueChange={setParametroPadraoId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Consultar parâmetro padrão" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {parametrosPadrao.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>{item.tipologia}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="outline" onClick={aplicarDuracaoSugerida} disabled={!parametroSelecionado}>
+                  Aplicar duração sugerida
+                </Button>
+              </div>
+              {parametroSelecionado && (
+                <div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                  <p><strong>Tempo base:</strong> {parametroSelecionado.tempo_unitario_texto ?? '—'}</p>
+                  <p><strong>Ritmo:</strong> {parametroSelecionado.ritmo_padrao ?? '—'}</p>
+                  <p><strong>Complexidade:</strong> {parametroSelecionado.complexidade ?? '—'}</p>
+                  <p><strong>Gargalo:</strong> {parametroSelecionado.gargalos_criticos ?? '—'}</p>
+                  {parametroSelecionado.detalhamento && <p className="sm:col-span-2"><strong>Referência:</strong> {parametroSelecionado.detalhamento}</p>}
+                </div>
+              )}
+              <p className="mt-2 text-xs text-muted-foreground">
+                O parâmetro é apenas uma sugestão. A aplicação depende de ação explícita e o valor continua editável.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Tempo estimado de execução (horas) *</Label>
