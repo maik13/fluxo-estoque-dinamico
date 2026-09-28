@@ -86,7 +86,8 @@ export const useProjetosProducao = () => {
         .map((config) => config.local_utilizacao_id)
         .filter((id): id is string => Boolean(id));
 
-      const [locaisResult, gruposResult] = await Promise.all([
+      const projetoIds = configs.map((config) => config.id);
+      const [locaisResult, gruposResult, vinculosResult] = await Promise.all([
         localIds.length > 0
           ? supabase
               .from('locais_utilizacao')
@@ -94,6 +95,12 @@ export const useProjetosProducao = () => {
               .in('id', localIds)
           : Promise.resolve({ data: [], error: null }),
         supabase.from('project_groups').select('id,nome').eq('ativo', true),
+        projetoIds.length > 0
+          ? (supabase.from as any)('producao_projeto_grupos')
+              .select('projeto_id,project_group_id,quantidade_planejada,ativo')
+              .in('projeto_id', projetoIds)
+              .eq('ativo', true)
+          : Promise.resolve({ data: [], error: null }),
       ]);
 
       if (locaisResult.error) {
@@ -101,6 +108,9 @@ export const useProjetosProducao = () => {
       }
       if (gruposResult.error) {
         console.warn('Não foi possível carregar os grupos dos projetos:', gruposResult.error);
+      }
+      if (vinculosResult.error) {
+        console.warn('Não foi possível carregar os múltiplos grupos dos projetos:', vinculosResult.error);
       }
 
       const locais = new Map(
@@ -110,11 +120,29 @@ export const useProjetosProducao = () => {
         ((gruposResult.data ?? []) as GrupoRow[]).map((grupo) => [grupo.id, grupo.nome]),
       );
 
+      const vinculosPorProjeto = new Map<string, string[]>();
+      ((vinculosResult.data ?? []) as Array<{ projeto_id: string; project_group_id: string }>).forEach((vinculo) => {
+        const atuais = vinculosPorProjeto.get(vinculo.projeto_id) ?? [];
+        atuais.push(vinculo.project_group_id);
+        vinculosPorProjeto.set(vinculo.projeto_id, atuais);
+      });
+
       const resultado = configs
         .filter((config) => Boolean(config.local_utilizacao_id))
         .map((config) => {
           const localId = config.local_utilizacao_id as string;
           const local = locais.get(localId);
+          const gruposVinculados = vinculosPorProjeto.get(config.id) ?? [];
+          const nomesGrupos = gruposVinculados
+            .map((groupId) => grupos.get(groupId))
+            .filter((nome): nome is string => Boolean(nome))
+            .map((nome) => nome.trim());
+
+          const grupoNome = nomesGrupos.length > 0
+            ? nomesGrupos.join(' · ')
+            : local?.group_id
+              ? grupos.get(local.group_id) ?? null
+              : null;
 
           return {
             // O identificador canônico de um projeto de Produção é producao_projetos.id.
@@ -122,8 +150,10 @@ export const useProjetosProducao = () => {
             id: config.id,
             config_id: config.id,
             local_utilizacao_id: localId,
-            group_id: local?.group_id ?? null,
-            grupo_nome: local?.group_id ? grupos.get(local.group_id) ?? null : null,
+            group_id: gruposVinculados.length === 1
+              ? gruposVinculados[0]
+              : local?.group_id ?? null,
+            grupo_nome: grupoNome,
             nome: config.nome || local?.nome || 'Projeto sem nome',
             descricao: config.descricao,
             cliente: config.cliente,
