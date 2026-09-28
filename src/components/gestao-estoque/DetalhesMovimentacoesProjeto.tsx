@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ArrowDownCircle, ArrowUpCircle, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -199,18 +199,13 @@ export const DetalhesMovimentacoesProjeto = ({ movimentacoes }: DetalhesMoviment
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
-            <Select value={novoLocalId} onValueChange={setNovoLocalId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um local" />
-              </SelectTrigger>
-              <SelectContent>
-                {locaisAtivos.map(local => (
-                  <SelectItem key={local.id} value={local.id}>
-                    {local.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={novoLocalId}
+              onValueChange={setNovoLocalId}
+              placeholder="Selecione um local"
+              searchPlaceholder="Buscar local..."
+              options={locaisAtivos.map((local) => ({ value: local.id, label: local.nome }))}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setMovimentoEditando(null)}>Cancelar</Button>
