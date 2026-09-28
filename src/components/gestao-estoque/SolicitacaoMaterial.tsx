@@ -12,6 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { ClipboardList, Plus, Trash2, Eye, Printer, FileText, Check, X, ChevronsUpDown, Send, ArrowRight, Pencil } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -1046,18 +1047,13 @@ export const SolicitacaoMaterial = () => {
                 <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
                   <Label>Corrigir Local de Origem</Label>
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <Select value={localOrigemEdicaoId} onValueChange={setLocalOrigemEdicaoId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o local de origem" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {obterLocaisUtilizacaoAtivos().map((local) => (
-                          <SelectItem key={local.id} value={local.id}>
-                            {local.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={localOrigemEdicaoId}
+                      onValueChange={setLocalOrigemEdicaoId}
+                      placeholder="Selecione o local de origem"
+                      searchPlaceholder="Buscar local de origem..."
+                      options={obterLocaisUtilizacaoAtivos().map((local) => ({ value: local.id, label: local.nome }))}
+                    />
                     <Button
                       type="button"
                       onClick={salvarLocalOrigemSolicitacao}
@@ -1229,25 +1225,17 @@ export const SolicitacaoMaterial = () => {
           <div className="space-y-4">
             {!solicitacaoParaAdicionar && <div className="space-y-2">
               <Label htmlFor="local_origem">Local de Origem *</Label>
-              <Select
+              <SearchableSelect
                 value={localOrigemId}
                 onValueChange={(value) => {
                   setLocalOrigemId(value);
-                  const nome = obterLocaisUtilizacaoAtivos().find(l => l.id === value)?.nome || '';
+                  const nome = obterLocaisUtilizacaoAtivos().find((l) => l.id === value)?.nome || '';
                   setLocalOrigemNome(nome);
                 }}
-              >
-                <SelectTrigger id="local_origem">
-                  <SelectValue placeholder="Selecione o local de origem" />
-                </SelectTrigger>
-                <SelectContent>
-                  {obterLocaisUtilizacaoAtivos().map((local) => (
-                    <SelectItem key={local.id} value={local.id}>
-                      {local.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Selecione o local de origem"
+                searchPlaceholder="Buscar local de origem..."
+                options={obterLocaisUtilizacaoAtivos().map((local) => ({ value: local.id, label: local.nome }))}
+              />
             </div>}
 
             {solicitacaoParaAdicionar && (
