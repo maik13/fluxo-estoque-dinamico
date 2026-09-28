@@ -87,6 +87,17 @@ type Reserva = {
   observacoes: string | null;
 };
 
+type NecessidadeFabricacao = {
+  id: string;
+  planejamento_item_id: string;
+  item_nome: string;
+  quantidade: number;
+  status: 'a_programar' | 'programada' | 'atendida' | 'cancelada';
+  calculo_snapshot: Record<string, unknown>;
+  observacoes: string | null;
+  created_at: string;
+};
+
 type Parametro = {
   id: string;
   tipologia: string;
@@ -117,6 +128,7 @@ export const PlanejamentoProducao = () => {
   const [dados, setDados] = useState<PlanejamentoPayload>({ projetos: [], itens: [], fonte: null });
   const [acervo, setAcervo] = useState<Acervo[]>([]);
   const [reservas, setReservas] = useState<Reserva[]>([]);
+  const [necessidadesFabricacao, setNecessidadesFabricacao] = useState<NecessidadeFabricacao[]>([]);
   const [parametros, setParametros] = useState<Parametro[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvandoId, setSalvandoId] = useState<string | null>(null);
@@ -130,21 +142,24 @@ export const PlanejamentoProducao = () => {
   const carregar = useCallback(async () => {
     setLoading(true);
     try {
-      const [planejamentoResult, acervoResult, reservasResult, parametrosResult] = await Promise.all([
+      const [planejamentoResult, acervoResult, reservasResult, necessidadesResult, parametrosResult] = await Promise.all([
         (supabase.rpc as any)('listar_planejamento_producao_v2'),
         (supabase as any).from('producao_acervo_cenografico').select('id,codigo,categoria,nome,especificacoes,quantidade_estoque,status').eq('ativo', true).order('codigo'),
         (supabase.rpc as any)('listar_reservas_acervo_v1'),
+        (supabase.rpc as any)('listar_necessidades_fabricacao_v1'),
         (supabase as any).from('producao_parametros_padrao').select('id,tipologia,detalhamento,tempo_unitario_texto,ritmo_padrao,dias_cronograma,complexidade,gargalos_criticos').eq('ativo', true).order('fonte_linha'),
       ]);
 
       if (planejamentoResult.error) throw planejamentoResult.error;
       if (acervoResult.error) throw acervoResult.error;
       if (reservasResult.error) throw reservasResult.error;
+      if (necessidadesResult.error) throw necessidadesResult.error;
       if (parametrosResult.error) throw parametrosResult.error;
 
       setDados((planejamentoResult.data ?? { projetos: [], itens: [], fonte: null }) as PlanejamentoPayload);
       setAcervo((acervoResult.data ?? []) as Acervo[]);
       setReservas((reservasResult.data ?? []) as Reserva[]);
+      setNecessidadesFabricacao((necessidadesResult.data ?? []) as NecessidadeFabricacao[]);
       setParametros((parametrosResult.data ?? []) as Parametro[]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível carregar o planejamento.');
@@ -182,6 +197,15 @@ export const PlanejamentoProducao = () => {
     [dados.itens, projetosAtivos],
   );
 
+  const necessidadeAbertaPorItem = useMemo(
+    () => new Map(
+      necessidadesFabricacao
+        .filter((item) => item.status === 'a_programar')
+        .map((item) => [item.planejamento_item_id, item]),
+    ),
+    [necessidadesFabricacao],
+  );
+
   const resumo = useMemo(() => ({
     projetos: projetosAtivos.length,
     necessidades: linhas.filter((linha) => linha.necessidade > 0).length,
@@ -201,6 +225,40 @@ export const PlanejamentoProducao = () => {
       await carregar();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível alterar o projeto.');
+    } finally {
+      setSalvandoId(null);
+    }
+  };
+
+  const enviarNecessidadeFabricacao = async (itemId: string) => {
+    setSalvandoId(`necessidade-${itemId}`);
+    try {
+      const { error } = await (supabase.rpc as any)('enviar_necessidade_fabricacao_v1', {
+        p_planejamento_item_id: itemId,
+        p_quantidade: null,
+        p_observacoes: null,
+      });
+      if (error) throw error;
+      toast.success('Déficit enviado à Produção como necessidade A programar.');
+      await carregar();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível enviar a necessidade.');
+    } finally {
+      setSalvandoId(null);
+    }
+  };
+
+  const cancelarNecessidadeFabricacao = async (id: string) => {
+    setSalvandoId(`cancelar-necessidade-${id}`);
+    try {
+      const { error } = await (supabase.rpc as any)('cancelar_necessidade_fabricacao_v1', {
+        p_necessidade_id: id,
+      });
+      if (error) throw error;
+      toast.success('Necessidade cancelada. Nenhuma OP foi alterada.');
+      await carregar();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível cancelar a necessidade.');
     } finally {
       setSalvandoId(null);
     }
@@ -335,11 +393,13 @@ export const PlanejamentoProducao = () => {
                     <th className="p-3 text-right">Produzir</th>
                     <th className="p-3">Situação</th>
                     <th className="p-3">Ref.</th>
+                    <th className="p-3">Produção</th>
                   </tr>
                 </thead>
                 <tbody>
                   {linhas.map((linha) => {
                     const situacao = statusPlanejamento(linha.deficit, linha.necessidade);
+                    const necessidadeAberta = necessidadeAbertaPorItem.get(linha.id);
                     return (
                       <tr key={linha.id} className="border-t">
                         <td className="p-3 font-medium">{linha.nome}</td>
@@ -350,6 +410,33 @@ export const PlanejamentoProducao = () => {
                         <td className={`p-3 text-right font-bold ${linha.deficit > 0 ? 'text-destructive' : ''}`}>{linha.deficit}</td>
                         <td className="p-3"><Badge variant={situacao.variant}>{situacao.label}</Badge></td>
                         <td className="p-3 text-muted-foreground">{linha.acervoCodigo ?? 'Sem código'}</td>
+                        <td className="p-3">
+                          {necessidadeAberta ? (
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary">A programar · {numero(necessidadeAberta.quantidade)}</Badge>
+                              {podeConfigurar && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => void cancelarNecessidadeFabricacao(necessidadeAberta.id)}
+                                  disabled={salvandoId === `cancelar-necessidade-${necessidadeAberta.id}`}
+                                >
+                                  Cancelar
+                                </Button>
+                              )}
+                            </div>
+                          ) : linha.deficit > 0 && podeConfigurar ? (
+                            <Button
+                              size="sm"
+                              onClick={() => void enviarNecessidadeFabricacao(linha.id)}
+                              disabled={salvandoId === `necessidade-${linha.id}`}
+                            >
+                              Enviar para Produção
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
