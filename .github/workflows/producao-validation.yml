@@ -18,7 +18,9 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+        if: always()
       - run: npm run test
+        if: always()
 
   integration-validation:
     runs-on: ubuntu-latest
