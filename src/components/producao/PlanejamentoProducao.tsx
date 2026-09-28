@@ -1,14 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Boxes,
-  CheckCircle2,
-  Database,
-  ExternalLink,
-  PackageSearch,
-  RefreshCw,
-  ShieldCheck,
-  XCircle,
-} from 'lucide-react';
+import { CheckCircle2, ExternalLink, Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,11 +8,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
-import { PendenciasIntegracaoPlanejamento } from './PendenciasIntegracaoPlanejamento';
-import { DivergenciasPlanejamento } from './DivergenciasPlanejamento';
 
 type ProjetoPlanejamento = {
   id: string;
@@ -64,50 +52,12 @@ type PlanejamentoPayload = {
   fonte: Fonte;
 };
 
-type Acervo = {
-  id: string;
-  codigo: string;
-  categoria: string | null;
-  nome: string;
-  especificacoes: string | null;
-  quantidade_estoque: number;
-  status: string | null;
-};
-
-type Reserva = {
-  id: string;
-  acervo_id: string;
-  acervo_codigo: string;
-  acervo_nome: string;
-  project_group_id: string;
-  projeto_nome: string;
-  quantidade: number;
-  data_inicio: string | null;
-  data_fim: string | null;
-  status: string;
-  observacoes: string | null;
-};
-
 type NecessidadeFabricacao = {
   id: string;
   planejamento_item_id: string;
   item_nome: string;
   quantidade: number;
   status: 'a_programar' | 'programada' | 'atendida' | 'cancelada';
-  calculo_snapshot: Record<string, unknown>;
-  observacoes: string | null;
-  created_at: string;
-};
-
-type Parametro = {
-  id: string;
-  tipologia: string;
-  detalhamento: string | null;
-  tempo_unitario_texto: string | null;
-  ritmo_padrao: string | null;
-  dias_cronograma: string | null;
-  complexidade: string | null;
-  gargalos_criticos: string | null;
 };
 
 const numero = (valor: unknown) => Number(valor || 0);
@@ -120,48 +70,37 @@ const formatarDataHora = (valor: string | null | undefined) => {
 const statusPlanejamento = (deficit: number, necessidade: number) => {
   if (necessidade <= 0) return { label: 'Fora do cálculo', variant: 'outline' as const };
   if (deficit > 0) return { label: 'Déficit', variant: 'destructive' as const };
-  return { label: 'Coberto pelo acervo', variant: 'secondary' as const };
+  return { label: 'Coberto', variant: 'secondary' as const };
 };
 
 export const PlanejamentoProducao = () => {
   const { canConfigurarProducao } = usePermissions();
   const podeConfigurar = canConfigurarProducao();
+
   const [dados, setDados] = useState<PlanejamentoPayload>({ projetos: [], itens: [], fonte: null });
-  const [acervo, setAcervo] = useState<Acervo[]>([]);
-  const [reservas, setReservas] = useState<Reserva[]>([]);
   const [necessidadesFabricacao, setNecessidadesFabricacao] = useState<NecessidadeFabricacao[]>([]);
-  const [parametros, setParametros] = useState<Parametro[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvandoId, setSalvandoId] = useState<string | null>(null);
-  const [novoAcervoId, setNovoAcervoId] = useState('');
-  const [novoGrupoId, setNovoGrupoId] = useState('');
-  const [novaQuantidade, setNovaQuantidade] = useState('1');
-  const [novaDataInicio, setNovaDataInicio] = useState('');
-  const [novaDataFim, setNovaDataFim] = useState('');
-  const [novaObservacao, setNovaObservacao] = useState('');
+
+  const [novaCidade, setNovaCidade] = useState('');
+  const [novaPecaNome, setNovaPecaNome] = useState('');
+  const [novaPecaCodigo, setNovaPecaCodigo] = useState('');
+  const [novaPecaProjetoId, setNovaPecaProjetoId] = useState('');
+  const [novaPecaQuantidade, setNovaPecaQuantidade] = useState('0');
 
   const carregar = useCallback(async () => {
     setLoading(true);
     try {
-      const [planejamentoResult, acervoResult, reservasResult, necessidadesResult, parametrosResult] = await Promise.all([
+      const [planejamentoResult, necessidadesResult] = await Promise.all([
         (supabase.rpc as any)('listar_planejamento_producao_v2'),
-        (supabase as any).from('producao_acervo_cenografico').select('id,codigo,categoria,nome,especificacoes,quantidade_estoque,status').eq('ativo', true).order('codigo'),
-        (supabase.rpc as any)('listar_reservas_acervo_v1'),
         (supabase.rpc as any)('listar_necessidades_fabricacao_v1'),
-        (supabase as any).from('producao_parametros_padrao').select('id,tipologia,detalhamento,tempo_unitario_texto,ritmo_padrao,dias_cronograma,complexidade,gargalos_criticos').eq('ativo', true).order('fonte_linha'),
       ]);
 
       if (planejamentoResult.error) throw planejamentoResult.error;
-      if (acervoResult.error) throw acervoResult.error;
-      if (reservasResult.error) throw reservasResult.error;
       if (necessidadesResult.error) throw necessidadesResult.error;
-      if (parametrosResult.error) throw parametrosResult.error;
 
       setDados((planejamentoResult.data ?? { projetos: [], itens: [], fonte: null }) as PlanejamentoPayload);
-      setAcervo((acervoResult.data ?? []) as Acervo[]);
-      setReservas((reservasResult.data ?? []) as Reserva[]);
       setNecessidadesFabricacao((necessidadesResult.data ?? []) as NecessidadeFabricacao[]);
-      setParametros((parametrosResult.data ?? []) as Parametro[]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível carregar o planejamento.');
     } finally {
@@ -175,11 +114,6 @@ export const PlanejamentoProducao = () => {
 
   const projetosAtivos = useMemo(
     () => dados.projetos.filter((projeto) => projeto.ativoCalculo),
-    [dados.projetos],
-  );
-
-  const gruposDisponiveis = useMemo(
-    () => dados.projetos.filter((projeto) => projeto.projectGroupId),
     [dados.projetos],
   );
 
@@ -223,9 +157,69 @@ export const PlanejamentoProducao = () => {
         p_ativo_calculo: ativo,
       });
       if (error) throw error;
+      toast.success(
+        ativo
+          ? `${projeto.nome} incluído. As peças foram garantidas na estrutura oficial de Projetos.`
+          : `${projeto.nome} retirado do cálculo. Nenhum Projeto, Etapa ou OP foi excluído.`,
+      );
       await carregar();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível alterar o projeto.');
+    } finally {
+      setSalvandoId(null);
+    }
+  };
+
+  const cadastrarCidade = async () => {
+    if (!novaCidade.trim()) {
+      toast.error('Informe o nome da cidade/projeto.');
+      return;
+    }
+    setSalvandoId('nova-cidade');
+    try {
+      const { error } = await (supabase.rpc as any)('criar_cidade_planejamento_v1', {
+        p_nome: novaCidade.trim(),
+      });
+      if (error) throw error;
+      setNovaCidade('');
+      toast.success('Cidade cadastrada no Planejamento e vinculada ao Grupo de Projeto oficial.');
+      await carregar();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível cadastrar a cidade.');
+    } finally {
+      setSalvandoId(null);
+    }
+  };
+
+  const cadastrarPeca = async () => {
+    const quantidade = Number(novaPecaQuantidade.replace(',', '.'));
+    if (!novaPecaNome.trim()) {
+      toast.error('Informe o nome da peça.');
+      return;
+    }
+    if (!Number.isFinite(quantidade) || quantidade < 0) {
+      toast.error('Informe uma quantidade válida.');
+      return;
+    }
+
+    setSalvandoId('nova-peca');
+    try {
+      const { error } = await (supabase.rpc as any)('criar_peca_planejamento_v1', {
+        p_nome: novaPecaNome.trim(),
+        p_planejamento_projeto_id: novaPecaProjetoId || null,
+        p_quantidade: quantidade,
+        p_codigo: novaPecaCodigo.trim() || null,
+      });
+      if (error) throw error;
+
+      setNovaPecaNome('');
+      setNovaPecaCodigo('');
+      setNovaPecaProjetoId('');
+      setNovaPecaQuantidade('0');
+      toast.success('Peça cadastrada. Se a cidade estiver ativa, ela já foi encaminhada para Projetos.');
+      await carregar();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível cadastrar a peça.');
     } finally {
       setSalvandoId(null);
     }
@@ -249,76 +243,13 @@ export const PlanejamentoProducao = () => {
     }
   };
 
-  const cancelarNecessidadeFabricacao = async (id: string) => {
-    setSalvandoId(`cancelar-necessidade-${id}`);
-    try {
-      const { error } = await (supabase.rpc as any)('cancelar_necessidade_fabricacao_v1', {
-        p_necessidade_id: id,
-      });
-      if (error) throw error;
-      toast.success('Necessidade cancelada. Nenhuma OP foi alterada.');
-      await carregar();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Não foi possível cancelar a necessidade.');
-    } finally {
-      setSalvandoId(null);
-    }
-  };
-
-  const salvarReserva = async () => {
-    const quantidade = Number(novaQuantidade);
-    if (!novoAcervoId || !novoGrupoId || !Number.isFinite(quantidade) || quantidade <= 0) {
-      toast.error('Informe peça, projeto e quantidade válida para reservar.');
-      return;
-    }
-    setSalvandoId('reserva');
-    try {
-      const { error } = await (supabase.rpc as any)('salvar_reserva_acervo_v1', {
-        p_reserva_id: null,
-        p_acervo_id: novoAcervoId,
-        p_project_group_id: novoGrupoId,
-        p_quantidade: quantidade,
-        p_data_inicio: novaDataInicio || null,
-        p_data_fim: novaDataFim || null,
-        p_observacoes: novaObservacao || null,
-      });
-      if (error) throw error;
-      setNovoAcervoId('');
-      setNovoGrupoId('');
-      setNovaQuantidade('1');
-      setNovaDataInicio('');
-      setNovaDataFim('');
-      setNovaObservacao('');
-      toast.success('Reserva registrada. A disponibilidade do acervo foi recalculada.');
-      await carregar();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Não foi possível registrar a reserva.');
-    } finally {
-      setSalvandoId(null);
-    }
-  };
-
-  const cancelarReserva = async (id: string) => {
-    setSalvandoId(id);
-    try {
-      const { error } = await (supabase.rpc as any)('cancelar_reserva_acervo_v1', { p_reserva_id: id });
-      if (error) throw error;
-      toast.success('Reserva cancelada.');
-      await carregar();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Não foi possível cancelar a reserva.');
-    } finally {
-      setSalvandoId(null);
-    }
-  };
-
   return (
     <div className="space-y-5">
       <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
         <div>
           <h3 className="text-lg font-semibold">Planejamento de Necessidades</h3>
           <p className="text-sm text-muted-foreground">
-            Consolida demanda, acervo, reservas, disponibilidade real e déficit. Nenhuma OP é criada ou alterada automaticamente.
+            Selecione as cidades que entram no cálculo. Ao ativar uma cidade, suas peças são garantidas na estrutura oficial de Projetos, sem criar Etapas ou OPs automaticamente.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -339,7 +270,9 @@ export const PlanejamentoProducao = () => {
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <p className="font-medium">Projetos considerados no cálculo</p>
-            <p className="text-xs text-muted-foreground">Este seletor não altera o status operacional do projeto.</p>
+            <p className="text-xs text-muted-foreground">
+              Marcar inclui a cidade e provisiona suas peças na estrutura oficial. Desmarcar não exclui nada já produzido.
+            </p>
           </div>
           <span className="text-xs text-muted-foreground">
             Origem: {dados.fonte?.nome ?? '—'} · {formatarDataHora(dados.fonte?.ultimaSincronizacao)}
@@ -356,13 +289,68 @@ export const PlanejamentoProducao = () => {
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{projeto.nome}</p>
                 <p className="text-xs text-muted-foreground">
-                  {projeto.ativoCalculo ? 'Incluído na necessidade consolidada' : 'Fora do cálculo'}
+                  {projeto.ativoCalculo ? 'Incluído no cálculo e vinculado a Projetos' : 'Fora do cálculo'}
                 </p>
               </div>
             </label>
           ))}
         </div>
+
+        {podeConfigurar && (
+          <div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:flex-row">
+            <Input
+              value={novaCidade}
+              onChange={(e) => setNovaCidade(e.target.value)}
+              placeholder="Nova cidade/projeto"
+              className="max-w-md"
+            />
+            <Button onClick={() => void cadastrarCidade()} disabled={salvandoId === 'nova-cidade'}>
+              <Plus className="mr-2 h-4 w-4" />Cadastrar cidade
+            </Button>
+          </div>
+        )}
       </Card>
+
+      {podeConfigurar && (
+        <Card className="p-4">
+          <div className="mb-3">
+            <p className="font-medium">Cadastrar nova peça</p>
+            <p className="text-xs text-muted-foreground">
+              O código segue o padrão CÓDIGO - Nome usado nos Locais de Utilização. Se o código não for informado, o sistema gera um código alfanumérico interno.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <div className="space-y-1.5 xl:col-span-2">
+              <Label>Nome da peça</Label>
+              <Input value={novaPecaNome} onChange={(e) => setNovaPecaNome(e.target.value)} placeholder="Ex.: Estrela 3D 5 Pontas 1m" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Código (opcional)</Label>
+              <Input value={novaPecaCodigo} onChange={(e) => setNovaPecaCodigo(e.target.value.toUpperCase())} placeholder="Ex.: E3D" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Cidade/projeto</Label>
+              <Select value={novaPecaProjetoId} onValueChange={setNovaPecaProjetoId}>
+                <SelectTrigger><SelectValue placeholder="Sem cidade" /></SelectTrigger>
+                <SelectContent>
+                  {dados.projetos.map((projeto) => (
+                    <SelectItem key={projeto.id} value={projeto.id}>{projeto.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Quantidade</Label>
+              <Input value={novaPecaQuantidade} onChange={(e) => setNovaPecaQuantidade(e.target.value)} inputMode="decimal" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <Button onClick={() => void cadastrarPeca()} disabled={salvandoId === 'nova-peca'}>
+              <Plus className="mr-2 h-4 w-4" />Cadastrar peça
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="p-4"><p className="text-xs text-muted-foreground">Projetos ativos</p><p className="text-2xl font-bold">{resumo.projetos}</p></Card>
@@ -371,187 +359,61 @@ export const PlanejamentoProducao = () => {
         <Card className="p-4"><p className="text-xs text-muted-foreground">Unidades a produzir</p><p className="text-2xl font-bold">{resumo.unidadesFaltantes}</p></Card>
       </div>
 
-      <Tabs defaultValue="matriz">
-        <TabsList className="flex h-auto flex-wrap">
-          <TabsTrigger value="matriz"><PackageSearch className="mr-2 h-4 w-4" />Necessidades</TabsTrigger>
-          <TabsTrigger value="acervo"><Boxes className="mr-2 h-4 w-4" />Acervo</TabsTrigger>
-          <TabsTrigger value="reservas"><ShieldCheck className="mr-2 h-4 w-4" />Reservas</TabsTrigger>
-          <TabsTrigger value="integracao"><RefreshCw className="mr-2 h-4 w-4" />Integração</TabsTrigger>
-          <TabsTrigger value="parametros"><Database className="mr-2 h-4 w-4" />Parâmetros</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="matriz" className="mt-4">
-          <Card className="overflow-hidden">
-            <div className="overflow-auto">
-              <table className="w-full min-w-[1050px] text-sm">
-                <thead className="bg-muted/50 text-left">
-                  <tr>
-                    <th className="p-3">Peça</th>
-                    <th className="p-3 text-right">Necessário</th>
-                    <th className="p-3 text-right">Acervo físico</th>
-                    <th className="p-3 text-right">Reservado</th>
-                    <th className="p-3 text-right">Disponível real</th>
-                    <th className="p-3 text-right">Produzir</th>
-                    <th className="p-3">Situação</th>
-                    <th className="p-3">Ref.</th>
-                    <th className="p-3">Produção</th>
+      <Card className="overflow-hidden">
+        <div className="overflow-auto">
+          <table className="w-full min-w-[1050px] text-sm">
+            <thead className="bg-muted/50 text-left">
+              <tr>
+                <th className="p-3">Peça</th>
+                <th className="p-3 text-right">Necessário</th>
+                <th className="p-3 text-right">Existente</th>
+                <th className="p-3 text-right">Disponível</th>
+                <th className="p-3 text-right">Produzir</th>
+                <th className="p-3">Situação</th>
+                <th className="p-3">Produção</th>
+              </tr>
+            </thead>
+            <tbody>
+              {linhas.map((linha) => {
+                const situacao = statusPlanejamento(linha.deficit, linha.necessidade);
+                const necessidadeAberta = necessidadeAbertaPorItem.get(linha.id);
+                return (
+                  <tr key={linha.id} className="border-t">
+                    <td className="p-3 font-medium">{linha.nome}</td>
+                    <td className="p-3 text-right">{linha.necessidade}</td>
+                    <td className="p-3 text-right">{linha.estoque}</td>
+                    <td className="p-3 text-right font-medium">{linha.disponivel}</td>
+                    <td className={`p-3 text-right font-bold ${linha.deficit > 0 ? 'text-destructive' : ''}`}>{linha.deficit}</td>
+                    <td className="p-3"><Badge variant={situacao.variant}>{situacao.label}</Badge></td>
+                    <td className="p-3">
+                      {necessidadeAberta ? (
+                        <Badge variant="secondary">A programar · {numero(necessidadeAberta.quantidade)}</Badge>
+                      ) : linha.deficit > 0 && podeConfigurar ? (
+                        <Button
+                          size="sm"
+                          onClick={() => void enviarNecessidadeFabricacao(linha.id)}
+                          disabled={salvandoId === `necessidade-${linha.id}`}
+                        >
+                          Enviar para Produção
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {linhas.map((linha) => {
-                    const situacao = statusPlanejamento(linha.deficit, linha.necessidade);
-                    const necessidadeAberta = necessidadeAbertaPorItem.get(linha.id);
-                    return (
-                      <tr key={linha.id} className="border-t">
-                        <td className="p-3 font-medium">{linha.nome}</td>
-                        <td className="p-3 text-right">{linha.necessidade}</td>
-                        <td className="p-3 text-right">{linha.estoque}</td>
-                        <td className="p-3 text-right">{linha.reservado}</td>
-                        <td className="p-3 text-right font-medium">{linha.disponivel}</td>
-                        <td className={`p-3 text-right font-bold ${linha.deficit > 0 ? 'text-destructive' : ''}`}>{linha.deficit}</td>
-                        <td className="p-3"><Badge variant={situacao.variant}>{situacao.label}</Badge></td>
-                        <td className="p-3 text-muted-foreground">{linha.acervoCodigo ?? 'Sem código'}</td>
-                        <td className="p-3">
-                          {necessidadeAberta ? (
-                            <div className="flex items-center gap-2">
-                              <Badge variant="secondary">A programar · {numero(necessidadeAberta.quantidade)}</Badge>
-                              {podeConfigurar && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => void cancelarNecessidadeFabricacao(necessidadeAberta.id)}
-                                  disabled={salvandoId === `cancelar-necessidade-${necessidadeAberta.id}`}
-                                >
-                                  Cancelar
-                                </Button>
-                              )}
-                            </div>
-                          ) : linha.deficit > 0 && podeConfigurar ? (
-                            <Button
-                              size="sm"
-                              onClick={() => void enviarNecessidadeFabricacao(linha.id)}
-                              disabled={salvandoId === `necessidade-${linha.id}`}
-                            >
-                              Enviar para Produção
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="acervo" className="mt-4">
-          <Card className="overflow-hidden">
-            <div className="overflow-auto">
-              <table className="w-full min-w-[900px] text-sm">
-                <thead className="bg-muted/50 text-left">
-                  <tr><th className="p-3">Código</th><th className="p-3">Categoria</th><th className="p-3">Elemento</th><th className="p-3">Especificação</th><th className="p-3 text-right">Físico</th><th className="p-3">Status</th></tr>
-                </thead>
-                <tbody>
-                  {acervo.map((item) => (
-                    <tr key={item.id} className="border-t">
-                      <td className="p-3 font-mono text-xs">{item.codigo}</td>
-                      <td className="p-3">{item.categoria ?? '—'}</td>
-                      <td className="p-3 font-medium">{item.nome}</td>
-                      <td className="p-3 text-muted-foreground">{item.especificacoes ?? '—'}</td>
-                      <td className="p-3 text-right font-semibold">{numero(item.quantidade_estoque)}</td>
-                      <td className="p-3">{item.status ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="reservas" className="mt-4 space-y-4">
-          {podeConfigurar && (
-            <Card className="p-4">
-              <p className="mb-3 font-medium">Nova reserva de acervo</p>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                <div className="space-y-1.5 xl:col-span-2">
-                  <Label>Peça do acervo</Label>
-                  <Select value={novoAcervoId} onValueChange={setNovoAcervoId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione a peça" /></SelectTrigger>
-                    <SelectContent>{acervo.map((item) => <SelectItem key={item.id} value={item.id}>{item.codigo} · {item.nome}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Projeto</Label>
-                  <Select value={novoGrupoId} onValueChange={setNovoGrupoId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{gruposDisponiveis.map((projeto) => <SelectItem key={projeto.id} value={projeto.projectGroupId!}>{projeto.nome}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5"><Label>Quantidade</Label><Input type="number" min="0.01" step="0.01" value={novaQuantidade} onChange={(e) => setNovaQuantidade(e.target.value)} /></div>
-                <div className="flex items-end"><Button className="w-full" onClick={() => void salvarReserva()} disabled={salvandoId === 'reserva'}>Reservar</Button></div>
-                <div className="space-y-1.5"><Label>Início</Label><Input type="date" value={novaDataInicio} onChange={(e) => setNovaDataInicio(e.target.value)} /></div>
-                <div className="space-y-1.5"><Label>Fim</Label><Input type="date" value={novaDataFim} onChange={(e) => setNovaDataFim(e.target.value)} /></div>
-                <div className="space-y-1.5 md:col-span-2 xl:col-span-3"><Label>Observação</Label><Input value={novaObservacao} onChange={(e) => setNovaObservacao(e.target.value)} placeholder="Opcional" /></div>
-              </div>
-            </Card>
-          )}
-          <Card className="overflow-hidden">
-            <div className="overflow-auto">
-              <table className="w-full min-w-[900px] text-sm">
-                <thead className="bg-muted/50 text-left">
-                  <tr><th className="p-3">Peça</th><th className="p-3">Projeto</th><th className="p-3 text-right">Quantidade</th><th className="p-3">Período</th><th className="p-3">Status</th><th className="p-3">Observação</th>{podeConfigurar && <th className="p-3"></th>}</tr>
-                </thead>
-                <tbody>
-                  {reservas.map((reserva) => (
-                    <tr key={reserva.id} className="border-t">
-                      <td className="p-3 font-medium">{reserva.acervo_codigo} · {reserva.acervo_nome}</td>
-                      <td className="p-3">{reserva.projeto_nome}</td>
-                      <td className="p-3 text-right font-semibold">{numero(reserva.quantidade)}</td>
-                      <td className="p-3 text-muted-foreground">{reserva.data_inicio ?? '—'} → {reserva.data_fim ?? '—'}</td>
-                      <td className="p-3"><Badge variant={reserva.status === 'ativa' ? 'secondary' : 'outline'}>{reserva.status}</Badge></td>
-                      <td className="p-3 text-muted-foreground">{reserva.observacoes ?? '—'}</td>
-                      {podeConfigurar && <td className="p-3 text-right">{reserva.status === 'ativa' && <Button variant="ghost" size="sm" onClick={() => void cancelarReserva(reserva.id)} disabled={salvandoId === reserva.id}><XCircle className="mr-1 h-4 w-4" />Cancelar</Button>}</td>}
-                    </tr>
-                  ))}
-                  {!loading && reservas.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Nenhuma reserva registrada.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="integracao" className="mt-4 space-y-6">
-          <DivergenciasPlanejamento />
-          <PendenciasIntegracaoPlanejamento />
-        </TabsContent>
-
-        <TabsContent value="parametros" className="mt-4">
-          <div className="grid gap-3 lg:grid-cols-2">
-            {parametros.map((item) => (
-              <Card key={item.id} className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="font-semibold">{item.tipologia}</p>
-                  {item.complexidade && <Badge variant="outline">{item.complexidade}</Badge>}
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">{item.detalhamento}</p>
-                <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                  <p><span className="text-muted-foreground">Tempo:</span> {item.tempo_unitario_texto ?? '—'}</p>
-                  <p><span className="text-muted-foreground">Ritmo:</span> {item.ritmo_padrao ?? '—'}</p>
-                  <p><span className="text-muted-foreground">Cronograma:</span> {item.dias_cronograma ?? '—'}</p>
-                  <p><span className="text-muted-foreground">Gargalo:</span> {item.gargalos_criticos ?? '—'}</p>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       <Card className="border-dashed p-4 text-sm text-muted-foreground">
-        <div className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>A execução continua sendo governada por Etapas, OPs, Jornadas e Apontamentos. O Planejamento somente consolida a necessidade e protege o acervo contra dupla alocação.</p>
+        <div className="flex gap-2">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            Planejamento, Projetos, Gerencial e Produção usam agora a mesma estrutura oficial de Grupo do Projeto e Local de Utilização. Ativar cidade ou cadastrar peça é aditivo; nenhum histórico, Etapa, OP ou apontamento existente é apagado.
+          </p>
         </div>
       </Card>
     </div>
