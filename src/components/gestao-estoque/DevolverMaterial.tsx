@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PackageCheck, Plus, Trash2 } from 'lucide-react';
@@ -321,53 +322,37 @@ export const DevolverMaterial = () => {
                 
                 <div className="space-y-2">
                   <Label htmlFor="solicitante">Solicitante *</Label>
-                  <Select
-                    value={solicitanteSelecionado?.id || ""}
+                  <SearchableSelect
+                    value={solicitanteSelecionado?.id || ''}
                     onValueChange={(value) => {
-                      const usuario = usuariosDisponiveis.find(u => u.id === value);
+                      const usuario = usuariosDisponiveis.find((u) => u.id === value);
                       if (usuario) {
                         setSolicitanteSelecionado({
                           id: usuario.id,
                           nome: usuario.nome,
-                          codigo_barras: usuario.codigo_barras
+                          codigo_barras: usuario.codigo_barras,
                         });
                       }
                     }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecione o solicitante" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {usuariosDisponiveis
-                        .sort((a, b) => a.nome.localeCompare(b.nome))
-                        .map(usuario => (
-                          <SelectItem key={usuario.id} value={usuario.id}>
-                            {usuario.nome}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Selecione o solicitante"
+                    searchPlaceholder="Buscar solicitante..."
+                    options={[...usuariosDisponiveis]
+                      .sort((a, b) => a.nome.localeCompare(b.nome))
+                      .map((usuario) => ({ value: usuario.id, label: usuario.nome, keywords: String(usuario.codigo_barras ?? '') }))}
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="localUtilizacao">Local de origem *</Label>
-                  <Select
-                    value={localUtilizacao || ""}
-                    onValueChange={(value) => setLocalUtilizacao(value)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecione o local" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {locaisDisponiveis
-                        .sort((a, b) => a.nome.localeCompare(b.nome))
-                        .map(local => (
-                          <SelectItem key={local.id} value={local.id}>
-                            {local.nome}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={localUtilizacao || ''}
+                    onValueChange={setLocalUtilizacao}
+                    placeholder="Selecione o local"
+                    searchPlaceholder="Buscar local/projeto..."
+                    options={[...locaisDisponiveis]
+                      .sort((a, b) => a.nome.localeCompare(b.nome))
+                      .map((local) => ({ value: local.id, label: local.nome }))}
+                  />
                 </div>
 
                 <div className="space-y-2">
