@@ -12,7 +12,8 @@ interface ItemInput {
   localizacao?: string;
   responsavel: string;
   nome: string;
-  tipoItem: 'Insumo' | 'Ferramenta' | 'Matéria Prima';
+  /** @deprecated A classificação oficial é categoria + subcategoria. */
+  tipoItem?: 'Insumo' | 'Ferramenta' | 'Matéria Prima';
   metragem?: number;
   peso?: number;
   comprimentoLixa?: number;
@@ -22,8 +23,8 @@ interface ItemInput {
   quantidade?: number;
   unidade: string;
   condicao?: 'Novo' | 'Usado' | 'Defeito' | 'Descarte';
-  categoria?: string;
-  subcategoria?: string;
+  categoria: string;
+  subcategoria: string;
   subDestino?: string;
   tipoServico?: string;
   quantidadeMinima?: number;
@@ -62,10 +63,11 @@ function validateItemInput(item: any, index: number): { valid: boolean; errors: 
     errors.push('Unidade: máximo 20 caracteres');
   }
   
-  if (!item.tipoItem || typeof item.tipoItem !== 'string') {
-    errors.push('Tipo de item é obrigatório');
-  } else if (!['Insumo', 'Ferramenta', 'Matéria Prima'].includes(item.tipoItem)) {
-    errors.push('tipoItem inválido. Use "Insumo", "Ferramenta" ou "Matéria Prima"');
+  if (!item.categoria || typeof item.categoria !== 'string' || !item.categoria.trim()) {
+    errors.push('Categoria é obrigatória');
+  }
+  if (!item.subcategoria || typeof item.subcategoria !== 'string' || !item.subcategoria.trim()) {
+    errors.push('Subcategoria é obrigatória');
   }
   
   // Optional string fields with length limits
@@ -217,6 +219,50 @@ Deno.serve(async (req: Request) => {
         const responsavel = inItem.responsavel.trim();
         const unidade = inItem.unidade.trim();
 
+        // Classificação oficial: Categoria + Subcategoria.
+        const categoriaNome = inItem.categoria.trim();
+        const subcategoriaNome = inItem.subcategoria.trim();
+
+        const { data: categoriaRow, error: categoriaErr } = await supabaseAdmin
+          .from('categorias')
+          .select('id,nome')
+          .ilike('nome', categoriaNome)
+          .eq('ativo', true)
+          .limit(1)
+          .maybeSingle();
+        if (categoriaErr || !categoriaRow) {
+          throw new Error(`Categoria não encontrada: "${categoriaNome}"`);
+        }
+
+        const { data: subcategoriaRow, error: subcategoriaErr } = await supabaseAdmin
+          .from('subcategorias')
+          .select('id,nome')
+          .ilike('nome', subcategoriaNome)
+          .eq('ativo', true)
+          .limit(1)
+          .maybeSingle();
+        if (subcategoriaErr || !subcategoriaRow) {
+          throw new Error(`Subcategoria não encontrada: "${subcategoriaNome}"`);
+        }
+
+        const { data: relacaoRow, error: relacaoErr } = await supabaseAdmin
+          .from('categoria_subcategoria')
+          .select('categoria_id')
+          .eq('categoria_id', categoriaRow.id)
+          .eq('subcategoria_id', subcategoriaRow.id)
+          .maybeSingle();
+        if (relacaoErr || !relacaoRow) {
+          throw new Error(
+            `Subcategoria "${subcategoriaNome}" não está vinculada à Categoria "${categoriaNome}"`
+          );
+        }
+
+        // Compatibilidade temporária: tipo_item é derivado, nunca escolhido pelo usuário.
+        const tipoItemLegado =
+          categoriaRow.nome.trim().toLocaleLowerCase('pt-BR') === 'ferramenta'
+            ? 'Ferramenta'
+            : 'Insumo';
+
         // Insert item
         const insertItem = {
           codigo_barras: codigoGerado,
@@ -224,7 +270,9 @@ Deno.serve(async (req: Request) => {
           caixa_organizador: inItem.caixaOrganizador?.trim() || null,
           localizacao: inItem.localizacao?.trim() || null,
           nome,
-          tipo_item: inItem.tipoItem,
+          tipo_item: tipoItemLegado,
+          categoria_id: categoriaRow.id,
+          subcategoria_id: subcategoriaRow.id,
           especificacao: inItem.especificacao?.trim() || null,
           marca: inItem.marca?.trim() || null,
           unidade,
@@ -264,6 +312,10 @@ Deno.serve(async (req: Request) => {
             codigoBarras: codigoGerado,
             especificacao: insertItem.especificacao,
             caixaOrganizador: insertItem.caixa_organizador,
+            categoriaId: categoriaRow.id,
+            subcategoriaId: subcategoriaRow.id,
+            categoria: categoriaRow.nome,
+            subcategoria: subcategoriaRow.nome,
           },
         });
         if (movErr) {
