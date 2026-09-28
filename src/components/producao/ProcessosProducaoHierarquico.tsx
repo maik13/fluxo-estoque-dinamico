@@ -54,6 +54,7 @@ import { FormProcessoProducao } from './FormProcessoProducao';
 import { FormRetificarProcesso } from './FormRetificarProcesso';
 import { MateriaisEtapaProducao } from './MateriaisEtapaProducao';
 import { MateriaisOrdemProducao } from './MateriaisOrdemProducao';
+import { ControlePrevistoRealOrdemProducao } from './ControlePrevistoRealOrdemProducao';
 import { ModalExcluirProcesso } from './ModalExcluirProcesso';
 import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
 import {
@@ -703,6 +704,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas, membros, onFecharJornada
                       </div>
                     </div>
                     <MateriaisOrdemProducao ordem={ordem} />
+                    <ControlePrevistoRealOrdemProducao ordem={ordem} />
                   </div>
                 );
               })}
