@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
   Table,
   TableBody,
@@ -364,57 +365,42 @@ export const PainelProducaoGerencial = ({
               </div>
               <div className="space-y-2">
                 <Label>Projeto/local</Label>
-                <Select value={projetoId} onValueChange={setProjetoId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos os projetos" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={TODOS}>Todos os projetos</SelectItem>
-                    {locais
-                      .filter((local) => local.ativo)
-                      .map((local) => (
-                        <SelectItem key={local.id} value={local.id}>
-                          {local.nome}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={projetoId}
+                  onValueChange={setProjetoId}
+                  placeholder="Todos os projetos"
+                  searchPlaceholder="Buscar projeto/local..."
+                  options={[
+                    { value: TODOS, label: 'Todos os projetos' },
+                    ...locais.filter((local) => local.ativo).map((local) => ({ value: local.id, label: local.nome })),
+                  ]}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Tarefa</Label>
-                <Select value={tarefaId} onValueChange={setTarefaId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todas as tarefas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={TODOS}>Todas as tarefas</SelectItem>
-                    {tarefas
-                      .filter((tarefa) => tarefa.ativo)
-                      .map((tarefa) => (
-                        <SelectItem key={tarefa.id} value={tarefa.id}>
-                          {tarefa.nome}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={tarefaId}
+                  onValueChange={setTarefaId}
+                  placeholder="Todas as tarefas"
+                  searchPlaceholder="Buscar tarefa..."
+                  options={[
+                    { value: TODOS, label: 'Todas as tarefas' },
+                    ...tarefas.filter((tarefa) => tarefa.ativo).map((tarefa) => ({ value: tarefa.id, label: tarefa.nome })),
+                  ]}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Membro</Label>
-                <Select value={membroId} onValueChange={setMembroId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos os membros" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={TODOS}>Todos os membros</SelectItem>
-                    {membrosProducao
-                      .filter((membro) => membro.ativo)
-                      .map((membro) => (
-                        <SelectItem key={membro.id} value={membro.id}>
-                          {membro.nome}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={membroId}
+                  onValueChange={setMembroId}
+                  placeholder="Todos os membros"
+                  searchPlaceholder="Buscar membro..."
+                  options={[
+                    { value: TODOS, label: 'Todos os membros' },
+                    ...membrosProducao.filter((membro) => membro.ativo).map((membro) => ({ value: membro.id, label: membro.nome })),
+                  ]}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
