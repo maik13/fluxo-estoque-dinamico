@@ -29,6 +29,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useProjetosProducao } from '@/hooks/useProjetosProducao';
@@ -344,21 +345,17 @@ const PainelProducaoAoVivo = () => {
           </div>
 
           <div className="painel-monitor-controles flex flex-wrap items-center gap-2">
-            <Select
+            <SearchableSelect
               value={projetoSelecionado?.id ?? ''}
               onValueChange={(valor) => setSearchParams({ projeto: valor })}
-            >
-              <SelectTrigger className="w-[280px] max-w-full">
-                <SelectValue placeholder="Selecionar projeto" />
-              </SelectTrigger>
-              <SelectContent>
-                {projetosAtivos.map((projeto) => (
-                  <SelectItem key={projeto.id} value={projeto.id}>
-                    {projeto.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Selecionar projeto"
+              searchPlaceholder="Buscar projeto..."
+              className="w-[280px] max-w-full"
+              options={projetosAtivos.map((projeto) => ({
+                value: projeto.id,
+                label: projeto.grupo_nome ? `${projeto.grupo_nome} · ${projeto.nome}` : projeto.nome,
+              }))}
+            />
             <Button
               variant="outline"
               onClick={() => setRotacaoAutomatica((ativo) => !ativo)}
