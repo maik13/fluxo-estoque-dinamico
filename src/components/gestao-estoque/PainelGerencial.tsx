@@ -38,7 +38,7 @@ export const PainelGerencial = () => {
   // Estados para filtros
   const [dataInicio, setDataInicio] = useState<string>('');
   const [dataFim, setDataFim] = useState<string>('');
-  const [tipoItem, setTipoItem] = useState<string>('todos');
+  const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todos');
   const [grupoId, setGrupoId] = useState<string>('todos');
   const [localId, setLocalId] = useState<string>('todos');
   const [buscaGrupo, setBuscaGrupo] = useState<string>('');
@@ -50,10 +50,10 @@ export const PainelGerencial = () => {
   const filtros: ConsolidacaoFiltros = useMemo(() => ({
     dataInicio: dataInicio ? new Date(dataInicio) : undefined,
     dataFim: dataFim ? new Date(dataFim) : undefined,
-    tipoItem,
+    categoria: categoriaFiltro,
     grupoId,
     localId
-  }), [dataInicio, dataFim, tipoItem, grupoId, localId]);
+  }), [dataInicio, dataFim, categoriaFiltro, grupoId, localId]);
 
   // Obter dados consolidados usando o hook compartilhado (chamado único para todo o componente)
   const { 
@@ -161,7 +161,7 @@ export const PainelGerencial = () => {
     const partes = [];
     if (dataInicio) partes.push(`Início: ${new Date(dataInicio).toLocaleDateString('pt-BR')}`);
     if (dataFim) partes.push(`Fim: ${new Date(dataFim).toLocaleDateString('pt-BR')}`);
-    if (tipoItem !== 'todos') partes.push(`Classificação: ${tipoItem}`);
+    if (categoriaFiltro !== 'todos') partes.push(`Classificação: ${categoriaFiltro}`);
     if (grupoId !== 'todos') partes.push(`Grupo: ${gruposProjeto.find(g => g.id === grupoId)?.nome || 'Sem Grupo'}`);
     if (localId !== 'todos') partes.push(`Local: ${locaisConfig.find(l => l.id === localId)?.nome || 'Projeto'}`);
     if (partes.length === 0) return 'Todo o período';
@@ -251,7 +251,7 @@ export const PainelGerencial = () => {
             </div>
             <div className="space-y-2">
               <Label>Classificação do Item</Label>
-              <Select value={tipoItem} onValueChange={setTipoItem}>
+              <Select value={categoriaFiltro} onValueChange={setCategoriaFiltro}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todas as classificações" />
                 </SelectTrigger>
