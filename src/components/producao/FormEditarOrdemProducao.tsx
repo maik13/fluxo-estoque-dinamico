@@ -310,18 +310,13 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
                   Mostra somente etapas do mesmo projeto. Ao confirmar, a OP e todos os apontamentos vinculados a ela passam a usar a nova etapa.
                 </p>
               </div>
-              <Select value={etapaSelecionada} onValueChange={setEtapaSelecionada}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a etapa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {etapas.map((etapa) => (
-                    <SelectItem key={etapa.id} value={etapa.id}>
-                      {etapa.codigo} · {etapa.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={etapaSelecionada}
+                onValueChange={setEtapaSelecionada}
+                placeholder="Selecione a etapa"
+                searchPlaceholder="Buscar etapa..."
+                options={etapas.map((etapa) => ({ value: etapa.id, label: `${etapa.codigo} · ${etapa.nome}` }))}
+              />
               <Button
                 type="button"
                 variant="secondary"
