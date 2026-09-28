@@ -320,7 +320,7 @@ export const CronogramaProducao = () => {
         <TabsList>
           <TabsTrigger value="gantt">Gantt</TabsTrigger>
           <TabsTrigger value="plano-diario">Plano Diário</TabsTrigger>
-          <TabsTrigger value="agenda">Agenda / Marcos</TabsTrigger>
+          <TabsTrigger value="agenda">Marcos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="gantt" className="mt-4">
@@ -351,7 +351,6 @@ export const CronogramaProducao = () => {
             <AgendaPlanejamentoCronograma
               inicio={format(periodo.inicio, 'yyyy-MM-dd')}
               fim={format(periodo.fim, 'yyyy-MM-dd')}
-              somenteMarcos
               compacto
             />
 
