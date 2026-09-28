@@ -31,6 +31,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   useCronogramaProducao,
@@ -326,10 +327,16 @@ export const CronogramaProducao = () => {
         <TabsContent value="gantt" className="mt-4">
           <Card className="overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 border-b p-3 print:hidden">
-              <Select value={projetoId} onValueChange={setProjetoId}>
-                <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="todos">Todos os projetos</SelectItem>{projetos.map(([id, nome]) => <SelectItem key={id} value={id}>{nome}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchableSelect
+                value={projetoId}
+                onValueChange={setProjetoId}
+                className="w-[220px]"
+                searchPlaceholder="Buscar projeto..."
+                options={[
+                  { value: 'todos', label: 'Todos os projetos' },
+                  ...projetos.map(([id, nome]) => ({ value: id, label: nome })),
+                ]}
+              />
               <div className="relative min-w-[240px] flex-1">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input className="pl-9" value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar etapa, OP, projeto, responsável ou cidade" />
