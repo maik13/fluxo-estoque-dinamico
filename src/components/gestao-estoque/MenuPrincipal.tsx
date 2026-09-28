@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X, BarChart3, MessageCircle, Factory } from 'lucide-react';
@@ -667,53 +668,31 @@ export const MenuPrincipal = ({
                 
                 <div>
                   <Label htmlFor="categoria">Categoria *</Label>
-                  <Select 
-                    value={formCadastro.categoriaId || ''} 
+                  <SearchableSelect
+                    value={formCadastro.categoriaId || ''}
                     onValueChange={(value) => {
-                      // Limpar subcategoria quando categoria mudar e definir categoriaId
                       setFormCadastro(prev => ({
-                        ...prev, 
+                        ...prev,
                         categoriaId: value,
-                        subcategoriaId: undefined
+                        subcategoriaId: undefined,
                       }));
                     }}
-                  >
-                    <SelectTrigger className="bg-background">
-                      <SelectValue placeholder="Selecione a categoria" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background z-50">
-                      {categoriasUnicas.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Selecione a categoria"
+                    searchPlaceholder="Buscar categoria..."
+                    options={categoriasUnicas.map((cat) => ({ value: cat.id, label: cat.nome }))}
+                  />
                 </div>
                 
                 <div>
                   <Label htmlFor="subcategoria">Subcategoria *</Label>
-                  <Select 
-                    value={formCadastro.subcategoriaId} 
-                    onValueChange={(value) => {
-                      setFormCadastro(prev => ({
-                        ...prev, 
-                        subcategoriaId: value
-                      }));
-                    }}
+                  <SearchableSelect
+                    value={formCadastro.subcategoriaId || ''}
+                    onValueChange={(value) => setFormCadastro(prev => ({ ...prev, subcategoriaId: value }))}
                     disabled={!formCadastro.categoriaId}
-                  >
-                    <SelectTrigger className="bg-background">
-                      <SelectValue placeholder={formCadastro.categoriaId ? "Selecione a subcategoria" : "Selecione uma categoria primeiro"} />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background z-50">
-                      {subcategoriasFiltradas.map((sub) => (
-                        <SelectItem key={sub.id} value={sub.id}>
-                          {sub.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder={formCadastro.categoriaId ? 'Selecione a subcategoria' : 'Selecione uma categoria primeiro'}
+                    searchPlaceholder="Buscar subcategoria..."
+                    options={subcategoriasFiltradas.map((sub) => ({ value: sub.id, label: sub.nome }))}
+                  />
                 </div>
                 
                 <div>
