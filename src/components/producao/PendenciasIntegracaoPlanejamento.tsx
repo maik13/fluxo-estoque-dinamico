@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
 
@@ -190,39 +190,33 @@ export const PendenciasIntegracaoPlanejamento = () => {
 
                 <div className="space-y-1.5">
                   <Label>Etapa existente</Label>
-                  <Select
+                  <SearchableSelect
                     value={escolha?.processoId || ''}
                     onValueChange={(valor) => selecionarEtapa(pendencia.id, valor)}
                     disabled={!podeConfigurar || salvandoId === pendencia.id}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Selecione a Etapa" /></SelectTrigger>
-                    <SelectContent>
-                      {etapas.map((item) => (
-                        <SelectItem key={item.etapa_id} value={item.etapa_id}>
-                          {item.projeto_nome} · {item.codigo} · {item.etapa_nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Selecione a Etapa"
+                    searchPlaceholder="Buscar projeto ou etapa..."
+                    options={etapas.map((item) => ({ value: item.etapa_id, label: `${item.projeto_nome} · ${item.codigo} · ${item.etapa_nome}` }))}
+                  />
                 </div>
 
                 <div className="space-y-1.5">
                   <Label>OP existente (opcional)</Label>
-                  <Select
+                  <SearchableSelect
                     value={escolha?.ordemId || 'sem-op'}
                     onValueChange={(valor) => selecionarOrdem(pendencia.id, valor)}
                     disabled={!podeConfigurar || !etapa || salvandoId === pendencia.id}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Sem OP específica" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sem-op">Vincular somente à Etapa</SelectItem>
-                      {(etapa?.ordens ?? []).filter((ordem) => ordem.status !== 'cancelada').map((ordem) => (
-                        <SelectItem key={ordem.id} value={ordem.id}>
-                          OP {ordem.numero}{ordem.tarefa_nome_snapshot ? ` · ${ordem.tarefa_nome_snapshot}` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Sem OP específica"
+                    searchPlaceholder="Buscar OP..."
+                    options={[
+                      { value: 'sem-op', label: 'Vincular somente à Etapa' },
+                      ...(etapa?.ordens ?? []).filter((ordem) => ordem.status !== 'cancelada').map((ordem) => ({
+                        value: ordem.id,
+                        label: `OP ${ordem.numero}${ordem.tarefa_nome_snapshot ? ` · ${ordem.tarefa_nome_snapshot}` : ''}`,
+                        keywords: String(ordem.numero),
+                      })),
+                    ]}
+                  />
                 </div>
 
                 <div className="flex gap-2 xl:flex-col xl:justify-center">
