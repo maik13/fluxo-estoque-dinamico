@@ -54,7 +54,7 @@ export const exportarItensGrupoExcel = (grupoNome: string, itens: ItemAgrupado[]
   const dados = itens.map(item => ({
     'Item': item.itemSnapshot?.nome || 'Item Desconhecido',
     'Código': item.itemSnapshot?.codigoBarras || '-',
-    'Tipo': item.itemSnapshot?.tipoItem || '-',
+    'Categoria': item.classificacao || '-',
     'Responsável': item.destinatario || item.solicitanteNome || '-',
     'Aging (Dias)': item.pendente > 0 ? item.agingDias : 0,
     'Criticidade': item.pendente > 0 ? item.criticidade.toUpperCase() : '-',
@@ -71,7 +71,7 @@ export const exportarItensGrupoExcel = (grupoNome: string, itens: ItemAgrupado[]
   worksheet['!cols'] = [
     { wch: 40 }, // Item
     { wch: 15 }, // Código
-    { wch: 15 }, // Tipo
+    { wch: 18 }, // Categoria
     { wch: 12 }, // Total Saída
     { wch: 12 }, // Total Devolvido
     { wch: 12 }, // Saldo
