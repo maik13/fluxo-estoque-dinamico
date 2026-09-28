@@ -13,6 +13,7 @@ import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Data
 import { userCreationSchema } from '@/schemas/validation';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { GuiaImportacaoExcel } from './GuiaImportacaoExcel';
@@ -1160,20 +1161,16 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false }: Configurac
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="grupoLocal">Grupo do Projeto (Opcional)</Label>
-                    <Select 
-                      value={(novoLocal as any).groupId || 'nenhum'} 
+                    <SearchableSelect
+                      value={(novoLocal as any).groupId || 'nenhum'}
                       onValueChange={(value) => setNovoLocal(prev => ({ ...prev, groupId: value === 'nenhum' ? undefined : value } as any))}
-                    >
-                      <SelectTrigger id="grupoLocal">
-                        <SelectValue placeholder="Selecione um grupo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="nenhum">Nenhum Grupo</SelectItem>
-                        {gruposProjeto.map(g => (
-                          <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Selecione um grupo"
+                      searchPlaceholder="Buscar grupo do projeto..."
+                      options={[
+                        { value: 'nenhum', label: 'Nenhum Grupo' },
+                        ...gruposProjeto.map((g) => ({ value: g.id, label: g.nome })),
+                      ]}
+                    />
                   </div>
                 </div>
                 <Button onClick={handleCadastroLocal} className="w-full">
@@ -1264,22 +1261,18 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false }: Configurac
                   </div>
                   <div>
                     <Label htmlFor="editGrupoLocal">Grupo do Projeto</Label>
-                    <Select 
-                      value={editandoLocal?.groupId || 'nenhum'} 
-                      onValueChange={(value) => setEditandoLocal(prev => 
+                    <SearchableSelect
+                      value={editandoLocal?.groupId || 'nenhum'}
+                      onValueChange={(value) => setEditandoLocal(prev =>
                         prev ? { ...prev, groupId: value === 'nenhum' ? undefined : value } : null
                       )}
-                    >
-                      <SelectTrigger id="editGrupoLocal">
-                        <SelectValue placeholder="Selecione um grupo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="nenhum">Nenhum Grupo</SelectItem>
-                        {gruposProjeto.map(g => (
-                          <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Selecione um grupo"
+                      searchPlaceholder="Buscar grupo do projeto..."
+                      options={[
+                        { value: 'nenhum', label: 'Nenhum Grupo' },
+                        ...gruposProjeto.map((g) => ({ value: g.id, label: g.nome })),
+                      ]}
+                    />
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setEditandoLocal(null)}>
