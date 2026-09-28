@@ -151,7 +151,9 @@ export const formatarIdentificacaoOrdemProducao = (ordem: {
   }
 
   const identificacao = atividade || descricao;
-  return identificacao ? `${numero} — ${identificacao}` : numero;
+  const base = identificacao ? `${numero} — ${identificacao}` : numero;
+  const destino = (ordem as { project_group_nome?: string | null } | null | undefined)?.project_group_nome?.trim();
+  return destino ? `${base} · Destino: ${destino}` : base;
 };
 
 export const useOrdensProducao = () => {
@@ -191,6 +193,45 @@ export const useOrdensProducao = () => {
         );
       }
 
+      const ordensBase = (data ?? []) as ProducaoOrdemProducao[];
+      const idsOrdens = ordensBase.map((ordem) => ordem.id);
+      const { data: destinosRaw, error: destinosError } = idsOrdens.length > 0
+        ? await (supabase.from as any)('producao_ordens_producao')
+            .select('id,project_group_id')
+            .in('id', idsOrdens)
+        : { data: [], error: null };
+
+      if (destinosError) {
+        console.warn('Não foi possível carregar os destinos das OPs:', destinosError);
+      }
+
+      const groupIds = Array.from(new Set(
+        ((destinosRaw ?? []) as Array<{ id: string; project_group_id: string | null }>)
+          .map((item) => item.project_group_id)
+          .filter((id): id is string => Boolean(id)),
+      ));
+
+      const { data: gruposRaw, error: gruposError } = groupIds.length > 0
+        ? await supabase.from('project_groups').select('id,nome').in('id', groupIds)
+        : { data: [], error: null };
+
+      if (gruposError) {
+        console.warn('Não foi possível carregar os nomes dos destinos das OPs:', gruposError);
+      }
+
+      const gruposPorId = new Map(
+        ((gruposRaw ?? []) as Array<{ id: string; nome: string }>).map((grupo) => [grupo.id, grupo.nome.trim()]),
+      );
+      const destinoPorOp = new Map(
+        ((destinosRaw ?? []) as Array<{ id: string; project_group_id: string | null }>).map((item) => [
+          item.id,
+          {
+            project_group_id: item.project_group_id,
+            project_group_nome: item.project_group_id ? gruposPorId.get(item.project_group_id) ?? null : null,
+          },
+        ]),
+      );
+
       const idsPendentes = new Set(
         (pendentes ?? []).map(
           (item: { ordem_producao_id: string }) => item.ordem_producao_id,
@@ -207,10 +248,13 @@ export const useOrdensProducao = () => {
         ),
       );
 
-      const resultado = ((data ?? []) as ProducaoOrdemProducao[]).map((ordem) => {
+      const resultado = ordensBase.map((ordem) => {
         const estimativa = estimativasPorOp.get(ordem.id);
+        const destino = destinoPorOp.get(ordem.id);
         return {
           ...ordem,
+          project_group_id: destino?.project_group_id ?? null,
+          project_group_nome: destino?.project_group_nome ?? null,
           duracao_estimada_horas: estimativa?.duracao_estimada_horas ?? null,
           esforco_estimado_horas_homem:
             estimativa?.esforco_estimado_horas_homem ?? null,
