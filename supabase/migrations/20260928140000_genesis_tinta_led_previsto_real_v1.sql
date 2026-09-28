@@ -209,7 +209,7 @@ DECLARE
   v_id uuid;
   v_nome text;
 BEGIN
-  IF auth.uid() IS NULL OR NOT public.usuario_tem_permissao_producao('apontar') THEN
+  IF auth.uid() IS NULL OR NOT public.usuario_tem_permissao_producao('lancar') THEN
     RAISE EXCEPTION 'Sem permissão para registrar aplicação de LED';
   END IF;
   IF COALESCE(p_quantidade_cordoes,0) <= 0 THEN
