@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -392,9 +393,36 @@ export const TabelaMovimentacoes = () => {
             <Select value={filtroTipo} onValueChange={(v) => setFiltroTipo(v as FiltroTipo)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>
               <SelectItem value="todas">Todos os tipos</SelectItem><SelectItem value="ENTRADA">Entrada</SelectItem><SelectItem value="ENTRADA_ACERTO">Entrada para acerto</SelectItem><SelectItem value="SAIDA">Saída</SelectItem><SelectItem value="SAIDA_ACERTO">Saída para acerto</SelectItem><SelectItem value="DEVOLUCAO">Devolução</SelectItem><SelectItem value="CADASTRO">Cadastro</SelectItem>
             </SelectContent></Select>
-            <Select value={filtroOperacao} onValueChange={setFiltroOperacao}><SelectTrigger><SelectValue placeholder="Operação" /></SelectTrigger><SelectContent><SelectItem value="todas">Todas as operações</SelectItem>{tiposOperacao.filter((x) => x.ativo).map((op) => <SelectItem key={op.id} value={op.id}>{op.nome}</SelectItem>)}</SelectContent></Select>
-            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todas">Todas as categorias</SelectItem>{categorias.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent></Select>
-            <Select value={filtroDestino} onValueChange={setFiltroDestino}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os estoques/destinos</SelectItem>{locaisUtilizacao.filter((l) => l.ativo).map((l) => <SelectItem key={l.id} value={l.id}>{l.nome}</SelectItem>)}</SelectContent></Select>
+            <SearchableSelect
+              value={filtroOperacao}
+              onValueChange={setFiltroOperacao}
+              searchPlaceholder="Buscar operação..."
+              options={[
+                { value: 'todas', label: 'Todas as operações' },
+                ...tiposOperacao.filter((x) => x.ativo).map((op) => ({ value: op.id, label: op.nome })),
+              ]}
+            />
+            <SearchableSelect
+              value={filtroCategoria}
+              onValueChange={setFiltroCategoria}
+              searchPlaceholder="Buscar categoria..."
+              options={[
+                { value: 'todas', label: 'Todas as categorias' },
+                ...categorias.map((cat) => ({ value: cat, label: cat })),
+              ]}
+            />
+            <SearchableSelect
+              value={filtroDestino}
+              onValueChange={setFiltroDestino}
+              searchPlaceholder="Buscar estoque ou destino..."
+              emptyMessage="Nenhum estoque ou destino encontrado."
+              options={[
+                { value: 'todos', label: 'Todos os estoques/destinos' },
+                ...locaisUtilizacao
+                  .filter((l) => l.ativo)
+                  .map((l) => ({ value: l.id, label: l.nome })),
+              ]}
+            />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Input type="date" value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} />
@@ -433,7 +461,7 @@ export const TabelaMovimentacoes = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={!!movimentoEditando} onOpenChange={(open) => !open && setMovimentoEditando(null)}><DialogContent><DialogHeader><DialogTitle>Editar Movimentação</DialogTitle><DialogDescription>Altere quantidade ou destino de “{movimentoEditando?.itemSnapshot?.nome}”.</DialogDescription></DialogHeader><div className="space-y-4 py-4"><div><label className="text-sm font-medium">Quantidade</label><Input type="number" min="0.01" step="0.01" value={novaQuantidade} onChange={(e) => setNovaQuantidade(e.target.value)} /></div><div><label className="text-sm font-medium">Novo Local de Destino</label><Select value={novoLocalId || 'sem-local'} onValueChange={(v) => setNovoLocalId(v === 'sem-local' ? '' : v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="sem-local">Nenhum</SelectItem>{locaisUtilizacao.filter((l) => l.ativo).map((l) => <SelectItem key={l.id} value={l.id}>{l.nome}</SelectItem>)}</SelectContent></Select></div></div><DialogFooter><Button variant="outline" onClick={() => setMovimentoEditando(null)}>Cancelar</Button><Button onClick={salvarEdicao} disabled={salvandoEdicao}>{salvandoEdicao ? 'Salvando...' : 'Salvar Alteração'}</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={!!movimentoEditando} onOpenChange={(open) => !open && setMovimentoEditando(null)}><DialogContent><DialogHeader><DialogTitle>Editar Movimentação</DialogTitle><DialogDescription>Altere quantidade ou destino de “{movimentoEditando?.itemSnapshot?.nome}”.</DialogDescription></DialogHeader><div className="space-y-4 py-4"><div><label className="text-sm font-medium">Quantidade</label><Input type="number" min="0.01" step="0.01" value={novaQuantidade} onChange={(e) => setNovaQuantidade(e.target.value)} /></div><div><label className="text-sm font-medium">Novo Local de Destino</label><SearchableSelect value={novoLocalId || 'sem-local'} onValueChange={(v) => setNovoLocalId(v === 'sem-local' ? '' : v)} searchPlaceholder="Buscar local de destino..." options={[{ value: 'sem-local', label: 'Nenhum' }, ...locaisUtilizacao.filter((l) => l.ativo).map((l) => ({ value: l.id, label: l.nome }))]} /></div></div><DialogFooter><Button variant="outline" onClick={() => setMovimentoEditando(null)}>Cancelar</Button><Button onClick={salvarEdicao} disabled={salvandoEdicao}>{salvandoEdicao ? 'Salvando...' : 'Salvar Alteração'}</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 };
