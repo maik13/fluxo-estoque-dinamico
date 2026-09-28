@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
@@ -153,18 +153,15 @@ export const MateriaisProjetoProducao = ({
       <CardContent className="space-y-5">
         <div className="max-w-xl space-y-2 print:hidden">
           <Label>Projeto/local</Label>
-          <Select value={projetoId} onValueChange={(valor) => void carregarProjeto(valor)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione o projeto" />
-            </SelectTrigger>
-            <SelectContent>
-              {locais.filter((local) => local.ativo).map((local) => (
-                <SelectItem key={local.id} value={local.id}>
-                  {local.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={projetoId}
+            onValueChange={(valor) => void carregarProjeto(valor)}
+            placeholder="Selecione o projeto"
+            searchPlaceholder="Buscar projeto/local..."
+            options={locais
+              .filter((local) => local.ativo)
+              .map((local) => ({ value: local.id, label: local.nome }))}
+          />
         </div>
 
         {!projetoId ? (
