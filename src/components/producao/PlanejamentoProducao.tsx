@@ -1,19 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle,
   Boxes,
-  CalendarClock,
   CheckCircle2,
   Database,
   ExternalLink,
   PackageSearch,
   RefreshCw,
+  ShieldCheck,
+  XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -31,9 +34,12 @@ type ItemPlanejamento = {
   id: string;
   fonteLinha: number;
   nome: string;
+  acervoId: string | null;
   acervoCodigo: string | null;
   qtdEstoqueReferencia: number;
   qtdEstoqueAtual: number;
+  qtdReservada: number;
+  qtdDisponivelAtual: number;
   statusPlanilha: string | null;
   demandas: Record<string, number>;
   acervoNome: string | null;
@@ -66,18 +72,18 @@ type Acervo = {
   status: string | null;
 };
 
-type Agenda = {
+type Reserva = {
   id: string;
-  tipo: 'turno' | 'marco' | 'gargalo';
-  data: string;
-  turno: string | null;
-  projeto_chave: string | null;
-  frente: string | null;
-  descricao: string | null;
-  meta: string | null;
-  responsavel: string | null;
-  status: string | null;
-  prioridade: string | null;
+  acervo_id: string;
+  acervo_codigo: string;
+  acervo_nome: string;
+  project_group_id: string;
+  projeto_nome: string;
+  quantidade: number;
+  data_inicio: string | null;
+  data_fim: string | null;
+  status: string;
+  observacoes: string | null;
 };
 
 type Parametro = {
@@ -98,10 +104,9 @@ const formatarDataHora = (valor: string | null | undefined) => {
   return new Date(valor).toLocaleString('pt-BR');
 };
 
-const statusPlanejamento = (saldo: number, necessidade: number, estoque: number) => {
+const statusPlanejamento = (deficit: number, necessidade: number) => {
   if (necessidade <= 0) return { label: 'Fora do cálculo', variant: 'outline' as const };
-  if (estoque <= 0) return { label: 'Produzir', variant: 'destructive' as const };
-  if (saldo < 0) return { label: 'Déficit', variant: 'destructive' as const };
+  if (deficit > 0) return { label: 'Déficit', variant: 'destructive' as const };
   return { label: 'Coberto pelo acervo', variant: 'secondary' as const };
 };
 
@@ -110,29 +115,35 @@ export const PlanejamentoProducao = () => {
   const podeConfigurar = canConfigurarProducao();
   const [dados, setDados] = useState<PlanejamentoPayload>({ projetos: [], itens: [], fonte: null });
   const [acervo, setAcervo] = useState<Acervo[]>([]);
-  const [agenda, setAgenda] = useState<Agenda[]>([]);
+  const [reservas, setReservas] = useState<Reserva[]>([]);
   const [parametros, setParametros] = useState<Parametro[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvandoId, setSalvandoId] = useState<string | null>(null);
+  const [novoAcervoId, setNovoAcervoId] = useState('');
+  const [novoGrupoId, setNovoGrupoId] = useState('');
+  const [novaQuantidade, setNovaQuantidade] = useState('1');
+  const [novaDataInicio, setNovaDataInicio] = useState('');
+  const [novaDataFim, setNovaDataFim] = useState('');
+  const [novaObservacao, setNovaObservacao] = useState('');
 
   const carregar = useCallback(async () => {
     setLoading(true);
     try {
-      const [planejamentoResult, acervoResult, agendaResult, parametrosResult] = await Promise.all([
-        (supabase.rpc as any)('listar_planejamento_producao_v1'),
+      const [planejamentoResult, acervoResult, reservasResult, parametrosResult] = await Promise.all([
+        (supabase.rpc as any)('listar_planejamento_producao_v2'),
         (supabase as any).from('producao_acervo_cenografico').select('id,codigo,categoria,nome,especificacoes,quantidade_estoque,status').eq('ativo', true).order('codigo'),
-        (supabase as any).from('producao_planejamento_agenda').select('id,tipo,data,turno,projeto_chave,frente,descricao,meta,responsavel,status,prioridade').order('data').order('fonte_linha'),
+        (supabase.rpc as any)('listar_reservas_acervo_v1'),
         (supabase as any).from('producao_parametros_padrao').select('id,tipologia,detalhamento,tempo_unitario_texto,ritmo_padrao,dias_cronograma,complexidade,gargalos_criticos').eq('ativo', true).order('fonte_linha'),
       ]);
 
       if (planejamentoResult.error) throw planejamentoResult.error;
       if (acervoResult.error) throw acervoResult.error;
-      if (agendaResult.error) throw agendaResult.error;
+      if (reservasResult.error) throw reservasResult.error;
       if (parametrosResult.error) throw parametrosResult.error;
 
       setDados((planejamentoResult.data ?? { projetos: [], itens: [], fonte: null }) as PlanejamentoPayload);
       setAcervo((acervoResult.data ?? []) as Acervo[]);
-      setAgenda((agendaResult.data ?? []) as Agenda[]);
+      setReservas((reservasResult.data ?? []) as Reserva[]);
       setParametros((parametrosResult.data ?? []) as Parametro[]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível carregar o planejamento.');
@@ -150,6 +161,11 @@ export const PlanejamentoProducao = () => {
     [dados.projetos],
   );
 
+  const gruposDisponiveis = useMemo(
+    () => dados.projetos.filter((projeto) => projeto.projectGroupId),
+    [dados.projetos],
+  );
+
   const linhas = useMemo(
     () => dados.itens.map((item) => {
       const necessidade = projetosAtivos.reduce(
@@ -157,14 +173,10 @@ export const PlanejamentoProducao = () => {
         0,
       );
       const estoque = numero(item.qtdEstoqueAtual);
-      const saldo = estoque - necessidade;
-      return {
-        ...item,
-        necessidade,
-        estoque,
-        saldo,
-        faltaProduzir: Math.max(0, necessidade - estoque),
-      };
+      const reservado = numero(item.qtdReservada);
+      const disponivel = numero(item.qtdDisponivelAtual);
+      const deficit = Math.max(0, necessidade - disponivel);
+      return { ...item, necessidade, estoque, reservado, disponivel, deficit };
     }),
     [dados.itens, projetosAtivos],
   );
@@ -172,8 +184,8 @@ export const PlanejamentoProducao = () => {
   const resumo = useMemo(() => ({
     projetos: projetosAtivos.length,
     necessidades: linhas.filter((linha) => linha.necessidade > 0).length,
-    deficit: linhas.filter((linha) => linha.faltaProduzir > 0).length,
-    unidadesFaltantes: linhas.reduce((soma, linha) => soma + linha.faltaProduzir, 0),
+    deficit: linhas.filter((linha) => linha.deficit > 0).length,
+    unidadesFaltantes: linhas.reduce((soma, linha) => soma + linha.deficit, 0),
   }), [linhas, projetosAtivos.length]);
 
   const alternarProjeto = async (projeto: ProjetoPlanejamento, ativo: boolean) => {
@@ -185,12 +197,7 @@ export const PlanejamentoProducao = () => {
         p_ativo_calculo: ativo,
       });
       if (error) throw error;
-      setDados((atual) => ({
-        ...atual,
-        projetos: atual.projetos.map((item) => (
-          item.id === projeto.id ? { ...item, ativoCalculo: ativo } : item
-        )),
-      }));
+      await carregar();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível alterar o projeto.');
     } finally {
@@ -198,7 +205,52 @@ export const PlanejamentoProducao = () => {
     }
   };
 
-  const agendaFutura = agenda.filter((item) => item.status !== 'Concluido').slice(0, 80);
+  const salvarReserva = async () => {
+    const quantidade = Number(novaQuantidade);
+    if (!novoAcervoId || !novoGrupoId || !Number.isFinite(quantidade) || quantidade <= 0) {
+      toast.error('Informe peça, projeto e quantidade válida para reservar.');
+      return;
+    }
+    setSalvandoId('reserva');
+    try {
+      const { error } = await (supabase.rpc as any)('salvar_reserva_acervo_v1', {
+        p_reserva_id: null,
+        p_acervo_id: novoAcervoId,
+        p_project_group_id: novoGrupoId,
+        p_quantidade: quantidade,
+        p_data_inicio: novaDataInicio || null,
+        p_data_fim: novaDataFim || null,
+        p_observacoes: novaObservacao || null,
+      });
+      if (error) throw error;
+      setNovoAcervoId('');
+      setNovoGrupoId('');
+      setNovaQuantidade('1');
+      setNovaDataInicio('');
+      setNovaDataFim('');
+      setNovaObservacao('');
+      toast.success('Reserva registrada. A disponibilidade do acervo foi recalculada.');
+      await carregar();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível registrar a reserva.');
+    } finally {
+      setSalvandoId(null);
+    }
+  };
+
+  const cancelarReserva = async (id: string) => {
+    setSalvandoId(id);
+    try {
+      const { error } = await (supabase.rpc as any)('cancelar_reserva_acervo_v1', { p_reserva_id: id });
+      if (error) throw error;
+      toast.success('Reserva cancelada.');
+      await carregar();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível cancelar a reserva.');
+    } finally {
+      setSalvandoId(null);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -206,7 +258,7 @@ export const PlanejamentoProducao = () => {
         <div>
           <h3 className="text-lg font-semibold">Planejamento de Necessidades</h3>
           <p className="text-sm text-muted-foreground">
-            Selecione os projetos que entram no cálculo. Esta tela não cria, altera ou conclui OPs automaticamente.
+            Consolida demanda, acervo, reservas, disponibilidade real e déficit. Nenhuma OP é criada ou alterada automaticamente.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -227,7 +279,7 @@ export const PlanejamentoProducao = () => {
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <p className="font-medium">Projetos considerados no cálculo</p>
-            <p className="text-xs text-muted-foreground">Independente do status operacional do projeto na Produção.</p>
+            <p className="text-xs text-muted-foreground">Este seletor não altera o status operacional do projeto.</p>
           </div>
           <span className="text-xs text-muted-foreground">
             Origem: {dados.fonte?.nome ?? '—'} · {formatarDataHora(dados.fonte?.ultimaSincronizacao)}
@@ -261,37 +313,39 @@ export const PlanejamentoProducao = () => {
 
       <Tabs defaultValue="matriz">
         <TabsList className="flex h-auto flex-wrap">
-          <TabsTrigger value="matriz"><PackageSearch className="mr-2 h-4 w-4" />Matriz</TabsTrigger>
+          <TabsTrigger value="matriz"><PackageSearch className="mr-2 h-4 w-4" />Necessidades</TabsTrigger>
           <TabsTrigger value="acervo"><Boxes className="mr-2 h-4 w-4" />Acervo</TabsTrigger>
-          <TabsTrigger value="agenda"><CalendarClock className="mr-2 h-4 w-4" />Agenda</TabsTrigger>
+          <TabsTrigger value="reservas"><ShieldCheck className="mr-2 h-4 w-4" />Reservas</TabsTrigger>
           <TabsTrigger value="parametros"><Database className="mr-2 h-4 w-4" />Parâmetros</TabsTrigger>
         </TabsList>
 
         <TabsContent value="matriz" className="mt-4">
           <Card className="overflow-hidden">
             <div className="overflow-auto">
-              <table className="w-full min-w-[900px] text-sm">
+              <table className="w-full min-w-[1050px] text-sm">
                 <thead className="bg-muted/50 text-left">
                   <tr>
                     <th className="p-3">Peça</th>
                     <th className="p-3 text-right">Necessário</th>
-                    <th className="p-3 text-right">Acervo</th>
-                    <th className="p-3 text-right">Saldo</th>
-                    <th className="p-3 text-right">Falta produzir</th>
+                    <th className="p-3 text-right">Acervo físico</th>
+                    <th className="p-3 text-right">Reservado</th>
+                    <th className="p-3 text-right">Disponível real</th>
+                    <th className="p-3 text-right">Produzir</th>
                     <th className="p-3">Situação</th>
                     <th className="p-3">Ref.</th>
                   </tr>
                 </thead>
                 <tbody>
                   {linhas.map((linha) => {
-                    const situacao = statusPlanejamento(linha.saldo, linha.necessidade, linha.estoque);
+                    const situacao = statusPlanejamento(linha.deficit, linha.necessidade);
                     return (
                       <tr key={linha.id} className="border-t">
                         <td className="p-3 font-medium">{linha.nome}</td>
                         <td className="p-3 text-right">{linha.necessidade}</td>
                         <td className="p-3 text-right">{linha.estoque}</td>
-                        <td className={`p-3 text-right font-medium ${linha.saldo < 0 ? 'text-destructive' : ''}`}>{linha.saldo}</td>
-                        <td className={`p-3 text-right font-bold ${linha.faltaProduzir > 0 ? 'text-destructive' : ''}`}>{linha.faltaProduzir}</td>
+                        <td className="p-3 text-right">{linha.reservado}</td>
+                        <td className="p-3 text-right font-medium">{linha.disponivel}</td>
+                        <td className={`p-3 text-right font-bold ${linha.deficit > 0 ? 'text-destructive' : ''}`}>{linha.deficit}</td>
                         <td className="p-3"><Badge variant={situacao.variant}>{situacao.label}</Badge></td>
                         <td className="p-3 text-muted-foreground">{linha.acervoCodigo ?? 'Sem código'}</td>
                       </tr>
@@ -306,9 +360,9 @@ export const PlanejamentoProducao = () => {
         <TabsContent value="acervo" className="mt-4">
           <Card className="overflow-hidden">
             <div className="overflow-auto">
-              <table className="w-full min-w-[850px] text-sm">
+              <table className="w-full min-w-[900px] text-sm">
                 <thead className="bg-muted/50 text-left">
-                  <tr><th className="p-3">Código</th><th className="p-3">Categoria</th><th className="p-3">Elemento</th><th className="p-3">Especificação</th><th className="p-3 text-right">Disponível</th><th className="p-3">Status</th></tr>
+                  <tr><th className="p-3">Código</th><th className="p-3">Categoria</th><th className="p-3">Elemento</th><th className="p-3">Especificação</th><th className="p-3 text-right">Físico</th><th className="p-3">Status</th></tr>
                 </thead>
                 <tbody>
                   {acervo.map((item) => (
@@ -327,29 +381,56 @@ export const PlanejamentoProducao = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="agenda" className="mt-4">
-          <div className="space-y-2">
-            {agendaFutura.map((item) => (
-              <Card key={item.id} className="p-4">
-                <div className="flex flex-col justify-between gap-2 md:flex-row">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {item.tipo === 'gargalo' ? <AlertTriangle className="h-4 w-4 text-amber-600" /> : <CalendarClock className="h-4 w-4" />}
-                      <span className="font-medium">{item.frente || item.descricao || 'Atividade'}</span>
-                      <Badge variant="outline">{item.tipo}</Badge>
-                      {item.prioridade && <Badge variant={item.prioridade === 'Alta' ? 'destructive' : 'secondary'}>{item.prioridade}</Badge>}
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">{item.descricao || item.meta || 'Sem descrição adicional.'}</p>
-                  </div>
-                  <div className="text-sm md:text-right">
-                    <p className="font-medium">{new Date(`${item.data}T12:00:00`).toLocaleDateString('pt-BR')}</p>
-                    <p className="text-muted-foreground">{item.turno || item.responsavel || '—'}</p>
-                  </div>
+        <TabsContent value="reservas" className="mt-4 space-y-4">
+          {podeConfigurar && (
+            <Card className="p-4">
+              <p className="mb-3 font-medium">Nova reserva de acervo</p>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <div className="space-y-1.5 xl:col-span-2">
+                  <Label>Peça do acervo</Label>
+                  <Select value={novoAcervoId} onValueChange={setNovoAcervoId}>
+                    <SelectTrigger><SelectValue placeholder="Selecione a peça" /></SelectTrigger>
+                    <SelectContent>{acervo.map((item) => <SelectItem key={item.id} value={item.id}>{item.codigo} · {item.nome}</SelectItem>)}</SelectContent>
+                  </Select>
                 </div>
-              </Card>
-            ))}
-            {!loading && agendaFutura.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">Nenhum compromisso futuro encontrado.</p>}
-          </div>
+                <div className="space-y-1.5">
+                  <Label>Projeto</Label>
+                  <Select value={novoGrupoId} onValueChange={setNovoGrupoId}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{gruposDisponiveis.map((projeto) => <SelectItem key={projeto.id} value={projeto.projectGroupId!}>{projeto.nome}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5"><Label>Quantidade</Label><Input type="number" min="0.01" step="0.01" value={novaQuantidade} onChange={(e) => setNovaQuantidade(e.target.value)} /></div>
+                <div className="flex items-end"><Button className="w-full" onClick={() => void salvarReserva()} disabled={salvandoId === 'reserva'}>Reservar</Button></div>
+                <div className="space-y-1.5"><Label>Início</Label><Input type="date" value={novaDataInicio} onChange={(e) => setNovaDataInicio(e.target.value)} /></div>
+                <div className="space-y-1.5"><Label>Fim</Label><Input type="date" value={novaDataFim} onChange={(e) => setNovaDataFim(e.target.value)} /></div>
+                <div className="space-y-1.5 md:col-span-2 xl:col-span-3"><Label>Observação</Label><Input value={novaObservacao} onChange={(e) => setNovaObservacao(e.target.value)} placeholder="Opcional" /></div>
+              </div>
+            </Card>
+          )}
+          <Card className="overflow-hidden">
+            <div className="overflow-auto">
+              <table className="w-full min-w-[900px] text-sm">
+                <thead className="bg-muted/50 text-left">
+                  <tr><th className="p-3">Peça</th><th className="p-3">Projeto</th><th className="p-3 text-right">Quantidade</th><th className="p-3">Período</th><th className="p-3">Status</th><th className="p-3">Observação</th>{podeConfigurar && <th className="p-3"></th>}</tr>
+                </thead>
+                <tbody>
+                  {reservas.map((reserva) => (
+                    <tr key={reserva.id} className="border-t">
+                      <td className="p-3 font-medium">{reserva.acervo_codigo} · {reserva.acervo_nome}</td>
+                      <td className="p-3">{reserva.projeto_nome}</td>
+                      <td className="p-3 text-right font-semibold">{numero(reserva.quantidade)}</td>
+                      <td className="p-3 text-muted-foreground">{reserva.data_inicio ?? '—'} → {reserva.data_fim ?? '—'}</td>
+                      <td className="p-3"><Badge variant={reserva.status === 'ativa' ? 'secondary' : 'outline'}>{reserva.status}</Badge></td>
+                      <td className="p-3 text-muted-foreground">{reserva.observacoes ?? '—'}</td>
+                      {podeConfigurar && <td className="p-3 text-right">{reserva.status === 'ativa' && <Button variant="ghost" size="sm" onClick={() => void cancelarReserva(reserva.id)} disabled={salvandoId === reserva.id}><XCircle className="mr-1 h-4 w-4" />Cancelar</Button>}</td>}
+                    </tr>
+                  ))}
+                  {!loading && reservas.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Nenhuma reserva registrada.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </TabsContent>
 
         <TabsContent value="parametros" className="mt-4">
@@ -375,7 +456,7 @@ export const PlanejamentoProducao = () => {
 
       <Card className="border-dashed p-4 text-sm text-muted-foreground">
         <div className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>A execução continua sendo governada por Etapas, OPs, Jornadas e Apontamentos. O Planejamento apenas calcula necessidade e déficit.</p>
+          <p>A execução continua sendo governada por Etapas, OPs, Jornadas e Apontamentos. O Planejamento somente consolida a necessidade e protege o acervo contra dupla alocação.</p>
         </div>
       </Card>
     </div>
