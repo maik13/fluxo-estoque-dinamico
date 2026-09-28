@@ -1,33 +1,64 @@
 import { useEffect, useMemo, useState } from 'react';
 import { addDays, format, isSaturday, isSunday, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, ChevronLeft, ChevronRight, Printer, Users } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Printer, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { useCronogramaProducao } from '@/hooks/useCronogramaProducao';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 const DIAS = 60;
+
+type ProgramacaoIntegrada = {
+  id: string;
+  projeto_id: string;
+  projeto_nome: string;
+  processo_id: string;
+  processo_nome: string;
+  ordem_producao_id: string | null;
+  ordem_numero: number | null;
+  data: string;
+  turno: string | null;
+  atividade_planejada: string;
+  meta: string | null;
+  equipe_prevista: string | null;
+  prioridade: string | null;
+  status: string;
+};
 
 export const PlanoDiarioProducao = () => {
   const { planoDiario, listarPlanoDiario, configuracao } = useCronogramaProducao();
   const [dataInicio, setDataInicio] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [projetoId, setProjetoId] = useState('todos');
   const [loading, setLoading] = useState(false);
+  const [programacao, setProgramacao] = useState<ProgramacaoIntegrada[]>([]);
 
   useEffect(() => {
     setLoading(true);
-    void listarPlanoDiario(dataInicio, DIAS).finally(() => setLoading(false));
+    void Promise.all([
+      listarPlanoDiario(dataInicio, DIAS),
+      (async () => {
+        const { data, error } = await (supabase.rpc as any)('listar_programacao_diaria_integrada_v1', {
+          p_data_inicio: dataInicio,
+          p_dias: DIAS,
+        });
+        if (error) throw error;
+        setProgramacao((data ?? []) as ProgramacaoIntegrada[]);
+      })(),
+    ]).finally(() => setLoading(false));
   }, [dataInicio, listarPlanoDiario]);
 
   const dias = useMemo(() => Array.from({ length: DIAS }, (_, index) => addDays(parseISO(dataInicio), index)), [dataInicio]);
   const projetos = useMemo(() => {
     const mapa = new Map<string, string>();
     planoDiario.forEach((item) => mapa.set(item.projeto_id, item.projeto_nome));
+    programacao.forEach((item) => mapa.set(item.projeto_id, item.projeto_nome));
     return [...mapa.entries()].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'));
-  }, [planoDiario]);
+  }, [planoDiario, programacao]);
 
   const linhas = useMemo(() => {
     const mapa = new Map<string, {
@@ -65,6 +96,11 @@ export const PlanoDiarioProducao = () => {
     return [...mapa.values()];
   }, [planoDiario, projetoId]);
 
+  const programacaoFiltrada = useMemo(
+    () => programacao.filter((item) => projetoId === 'todos' || item.projeto_id === projetoId),
+    [programacao, projetoId],
+  );
+
   const resumoDia = useMemo(() => {
     const mapa = new Map<string, { pessoas: number; processos: number }>();
     planoDiario
@@ -92,11 +128,42 @@ export const PlanoDiarioProducao = () => {
         <Button variant="outline" className="ml-auto" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Imprimir / PDF</Button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3 print:hidden">
+      <div className="grid gap-3 sm:grid-cols-4 print:hidden">
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Equipe disponível/dia</p><p className="text-2xl font-bold">{configuracao?.equipe_disponivel_por_dia ?? '—'}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Etapas na janela</p><p className="text-2xl font-bold">{linhas.length}</p></CardContent></Card>
         <Card><CardContent className="flex items-center gap-3 p-4"><Users className="h-5 w-5 text-primary" /><div><p className="text-xs text-muted-foreground">Maior equipe alocada</p><p className="text-2xl font-bold">{Math.max(0, ...[...resumoDia.values()].map((item) => item.pessoas))}</p></div></CardContent></Card>
+        <Card><CardContent className="flex items-center gap-3 p-4"><ClipboardList className="h-5 w-5 text-primary" /><div><p className="text-xs text-muted-foreground">Atividades vinculadas</p><p className="text-2xl font-bold">{programacaoFiltrada.length}</p></div></CardContent></Card>
       </div>
+
+      {programacaoFiltrada.length > 0 && (
+        <Card className="overflow-hidden">
+          <div className="border-b p-3">
+            <p className="font-medium">Programação diária vinculada às Etapas / OPs</p>
+            <p className="text-xs text-muted-foreground">Previsão operacional importada e validada. O realizado continua vindo dos apontamentos.</p>
+          </div>
+          <div className="overflow-auto">
+            <table className="w-full min-w-[950px] text-sm">
+              <thead className="bg-muted/50 text-left">
+                <tr><th className="p-3">Data</th><th className="p-3">Turno</th><th className="p-3">Projeto</th><th className="p-3">Etapa / OP</th><th className="p-3">Atividade planejada</th><th className="p-3">Meta</th><th className="p-3">Equipe prevista</th><th className="p-3">Prioridade</th></tr>
+              </thead>
+              <tbody>
+                {programacaoFiltrada.map((item) => (
+                  <tr key={item.id} className="border-t">
+                    <td className="p-3 font-medium">{new Date(`${item.data}T12:00:00`).toLocaleDateString('pt-BR')}</td>
+                    <td className="p-3">{item.turno ?? '—'}</td>
+                    <td className="p-3">{item.projeto_nome}</td>
+                    <td className="p-3">{item.processo_nome}{item.ordem_numero ? ` · OP ${item.ordem_numero}` : ''}</td>
+                    <td className="p-3">{item.atividade_planejada}</td>
+                    <td className="p-3 text-muted-foreground">{item.meta ?? '—'}</td>
+                    <td className="p-3">{item.equipe_prevista ?? '—'}</td>
+                    <td className="p-3">{item.prioridade ? <Badge variant={item.prioridade === 'Alta' ? 'destructive' : 'secondary'}>{item.prioridade}</Badge> : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       <Card className="overflow-hidden">
         <div className="overflow-auto" style={{ maxHeight: '68vh' }}>
