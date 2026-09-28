@@ -37,7 +37,9 @@ export interface ProducaoProcessoEvento {
 
 export interface ProducaoOrdemProducao {
   id: string; numero: number; processo_id: string; projeto_id: string; processo_codigo: string; processo_nome: string;
-  projeto_nome: string; projeto_cidade: string | null; projeto_uf: string | null; tarefa_id: string | null; tarefa_nome_snapshot: string | null; local_tipo: ProducaoLocalTipo;
+  projeto_nome: string; projeto_cidade: string | null; projeto_uf: string | null;
+  project_group_id?: string | null; project_group_nome?: string | null;
+  tarefa_id: string | null; tarefa_nome_snapshot: string | null; local_tipo: ProducaoLocalTipo;
   descricao: string | null; instrucoes: string | null; produto_entregavel: string | null; unidade_medida: string | null;
   quantidade_planejada: number; quantidade_realizada: number; percentual_realizado: number;
   duracao_estimada_horas: number | null; esforco_estimado_horas_homem?: number | null;
