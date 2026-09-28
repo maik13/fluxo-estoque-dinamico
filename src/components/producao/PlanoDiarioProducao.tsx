@@ -5,7 +5,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Printer, Users 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Badge } from '@/components/ui/badge';
 import { useCronogramaProducao } from '@/hooks/useCronogramaProducao';
 import { supabase } from '@/integrations/supabase/client';
@@ -121,10 +121,16 @@ export const PlanoDiarioProducao = () => {
         <Input type="date" value={dataInicio} onChange={(event) => setDataInicio(event.target.value)} className="w-[170px]" />
         <Button variant="outline" size="icon" onClick={() => setDataInicio(format(addDays(parseISO(dataInicio), 14), 'yyyy-MM-dd'))}><ChevronRight className="h-4 w-4" /></Button>
         <Button variant="outline" onClick={() => setDataInicio(format(new Date(), 'yyyy-MM-dd'))}><CalendarDays className="mr-2 h-4 w-4" />Hoje</Button>
-        <Select value={projetoId} onValueChange={setProjetoId}>
-          <SelectTrigger className="w-[230px]"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="todos">Todos os projetos</SelectItem>{projetos.map(([id, nome]) => <SelectItem key={id} value={id}>{nome}</SelectItem>)}</SelectContent>
-        </Select>
+        <SearchableSelect
+          value={projetoId}
+          onValueChange={setProjetoId}
+          className="w-[230px]"
+          searchPlaceholder="Buscar projeto..."
+          options={[
+            { value: 'todos', label: 'Todos os projetos' },
+            ...projetos.map(([id, nome]) => ({ value: id, label: nome })),
+          ]}
+        />
         <Button variant="outline" className="ml-auto" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Imprimir / PDF</Button>
       </div>
 
