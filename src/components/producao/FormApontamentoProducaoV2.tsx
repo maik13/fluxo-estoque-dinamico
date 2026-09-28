@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
 import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
 import {
@@ -827,28 +828,21 @@ export const FormApontamentoProducaoV2 = ({
 
         <div className="space-y-2">
           <Label>Ordem de Produção *</Label>
-          <Select
+          <SearchableSelect
             value={origem}
             onValueChange={setOrigem}
             disabled={!podeApontar || Boolean(jornadaContexto)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione a OP em execução" />
-            </SelectTrigger>
-            <SelectContent>
-              {ordensDisponiveis.map((ordem) => (
-                <SelectItem key={ordem.id} value={ordem.id}>
-                  {formatarIdentificacaoOrdemProducao(ordem)} ·{' '}
-                  {ordem.processo_nome} · {ordem.projeto_nome}
-                </SelectItem>
-              ))}
-              {!jornadaContexto && (
-                <SelectItem value={ORIGEM_AVULSA}>
-                  Atividade não planejada — sem OP
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
+            placeholder="Selecione a OP em execução"
+            searchPlaceholder="Buscar OP, etapa ou projeto..."
+            options={[
+              ...ordensDisponiveis.map((ordem) => ({
+                value: ordem.id,
+                label: `${formatarIdentificacaoOrdemProducao(ordem)} · ${ordem.processo_nome} · ${ordem.projeto_nome}`,
+                keywords: String(ordem.numero),
+              })),
+              ...(!jornadaContexto ? [{ value: ORIGEM_AVULSA, label: 'Atividade não planejada — sem OP' }] : []),
+            ]}
+          />
           {ordensDisponiveis.length === 0 && (
             <p className="text-xs text-muted-foreground">
               Nenhuma OP está liberada ou em execução. Emita a OP dentro da
@@ -910,24 +904,14 @@ export const FormApontamentoProducaoV2 = ({
           <>
             <div className="space-y-2">
               <Label>Projeto/local da atividade avulsa *</Label>
-              <Select
+              <SearchableSelect
                 value={projetoLocalId}
                 onValueChange={setProjetoLocalId}
                 disabled={!podeApontar}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o projeto/local" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locais
-                    .filter((local) => local.ativo)
-                    .map((local) => (
-                      <SelectItem key={local.id} value={local.id}>
-                        {local.nome}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+                placeholder="Selecione o projeto/local"
+                searchPlaceholder="Buscar projeto/local..."
+                options={locais.filter((local) => local.ativo).map((local) => ({ value: local.id, label: local.nome }))}
+              />
             </div>
             <div className="space-y-2">
               <Label>Local de execução *</Label>
@@ -952,22 +936,15 @@ export const FormApontamentoProducaoV2 = ({
 
         <div className="space-y-2 md:col-span-2">
           <Label>Atividade executada *</Label>
-          <Select
+          <SearchableSelect
             value={tarefaId}
             onValueChange={setTarefaId}
             disabled={!podeApontar || Boolean(jornadaContexto && tarefaId)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione corte, montagem, acabamento..." />
-            </SelectTrigger>
-            <SelectContent>
-              {tarefas
-                .filter((tarefa) => tarefa.ativo)
-                .map((tarefa) => (
-                  <SelectItem key={tarefa.id} value={tarefa.id}>
-                    {tarefa.nome}
-                  </SelectItem>
-                ))}
+            placeholder="Selecione corte, montagem, acabamento..."
+            searchPlaceholder="Buscar atividade..."
+            options={tarefas.filter((tarefa) => tarefa.ativo).map((tarefa) => ({ value: tarefa.id, label: tarefa.nome }))}
+          />
+          {/*
             </SelectContent>
           </Select>
           {jornadaContexto && tarefaId && (
