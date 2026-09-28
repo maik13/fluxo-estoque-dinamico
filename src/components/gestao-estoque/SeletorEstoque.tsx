@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Switch } from '@/components/ui/switch';
 import { Database, Moon, Sun } from 'lucide-react';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
@@ -33,18 +33,14 @@ export const SeletorEstoque = () => {
         <Database className="h-4 w-4" />
       </div>
 
-      <Select value={estoqueAtivo} onValueChange={alterarEstoqueAtivo}>
-        <SelectTrigger className="h-10 w-44 border-input bg-background text-foreground shadow-sm sm:w-64">
-          <SelectValue placeholder="Selecione o estoque" />
-        </SelectTrigger>
-        <SelectContent>
-          {estoques.map((estoque) => (
-            <SelectItem key={estoque.id} value={estoque.id}>
-              {estoque.nome}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <SearchableSelect
+        value={estoqueAtivo}
+        onValueChange={alterarEstoqueAtivo}
+        placeholder="Selecione o estoque"
+        searchPlaceholder="Buscar estoque..."
+        className="h-10 w-44 border-input bg-background text-foreground shadow-sm sm:w-64"
+        options={estoques.map((estoque) => ({ value: estoque.id, label: estoque.nome }))}
+      />
 
       <div
         className="flex h-10 items-center gap-2 rounded-md border border-input bg-background px-2.5 text-foreground shadow-sm"
