@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
@@ -393,39 +394,39 @@ export const HistoricoApontamentosProducao = ({
             </div>
             <div className="space-y-1.5">
               <Label>Projeto/local</Label>
-              <Select value={projetoId} onValueChange={setProjetoId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={TODOS}>Todos</SelectItem>
-                  {locais.map((local) => (
-                    <SelectItem key={local.id} value={local.id}>{local.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={projetoId}
+                onValueChange={setProjetoId}
+                searchPlaceholder="Buscar projeto/local..."
+                options={[
+                  { value: TODOS, label: 'Todos' },
+                  ...locais.map((local) => ({ value: local.id, label: local.nome })),
+                ]}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Tarefa</Label>
-              <Select value={tarefaId} onValueChange={setTarefaId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={TODOS}>Todas</SelectItem>
-                  {tarefas.map((tarefa) => (
-                    <SelectItem key={tarefa.id} value={tarefa.id}>{tarefa.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={tarefaId}
+                onValueChange={setTarefaId}
+                searchPlaceholder="Buscar tarefa..."
+                options={[
+                  { value: TODOS, label: 'Todas' },
+                  ...tarefas.map((tarefa) => ({ value: tarefa.id, label: tarefa.nome })),
+                ]}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Membro</Label>
-              <Select value={membroId} onValueChange={setMembroId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={TODOS}>Todos</SelectItem>
-                  {membros.map((membro) => (
-                    <SelectItem key={membro.id} value={membro.id}>{membro.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={membroId}
+                onValueChange={setMembroId}
+                searchPlaceholder="Buscar membro..."
+                options={[
+                  { value: TODOS, label: 'Todos' },
+                  ...membros.map((membro) => ({ value: membro.id, label: membro.nome })),
+                ]}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Status</Label>
