@@ -9,7 +9,8 @@ export interface Item {
   caixaOrganizador: string;
   localizacao: string;
   nome: string;
-  tipoItem: 'Insumo' | 'Ferramenta' | 'Produto Acabado' | 'Matéria Prima'; // Tipo do item
+  /** @deprecated Compatibilidade técnica temporária. A classificação oficial é categoriaId + subcategoriaId. */
+  tipoItem: 'Insumo' | 'Ferramenta' | 'Produto Acabado' | 'Matéria Prima';
   especificacao: string; // Amperagem bateria, bitola, tipo de pisca, etc.
   marca: string;
   unidade: string; // metro, peça, kg, etc.
