@@ -53,7 +53,7 @@ export interface PainelKPIs {
 export interface ConsolidacaoFiltros {
   dataInicio?: Date;
   dataFim?: Date;
-  tipoItem?: string;
+  categoria?: string;
   grupoId?: string;
   localId?: string; // Novo filtro por Projeto/Local específico
 }
@@ -145,7 +145,7 @@ export const useConsolidacao = (
       }
       
       // Filtro de Classificação (usando a taxonomia real)
-      if (filtros?.tipoItem && filtros.tipoItem !== 'todos') {
+      if (filtros?.categoria && filtros.tipoItem !== 'todos') {
         const itemClass = resolveClassificacao(mov.itemSnapshot);
         if (itemClass !== filtros.tipoItem) return false;
       }
@@ -261,8 +261,7 @@ export const useConsolidacao = (
       // O saldo que a ferramenta deve é o que saiu menos o que voltou (ou foi baixado ficticiamente)
       const pendenteReal = item.totalSaida - item.totalDevolvido;
       
-      const tipo = item.itemSnapshot?.tipoItem || 'Insumo';
-      const isFerramenta = tipo === 'Ferramenta';
+      const isFerramenta = item.classificacao === 'Ferramenta';
       
       let pendente = 0;
       let statusItem: 'pendente' | 'parcial' | 'devolvido' | 'consumido' | 'concluido' = 'concluido';
