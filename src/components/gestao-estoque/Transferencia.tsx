@@ -10,6 +10,7 @@ import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { useAuth } from '@/hooks/useAuth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
@@ -261,37 +262,27 @@ export const Transferencia = () => {
           {/* Estoque de Origem */}
           <div className="space-y-2">
             <Label htmlFor="estoqueOrigem">Estoque de Origem *</Label>
-            <Select value={estoqueOrigemId} onValueChange={setEstoqueOrigemId} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o estoque de origem" />
-              </SelectTrigger>
-              <SelectContent>
-                {estoquesAtivos.map(estoque => (
-                  <SelectItem key={estoque.id} value={estoque.id}>
-                    {estoque.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={estoqueOrigemId}
+              onValueChange={setEstoqueOrigemId}
+              placeholder="Selecione o estoque de origem"
+              searchPlaceholder="Buscar estoque..."
+              options={estoquesAtivos.map((estoque) => ({ value: estoque.id, label: estoque.nome }))}
+            />
           </div>
 
           {/* Estoque de Destino */}
           <div className="space-y-2">
             <Label htmlFor="estoqueDestino">Estoque de Destino *</Label>
-            <Select value={estoqueDestinoId} onValueChange={setEstoqueDestinoId} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o estoque de destino" />
-              </SelectTrigger>
-              <SelectContent>
-                {estoquesAtivos
-                  .filter(e => e.id !== estoqueOrigemId)
-                  .map(estoque => (
-                    <SelectItem key={estoque.id} value={estoque.id}>
-                      {estoque.nome}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={estoqueDestinoId}
+              onValueChange={setEstoqueDestinoId}
+              placeholder="Selecione o estoque de destino"
+              searchPlaceholder="Buscar estoque..."
+              options={estoquesAtivos
+                .filter((e) => e.id !== estoqueOrigemId)
+                .map((estoque) => ({ value: estoque.id, label: estoque.nome }))}
+            />
           </div>
 
           {/* Buscar e adicionar itens */}
