@@ -4,18 +4,14 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 
-type Agenda = {
+type Marco = {
   id: string;
-  tipo: 'turno' | 'marco' | 'gargalo';
   data: string;
-  turno: string | null;
-  projeto_chave: string | null;
-  frente: string | null;
+  tipo: 'marco' | 'gargalo';
+  titulo: string;
   descricao: string | null;
-  meta: string | null;
-  responsavel: string | null;
-  status: string | null;
   prioridade: string | null;
+  status: string | null;
 };
 
 interface Props {
@@ -35,31 +31,28 @@ const formatarData = (data: string) =>
 export const AgendaPlanejamentoCronograma = ({
   inicio = null,
   fim = null,
-  somenteMarcos = false,
   compacto = false,
 }: Props) => {
-  const [itens, setItens] = useState<Agenda[]>([]);
+  const [itens, setItens] = useState<Marco[]>([]);
 
   useEffect(() => {
     let ativo = true;
     const carregar = async () => {
       let query = (supabase as any)
-        .from('producao_planejamento_agenda')
-        .select('id,tipo,data,turno,projeto_chave,frente,descricao,meta,responsavel,status,prioridade')
-        .order('data')
-        .order('fonte_linha');
+        .from('producao_cronograma_marcos')
+        .select('id,data,tipo,titulo,descricao,prioridade,status')
+        .order('data');
 
       if (inicio) query = query.gte('data', inicio);
       if (fim) query = query.lte('data', fim);
-      if (somenteMarcos) query = query.in('tipo', ['marco', 'gargalo']);
 
       const { data, error } = await query;
       if (!ativo || error) return;
-      setItens((data ?? []) as Agenda[]);
+      setItens((data ?? []) as Marco[]);
     };
     void carregar();
     return () => { ativo = false; };
-  }, [fim, inicio, somenteMarcos]);
+  }, [fim, inicio]);
 
   const visiveis = useMemo(
     () => compacto ? itens.slice(0, 8) : itens,
@@ -83,7 +76,7 @@ export const AgendaPlanejamentoCronograma = ({
                   {item.tipo === 'gargalo' ? 'Risco' : 'Marco'}
                 </Badge>
               </div>
-              <p className="mt-1 line-clamp-2 font-medium">{item.frente || item.descricao}</p>
+              <p className="mt-1 line-clamp-2 font-medium">{item.titulo}</p>
             </div>
           ))}
         </div>
@@ -101,7 +94,7 @@ export const AgendaPlanejamentoCronograma = ({
                 {item.tipo === 'gargalo'
                   ? <AlertTriangle className="h-4 w-4 text-amber-600" />
                   : <CalendarClock className="h-4 w-4" />}
-                <p className="font-medium">{item.frente || item.descricao || 'Atividade planejada'}</p>
+                <p className="font-medium">{item.titulo}</p>
                 <Badge variant="outline">{item.tipo}</Badge>
                 {item.prioridade && (
                   <Badge variant={item.prioridade === 'Alta' ? 'destructive' : 'secondary'}>
@@ -109,16 +102,10 @@ export const AgendaPlanejamentoCronograma = ({
                   </Badge>
                 )}
               </div>
-              {item.descricao && item.frente && (
-                <p className="mt-1 text-sm text-muted-foreground">{item.descricao}</p>
-              )}
-              {item.meta && (
-                <p className="mt-2 text-sm"><span className="text-muted-foreground">Meta:</span> {item.meta}</p>
-              )}
+              {item.descricao && <p className="mt-1 text-sm text-muted-foreground">{item.descricao}</p>}
             </div>
             <div className="shrink-0 text-sm md:text-right">
               <p className="font-semibold">{formatarData(item.data)}</p>
-              <p className="text-muted-foreground">{item.turno || item.responsavel || '—'}</p>
               {item.status && <p className="text-xs text-muted-foreground">{item.status}</p>}
             </div>
           </div>
