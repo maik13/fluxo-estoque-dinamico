@@ -944,9 +944,6 @@ export const FormApontamentoProducaoV2 = ({
             searchPlaceholder="Buscar atividade..."
             options={tarefas.filter((tarefa) => tarefa.ativo).map((tarefa) => ({ value: tarefa.id, label: tarefa.nome }))}
           />
-          {/*
-            </SelectContent>
-          </Select>
           {jornadaContexto && tarefaId && (
             <p className="text-xs text-muted-foreground">
               Atividade herdada da OP e mantida nesta jornada.
