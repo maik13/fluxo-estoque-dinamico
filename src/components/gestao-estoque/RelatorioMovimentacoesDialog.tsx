@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -351,19 +352,15 @@ export const RelatorioMovimentacoesDialog = ({ aberto, onClose, movimentacoes }:
               </SelectContent>
             </Select>
             
-            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-              <SelectTrigger>
-                <SelectValue placeholder="Categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas as categorias</SelectItem>
-                {categoriasAtivas.map((categoria) => (
-                  <SelectItem key={categoria.id} value={categoria.nome}>
-                    {categoria.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={filtroCategoria}
+              onValueChange={setFiltroCategoria}
+              searchPlaceholder="Buscar categoria..."
+              options={[
+                { value: 'todas', label: 'Todas as categorias' },
+                ...categoriasAtivas.map((categoria) => ({ value: categoria.nome, label: categoria.nome })),
+              ]}
+            />
 
             <Select value={filtroDestino} onValueChange={setFiltroDestino}>
               <SelectTrigger>
