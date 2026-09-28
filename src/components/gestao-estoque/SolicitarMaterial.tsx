@@ -21,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { materialRequestSchema } from '@/schemas/validation';
@@ -434,56 +435,40 @@ export const SolicitarMaterial = () => {
             {/* Campo Solicitante */}
             <div className="space-y-2">
               <Label htmlFor="solicitante">Solicitante *</Label>
-              <Select
-                value={solicitanteSelecionado?.id || ""}
+              <SearchableSelect
+                value={solicitanteSelecionado?.id || ''}
                 onValueChange={(value) => {
-                  const solicitante = solicitantesCarregados.find(s => s.id === value);
+                  const solicitante = solicitantesCarregados.find((s) => s.id === value);
                   if (solicitante) {
                     setSolicitanteSelecionado({
                       id: solicitante.id,
                       nome: solicitante.nome,
-                      codigo_barras: solicitante.codigo_barras || undefined
+                      codigo_barras: solicitante.codigo_barras || undefined,
                     });
                     setCodigoAssinatura('');
                     setErroAssinatura('');
                   }
                 }}
-              >
-                <SelectTrigger className="w-full min-w-0">
-                  <SelectValue placeholder="Selecione o solicitante" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px] max-w-[calc(100vw-1rem)]">
-                  {solicitantesCarregados
-                    .sort((a, b) => a.nome.localeCompare(b.nome))
-                    .map(solicitante => (
-                      <SelectItem key={solicitante.id} value={solicitante.id}>
-                        {solicitante.nome}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+                placeholder="Selecione o solicitante"
+                searchPlaceholder="Buscar solicitante..."
+                options={[...solicitantesCarregados]
+                  .sort((a, b) => a.nome.localeCompare(b.nome))
+                  .map((solicitante) => ({ value: solicitante.id, label: solicitante.nome, keywords: String(solicitante.codigo_barras ?? '') }))}
+              />
             </div>
 
             {/* Campo Local de Utilização */}
             <div className="space-y-2">
               <Label htmlFor="localUtilizacao">Local onde será utilizado *</Label>
-              <Select
-                value={localUtilizacao || ""}
-                onValueChange={(value) => setLocalUtilizacao(value)}
-              >
-                <SelectTrigger className="w-full min-w-0">
-                  <SelectValue placeholder="Selecione o local" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px] max-w-[calc(100vw-1rem)]">
-                  {locaisDisponiveis
-                    .sort((a, b) => a.nome.localeCompare(b.nome))
-                    .map(local => (
-                      <SelectItem key={local.id} value={local.id}>
-                        {local.nome}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={localUtilizacao || ''}
+                onValueChange={setLocalUtilizacao}
+                placeholder="Selecione o local"
+                searchPlaceholder="Buscar local/projeto..."
+                options={[...locaisDisponiveis]
+                  .sort((a, b) => a.nome.localeCompare(b.nome))
+                  .map((local) => ({ value: local.id, label: local.nome }))}
+              />
             </div>
 
             {/* Buscar e adicionar itens */}
