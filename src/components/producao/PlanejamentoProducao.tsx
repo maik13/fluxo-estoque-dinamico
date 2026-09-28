@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
+import { PendenciasIntegracaoPlanejamento } from './PendenciasIntegracaoPlanejamento';
 
 type ProjetoPlanejamento = {
   id: string;
@@ -316,6 +317,7 @@ export const PlanejamentoProducao = () => {
           <TabsTrigger value="matriz"><PackageSearch className="mr-2 h-4 w-4" />Necessidades</TabsTrigger>
           <TabsTrigger value="acervo"><Boxes className="mr-2 h-4 w-4" />Acervo</TabsTrigger>
           <TabsTrigger value="reservas"><ShieldCheck className="mr-2 h-4 w-4" />Reservas</TabsTrigger>
+          <TabsTrigger value="integracao"><RefreshCw className="mr-2 h-4 w-4" />Integração</TabsTrigger>
           <TabsTrigger value="parametros"><Database className="mr-2 h-4 w-4" />Parâmetros</TabsTrigger>
         </TabsList>
 
@@ -431,6 +433,10 @@ export const PlanejamentoProducao = () => {
               </table>
             </div>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="integracao" className="mt-4">
+          <PendenciasIntegracaoPlanejamento />
         </TabsContent>
 
         <TabsContent value="parametros" className="mt-4">
