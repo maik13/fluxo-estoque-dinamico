@@ -37,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
   Table,
   TableBody,
@@ -527,66 +528,51 @@ export const HistoricoApontamentosProducaoV2 = ({
             </div>
             <div className="space-y-1.5">
               <Label>Projeto/local</Label>
-              <Select
+              <SearchableSelect
                 value={projetoId}
                 onValueChange={(value) => {
                   setProjetoId(value);
                   setProcessoId(TODOS);
                   setOrdemId(TODOS);
                 }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={TODOS}>Todos</SelectItem>
-                  {locais.map((local) => (
-                    <SelectItem key={local.id} value={local.id}>
-                      {local.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                searchPlaceholder="Buscar projeto/local..."
+                options={[
+                  { value: TODOS, label: 'Todos' },
+                  ...locais.map((local) => ({ value: local.id, label: local.nome })),
+                ]}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Etapa</Label>
-              <Select
+              <SearchableSelect
                 value={processoId}
                 onValueChange={(value) => {
                   setProcessoId(value);
                   setOrdemId(TODOS);
                 }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={TODOS}>Todas</SelectItem>
-                  {processosDisponiveis.map((processo) => (
-                    <SelectItem key={processo.id} value={processo.id}>
-                      {processo.codigo} · {processo.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                searchPlaceholder="Buscar etapa..."
+                options={[
+                  { value: TODOS, label: 'Todas' },
+                  ...processosDisponiveis.map((processo) => ({ value: processo.id, label: `${processo.codigo} · ${processo.nome}` })),
+                ]}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Ordem de Produção</Label>
-              <Select value={ordemId} onValueChange={setOrdemId}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={TODOS}>Todas</SelectItem>
-                  <SelectItem value={AVULSOS}>Somente avulsos</SelectItem>
-                  {ordensDisponiveis.map((ordem) => (
-                    <SelectItem key={ordem.id} value={ordem.id}>
-                      {formatarIdentificacaoOrdemProducao(ordem)} ·{' '}
-                      {ordem.processo_nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={ordemId}
+                onValueChange={setOrdemId}
+                searchPlaceholder="Buscar OP..."
+                options={[
+                  { value: TODOS, label: 'Todas' },
+                  { value: AVULSOS, label: 'Somente avulsos' },
+                  ...ordensDisponiveis.map((ordem) => ({
+                    value: ordem.id,
+                    label: `${formatarIdentificacaoOrdemProducao(ordem)} · ${ordem.processo_nome}`,
+                    keywords: String(ordem.numero),
+                  })),
+                ]}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Status do apontamento</Label>
