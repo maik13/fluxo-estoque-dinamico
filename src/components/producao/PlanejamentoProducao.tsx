@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
 
@@ -330,14 +330,13 @@ export const PlanejamentoProducao = () => {
             </div>
             <div className="space-y-1.5">
               <Label>Cidade/projeto</Label>
-              <Select value={novaPecaProjetoId} onValueChange={setNovaPecaProjetoId}>
-                <SelectTrigger><SelectValue placeholder="Sem cidade" /></SelectTrigger>
-                <SelectContent>
-                  {dados.projetos.map((projeto) => (
-                    <SelectItem key={projeto.id} value={projeto.id}>{projeto.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={novaPecaProjetoId}
+                onValueChange={setNovaPecaProjetoId}
+                placeholder="Sem cidade"
+                searchPlaceholder="Buscar cidade/projeto..."
+                options={dados.projetos.map((projeto) => ({ value: projeto.id, label: projeto.nome }))}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Quantidade</Label>
