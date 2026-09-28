@@ -6,6 +6,7 @@ import { InputCurrency } from '@/components/ui/input-currency';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { Item } from '@/types/estoque';
 import { Switch } from '@/components/ui/switch';
@@ -171,44 +172,25 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
             
             <div>
               <Label htmlFor="categoria">Categoria *</Label>
-              <Select 
-                value={formItem.categoriaId || ''} 
-                onValueChange={(value) => {
-                  // Limpar subcategoria quando categoria mudar e atualizar ID da categoria
-                  setFormItem(prev => prev ? {...prev, categoriaId: value, subcategoriaId: undefined} : null);
-                }}
-              >
-                <SelectTrigger className="bg-background">
-                  <SelectValue placeholder="Selecione a categoria" />
-                </SelectTrigger>
-                <SelectContent className="bg-background z-50">
-                  {categoriasUnicas.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={formItem.categoriaId || ''}
+                onValueChange={(value) => setFormItem(prev => prev ? {...prev, categoriaId: value, subcategoriaId: undefined} : null)}
+                placeholder="Selecione a categoria"
+                searchPlaceholder="Buscar categoria..."
+                options={categoriasUnicas.map((cat) => ({ value: cat.id, label: cat.nome }))}
+              />
             </div>
             
             <div>
               <Label htmlFor="subcategoria">Subcategoria *</Label>
-              <Select 
-                value={formItem.subcategoriaId || ''} 
+              <SearchableSelect
+                value={formItem.subcategoriaId || ''}
                 onValueChange={(value) => setFormItem(prev => prev ? {...prev, subcategoriaId: value} : null)}
                 disabled={!formItem.categoriaId}
-              >
-                <SelectTrigger className="bg-background">
-                  <SelectValue placeholder={formItem.categoriaId ? "Selecione a subcategoria" : "Selecione uma categoria primeiro"} />
-                </SelectTrigger>
-                <SelectContent className="bg-background z-50">
-                  {subcategoriasFiltradas.map((sub) => (
-                    <SelectItem key={sub.id} value={sub.id}>
-                      {sub.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder={formItem.categoriaId ? 'Selecione a subcategoria' : 'Selecione uma categoria primeiro'}
+                searchPlaceholder="Buscar subcategoria..."
+                options={subcategoriasFiltradas.map((sub) => ({ value: sub.id, label: sub.nome }))}
+              />
             </div>
             
             <div>
