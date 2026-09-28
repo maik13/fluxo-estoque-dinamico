@@ -9,7 +9,8 @@ export type ProducaoOrdemStatus = 'rascunho' | 'liberada' | 'em_execucao' | 'con
 
 export interface ProducaoTarefa { id: string; nome: string; categoria: string | null; ativo: boolean; created_at: string; updated_at: string; }
 export interface ProducaoProjeto {
-  id: string; config_id: string | null; local_utilizacao_id: string; group_id: string | null; grupo_nome: string | null;
+  id: string; config_id: string | null; card_id?: string; local_utilizacao_id: string; group_id: string | null; grupo_nome: string | null;
+  quantidade_planejada_grupo?: number | null;
   nome: string; descricao: string | null; cliente: string | null; cidade: string | null; uf: string | null;
   local_execucao: string | null; endereco_execucao: string | null; data_inicio_prevista: string | null; data_fim_prevista: string | null;
   responsavel_id: string | null; responsavel_nome_snapshot: string | null; observacoes: string | null; ativo: boolean; configurado: boolean;
