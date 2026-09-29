@@ -39,8 +39,11 @@ export class SecaoProducaoSegura extends Component<Props, State> {
                 {this.props.titulo ?? 'Esta seção não pôde ser carregada'}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                O restante do projeto continua disponível. Atualize esta seção após a correção dos dados.
+                O restante do projeto continua disponível.
               </p>
+              <pre className="mt-2 max-w-full overflow-auto whitespace-pre-wrap rounded bg-background/70 p-2 font-mono text-[11px] text-foreground">
+                {this.state.erro.name}: {this.state.erro.message || 'Erro de execução sem mensagem.'}
+              </pre>
             </div>
           </div>
         </div>
