@@ -49,6 +49,61 @@ export interface CategoriaSubcategoriaRelacao {
   created_at: string;
 }
 
+const normalizarCodigoSolicitante = (codigo?: string | null) =>
+  (codigo ?? '').replace(/\D/g, '').slice(0, 8);
+
+const gerarCodigoSolicitanteUnico = async (ignorarSolicitanteId?: string) => {
+  for (let tentativa = 0; tentativa < 30; tentativa += 1) {
+    const aleatorio = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(aleatorio);
+    const codigo = String(10_000_000 + (aleatorio[0] % 90_000_000));
+
+    let consulta = supabase
+      .from('solicitantes')
+      .select('id')
+      .eq('codigo_barras', codigo)
+      .limit(1);
+
+    if (ignorarSolicitanteId) {
+      consulta = consulta.neq('id', ignorarSolicitanteId);
+    }
+
+    const { data, error } = await consulta;
+    if (error) throw error;
+    if (!data || data.length === 0) return codigo;
+  }
+
+  throw new Error('Não foi possível gerar um código único. Tente novamente.');
+};
+
+const validarCodigoSolicitante = async (
+  codigo: string,
+  ignorarSolicitanteId?: string,
+) => {
+  const normalizado = normalizarCodigoSolicitante(codigo);
+  if (!/^\d{8}$/.test(normalizado)) {
+    throw new Error('O código do solicitante deve possuir exatamente 8 dígitos.');
+  }
+
+  let consulta = supabase
+    .from('solicitantes')
+    .select('id,nome')
+    .eq('codigo_barras', normalizado)
+    .limit(1);
+
+  if (ignorarSolicitanteId) {
+    consulta = consulta.neq('id', ignorarSolicitanteId);
+  }
+
+  const { data, error } = await consulta;
+  if (error) throw error;
+  if (data && data.length > 0) {
+    throw new Error(`O código ${normalizado} já pertence a outro solicitante.`);
+  }
+
+  return normalizado;
+};
+
 export const useConfiguracoes = () => {
   const [estoques, setEstoques] = useState<EstoqueConfig[]>([]);
   const [tiposServico, setTiposServico] = useState<TipoServicoConfig[]>([]);
@@ -899,11 +954,15 @@ export const useConfiguracoes = () => {
   // Funções para gerenciar solicitantes no Supabase
   const editarSolicitante = async (id: string, nome: string, codigoBarras?: string) => {
     try {
+      const codigoNormalizado = codigoBarras?.trim()
+        ? await validarCodigoSolicitante(codigoBarras, id)
+        : null;
+
       const { data, error } = await supabase
         .from('solicitantes')
         .update({
           nome,
-          codigo_barras: codigoBarras || null,
+          codigo_barras: codigoNormalizado,
         })
         .eq('id', id)
         .select()
@@ -944,11 +1003,15 @@ export const useConfiguracoes = () => {
 
   const adicionarSolicitante = async (nome: string, codigoBarras?: string) => {
     try {
+      const codigoNormalizado = codigoBarras?.trim()
+        ? await validarCodigoSolicitante(codigoBarras)
+        : await gerarCodigoSolicitanteUnico();
+
       const { data, error } = await supabase
         .from('solicitantes')
         .insert({
           nome,
-          codigo_barras: codigoBarras || null,
+          codigo_barras: codigoNormalizado,
           ativo: true,
         })
         .select()
@@ -981,6 +1044,49 @@ export const useConfiguracoes = () => {
         description: error.message || "Não foi possível cadastrar o solicitante.",
         variant: "destructive",
       });
+    }
+  };
+
+  const gerarNovoCodigoSolicitante = async (id: string) => {
+    try {
+      const solicitante = solicitantes.find((item) => item.id === id);
+      if (!solicitante) throw new Error('Solicitante não encontrado.');
+
+      const codigo = await gerarCodigoSolicitanteUnico(id);
+      const { data, error } = await supabase
+        .from('solicitantes')
+        .update({ codigo_barras: codigo })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setSolicitantes((atuais) =>
+        atuais.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                codigoBarras: data.codigo_barras || undefined,
+              }
+            : item,
+        ),
+      );
+
+      toast({
+        title: 'Código gerado!',
+        description: `${solicitante.nome}: ${codigo}`,
+      });
+
+      return codigo;
+    } catch (error: any) {
+      console.error('Erro ao gerar código do solicitante:', error);
+      toast({
+        title: 'Erro ao gerar código',
+        description: error.message || 'Não foi possível gerar o código.',
+        variant: 'destructive',
+      });
+      return null;
     }
   };
 
@@ -1323,6 +1429,7 @@ export const useConfiguracoes = () => {
     removerTipoOperacao,
     adicionarSolicitante,
     editarSolicitante,
+    gerarNovoCodigoSolicitante,
     removerSolicitante,
     adicionarLocalUtilizacao,
     editarLocalUtilizacao,
