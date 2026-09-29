@@ -27,6 +27,7 @@ import { HistoricoApontamentosProducaoComBusca } from './HistoricoApontamentosPr
 import { ProjetosProducao } from './ProjetosProducao';
 import { PlanejamentoProducao } from './PlanejamentoProducao';
 import { ProcessosProducaoHierarquico } from './ProcessosProducaoHierarquico';
+import { SecaoProducaoSegura } from './SecaoProducaoSegura';
 
 export const Producao = () => {
   const [abaAtiva, setAbaAtiva] = useState('etapas');
@@ -161,12 +162,17 @@ export const Producao = () => {
           <ProjetosProducao onProjetosAtualizados={sincronizarProjetosEtapas} />
         </TabsContent>
         <TabsContent value="etapas" className="mt-5">
-          <ProcessosProducaoHierarquico
-            key={versaoEtapas}
-            tarefas={tarefas}
-            membros={membrosProducao}
-            onFecharJornada={abrirFechamentoJornada}
-          />
+          <SecaoProducaoSegura
+            resetKey={versaoEtapas}
+            titulo="A tela de Etapas encontrou um dado inconsistente"
+          >
+            <ProcessosProducaoHierarquico
+              key={versaoEtapas}
+              tarefas={tarefas}
+              membros={membrosProducao}
+              onFecharJornada={abrirFechamentoJornada}
+            />
+          </SecaoProducaoSegura>
         </TabsContent>
         <TabsContent value="cronograma" className="mt-5"><CronogramaProducao /></TabsContent>
 
