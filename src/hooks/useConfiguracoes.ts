@@ -1,4 +1,4 @@
-import { createContext, createElement, useContext, useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect } from 'react';
 import { EstoqueConfig, TipoServicoConfig, SubcategoriaConfig } from '@/types/estoque';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -104,7 +104,7 @@ const validarCodigoSolicitante = async (
   return normalizado;
 };
 
-const useConfiguracoesState = () => {
+export const useConfiguracoes = () => {
   const [estoques, setEstoques] = useState<EstoqueConfig[]>([]);
   const [tiposServico, setTiposServico] = useState<TipoServicoConfig[]>([]);
   const [subcategorias, setSubcategorias] = useState<SubcategoriaConfig[]>([]);
@@ -368,16 +368,22 @@ const useConfiguracoesState = () => {
           setTiposServico(JSON.parse(tiposServicoSalvos));
         }
 
-        // As demais configurações são independentes e podem ser carregadas em paralelo.
-        await Promise.all([
-          carregarCategorias(),
-          carregarSubcategorias(),
-          carregarCategoriasSubcategorias(),
-          carregarTiposOperacao(),
-          carregarSolicitantes(),
-          carregarLocaisUtilizacao(),
-          carregarGruposProjeto(),
-        ]);
+        // Carregar categorias, subcategorias e relacionamentos do Supabase
+        await carregarCategorias();
+        await carregarSubcategorias();
+        await carregarCategoriasSubcategorias();
+
+        // Carregar tipos de operação do Supabase
+        carregarTiposOperacao();
+
+        // Carregar solicitantes do Supabase
+        carregarSolicitantes();
+
+        // Carregar locais de utilização do Supabase
+        await carregarLocaisUtilizacao();
+
+        // Carregar grupos de projeto do Supabase
+        await carregarGruposProjeto();
       } catch (error) {
         console.error('Erro ao carregar configurações:', error);
         toast({
@@ -393,38 +399,73 @@ const useConfiguracoesState = () => {
     inicializarDados();
   }, []);
 
-  // Um único canal Realtime atende todas as configurações compartilhadas.
+  // Real-time updates para todas as configurações
   useEffect(() => {
-    const channel = supabase
-      .channel('configuracoes-shared-changes')
+    const estoquesChannel = supabase
+      .channel('estoques-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'estoques' }, () => {
-        void carregarEstoques();
+        carregarEstoques();
       })
+      .subscribe();
+
+    const categoriasChannel = supabase
+      .channel('categorias-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categorias' }, () => {
-        void carregarCategorias();
+        carregarCategorias();
       })
+      .subscribe();
+
+    const subcategoriasChannel = supabase
+      .channel('subcategorias-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'subcategorias' }, () => {
-        void carregarSubcategorias();
+        carregarSubcategorias();
       })
+      .subscribe();
+
+    const categoriasSubcategoriasChannel = supabase
+      .channel('categoria-subcategoria-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categoria_subcategoria' }, () => {
-        void carregarCategoriasSubcategorias();
+        carregarCategoriasSubcategorias();
       })
+      .subscribe();
+
+    const tiposOperacaoChannel = supabase
+      .channel('tipos-operacao-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tipos_operacao' }, () => {
-        void carregarTiposOperacao();
+        carregarTiposOperacao();
       })
+      .subscribe();
+
+    const solicitantesChannel = supabase
+      .channel('solicitantes-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitantes' }, () => {
-        void carregarSolicitantes();
+        carregarSolicitantes();
       })
+      .subscribe();
+
+    const locaisChannel = supabase
+      .channel('locais-utilizacao-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'locais_utilizacao' }, () => {
-        void carregarLocaisUtilizacao();
+        carregarLocaisUtilizacao();
       })
+      .subscribe();
+
+    const gruposChannel = supabase
+      .channel('project-groups-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'project_groups' }, () => {
-        void carregarGruposProjeto();
+        carregarGruposProjeto();
       })
       .subscribe();
 
     return () => {
-      void supabase.removeChannel(channel);
+      supabase.removeChannel(estoquesChannel);
+      supabase.removeChannel(categoriasChannel);
+      supabase.removeChannel(subcategoriasChannel);
+      supabase.removeChannel(categoriasSubcategoriasChannel);
+      supabase.removeChannel(tiposOperacaoChannel);
+      supabase.removeChannel(solicitantesChannel);
+      supabase.removeChannel(locaisChannel);
+      supabase.removeChannel(gruposChannel);
     };
   }, []);
 
@@ -1412,21 +1453,4 @@ const useConfiguracoesState = () => {
     obterEstoquePrincipalId,
     isEstoqueAtivoPrincipal,
   };
-};
-
-type ConfiguracoesContextValue = ReturnType<typeof useConfiguracoesState>;
-
-const ConfiguracoesContext = createContext<ConfiguracoesContextValue | null>(null);
-
-export const ConfiguracoesProvider = ({ children }: { children: ReactNode }) => {
-  const value = useConfiguracoesState();
-  return createElement(ConfiguracoesContext.Provider, { value }, children);
-};
-
-export const useConfiguracoes = () => {
-  const context = useContext(ConfiguracoesContext);
-  if (!context) {
-    throw new Error('useConfiguracoes deve ser usado dentro de ConfiguracoesProvider.');
-  }
-  return context;
 };
