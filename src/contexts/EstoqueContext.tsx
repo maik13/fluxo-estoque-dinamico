@@ -56,30 +56,6 @@ export const EstoqueProvider = ({ children }: { children: React.ReactNode }) => 
     carregarDadosRef.current = estoque.carregarDados;
   }, [estoque.carregarDados]);
 
-  useEffect(() => {
-    const recarregar = () => {
-      void carregarDadosRef.current(true);
-    };
-
-    const channel = supabase
-      .channel('estoque-context-refresh')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'movements' },
-        recarregar,
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'locais_utilizacao' },
-        recarregar,
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, []);
-
   // Quando uma operação protegida é sincronizada, atualiza a tela com o estado confirmado do servidor.
   useEffect(() => {
     return subscribeOfflineQueue(() => {
