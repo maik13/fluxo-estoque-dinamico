@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { EstoqueItem } from '@/types/estoque';
 import { supabase } from '@/integrations/supabase/client';
 import { REGRA_FERRAMENTA_UNICA_ATIVA_DESDE } from '@/config/regra-ferramenta';
+import { itemEhFerramentaQuantitativa } from '@/utils/itemClassification';
 
 export interface AlocacaoEstoqueContado {
   alocada: boolean;
@@ -270,13 +271,13 @@ const buscarAlocacoesEmLote = async (
     let saldo = 0;
     let ultimoLocal = '';
     const item = itensPorId.get(itemId);
-    const ferramentaUnitaria = !/\\ballen\\b/i.test(item?.nome || '');
+    const ferramentaUnitaria = !itemEhFerramentaQuantitativa(item);
 
     movimentosDoItem
       .sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime())
       .forEach((movimento) => {
         if (movimento.tipo === 'SAIDA') {
-          // Ferramenta não-Allen é estado, não quantidade acumulada.
+          // Ferramenta unitária é estado; Allen e BITZ/BITS acumulam quantidade.
           saldo = ferramentaUnitaria ? 1 : saldo + Number(movimento.quantidade);
           ultimoLocal = movimento.locais_utilizacao?.nome || 'Local não identificado';
         }
