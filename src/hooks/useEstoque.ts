@@ -5,7 +5,7 @@ import { useConfiguracoes } from './useConfiguracoes';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';
-import { itemEhFerramenta } from '@/utils/itemClassification';
+import { itemEhFerramentaUnitaria } from '@/utils/itemClassification';
 
 export const useEstoque = () => {
   const [itens, setItens] = useState<Item[]>([]);
@@ -992,7 +992,7 @@ const registrarSaida = async (
     const estoqueAtivoInfo = obterEstoqueAtivoInfo();
     
     // Regra para ferramentas: bloqueio de duplicidade e quantidade
-    if (itemEhFerramenta(item, categorias)) {
+    if (itemEhFerramentaUnitaria(item, categorias)) {
       if (quantidade > 1) {
         toast({ 
           title: 'Quantidade inválida', 
