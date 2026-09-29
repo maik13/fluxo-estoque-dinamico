@@ -26,7 +26,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { materialRequestSchema } from '@/schemas/validation';
 import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';
-import { itemEhFerramenta } from '@/utils/itemClassification';
+import { itemEhFerramenta, itemEhFerramentaUnitaria } from '@/utils/itemClassification';
 
 export const SolicitarMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
@@ -137,7 +137,7 @@ export const SolicitarMaterial = () => {
 
   const adicionarItem = (item: Item, quantidade: number) => {
     // Regra para ferramentas: quantidade máxima 1 e não pode repetir na lista
-    if (itemEhFerramenta(item, categorias)) {
+    if (itemEhFerramentaUnitaria(item, categorias)) {
       const toolAlreadyInList = itensSolicitados.find(i => i.item_id === item.id);
       if (toolAlreadyInList) {
         toast.warning(`A ferramenta "${item.nome}" já está na lista.`);
@@ -210,7 +210,7 @@ export const SolicitarMaterial = () => {
 
     // ── Regra 2: Ferramenta sempre fica com quantidade 1 ──
     const itemNaLista = itensSolicitados.find(i => i.item_id === itemId);
-    const eFerramenta = itemEhFerramenta((itemNaLista?.item_snapshot as any), categorias);
+    const eFerramenta = itemEhFerramentaUnitaria((itemNaLista?.item_snapshot as any), categorias);
     if (eFerramenta) {
       // Bloqueia silenciosamente — UI já impede, mas garantimos aqui
       return;
@@ -267,7 +267,7 @@ export const SolicitarMaterial = () => {
     // Validar ferramentas e insumos
     for (const item of itensSolicitados) {
       const itemFull = item.item_snapshot as any;
-      if (itemEhFerramenta(itemFull, categorias)) {
+      if (itemEhFerramentaUnitaria(itemFull, categorias)) {
         const { alocada, localAtual } = await verificarFerramentaAlocada(item.item_id);
         if (alocada) {
           toast.error(`A ferramenta "${itemFull.nome}" já está alocada e possui devolução pendente.${localAtual ? ` Local atual: ${localAtual}` : ''}. Faça a devolução antes de retirá-la novamente.`);
