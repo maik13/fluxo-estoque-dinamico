@@ -368,22 +368,16 @@ const useConfiguracoesState = () => {
           setTiposServico(JSON.parse(tiposServicoSalvos));
         }
 
-        // Carregar categorias, subcategorias e relacionamentos do Supabase
-        await carregarCategorias();
-        await carregarSubcategorias();
-        await carregarCategoriasSubcategorias();
-
-        // Carregar tipos de operação do Supabase
-        carregarTiposOperacao();
-
-        // Carregar solicitantes do Supabase
-        carregarSolicitantes();
-
-        // Carregar locais de utilização do Supabase
-        await carregarLocaisUtilizacao();
-
-        // Carregar grupos de projeto do Supabase
-        await carregarGruposProjeto();
+        // As demais configurações são independentes e podem ser carregadas em paralelo.
+        await Promise.all([
+          carregarCategorias(),
+          carregarSubcategorias(),
+          carregarCategoriasSubcategorias(),
+          carregarTiposOperacao(),
+          carregarSolicitantes(),
+          carregarLocaisUtilizacao(),
+          carregarGruposProjeto(),
+        ]);
       } catch (error) {
         console.error('Erro ao carregar configurações:', error);
         toast({
@@ -399,73 +393,38 @@ const useConfiguracoesState = () => {
     inicializarDados();
   }, []);
 
-  // Real-time updates para todas as configurações
+  // Um único canal Realtime atende todas as configurações compartilhadas.
   useEffect(() => {
-    const estoquesChannel = supabase
-      .channel('estoques-changes')
+    const channel = supabase
+      .channel('configuracoes-shared-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'estoques' }, () => {
-        carregarEstoques();
+        void carregarEstoques();
       })
-      .subscribe();
-
-    const categoriasChannel = supabase
-      .channel('categorias-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categorias' }, () => {
-        carregarCategorias();
+        void carregarCategorias();
       })
-      .subscribe();
-
-    const subcategoriasChannel = supabase
-      .channel('subcategorias-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'subcategorias' }, () => {
-        carregarSubcategorias();
+        void carregarSubcategorias();
       })
-      .subscribe();
-
-    const categoriasSubcategoriasChannel = supabase
-      .channel('categoria-subcategoria-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categoria_subcategoria' }, () => {
-        carregarCategoriasSubcategorias();
+        void carregarCategoriasSubcategorias();
       })
-      .subscribe();
-
-    const tiposOperacaoChannel = supabase
-      .channel('tipos-operacao-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tipos_operacao' }, () => {
-        carregarTiposOperacao();
+        void carregarTiposOperacao();
       })
-      .subscribe();
-
-    const solicitantesChannel = supabase
-      .channel('solicitantes-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitantes' }, () => {
-        carregarSolicitantes();
+        void carregarSolicitantes();
       })
-      .subscribe();
-
-    const locaisChannel = supabase
-      .channel('locais-utilizacao-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'locais_utilizacao' }, () => {
-        carregarLocaisUtilizacao();
+        void carregarLocaisUtilizacao();
       })
-      .subscribe();
-
-    const gruposChannel = supabase
-      .channel('project-groups-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'project_groups' }, () => {
-        carregarGruposProjeto();
+        void carregarGruposProjeto();
       })
       .subscribe();
 
     return () => {
-      supabase.removeChannel(estoquesChannel);
-      supabase.removeChannel(categoriasChannel);
-      supabase.removeChannel(subcategoriasChannel);
-      supabase.removeChannel(categoriasSubcategoriasChannel);
-      supabase.removeChannel(tiposOperacaoChannel);
-      supabase.removeChannel(solicitantesChannel);
-      supabase.removeChannel(locaisChannel);
-      supabase.removeChannel(gruposChannel);
+      void supabase.removeChannel(channel);
     };
   }, []);
 
