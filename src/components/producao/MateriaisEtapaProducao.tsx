@@ -46,8 +46,12 @@ interface MaterialEdicao {
   item_snapshot: MaterialItemSnapshot;
 }
 
-const formatarNumero = (valor: number) =>
-  valor.toLocaleString('pt-BR', { maximumFractionDigits: 4 });
+const formatarNumero = (valor: unknown) => {
+  const numero = Number(valor ?? 0);
+  return Number.isFinite(numero)
+    ? numero.toLocaleString('pt-BR', { maximumFractionDigits: 4 })
+    : '0';
+};
 
 const snapshotDoItem = (item: EstoqueItem): MaterialItemSnapshot => ({
   id: item.id,
@@ -73,7 +77,7 @@ export const MateriaisEtapaProducao = ({ processo, podeEditar }: Props) => {
   const { obterEstoque } = useEstoqueContext();
   const { listarMateriaisEtapa, salvarMateriaisEtapa } = useMateriaisProducao();
 
-  const itensEstoque = obterEstoque().filter((item) => item.ativo !== false);
+  const itensEstoque = (obterEstoque() ?? []).filter((item) => item.ativo !== false);
 
   const itensFiltrados = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase('pt-BR');
@@ -93,9 +97,18 @@ export const MateriaisEtapaProducao = ({ processo, podeEditar }: Props) => {
       const registros = await listarMateriaisEtapa(processo.id);
       setMateriais(registros.map((material) => ({
         item_id: material.item_id,
-        quantidade: String(material.quantidade_planejada).replace('.', ','),
+        quantidade: String(material.quantidade_planejada ?? 0).replace('.', ','),
         observacoes: material.observacoes ?? '',
-        item_snapshot: material.item_snapshot,
+        item_snapshot: material.item_snapshot ?? {
+          id: material.item_id,
+          nome: 'Item não identificado',
+          codigoBarras: null,
+          marca: null,
+          unidade: material.unidade_snapshot ?? '',
+          especificacao: null,
+          fotoUrl: null,
+          tipoItem: null,
+        },
       })));
       setCarregado(true);
     } catch (error) {
