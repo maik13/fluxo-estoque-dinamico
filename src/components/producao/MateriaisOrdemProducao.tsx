@@ -48,12 +48,18 @@ const statusVariant = (status: string): 'default' | 'secondary' | 'destructive' 
   return 'secondary';
 };
 
-const formatarQuantidade = (valor: number) =>
-  valor.toLocaleString('pt-BR', { maximumFractionDigits: 4 });
+const formatarQuantidade = (valor: unknown) => {
+  const numero = Number(valor ?? 0);
+  return Number.isFinite(numero)
+    ? numero.toLocaleString('pt-BR', { maximumFractionDigits: 4 })
+    : '0';
+};
 
 const formatarDataHora = (valor: string | null | undefined) => {
   if (!valor) return '—';
-  return new Date(valor).toLocaleString('pt-BR', {
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return '—';
+  return data.toLocaleString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -80,7 +86,7 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
     gerarSolicitacaoMaterial,
   } = useMateriaisProducao();
 
-  const itensEstoque = obterEstoque();
+  const itensEstoque = obterEstoque() ?? [];
   const estoqueAtivo = obterEstoqueAtivoInfo();
   const opAberta = ordem.status === 'liberada' || ordem.status === 'em_execucao';
   const podeGerar = canConfigurarProducao() && opAberta && !solicitacao && materiais.length > 0;
@@ -243,22 +249,24 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
           {materiais.map((material, index) => {
             const estoque = itensEstoque.find((item) => item.id === material.item_id);
             const disponivel = estoque?.estoqueAtual ?? 0;
-            const insuficiente = !estoque || disponivel < material.quantidade_planejada;
+            const quantidadePlanejada = Number(material.quantidade_planejada ?? 0);
+            const snapshot = material.item_snapshot ?? ({} as MaterialOrdemProducao['item_snapshot']);
+            const insuficiente = !estoque || disponivel < quantidadePlanejada;
             return (
               <div
                 key={material.id}
                 className={`grid gap-2 p-3 text-sm sm:grid-cols-[1fr_auto] ${index > 0 ? 'border-t' : ''}`}
               >
                 <div className="min-w-0">
-                  <p className="font-medium">{material.item_snapshot.nome ?? 'Item não identificado'}</p>
+                  <p className="font-medium">{snapshot.nome ?? 'Item não identificado'}</p>
                   <p className="text-xs text-muted-foreground">
-                    Código {material.item_snapshot.codigoBarras ?? '—'} · {material.item_snapshot.marca || 'Sem marca'}
+                    Código {snapshot.codigoBarras ?? '—'} · {snapshot.marca || 'Sem marca'}
                     {material.observacoes ? ` · ${material.observacoes}` : ''}
                   </p>
                 </div>
                 <div className="text-left sm:text-right">
                   <p className="font-semibold">
-                    {formatarQuantidade(material.quantidade_planejada)} {material.unidade_snapshot}
+                    {formatarQuantidade(quantidadePlanejada)} {material.unidade_snapshot}
                   </p>
                   <p className={`text-xs ${insuficiente ? 'font-semibold text-destructive' : 'text-muted-foreground'}`}>
                     Estoque atual: {formatarQuantidade(disponivel)} {material.unidade_snapshot}
