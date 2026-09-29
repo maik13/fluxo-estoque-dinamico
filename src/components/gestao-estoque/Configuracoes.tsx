@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Database, Wrench, Tag, Pencil, X, CheckCircle, XCircle, Search } from 'lucide-react';
+import { Settings, User, Palette, FileText, Download, Upload, Plus, Trash2, Database, Wrench, Tag, Pencil, X, CheckCircle, XCircle, Search, Printer, RefreshCw, Sparkles, AlertTriangle } from 'lucide-react';
 import { userCreationSchema } from '@/schemas/validation';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,6 +21,7 @@ import { UsuariosList } from './UsuariosList';
 import { PermissoesPanel } from './PermissoesPanel';
 import { AuditLogViewer } from './AuditLogViewer';
 import { useToast } from '@/hooks/use-toast';
+import { codigoSolicitanteProntoParaCracha, imprimirCrachaSolicitante } from '@/utils/crachaSolicitante';
 
 interface ConfiguracoesProps {
   onConfigChange?: () => void;
@@ -59,6 +60,7 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false }: Configurac
     removerTipoOperacao,
     adicionarSolicitante,
     editarSolicitante,
+    gerarNovoCodigoSolicitante,
     removerSolicitante,
     adicionarLocalUtilizacao,
     editarLocalUtilizacao,
@@ -126,6 +128,23 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false }: Configurac
     nome: string;
     codigoBarras: string;
   } | null>(null);
+  const [gerandoCodigoSolicitanteId, setGerandoCodigoSolicitanteId] = useState<string | null>(null);
+
+  const contagemCodigosSolicitantes = useMemo(() => {
+    const contagem = new Map<string, number>();
+    solicitantes.forEach((solicitante) => {
+      const codigo = (solicitante.codigoBarras || '').trim();
+      if (!codigo) return;
+      contagem.set(codigo, (contagem.get(codigo) || 0) + 1);
+    });
+    return contagem;
+  }, [solicitantes]);
+
+  const solicitanteProntoParaCracha = (codigo?: string) => {
+    const normalizado = (codigo || '').trim();
+    return codigoSolicitanteProntoParaCracha(normalizado)
+      && (contagemCodigosSolicitantes.get(normalizado) || 0) === 1;
+  };
 
   const [novoLocal, setNovoLocal] = useState<{ nome: string; groupId?: string }>({
     nome: '',
@@ -392,9 +411,55 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false }: Configurac
       return;
     }
 
-    await adicionarSolicitante(novoSolicitante.nome, novoSolicitante.codigoBarras);
+    await adicionarSolicitante(novoSolicitante.nome);
     setNovoSolicitante({ nome: '', codigoBarras: '' });
     onConfigChange?.();
+  };
+
+  const handleGerarCodigoSolicitante = async (
+    id: string,
+    nome: string,
+    codigoAtual?: string,
+  ) => {
+    const possuiCodigoPronto = solicitanteProntoParaCracha(codigoAtual);
+    if (
+      possuiCodigoPronto
+      && !window.confirm(
+        `Gerar um novo código para ${nome}? O código atual deixará de ser válido para novas retiradas/devoluções.`,
+      )
+    ) {
+      return;
+    }
+
+    setGerandoCodigoSolicitanteId(id);
+    try {
+      await gerarNovoCodigoSolicitante(id);
+      onConfigChange?.();
+    } finally {
+      setGerandoCodigoSolicitanteId(null);
+    }
+  };
+
+  const handleImprimirCrachaSolicitante = (nome: string, codigo?: string) => {
+    const normalizado = (codigo || '').trim();
+    if (!solicitanteProntoParaCracha(normalizado)) {
+      toast({
+        title: 'Gere um código válido primeiro',
+        description: 'O crachá exige um código único de 8 dígitos.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      imprimirCrachaSolicitante(nome, normalizado);
+    } catch (error: any) {
+      toast({
+        title: 'Não foi possível imprimir o crachá',
+        description: error?.message || 'Verifique se o navegador permite abrir a janela de impressão.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleEditarSolicitante = async () => {
@@ -919,7 +984,7 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false }: Configurac
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="nomeSolicitante">Nome do Solicitante</Label>
                     <Input
@@ -930,15 +995,21 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false }: Configurac
                     />
                   </div>
                   <div>
-                    <Label htmlFor="codigoBarrasSolicitante">Código de Barras</Label>
-                    <Input
-                      id="codigoBarrasSolicitante"
-                      value={novoSolicitante.codigoBarras}
-                      onChange={(e) => setNovoSolicitante(prev => ({ ...prev, codigoBarras: e.target.value }))}
-                      placeholder="Código de 8 dígitos"
-                      maxLength={8}
-                    />
+                    <Label>Código de Barras</Label>
+                    <div className="h-10 rounded-md border bg-muted/40 px-3 flex items-center gap-2 text-sm text-muted-foreground">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      Gerado automaticamente ao cadastrar
+                    </div>
                   </div>
+                </div>
+
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
+                  <p className="text-sm font-medium">Códigos e crachás</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Cada novo solicitante recebe um código único de 8 dígitos. Nos cadastros antigos,
+                    use “Gerar código” quando o número estiver fora do padrão ou repetido. Depois,
+                    “Imprimir crachá” gera o cartão com nome, código de barras e número legível.
+                  </p>
                 </div>
                 <Button onClick={handleCadastroSolicitante} className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
@@ -961,38 +1032,90 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false }: Configurac
                         </p>
                       </div>
                     ) : (
-                      solicitantes.map((solicitante) => (
-                        <div key={solicitante.id} className="flex items-center justify-between p-3 border rounded">
-                          <div className="flex items-center gap-3">
-                            <Badge variant="secondary">{solicitante.nome}</Badge>
-                            {solicitante.codigoBarras && (
-                              <Badge variant="outline" className="font-mono">
-                                🔢 {solicitante.codigoBarras}
-                              </Badge>
-                            )}
+                      solicitantes.map((solicitante) => {
+                        const codigo = (solicitante.codigoBarras || '').trim();
+                        const codigoFormatoValido = codigoSolicitanteProntoParaCracha(codigo);
+                        const codigoDuplicado = Boolean(codigo)
+                          && (contagemCodigosSolicitantes.get(codigo) || 0) > 1;
+                        const prontoParaCracha = codigoFormatoValido && !codigoDuplicado;
+
+                        return (
+                          <div key={solicitante.id} className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3 border rounded">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant="secondary">{solicitante.nome}</Badge>
+                              {codigo ? (
+                                <Badge variant="outline" className="font-mono">
+                                  🔢 {codigo}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-amber-600 border-amber-500/40">
+                                  Sem código
+                                </Badge>
+                              )}
+                              {!codigoFormatoValido && (
+                                <Badge variant="outline" className="text-amber-600 border-amber-500/40">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  Precisa gerar 8 dígitos
+                                </Badge>
+                              )}
+                              {codigoDuplicado && (
+                                <Badge variant="outline" className="text-destructive border-destructive/40">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  Código duplicado
+                                </Badge>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                variant={prontoParaCracha ? 'outline' : 'default'}
+                                size="sm"
+                                disabled={gerandoCodigoSolicitanteId === solicitante.id}
+                                onClick={() => void handleGerarCodigoSolicitante(
+                                  solicitante.id,
+                                  solicitante.nome,
+                                  solicitante.codigoBarras,
+                                )}
+                              >
+                                <RefreshCw className={`h-4 w-4 mr-2 ${gerandoCodigoSolicitanteId === solicitante.id ? 'animate-spin' : ''}`} />
+                                {prontoParaCracha ? 'Novo código' : 'Gerar código'}
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={!prontoParaCracha}
+                                onClick={() => handleImprimirCrachaSolicitante(
+                                  solicitante.nome,
+                                  solicitante.codigoBarras,
+                                )}
+                              >
+                                <Printer className="h-4 w-4 mr-2" />
+                                Imprimir crachá
+                              </Button>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEditandoSolicitante({
+                                  id: solicitante.id,
+                                  nome: solicitante.nome,
+                                  codigoBarras: solicitante.codigoBarras || ''
+                                })}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removerSolicitante(solicitante.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setEditandoSolicitante({
-                                id: solicitante.id,
-                                nome: solicitante.nome,
-                                codigoBarras: solicitante.codigoBarras || ''
-                              })}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removerSolicitante(solicitante.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>
@@ -1018,15 +1141,15 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false }: Configurac
                     />
                   </div>
                   <div>
-                    <Label htmlFor="editCodigoBarrasSolicitante">Código de Barras (opcional)</Label>
-                    <Input
-                      id="editCodigoBarrasSolicitante"
-                      value={editandoSolicitante?.codigoBarras || ''}
-                      onChange={(e) => setEditandoSolicitante(prev => 
-                        prev ? { ...prev, codigoBarras: e.target.value } : null
-                      )}
-                      placeholder="Código de barras do crachá"
-                    />
+                    <Label>Código de Barras</Label>
+                    <div className="h-10 rounded-md border bg-muted/40 px-3 flex items-center justify-between gap-2">
+                      <span className="font-mono text-sm">
+                        {editandoSolicitante?.codigoBarras || 'Sem código'}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Use “Gerar código” na lista para alterar.
+                      </span>
+                    </div>
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setEditandoSolicitante(null)}>
