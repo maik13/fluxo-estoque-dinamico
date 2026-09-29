@@ -4,6 +4,7 @@ import { AlertTriangle } from 'lucide-react';
 interface Props {
   children: ReactNode;
   titulo?: string;
+  resetKey?: string | number | null;
 }
 
 interface State {
@@ -19,6 +20,12 @@ export class SecaoProducaoSegura extends Component<Props, State> {
 
   componentDidCatch(erro: Error, info: ErrorInfo) {
     console.error('[Produção] Falha isolada em seção:', erro, info.componentStack);
+  }
+
+  componentDidUpdate(prevProps: Props) {
+    if (this.state.erro && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ erro: null });
+    }
   }
 
   render() {
