@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { toast } from 'sonner';
 import { EstoqueItem } from '@/types/estoque';
 import { materialEntrySchema } from '@/schemas/validation';
+import { itemEhFerramentaUnitaria } from '@/utils/itemClassification';
 
 interface ItemEntrada {
   item: EstoqueItem;
@@ -97,14 +98,10 @@ export const RegistrarEntrada = () => {
     
     // Validação antecipada da regra patrimonial: evita que um lote seja iniciado
     // quando algum item classificado como ferramenta possui quantidade diferente de 1.
-    const ferramentaComQuantidadeInvalida = itensEntrada.find(({ item, quantidade }) => {
-      const categoria = categorias.find((atual) => atual.id === item.categoriaId);
-      const categoriaFerramenta =
-        (categoria?.nome ?? '').trim().toLocaleLowerCase('pt-BR') === 'ferramenta';
-      const nomeItem = item.nome.toLocaleLowerCase('pt-BR');
-      const chaveAllen = nomeItem.includes('allen') || nomeItem.includes('alen');
-      return categoriaFerramenta && !chaveAllen && quantidade !== 1;
-    });
+    const ferramentaComQuantidadeInvalida = itensEntrada.find(
+      ({ item, quantidade }) =>
+        itemEhFerramentaUnitaria(item, categorias) && quantidade !== 1,
+    );
 
     if (ferramentaComQuantidadeInvalida) {
       toast.error(
