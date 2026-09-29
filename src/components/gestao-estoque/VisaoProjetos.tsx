@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +20,11 @@ import { isAcertoDeEstoque } from '@/utils/movimentacoes';
 import React from 'react';
 
 export const VisaoProjetos = () => {
-  const { movimentacoes } = useEstoqueContext();
+  const { movimentacoes, carregarHistoricoCompleto } = useEstoqueContext();
+
+  useEffect(() => {
+    void carregarHistoricoCompleto();
+  }, []);
   const { 
     locaisUtilizacao: locaisConfig, 
     gruposProjeto, 
