@@ -1,4 +1,4 @@
-import { useState, useMemo, Fragment } from 'react';
+import { useEffect, useState, useMemo, Fragment } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +26,7 @@ interface ResponsavelPendente {
 }
 
 export const PainelGerencial = () => {
-  const { movimentacoes } = useEstoqueContext();
+  const { movimentacoes, carregarHistoricoCompleto } = useEstoqueContext();
   const { canViewBIProducao } = usePermissions();
   const { 
     locaisUtilizacao: locaisConfig, 
@@ -46,6 +46,12 @@ export const PainelGerencial = () => {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isResponsaveisExpanded, setIsResponsaveisExpanded] = useState(false);
   const [visaoGerencial, setVisaoGerencial] = useState<'almoxarifado' | 'producao' | null>(null);
+
+  useEffect(() => {
+    if (visaoGerencial === 'almoxarifado') {
+      void carregarHistoricoCompleto();
+    }
+  }, [visaoGerencial]);
 
   // Preparar filtros para o hook
   const filtros: ConsolidacaoFiltros = useMemo(() => ({
