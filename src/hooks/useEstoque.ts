@@ -353,8 +353,159 @@ export const useEstoque = () => {
     };
   }, [estoqueAtivo]);
 
-  // Carrega catálogo e saldo atual de forma independente do histórico completo.
-  // Assim a tela de Estoque não fica vazia se a carga de milhares de movimentações falhar.
+  const mapearMovimentacao = (
+    row: any,
+    tipoOperacaoMap?: Map<string, string>,
+  ): Movimentacao => ({
+    id: row.id,
+    itemId: row.item_id,
+    tipo: row.tipo,
+    quantidade: Number(row.quantidade),
+    quantidadeAnterior: Number(row.quantidade_anterior),
+    quantidadeAtual: Number(row.quantidade_atual),
+    userId: row.user_id ?? undefined,
+    observacoes: row.observacoes ?? undefined,
+    dataHora: row.data_hora,
+    localUtilizacaoId: row.local_utilizacao_id ?? undefined,
+    localUtilizacaoNome: row.locais_utilizacao?.nome ?? undefined,
+    solicitacaoId: row.solicitacao_id ?? undefined,
+    solicitanteNome: row.solicitacoes?.solicitante_nome ?? undefined,
+    solicitacaoTipoOperacao: row.solicitacoes?.tipo_operacao ?? undefined,
+    destinatario: row.destinatario ?? undefined,
+    estoqueId: row.estoque_id ?? undefined,
+    tipoOperacaoId: row.tipo_operacao_id ?? undefined,
+    tipoOperacaoNome:
+      row.tipo_operacao_id && tipoOperacaoMap
+        ? tipoOperacaoMap.get(row.tipo_operacao_id)
+        : undefined,
+    itemSnapshot: row.item_snapshot as Partial<Item>,
+  });
+
+  const carregarMovimentacoesRecentes = async (
+    estoqueId?: string,
+    incluirSemEstoque = false,
+  ) => {
+    try {
+      const inicio = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const pageSize = 1000;
+      let from = 0;
+      let rows: any[] = [];
+
+      while (true) {
+        let query = supabase
+          .from('movements')
+          .select(`
+            id,
+            item_id,
+            tipo,
+            quantidade,
+            quantidade_anterior,
+            quantidade_atual,
+            user_id,
+            observacoes,
+            data_hora,
+            local_utilizacao_id,
+            solicitacao_id,
+            destinatario,
+            estoque_id,
+            tipo_operacao_id,
+            item_snapshot,
+            locais_utilizacao:local_utilizacao_id (nome)
+          `)
+          .gte('data_hora', inicio)
+          .order('data_hora', { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (estoqueId) {
+          query = incluirSemEstoque
+            ? query.or(`estoque_id.eq.${estoqueId},estoque_id.is.null`)
+            : query.eq('estoque_id', estoqueId);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        rows = rows.concat(data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+
+      setMovimentacoes(rows.map((row) => mapearMovimentacao(row)));
+    } catch (error) {
+      console.error('Erro ao carregar movimentações recentes:', error);
+    }
+  };
+
+  const carregarHistoricoCompleto = async (forcar = false) => {
+    const estoqueAtivoInfo = obterEstoqueAtivoInfo();
+    const estoqueId = estoqueAtivoInfo?.id;
+    const incluirSemEstoque = isEstoqueAtivoPrincipal();
+    const historicoChave = `${estoqueId ?? 'sem-estoque'}:${incluirSemEstoque ? 'legado' : 'estrito'}`;
+
+    if (historicoChaveRef.current !== historicoChave) {
+      historicoChaveRef.current = historicoChave;
+      historicoCarregadoRef.current = false;
+    }
+
+    if ((!forcar && historicoCarregadoRef.current) || historicoLoadingRef.current) {
+      return;
+    }
+
+    historicoLoadingRef.current = true;
+
+    try {
+      const pageSize = 1000;
+      let movsQueryBase = supabase
+        .from('movements')
+        .select(`
+          *,
+          locais_utilizacao:local_utilizacao_id (nome),
+          solicitacoes:solicitacao_id (solicitante_nome, tipo_operacao)
+        `)
+        .order('data_hora', { ascending: true });
+
+      if (estoqueId) {
+        movsQueryBase = incluirSemEstoque
+          ? movsQueryBase.or(`estoque_id.eq.${estoqueId},estoque_id.is.null`)
+          : movsQueryBase.eq('estoque_id', estoqueId);
+      }
+
+      let movsData: any[] = [];
+      let movFrom = 0;
+      while (true) {
+        const { data, error } = await movsQueryBase.range(movFrom, movFrom + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        movsData = movsData.concat(data);
+        if (data.length < pageSize) break;
+        movFrom += pageSize;
+      }
+
+      const { data: tiposOperacaoData, error: tiposOperacaoError } = await supabase
+        .from('tipos_operacao')
+        .select('id, nome');
+      if (tiposOperacaoError) throw tiposOperacaoError;
+
+      const tipoOperacaoMap = new Map(
+        (tiposOperacaoData ?? []).map((op) => [op.id, op.nome]),
+      );
+
+      if (historicoChaveRef.current === historicoChave) {
+        setMovimentacoes(
+          movsData.map((row) => mapearMovimentacao(row, tipoOperacaoMap)),
+        );
+        historicoCarregadoRef.current = true;
+      }
+    } catch (error) {
+      console.error('Erro ao carregar histórico completo de movimentações:', error);
+    } finally {
+      historicoLoadingRef.current = false;
+    }
+  };
+
+  // Carrega catálogo e saldo atual sem baixar o histórico inteiro.
+  // A Home recebe somente os últimos 7 dias; telas analíticas pedem o histórico completo sob demanda.
   const carregarDados = async (forcar = false) => {
     if (isLoadingRef.current) return;
 
@@ -434,89 +585,9 @@ export const useEstoque = () => {
       setSaldosEstoque(novoMapaSaldos);
       setUltimasMovimentacoesEstoque(novoMapaUltimas);
 
-      // 3) O estoque já está pronto neste ponto. O histórico completo é legado e
-      // passa a carregar em segundo plano, uma única vez por estoque, sem bloquear a tela.
-      const historicoChave = `${estoqueId ?? 'sem-estoque'}:${incluirSemEstoque ? 'legado' : 'estrito'}`;
-      if (historicoChaveRef.current !== historicoChave) {
-        historicoChaveRef.current = historicoChave;
-        historicoCarregadoRef.current = false;
-      }
-
-      if (!historicoCarregadoRef.current && !historicoLoadingRef.current) {
-        historicoLoadingRef.current = true;
-
-        void (async () => {
-          try {
-            let movsQueryBase = supabase
-              .from('movements')
-              .select(`
-                *,
-                locais_utilizacao:local_utilizacao_id (
-                  nome
-                ),
-                solicitacoes:solicitacao_id (
-                  solicitante_nome,
-                  tipo_operacao
-                )
-              `)
-              .order('data_hora', { ascending: true });
-
-            if (estoqueId) {
-              movsQueryBase = incluirSemEstoque
-                ? movsQueryBase.or(`estoque_id.eq.${estoqueId},estoque_id.is.null`)
-                : movsQueryBase.eq('estoque_id', estoqueId);
-            }
-
-            let movsData: any[] = [];
-            let movFrom = 0;
-            while (true) {
-              const { data, error } = await movsQueryBase.range(movFrom, movFrom + pageSize - 1);
-              if (error) throw error;
-              if (!data || data.length === 0) break;
-              movsData = movsData.concat(data);
-              if (data.length < pageSize) break;
-              movFrom += pageSize;
-            }
-
-            const { data: tiposOperacaoData, error: tiposOperacaoError } = await supabase
-              .from('tipos_operacao')
-              .select('id, nome');
-            if (tiposOperacaoError) throw tiposOperacaoError;
-            const tipoOperacaoMap = new Map((tiposOperacaoData ?? []).map(op => [op.id, op.nome]));
-
-            const movsMapped: Movimentacao[] = movsData.map((row: any) => ({
-              id: row.id,
-              itemId: row.item_id,
-              tipo: row.tipo,
-              quantidade: Number(row.quantidade),
-              quantidadeAnterior: Number(row.quantidade_anterior),
-              quantidadeAtual: Number(row.quantidade_atual),
-              userId: row.user_id ?? undefined,
-              observacoes: row.observacoes ?? undefined,
-              dataHora: row.data_hora,
-              localUtilizacaoId: row.local_utilizacao_id ?? undefined,
-              localUtilizacaoNome: row.locais_utilizacao?.nome ?? undefined,
-              solicitacaoId: row.solicitacao_id ?? undefined,
-              solicitanteNome: row.solicitacoes?.solicitante_nome ?? undefined,
-              solicitacaoTipoOperacao: row.solicitacoes?.tipo_operacao ?? undefined,
-              destinatario: row.destinatario ?? undefined,
-              estoqueId: row.estoque_id ?? undefined,
-              tipoOperacaoId: row.tipo_operacao_id ?? undefined,
-              tipoOperacaoNome: row.tipo_operacao_id ? tipoOperacaoMap.get(row.tipo_operacao_id) : undefined,
-              itemSnapshot: row.item_snapshot as Partial<Item>,
-            }));
-
-            if (historicoChaveRef.current === historicoChave) {
-              setMovimentacoes(movsMapped);
-              historicoCarregadoRef.current = true;
-            }
-          } catch (historicoError) {
-            console.error('Erro ao carregar histórico completo de movimentações:', historicoError);
-          } finally {
-            historicoLoadingRef.current = false;
-          }
-        })();
-      }
+      // 3) Para a abertura da aplicação, somente os últimos 7 dias.
+      // O histórico completo deixou de fazer parte do caminho crítico da Home.
+      void carregarMovimentacoesRecentes(estoqueId, incluirSemEstoque);
     } catch (error: any) {
       console.error('Erro ao carregar catálogo/saldos do estoque:', error);
       toast({
@@ -1189,5 +1260,6 @@ const importarItensServidor = async (lista: Omit<Item, 'id' | 'codigoBarras'>[])
     registrarEntrada,
     registrarSaida,
     carregarDados,
+    carregarHistoricoCompleto,
   };
 };
