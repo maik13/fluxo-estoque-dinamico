@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { createContext, createElement, useContext, useState, useEffect, type ReactNode } from 'react';
 import { EstoqueConfig, TipoServicoConfig, SubcategoriaConfig } from '@/types/estoque';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -104,7 +104,7 @@ const validarCodigoSolicitante = async (
   return normalizado;
 };
 
-export const useConfiguracoes = () => {
+const useConfiguracoesState = () => {
   const [estoques, setEstoques] = useState<EstoqueConfig[]>([]);
   const [tiposServico, setTiposServico] = useState<TipoServicoConfig[]>([]);
   const [subcategorias, setSubcategorias] = useState<SubcategoriaConfig[]>([]);
@@ -1453,4 +1453,21 @@ export const useConfiguracoes = () => {
     obterEstoquePrincipalId,
     isEstoqueAtivoPrincipal,
   };
+};
+
+type ConfiguracoesContextValue = ReturnType<typeof useConfiguracoesState>;
+
+const ConfiguracoesContext = createContext<ConfiguracoesContextValue | null>(null);
+
+export const ConfiguracoesProvider = ({ children }: { children: ReactNode }) => {
+  const value = useConfiguracoesState();
+  return createElement(ConfiguracoesContext.Provider, { value }, children);
+};
+
+export const useConfiguracoes = () => {
+  const context = useContext(ConfiguracoesContext);
+  if (!context) {
+    throw new Error('useConfiguracoes deve ser usado dentro de ConfiguracoesProvider.');
+  }
+  return context;
 };
