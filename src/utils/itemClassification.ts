@@ -33,3 +33,20 @@ export const itemEhFerramenta = (
 
   return normalizar(categoria?.nome) === 'ferramenta';
 };
+
+
+export const itemEhFerramentaQuantitativa = (item: any): boolean => {
+  const nome = normalizar(item?.nome);
+  return (
+    nome.includes('allen')
+    || nome.includes('alen')
+    || nome.includes('bitz')
+    || /\bbits?\b/.test(nome)
+  );
+};
+
+export const itemEhFerramentaUnitaria = (
+  item: any,
+  categorias: CategoriaRef[] = [],
+): boolean =>
+  itemEhFerramenta(item, categorias) && !itemEhFerramentaQuantitativa(item);
