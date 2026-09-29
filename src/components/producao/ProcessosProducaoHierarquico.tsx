@@ -54,10 +54,8 @@ import { FormProcessoProducao } from './FormProcessoProducao';
 import { FormRetificarProcesso } from './FormRetificarProcesso';
 import { MateriaisEtapaProducao } from './MateriaisEtapaProducao';
 import { MateriaisOrdemProducao } from './MateriaisOrdemProducao';
-import { ControlePrevistoRealOrdemProducao } from './ControlePrevistoRealOrdemProducao';
 import { ModalExcluirProcesso } from './ModalExcluirProcesso';
 import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
-import { SecaoProducaoSegura } from './SecaoProducaoSegura';
 import {
   ModalIniciarOpComEquipe,
   type OcupacaoMembroProducao,
@@ -96,14 +94,10 @@ const statusProjetoClassName = (status: string) => {
   return 'border-border/70 bg-muted/40 text-muted-foreground';
 };
 
-const formatarData = (data: string | null | undefined) => {
-  if (!data) return 'Não definida';
-  const valor = data.includes('T') ? data : `${data}T12:00:00`;
-  const parsed = new Date(valor);
-  return Number.isNaN(parsed.getTime())
-    ? 'Data inválida'
-    : parsed.toLocaleDateString('pt-BR');
-};
+const formatarData = (data: string | null | undefined) =>
+  data
+    ? new Date(`${data}T12:00:00`).toLocaleDateString('pt-BR')
+    : 'Não definida';
 
 const clampPercent = (valor: number) => Math.max(0, Math.min(100, Math.round(valor)));
 
@@ -399,7 +393,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas, membros, onFecharJornada
     jornadasAbertas.forEach((jornada) => {
       const op = ordens.find((ordem) => ordem.id === jornada.ordem_producao_id);
       if (!op) return;
-      (jornada.membros_ids ?? []).forEach((membroId) => {
+      jornada.membros_ids.forEach((membroId) => {
         resultado[membroId] = {
           ordemNumero: op.numero,
           atividade:
@@ -619,15 +613,10 @@ export const ProcessosProducaoHierarquico = ({ tarefas, membros, onFecharJornada
             </div>
           </div>
 
-          <SecaoProducaoSegura
-            resetKey={processoSelecionado.id}
-            titulo="PCP de materiais desta etapa não pôde ser carregado"
-          >
-            <MateriaisEtapaProducao
-              processo={processoSelecionado}
-              podeEditar={etapaAberta && canConfigurarProducao()}
-            />
-          </SecaoProducaoSegura>
+          <MateriaisEtapaProducao
+            processo={processoSelecionado}
+            podeEditar={etapaAberta && canConfigurarProducao()}
+          />
         </div>
 
         <div>
@@ -713,18 +702,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas, membros, onFecharJornada
                         )}
                       </div>
                     </div>
-                    <SecaoProducaoSegura
-                      resetKey={`${ordem.id}:materiais`}
-                      titulo="Materiais desta OP não puderam ser carregados"
-                    >
-                      <MateriaisOrdemProducao ordem={ordem} />
-                    </SecaoProducaoSegura>
-                    <SecaoProducaoSegura
-                      resetKey={`${ordem.id}:previsto-real`}
-                      titulo="Controle previsto × realizado desta OP não pôde ser carregado"
-                    >
-                      <ControlePrevistoRealOrdemProducao ordem={ordem} />
-                    </SecaoProducaoSegura>
+                    <MateriaisOrdemProducao ordem={ordem} />
                   </div>
                 );
               })}
@@ -783,12 +761,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas, membros, onFecharJornada
           <Button variant="ghost" size="sm" onClick={voltarProjetos}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Voltar aos projetos
           </Button>
-          <SecaoProducaoSegura
-            resetKey={projeto.id}
-            titulo="Cadastro de nova etapa temporariamente indisponível"
-          >
-            <FormProcessoProducao onSuccess={() => void recarregar()} />
-          </SecaoProducaoSegura>
+          <FormProcessoProducao onSuccess={() => void recarregar()} />
         </div>
 
         <div className="rounded-xl border bg-card p-5 shadow-sm">
