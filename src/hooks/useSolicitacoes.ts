@@ -7,7 +7,7 @@ import { NovaSolicitacao, SolicitacaoCompleta, SolicitacaoItem } from '@/types/s
 import { Item } from '@/types/estoque';
 import { toast } from 'sonner';
 import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';
-import { itemEhFerramenta } from '@/utils/itemClassification';
+import { itemEhFerramentaUnitaria } from '@/utils/itemClassification';
 
 export const useSolicitacoes = () => {
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoCompleta[]>([]);
@@ -218,7 +218,7 @@ export const useSolicitacoes = () => {
         const estoqueAtivoInfo = obterEstoqueAtivoInfo();
         for (const item of novaSolicitacao.itens) {
           const itemFull = item.item_snapshot as any;
-          if (itemEhFerramenta(itemFull, categorias)) {
+          if (itemEhFerramentaUnitaria(itemFull, categorias)) {
             if (item.quantidade_solicitada > 1) {
               toast.error(`A ferramenta "${itemFull.nome}" deve ser retirada individualmente (máximo 1).`);
               isCreatingRef.current = false;
