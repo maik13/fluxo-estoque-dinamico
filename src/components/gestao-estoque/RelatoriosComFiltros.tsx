@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,7 +44,13 @@ const filtrosIniciais: FiltrosRelatorio = {
 export const RelatoriosComFiltros = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
   const [filtros, setFiltros] = useState<FiltrosRelatorio>(filtrosIniciais);
-  const { obterEstoque, movimentacoes } = useEstoqueContext();
+  const { obterEstoque, movimentacoes, carregarHistoricoCompleto } = useEstoqueContext();
+
+  useEffect(() => {
+    if (dialogoAberto) {
+      void carregarHistoricoCompleto();
+    }
+  }, [dialogoAberto]);
 
   const itensEstoque = obterEstoque();
   
