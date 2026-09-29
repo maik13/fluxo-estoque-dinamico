@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { EstoqueItem } from '@/types/estoque';
 import { AlocacaoEstoqueContado, useEstoqueContado } from '@/hooks/useEstoqueContado';
+import { itemEhFerramentaQuantitativa } from '@/utils/itemClassification';
 
 /**
  * Camada somente leitura.
@@ -69,12 +70,12 @@ export const montarLinhaPosicao = (
   contexto: ContextoLinha = {}
 ): LinhaPosicaoPatrimonio => {
   const ehFerramenta = contexto.categoria === 'Ferramenta';
-  const ehChaveAllen = ehFerramenta && /\\ballen\\b/i.test(item.nome || '');
-  const ferramentaUnitaria = ehFerramenta && !ehChaveAllen;
+  const ferramentaQuantitativa = ehFerramenta && itemEhFerramentaQuantitativa(item);
+  const ferramentaUnitaria = ehFerramenta && !ferramentaQuantitativa;
   const saldoRegistrado = Number(item.estoqueAtual) || 0;
   const alocacaoRegistrada = ehFerramenta ? Number(alocacao?.saldoPendente || 0) : 0;
 
-  // Cada código de ferramenta não-Allen representa um único patrimônio.
+  // Ferramentas unitárias são patrimônio individual. Allen e BITZ/BITS são quantitativos.
   // A unidade está no almoxarifado OU alocada; nunca pode ser somada como 2.
   const quantidadeAlmoxarifado = ferramentaUnitaria
     ? Math.min(1, Math.max(0, saldoRegistrado))
