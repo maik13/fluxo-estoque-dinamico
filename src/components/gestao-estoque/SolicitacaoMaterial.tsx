@@ -25,7 +25,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { ItemFotoMiniatura } from './ItemFotoMiniatura';
-import { itemEhFerramenta } from '@/utils/itemClassification';
+import { itemEhFerramentaUnitaria } from '@/utils/itemClassification';
 
 interface ItemSolicitacaoMaterial {
   item_id?: string;
@@ -203,7 +203,7 @@ export const SolicitacaoMaterial = () => {
 
     // Regra para Ferramentas: Somente 1 unidade
     let qtdEfetiva = quantidade;
-    if (itemEhFerramenta(item, categorias)) {
+    if (itemEhFerramentaUnitaria(item, categorias)) {
       qtdEfetiva = 1;
       if (quantidade > 1) {
         toast.info('Ferramentas são limitadas a 1 unidade por item. Adicione outro item se precisar de mais.');
