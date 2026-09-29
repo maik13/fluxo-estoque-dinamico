@@ -23,7 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { materialReturnSchema } from '@/schemas/validation';
 import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';
-import { itemEhFerramenta } from '@/utils/itemClassification';
+import { itemEhFerramentaUnitaria } from '@/utils/itemClassification';
 
 export const DevolverMaterial = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
@@ -238,7 +238,7 @@ export const DevolverMaterial = () => {
       const itemFull = item.item_snapshot as any;
       
       // Regra específica para Ferramentas (Prospectiva)
-      if (itemEhFerramenta(itemFull, categorias)) {
+      if (itemEhFerramentaUnitaria(itemFull, categorias)) {
         const { alocada, localAtual, localAtualId } = await verificarFerramentaAlocada(item.item_id);
         
         // Se a ferramenta está alocada (tem saída ativa pós-marco)
