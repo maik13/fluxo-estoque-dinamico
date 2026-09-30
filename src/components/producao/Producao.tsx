@@ -49,7 +49,8 @@ export const Producao = () => {
     conferirApontamento,
     listarMembros,
   } = useProducao();
-  const { locaisUtilizacao } = useConfiguracoes();
+  const { locaisUtilizacao, obterEstoqueAtivoInfo } = useConfiguracoes();
+  const estoqueAtivoId = obterEstoqueAtivoInfo()?.id ?? null;
   const { diagnostico, verificar } = useDiagnosticoProducao();
   const {
     canApontarProducao,
@@ -165,6 +166,7 @@ export const Producao = () => {
             key={versaoEtapas}
             tarefas={tarefas}
             membros={membrosProducao}
+            estoqueAtivoId={estoqueAtivoId}
             onFecharJornada={abrirFechamentoJornada}
           />
         </TabsContent>
