@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, CheckCircle2, Clock, Loader2, RefreshCw, UserRound, UsersRound } from 'lucide-react';
+import { CheckCircle2, Clock, Loader2, Pencil, Plus, RefreshCw, Search, UserRound, UsersRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -86,21 +91,46 @@ function ControlePonto(){
 }
 
 function CadastrosRH(){
-  const [colabs,setColabs]=useState<Colaborador[]>([]); const [jornadas,setJornadas]=useState<Jornada[]>([]); const [feriados,setFeriados]=useState<Feriado[]>([]); const [loading,setLoading]=useState(true);
+  const {hasPermission,isAdmin}=usePermissions();
+  const canManage=isAdmin()||hasPermission('rh.colaboradores.gerenciar');
+  const [colabs,setColabs]=useState<any[]>([]); const [jornadas,setJornadas]=useState<Jornada[]>([]); const [feriados,setFeriados]=useState<Feriado[]>([]);
+  const [loading,setLoading]=useState(true); const [search,setSearch]=useState(''); const [open,setOpen]=useState(false); const [saving,setSaving]=useState(false);
+  const [form,setForm]=useState<any>({id:null,nome:'',email:'',cpf_cnpj:'',telefone:'',data_nascimento:'',endereco:'',cidade:'',estado:'',cep:'',cargo:'',departamento:'',salario:'',data_admissao:'',pis:'',jornada_id:'none',tipo_contrato:'clt',valor_contrato:'',controla_ponto:false,hora_extra_gera_valor:true,rh_ativo:true,ativo:true});
+  const set=(key:string,value:any)=>setForm((x:any)=>({...x,[key]:value}));
+  const reset=()=>setForm({id:null,nome:'',email:'',cpf_cnpj:'',telefone:'',data_nascimento:'',endereco:'',cidade:'',estado:'',cep:'',cargo:'',departamento:'',salario:'',data_admissao:'',pis:'',jornada_id:'none',tipo_contrato:'clt',valor_contrato:'',controla_ponto:false,hora_extra_gera_valor:true,rh_ativo:true,ativo:true});
   const carregar=useCallback(async()=>{setLoading(true);const [c,j,f]=await Promise.all([
-    sb.from('rh_colaboradores').select('id,nome,cargo,departamento,tipo_contrato,controla_ponto,rh_ativo,ativo').order('nome'),
-    sb.from('rh_jornadas').select('id,nome,descricao,carga_horaria_semanal,ativo').order('nome'),
-    sb.from('rh_feriados').select('id,nome,data,tipo,ativo').order('data')
-  ]); if(c.error)toast.error(c.error.message);else setColabs(c.data||[]);if(j.error)toast.error(j.error.message);else setJornadas(j.data||[]);if(f.error)toast.error(f.error.message);else setFeriados(f.data||[]);setLoading(false)},[]);
+    sb.from('rh_colaboradores').select('*').order('nome'), sb.from('rh_jornadas').select('*').order('nome'), sb.from('rh_feriados').select('*').order('data')
+  ]);if(c.error)toast.error(c.error.message);else setColabs(c.data||[]);if(j.error)toast.error(j.error.message);else setJornadas(j.data||[]);if(f.error)toast.error(f.error.message);else setFeriados(f.data||[]);setLoading(false)},[]);
   useEffect(()=>{void carregar()},[carregar]);
+  const filtered=useMemo(()=>{const q=search.trim().toLowerCase();return !q?colabs:colabs.filter(c=>c.nome?.toLowerCase().includes(q)||c.email?.toLowerCase().includes(q)||c.cargo?.toLowerCase().includes(q))},[colabs,search]);
+  const edit=(c:any)=>{setForm({...c,salario:c.salario??'',valor_contrato:c.valor_contrato??'',jornada_id:c.jornada_id||'none',data_nascimento:c.data_nascimento||'',data_admissao:c.data_admissao||''});setOpen(true)};
+  const salvar=async()=>{if(!form.nome.trim()){toast.error('Nome é obrigatório');return}setSaving(true);
+    const {error}=await sb.rpc('rh_salvar_colaborador',{p_id:form.id||null,p_nome:form.nome,p_email:form.email||null,p_cpf_cnpj:form.cpf_cnpj||null,p_telefone:form.telefone||null,p_data_nascimento:form.data_nascimento||null,p_endereco:form.endereco||null,p_cidade:form.cidade||null,p_estado:form.estado||null,p_cep:form.cep||null,p_cargo:form.cargo||null,p_departamento:form.departamento||null,p_salario:form.tipo_contrato==='clt'&&form.salario!==''?Number(form.salario):null,p_data_admissao:form.data_admissao||null,p_pis:form.pis||null,p_jornada_id:form.jornada_id==='none'?null:form.jornada_id,p_tipo_contrato:form.tipo_contrato,p_valor_contrato:form.tipo_contrato!=='clt'&&form.valor_contrato!==''?Number(form.valor_contrato):null,p_controla_ponto:form.controla_ponto,p_hora_extra_gera_valor:form.hora_extra_gera_valor,p_rh_ativo:form.rh_ativo,p_ativo:form.ativo});
+    if(error)toast.error(error.message);else{toast.success(form.id?'Colaborador atualizado':'Colaborador cadastrado');setOpen(false);reset();await carregar()}setSaving(false)};
   if(loading)return <div className="py-12 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin"/></div>;
   return <Tabs defaultValue="colaboradores" className="space-y-4"><TabsList className="h-auto flex-wrap"><TabsTrigger value="colaboradores">Colaboradores ({colabs.length})</TabsTrigger><TabsTrigger value="jornadas">Jornadas ({jornadas.length})</TabsTrigger><TabsTrigger value="feriados">Feriados ({feriados.length})</TabsTrigger></TabsList>
-    <TabsContent value="colaboradores"><div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Cargo</TableHead><TableHead>Departamento</TableHead><TableHead>Contrato</TableHead><TableHead>Controla ponto</TableHead><TableHead>RH</TableHead></TableRow></TableHeader><TableBody>{colabs.map(c=><TableRow key={c.id}><TableCell className="font-medium">{c.nome}</TableCell><TableCell>{c.cargo||'—'}</TableCell><TableCell>{c.departamento||'—'}</TableCell><TableCell>{c.tipo_contrato||'—'}</TableCell><TableCell>{c.controla_ponto?<CheckCircle2 className="h-4 w-4 text-emerald-500"/>:'—'}</TableCell><TableCell>{c.rh_ativo?<Badge>Ativo</Badge>:<Badge variant="secondary">Inativo</Badge>}</TableCell></TableRow>)}</TableBody></Table></div></TabsContent>
+    <TabsContent value="colaboradores" className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3"><div className="relative min-w-64 flex-1 max-w-md"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"/><Input className="pl-9" placeholder="Buscar colaborador..." value={search} onChange={e=>setSearch(e.target.value)}/></div>{canManage&&<Button onClick={()=>{reset();setOpen(true)}}><Plus className="mr-2 h-4 w-4"/>Novo colaborador</Button>}</div>
+      <div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Cargo</TableHead><TableHead>Departamento</TableHead><TableHead>Contrato</TableHead><TableHead>Jornada</TableHead><TableHead>Ponto</TableHead><TableHead>RH</TableHead>{canManage&&<TableHead className="text-right">Ações</TableHead>}</TableRow></TableHeader><TableBody>{filtered.map(c=><TableRow key={c.id}><TableCell className="font-medium"><div>{c.nome}</div>{c.email&&<div className="text-xs text-muted-foreground">{c.email}</div>}</TableCell><TableCell>{c.cargo||'—'}</TableCell><TableCell>{c.departamento||'—'}</TableCell><TableCell>{(c.tipo_contrato||'—').toUpperCase()}</TableCell><TableCell>{jornadas.find(j=>j.id===c.jornada_id)?.nome||'—'}</TableCell><TableCell>{c.controla_ponto?<Badge>Sim</Badge>:<span className="text-muted-foreground">Não</span>}</TableCell><TableCell>{c.rh_ativo?<Badge>Ativo</Badge>:<Badge variant="secondary">Inativo</Badge>}</TableCell>{canManage&&<TableCell className="text-right"><Button size="icon" variant="ghost" onClick={()=>edit(c)}><Pencil className="h-4 w-4"/></Button></TableCell>}</TableRow>)}</TableBody></Table></div>
+      <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle>{form.id?'Editar colaborador':'Novo colaborador'}</DialogTitle></DialogHeader>
+        <div className="grid gap-4 py-2 md:grid-cols-2">
+          <div className="space-y-1"><Label>Nome *</Label><Input value={form.nome} onChange={e=>set('nome',e.target.value)}/></div><div className="space-y-1"><Label>E-mail</Label><Input type="email" value={form.email||''} onChange={e=>set('email',e.target.value)}/></div>
+          <div className="space-y-1"><Label>CPF/CNPJ</Label><Input value={form.cpf_cnpj||''} onChange={e=>set('cpf_cnpj',e.target.value)}/></div><div className="space-y-1"><Label>Telefone</Label><Input value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></div>
+          <div className="space-y-1"><Label>Data de nascimento</Label><Input type="date" value={form.data_nascimento||''} onChange={e=>set('data_nascimento',e.target.value)}/></div><div className="space-y-1"><Label>PIS</Label><Input value={form.pis||''} onChange={e=>set('pis',e.target.value)}/></div>
+          <div className="space-y-1 md:col-span-2"><Label>Endereço</Label><Input value={form.endereco||''} onChange={e=>set('endereco',e.target.value)}/></div><div className="space-y-1"><Label>Cidade</Label><Input value={form.cidade||''} onChange={e=>set('cidade',e.target.value)}/></div><div className="grid grid-cols-2 gap-2"><div className="space-y-1"><Label>UF</Label><Input maxLength={2} value={form.estado||''} onChange={e=>set('estado',e.target.value)}/></div><div className="space-y-1"><Label>CEP</Label><Input value={form.cep||''} onChange={e=>set('cep',e.target.value)}/></div></div>
+          <div className="space-y-1"><Label>Cargo</Label><Input value={form.cargo||''} onChange={e=>set('cargo',e.target.value)}/></div><div className="space-y-1"><Label>Departamento</Label><Input value={form.departamento||''} onChange={e=>set('departamento',e.target.value)}/></div>
+          <div className="space-y-1"><Label>Data de admissão</Label><Input type="date" value={form.data_admissao||''} onChange={e=>set('data_admissao',e.target.value)}/></div><div className="space-y-1"><Label>Jornada</Label><Select value={form.jornada_id} onValueChange={v=>set('jornada_id',v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">Sem jornada</SelectItem>{jornadas.filter(j=>j.ativo).map(j=><SelectItem key={j.id} value={j.id}>{j.nome} ({j.carga_horaria_semanal}h)</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-1"><Label>Tipo de contrato</Label><Select value={form.tipo_contrato} onValueChange={v=>set('tipo_contrato',v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="clt">CLT</SelectItem><SelectItem value="pj">PJ</SelectItem><SelectItem value="diarista">Diarista</SelectItem><SelectItem value="horista">Horista</SelectItem></SelectContent></Select></div>
+          <div className="space-y-1"><Label>{form.tipo_contrato==='clt'?'Salário mensal (R$)':form.tipo_contrato==='horista'?'Valor por hora (R$)':'Valor da diária (R$)'}</Label><Input type="number" min="0" step="0.01" value={form.tipo_contrato==='clt'?form.salario:form.valor_contrato} onChange={e=>set(form.tipo_contrato==='clt'?'salario':'valor_contrato',e.target.value)}/></div>
+          <div className="flex items-center gap-3 rounded-md border p-3"><Switch checked={form.rh_ativo} onCheckedChange={v=>set('rh_ativo',v)}/><div><Label>Ativo no RH</Label><p className="text-xs text-muted-foreground">Inativar preserva todo o histórico.</p></div></div>
+          <div className="flex items-center gap-3 rounded-md border p-3"><Switch checked={form.controla_ponto} disabled={!form.rh_ativo} onCheckedChange={v=>set('controla_ponto',v)}/><div><Label>Controla ponto</Label><p className="text-xs text-muted-foreground">Participa do registro e fechamento de ponto.</p></div></div>
+          <div className="flex items-center gap-3 rounded-md border p-3"><Switch checked={form.ativo} onCheckedChange={v=>set('ativo',v)}/><div><Label>Cadastro ativo</Label><p className="text-xs text-muted-foreground">Desative em vez de excluir registros históricos.</p></div></div>
+        </div><DialogFooter><Button variant="outline" onClick={()=>setOpen(false)}>Cancelar</Button><Button onClick={()=>void salvar()} disabled={saving}>{saving&&<Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Salvar</Button></DialogFooter></DialogContent></Dialog>
+    </TabsContent>
     <TabsContent value="jornadas"><div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead>Jornada</TableHead><TableHead>Descrição</TableHead><TableHead>Carga semanal</TableHead><TableHead>Status</TableHead></TableRow></TableHeader><TableBody>{jornadas.map(j=><TableRow key={j.id}><TableCell className="font-medium">{j.nome}</TableCell><TableCell>{j.descricao||'—'}</TableCell><TableCell>{j.carga_horaria_semanal??'—'}h</TableCell><TableCell>{j.ativo?<Badge>Ativa</Badge>:<Badge variant="secondary">Inativa</Badge>}</TableCell></TableRow>)}</TableBody></Table></div></TabsContent>
     <TabsContent value="feriados"><div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Feriado</TableHead><TableHead>Tipo</TableHead><TableHead>Status</TableHead></TableRow></TableHeader><TableBody>{feriados.map(f=><TableRow key={f.id}><TableCell>{format(new Date(f.data+'T12:00:00'),'dd/MM/yyyy')}</TableCell><TableCell className="font-medium">{f.nome}</TableCell><TableCell>{f.tipo||'—'}</TableCell><TableCell>{f.ativo?<Badge>Ativo</Badge>:<Badge variant="secondary">Inativo</Badge>}</TableCell></TableRow>)}</TableBody></Table></div></TabsContent>
   </Tabs>
 }
-
 export function RHPonto(){
   const {hasPermission,isAdmin}=usePermissions();
   const podeRH=isAdmin()||hasPermission('rh.acessar')||hasPermission('rh.colaboradores.visualizar');
