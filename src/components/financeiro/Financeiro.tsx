@@ -720,8 +720,6 @@ export const Financeiro = () => {
               <div className="rounded-lg border p-4"><Banknote className="mb-2 h-5 w-5"/><p className="font-medium">6 meses</p><p className="text-sm text-muted-foreground">Visão mensal de compromissos, recebimentos e risco de caixa.</p></div>
             </div></CardContent>
           </Card>
-        </TabsContent>
-
         </TabsContent>}
 
         {podeRelatorios && (
@@ -730,7 +728,7 @@ export const Financeiro = () => {
           </TabsContent>
         )}
 
-        <TabsContent value="configuracoes" className="mt-5 space-y-4">
+        {podeGerenciar && <TabsContent value="configuracoes" className="mt-5 space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Configurações do Financeiro</CardTitle>
@@ -804,7 +802,7 @@ export const Financeiro = () => {
               </div>
             </div>
           </details>
-        </TabsContent>
+        </TabsContent>}
       </Tabs>
 
       {loading && <div className="text-sm text-muted-foreground">Atualizando informações financeiras...</div>}
