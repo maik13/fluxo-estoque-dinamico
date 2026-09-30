@@ -88,6 +88,25 @@ export const UsuariosList = () => {
     } else {
       setLoading(false);
     }
+
+    const atualizar = () => {
+      if (podeVisualizarUsuarios) {
+        void carregarUsuarios();
+        void carregarPerfisAcesso();
+      }
+    };
+
+    window.addEventListener('usuarios-atualizados', atualizar);
+
+    const channel = supabase
+      .channel('usuarios-lista')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, atualizar)
+      .subscribe();
+
+    return () => {
+      window.removeEventListener('usuarios-atualizados', atualizar);
+      void supabase.removeChannel(channel);
+    };
   }, [podeVisualizarUsuarios]);
 
   const carregarPerfisAcesso = async () => {
@@ -176,13 +195,7 @@ export const UsuariosList = () => {
 
       if (error) throw error;
 
-      setUsuarios((prev) =>
-        prev.map((usuario) =>
-          usuario.id === editandoUsuario.id
-            ? { ...usuario, ...data }
-            : usuario,
-        ),
-      );
+      await carregarUsuarios();
 
       toast({
         title: 'Usuário atualizado!',
@@ -217,11 +230,7 @@ export const UsuariosList = () => {
 
       if (error) throw error;
 
-      setUsuarios((prev) =>
-        prev.map((usuario) =>
-          usuario.id === userId ? { ...usuario, ativo: novoStatus } : usuario,
-        ),
-      );
+      await carregarUsuarios();
 
       toast({
         title: 'Status atualizado!',

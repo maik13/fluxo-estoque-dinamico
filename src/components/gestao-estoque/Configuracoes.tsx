@@ -262,6 +262,7 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false, somenteSolic
           description: `Usuário ${novoUsuario.nome} foi cadastrado com sucesso.`,
         });
         setNovoUsuario({ nome: '', email: '', senha: '', tipo: 'estoquista' });
+        window.dispatchEvent(new CustomEvent('usuarios-atualizados'));
       } else {
         const errorMessage = data?.errors?.join(', ') || data?.message || 'Não foi possível cadastrar o usuário.';
         toast({
