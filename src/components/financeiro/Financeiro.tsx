@@ -86,6 +86,9 @@ export const Financeiro = () => {
   const [contas, setContas] = useState<Registro[]>([]);
   const [posicoes, setPosicoes] = useState<Registro[]>([]);
   const [conciliacoes, setConciliacoes] = useState<Registro[]>([]);
+  const [categorias, setCategorias] = useState<Registro[]>([]);
+  const [subcategorias, setSubcategorias] = useState<Registro[]>([]);
+  const [categoriaSubcategorias, setCategoriaSubcategorias] = useState<Registro[]>([]);
 
   const [dialogPn, setDialogPn] = useState(false);
   const [dialogRc, setDialogRc] = useState(false);
@@ -93,6 +96,8 @@ export const Financeiro = () => {
   const [dialogPosicao, setDialogPosicao] = useState(false);
   const [dialogProgramacao, setDialogProgramacao] = useState(false);
   const [dialogConciliacao, setDialogConciliacao] = useState(false);
+  const [dialogCategoria, setDialogCategoria] = useState(false);
+  const [dialogSubcategoria, setDialogSubcategoria] = useState(false);
   const [selecionado, setSelecionado] = useState<Registro | null>(null);
 
   const [pnForm, setPnForm] = useState({
@@ -115,6 +120,9 @@ export const Financeiro = () => {
     lancamentoId: '', beneficiario: '', valor: '', vencimento: '', dataProgramada: '',
     bancoConta: '', formaPagamento: '', categoria: '', projeto: '', observacao: '',
   });
+  const [categoriaForm, setCategoriaForm] = useState({ nome: '', observacao: '' });
+  const [subcategoriaForm, setSubcategoriaForm] = useState({ nome: '', categoriaId: '', observacao: '' });
+
   const [conciliacaoForm, setConciliacaoForm] = useState({
     data: new Date().toISOString().slice(0, 10), contaId: '', historico: '', previsto: 'sim',
     valor: '', valorPrevisto: '', dataPrevista: '', tipo: 'saida', tratamento: 'em_apuracao',
@@ -133,6 +141,9 @@ export const Financeiro = () => {
         (supabase as any).from('financeiro_contas_bancarias').select('*').eq('ativa', true).order('ordem', { ascending: true }),
         (supabase as any).from('financeiro_posicoes_diarias').select('*').order('data', { ascending: false }).limit(500),
         (supabase as any).from('financeiro_conciliacoes').select('*').order('data', { ascending: false }).limit(500),
+        (supabase as any).from('financeiro_categorias').select('*').order('ordem', { ascending: true }).order('nome', { ascending: true }),
+        (supabase as any).from('financeiro_subcategorias').select('*').order('ordem', { ascending: true }).order('nome', { ascending: true }),
+        (supabase as any).from('financeiro_categoria_subcategorias').select('*'),
       ]);
 
       consultas.forEach((q: any) => { if (q.error) throw q.error; });
@@ -144,6 +155,9 @@ export const Financeiro = () => {
       setContas(consultas[5].data ?? []);
       setPosicoes(consultas[6].data ?? []);
       setConciliacoes(consultas[7].data ?? []);
+      setCategorias(consultas[8].data ?? []);
+      setSubcategorias(consultas[9].data ?? []);
+      setCategoriaSubcategorias(consultas[10].data ?? []);
     } catch (error) {
       console.error('Erro ao carregar Financeiro:', error);
       toast.error('Não foi possível carregar todos os dados do Financeiro.');
@@ -155,6 +169,20 @@ export const Financeiro = () => {
   useEffect(() => { void carregar(); }, []);
 
   const contaNome = (id?: string | null) => contas.find((c) => c.id === id)?.nome || '—';
+
+  const subcategoriasPermitidas = (categoriaNome?: string | null) => {
+    const ativas = subcategorias.filter((s) => s.ativo);
+    if (!categoriaNome) return ativas;
+    const categoria = categorias.find((item) => item.nome === categoriaNome);
+    if (!categoria) return ativas;
+    const permitidas = new Set(
+      categoriaSubcategorias
+        .filter((rel) => rel.categoria_id === categoria.id)
+        .map((rel) => rel.subcategoria_id)
+    );
+    const filtradas = ativas.filter((s) => permitidas.has(s.id));
+    return filtradas.length > 0 ? filtradas : ativas;
+  };
 
   const indicadores = useMemo(() => {
     const abertas = necessidades.filter((n) => n.status !== 'cancelado');
@@ -345,6 +373,69 @@ export const Financeiro = () => {
     }
   };
 
+  const criarCategoria = async () => {
+    const nome = categoriaForm.nome.trim().toUpperCase();
+    if (!nome) return toast.error('Informe o nome da categoria.');
+    try {
+      const { error } = await (supabase as any).from('financeiro_categorias').insert({
+        nome,
+        observacao: categoriaForm.observacao.trim() || null,
+        origem_planilha: false,
+        ativo: true,
+        ordem: (categorias[categorias.length - 1]?.ordem || 0) + 10,
+      });
+      if (error) throw error;
+      setDialogCategoria(false);
+      setCategoriaForm({ nome: '', observacao: '' });
+      toast.success('Categoria criada.');
+      await carregar();
+    } catch (error) {
+      console.error(error);
+      toast.error('Não foi possível criar a categoria. Verifique se ela já existe.');
+    }
+  };
+
+  const criarSubcategoria = async () => {
+    const nome = subcategoriaForm.nome.trim().toUpperCase();
+    if (!nome) return toast.error('Informe o nome da subcategoria.');
+    try {
+      const { data, error } = await (supabase as any).from('financeiro_subcategorias').insert({
+        nome,
+        observacao: subcategoriaForm.observacao.trim() || null,
+        origem_planilha: false,
+        ativo: true,
+        ordem: (subcategorias[subcategorias.length - 1]?.ordem || 0) + 10,
+      }).select('id').single();
+      if (error) throw error;
+      if (subcategoriaForm.categoriaId && data?.id) {
+        const { error: linkError } = await (supabase as any).from('financeiro_categoria_subcategorias').insert({
+          categoria_id: subcategoriaForm.categoriaId,
+          subcategoria_id: data.id,
+          origem_planilha: false,
+        });
+        if (linkError) throw linkError;
+      }
+      setDialogSubcategoria(false);
+      setSubcategoriaForm({ nome: '', categoriaId: '', observacao: '' });
+      toast.success('Subcategoria criada.');
+      await carregar();
+    } catch (error) {
+      console.error(error);
+      toast.error('Não foi possível criar a subcategoria. Verifique se ela já existe.');
+    }
+  };
+
+  const alternarAtivo = async (tabela: 'financeiro_categorias' | 'financeiro_subcategorias', item: Registro) => {
+    try {
+      const { error } = await (supabase as any).from(tabela).update({ ativo: !item.ativo, updated_at: new Date().toISOString() }).eq('id', item.id);
+      if (error) throw error;
+      await carregar();
+    } catch (error) {
+      console.error(error);
+      toast.error('Não foi possível atualizar o cadastro.');
+    }
+  };
+
   const salvarConciliacao = async () => {
     if (!conciliacaoForm.contaId || !conciliacaoForm.historico || !conciliacaoForm.valor) return toast.error('Informe conta, histórico e valor.');
     try {
@@ -396,6 +487,7 @@ export const Financeiro = () => {
           <TabsTrigger value="programacao">Programação</TabsTrigger>
           <TabsTrigger value="conciliacao">Conciliação</TabsTrigger>
           <TabsTrigger value="projecoes">Projeções</TabsTrigger>
+          {canManageFinanceiro() && <TabsTrigger value="cadastros">Cadastros</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="visao" className="mt-5 space-y-5">
@@ -453,8 +545,8 @@ export const Financeiro = () => {
               <Field label="Base da estimativa"><Input value={pnForm.baseEstimativa} onChange={(e)=>setPnForm({...pnForm,baseEstimativa:e.target.value})} placeholder="Histórico / cotação prévia / estimativa técnica"/></Field>
               <Field label="Data provável de desembolso"><Input type="date" value={pnForm.dataDesembolso} onChange={(e)=>setPnForm({...pnForm,dataDesembolso:e.target.value})}/></Field>
               <Field label="Urgência"><Select value={pnForm.urgencia} onValueChange={(v)=>setPnForm({...pnForm,urgencia:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="normal">Normal</SelectItem><SelectItem value="alta">Atenção</SelectItem><SelectItem value="urgente">Crítica</SelectItem></SelectContent></Select></Field>
-              <Field label="Categoria"><Input value={pnForm.categoria} onChange={(e)=>setPnForm({...pnForm,categoria:e.target.value})}/></Field>
-              <Field label="Subcategoria"><Input value={pnForm.subcategoria} onChange={(e)=>setPnForm({...pnForm,subcategoria:e.target.value})}/></Field>
+              <Field label="Categoria"><Select value={pnForm.categoria || undefined} onValueChange={(v)=>setPnForm({...pnForm,categoria:v,subcategoria:''})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{categorias.filter(c=>c.ativo).map(c=><SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>)}</SelectContent></Select></Field>
+              <Field label="Subcategoria"><Select value={pnForm.subcategoria || undefined} onValueChange={(v)=>setPnForm({...pnForm,subcategoria:v})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{subcategoriasPermitidas(pnForm.categoria).map(s=><SelectItem key={s.id} value={s.nome}>{s.nome}{s.revisao_pendente?' · revisar':''}</SelectItem>)}</SelectContent></Select></Field>
               <Field label="Justificativa / impacto se não atendida" className="sm:col-span-2"><Textarea value={pnForm.justificativa} onChange={(e)=>setPnForm({...pnForm,justificativa:e.target.value})}/></Field>
             </div>
             <DialogFooter><Button variant="outline" onClick={()=>setDialogPn(false)}>Cancelar</Button><Button onClick={()=>void criarPn()}>Registrar PN</Button></DialogFooter>
@@ -529,7 +621,7 @@ export const Financeiro = () => {
               <Field label="Data programada"><Input type="date" value={programacaoForm.dataProgramada} onChange={(e)=>setProgramacaoForm({...programacaoForm,dataProgramada:e.target.value})}/></Field>
               <Field label="Banco / conta"><Input value={programacaoForm.bancoConta} onChange={(e)=>setProgramacaoForm({...programacaoForm,bancoConta:e.target.value})}/></Field>
               <Field label="Forma de pagamento"><Input value={programacaoForm.formaPagamento} onChange={(e)=>setProgramacaoForm({...programacaoForm,formaPagamento:e.target.value})}/></Field>
-              <Field label="Categoria"><Input value={programacaoForm.categoria} onChange={(e)=>setProgramacaoForm({...programacaoForm,categoria:e.target.value})}/></Field>
+              <Field label="Categoria"><Select value={programacaoForm.categoria || undefined} onValueChange={(v)=>setProgramacaoForm({...programacaoForm,categoria:v})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{categorias.filter(c=>c.ativo).map(c=><SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>)}</SelectContent></Select></Field>
               <Field label="Projeto / centro de custo"><Input value={programacaoForm.projeto} onChange={(e)=>setProgramacaoForm({...programacaoForm,projeto:e.target.value})}/></Field>
               <Field label="Observação" className="sm:col-span-2"><Textarea value={programacaoForm.observacao} onChange={(e)=>setProgramacaoForm({...programacaoForm,observacao:e.target.value})}/></Field>
             </div>
@@ -572,6 +664,57 @@ export const Financeiro = () => {
               <div className="rounded-lg border p-4"><ClipboardList className="mb-2 h-5 w-5"/><p className="font-medium">13 semanas</p><p className="text-sm text-muted-foreground">Fluxo móvel semanal para operação e sazonal.</p></div>
               <div className="rounded-lg border p-4"><Banknote className="mb-2 h-5 w-5"/><p className="font-medium">6 meses</p><p className="text-sm text-muted-foreground">Visão mensal de compromissos, recebimentos e risco de caixa.</p></div>
             </div></CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="cadastros" className="mt-5 space-y-5">
+          <Card>
+            <CardHeader className="flex flex-row items-start justify-between gap-3">
+              <div>
+                <CardTitle>Categorias</CardTitle>
+                <CardDescription>Parametrizadas com os valores existentes na Página54. Novos lançamentos passam a selecionar a categoria por menu.</CardDescription>
+              </div>
+              <Dialog open={dialogCategoria} onOpenChange={setDialogCategoria}>
+                <DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova categoria</Button></DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Nova categoria financeira</DialogTitle></DialogHeader>
+                  <div className="space-y-3">
+                    <Field label="Nome"><Input value={categoriaForm.nome} onChange={(e)=>setCategoriaForm({...categoriaForm,nome:e.target.value})} placeholder="Ex.: CUSTO"/></Field>
+                    <Field label="Observação"><Textarea value={categoriaForm.observacao} onChange={(e)=>setCategoriaForm({...categoriaForm,observacao:e.target.value})}/></Field>
+                  </div>
+                  <DialogFooter><Button variant="outline" onClick={()=>setDialogCategoria(false)}>Cancelar</Button><Button onClick={()=>void criarCategoria()}>Criar categoria</Button></DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <Table><TableHeader><TableRow><TableHead>Categoria</TableHead><TableHead>Origem</TableHead><TableHead>Status</TableHead><TableHead>Observação</TableHead><TableHead></TableHead></TableRow></TableHeader>
+              <TableBody>{categorias.map(c=><TableRow key={c.id}><TableCell className="font-medium">{c.nome}</TableCell><TableCell>{c.origem_planilha?'Página54':'Sistema'}</TableCell><TableCell>{c.ativo?'Ativa':'Inativa'}</TableCell><TableCell>{c.observacao||'—'}</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" onClick={()=>void alternarAtivo('financeiro_categorias',c)}>{c.ativo?'Inativar':'Ativar'}</Button></TableCell></TableRow>)}</TableBody></Table>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-start justify-between gap-3">
+              <div>
+                <CardTitle>Subcategorias</CardTitle>
+                <CardDescription>Também carregadas a partir da Página54. Quando houver relação conhecida, o menu é filtrado pela categoria escolhida.</CardDescription>
+              </div>
+              <Dialog open={dialogSubcategoria} onOpenChange={setDialogSubcategoria}>
+                <DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova subcategoria</Button></DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Nova subcategoria financeira</DialogTitle></DialogHeader>
+                  <div className="space-y-3">
+                    <Field label="Nome"><Input value={subcategoriaForm.nome} onChange={(e)=>setSubcategoriaForm({...subcategoriaForm,nome:e.target.value})} placeholder="Ex.: FIXO"/></Field>
+                    <Field label="Categoria relacionada (opcional)"><Select value={subcategoriaForm.categoriaId || undefined} onValueChange={(v)=>setSubcategoriaForm({...subcategoriaForm,categoriaId:v})}><SelectTrigger><SelectValue placeholder="Sem vínculo obrigatório"/></SelectTrigger><SelectContent>{categorias.filter(c=>c.ativo).map(c=><SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent></Select></Field>
+                    <Field label="Observação"><Textarea value={subcategoriaForm.observacao} onChange={(e)=>setSubcategoriaForm({...subcategoriaForm,observacao:e.target.value})}/></Field>
+                  </div>
+                  <DialogFooter><Button variant="outline" onClick={()=>setDialogSubcategoria(false)}>Cancelar</Button><Button onClick={()=>void criarSubcategoria()}>Criar subcategoria</Button></DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <Table><TableHeader><TableRow><TableHead>Subcategoria</TableHead><TableHead>Origem</TableHead><TableHead>Status</TableHead><TableHead>Revisão</TableHead><TableHead>Relacionada a</TableHead><TableHead></TableHead></TableRow></TableHeader>
+              <TableBody>{subcategorias.map(s=>{const rels=categoriaSubcategorias.filter(r=>r.subcategoria_id===s.id).map(r=>categorias.find(c=>c.id===r.categoria_id)?.nome).filter(Boolean);return <TableRow key={s.id}><TableCell className="font-medium">{s.nome}</TableCell><TableCell>{s.origem_planilha?'Página54':'Sistema'}</TableCell><TableCell>{s.ativo?'Ativa':'Inativa'}</TableCell><TableCell>{s.revisao_pendente?<Badge variant="outline">Revisar</Badge>:'—'}</TableCell><TableCell>{rels.length?rels.join(', '):'Sem vínculo específico'}</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" onClick={()=>void alternarAtivo('financeiro_subcategorias',s)}>{s.ativo?'Inativar':'Ativar'}</Button></TableCell></TableRow>})}</TableBody></Table>
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
