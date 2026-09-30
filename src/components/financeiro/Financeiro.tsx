@@ -89,6 +89,7 @@ export const Financeiro = () => {
   const [categorias, setCategorias] = useState<Registro[]>([]);
   const [subcategorias, setSubcategorias] = useState<Registro[]>([]);
   const [categoriaSubcategorias, setCategoriaSubcategorias] = useState<Registro[]>([]);
+  const [configFinanceiro, setConfigFinanceiro] = useState<Registro | null>(null);
 
   const [dialogPn, setDialogPn] = useState(false);
   const [dialogRc, setDialogRc] = useState(false);
@@ -135,7 +136,7 @@ export const Financeiro = () => {
       const consultas = await Promise.all([
         (supabase as any).from('financeiro_necessidades').select('*').order('created_at', { ascending: false }).limit(500),
         (supabase as any).from('financeiro_lancamentos').select('*').order('data_prevista', { ascending: true, nullsFirst: false }).limit(1000),
-        (supabase as any).from('pedidos_compra').select('*').order('data_pedido', { ascending: false }).limit(300),
+        (supabase as any).from('pedidos_compra').select('*').not('financeiro_integrado_em', 'is', null).order('data_pedido', { ascending: false }).limit(300),
         (supabase as any).from('financeiro_pedidos_compra_formais').select('*').order('created_at', { ascending: false }).limit(300),
         (supabase as any).from('financeiro_programacoes').select('*').order('data_programada', { ascending: true }).limit(500),
         (supabase as any).from('financeiro_contas_bancarias').select('*').eq('ativa', true).order('ordem', { ascending: true }),
@@ -144,6 +145,7 @@ export const Financeiro = () => {
         (supabase as any).from('financeiro_categorias').select('*').order('ordem', { ascending: true }).order('nome', { ascending: true }),
         (supabase as any).from('financeiro_subcategorias').select('*').order('ordem', { ascending: true }).order('nome', { ascending: true }),
         (supabase as any).from('financeiro_categoria_subcategorias').select('*'),
+        (supabase as any).from('financeiro_configuracao').select('*').eq('id', true).maybeSingle(),
       ]);
 
       consultas.forEach((q: any) => { if (q.error) throw q.error; });
@@ -158,6 +160,7 @@ export const Financeiro = () => {
       setCategorias(consultas[8].data ?? []);
       setSubcategorias(consultas[9].data ?? []);
       setCategoriaSubcategorias(consultas[10].data ?? []);
+      setConfigFinanceiro(consultas[11].data ?? null);
     } catch (error) {
       console.error('Erro ao carregar Financeiro:', error);
       toast.error('Não foi possível carregar todos os dados do Financeiro.');
@@ -477,6 +480,18 @@ export const Financeiro = () => {
         </Button>
       </div>
 
+      {configFinanceiro && !configFinanceiro.rc_integracao_ativa && (
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" />
+            <div>
+              <p className="font-medium">Integração com Compras ainda não iniciada</p>
+              <p className="text-muted-foreground">Os pedidos de compra antigos não entram no Financeiro. Quando o início oficial for ativado, somente pedidos criados a partir daquela data passarão a alimentar RC, PN e Fluxo.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Tabs defaultValue="visao" className="w-full">
         <TabsList className="flex h-auto flex-wrap justify-start gap-1">
           <TabsTrigger value="visao">Visão Geral</TabsTrigger>
@@ -556,9 +571,9 @@ export const Financeiro = () => {
         </TabsContent>
 
         <TabsContent value="rc" className="mt-5">
-          <Card><CardHeader><CardTitle>RC — Requisição de Compra</CardTitle><CardDescription>Anexo B. O atual fluxo operacional de compra foi mantido e recebe agora os campos de cotação, impacto financeiro e validações.</CardDescription></CardHeader>
+          <Card><CardHeader><CardTitle>RC — Requisição de Compra</CardTitle><CardDescription>Anexo B. Aqui aparecem somente requisições de compra integradas após o início oficial do Financeiro. O histórico antigo de pedidos não é trazido para esta tela.</CardDescription></CardHeader>
           <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>RC</TableHead><TableHead>PN</TableHead><TableHead>Status financeiro</TableHead><TableHead>Origem</TableHead><TableHead>Data necessária</TableHead><TableHead className="text-right">Cotado</TableHead><TableHead></TableHead></TableRow></TableHeader>
-          <TableBody>{rcs.length===0?<TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhuma RC.</TableCell></TableRow>:rcs.map(r=><TableRow key={r.id}><TableCell className="font-medium">RC-{String(r.numero).padStart(4,'0')}</TableCell><TableCell>{r.pn_origem_id?'Vinculada':'—'}</TableCell><TableCell><BadgeStatus status={r.status_financeiro_rc}/></TableCell><TableCell>{r.solicitacao_material_numero? `Solicitação #${r.solicitacao_material_numero}`:'Manual'}</TableCell><TableCell>{dataPt(r.data_necessaria)}</TableCell><TableCell className="text-right">{moeda(r.valor_estimado_cotado)}</TableCell><TableCell><Button size="sm" variant="outline" onClick={()=>abrirRc(r)}>Abrir formulário</Button></TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+          <TableBody>{rcs.length===0?<TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">{configFinanceiro && !configFinanceiro.rc_integracao_ativa ? 'Integração ainda não iniciada. Nenhum pedido antigo será carregado.' : 'Nenhuma RC integrada desde o início oficial.'}</TableCell></TableRow>:rcs.map(r=><TableRow key={r.id}><TableCell className="font-medium">RC-{String(r.numero).padStart(4,'0')}</TableCell><TableCell>{r.pn_origem_id?'Vinculada':'—'}</TableCell><TableCell><BadgeStatus status={r.status_financeiro_rc}/></TableCell><TableCell>{r.solicitacao_material_numero? `Solicitação #${r.solicitacao_material_numero}`:'Manual'}</TableCell><TableCell>{dataPt(r.data_necessaria)}</TableCell><TableCell className="text-right">{moeda(r.valor_estimado_cotado)}</TableCell><TableCell><Button size="sm" variant="outline" onClick={()=>abrirRc(r)}>Abrir formulário</Button></TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
 
           <Dialog open={dialogRc} onOpenChange={setDialogRc}><DialogContent className="sm:max-w-4xl"><DialogHeader><DialogTitle>Formulário RC {selecionado? `#${selecionado.numero}`:''}</DialogTitle></DialogHeader>
             <div className="grid max-h-[65vh] gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
