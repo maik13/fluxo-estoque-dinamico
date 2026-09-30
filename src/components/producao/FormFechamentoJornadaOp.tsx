@@ -465,12 +465,21 @@ export const FormFechamentoJornadaOp = ({
         return toast.error('Não foi possível identificar a OP para validar a demão.');
       }
 
-      const informada = Number(demaoNumero);
-      if (!demaoNumero || !Number.isInteger(informada) || informada <= 0) {
-        return toast.error('Selecione a demão deste apontamento.');
+      const informada = Number(demaoNumero || proximaDemao);
+      if (!Number.isInteger(informada) || informada <= 0) {
+        const { data: proxima, error: proximaError } = await (supabase.rpc as any)(
+          'proxima_demao_pintura_v1',
+          { p_ordem_producao_id: ordem.id },
+        );
+        const proximaNumero = Number(proxima);
+        if (proximaError || !Number.isInteger(proximaNumero) || proximaNumero <= 0) {
+          return toast.error('Não foi possível determinar a demão desta OP de pintura.');
+        }
+        demaoValidada = proximaNumero;
+        setDemaoNumero(String(proximaNumero));
+      } else {
+        demaoValidada = informada;
       }
-
-      demaoValidada = informada;
 
       const tintaUnitario = Number(tintaUnitarioMl.replace(',', '.'));
       if (!Number.isFinite(tintaUnitario) || tintaUnitario <= 0) {
