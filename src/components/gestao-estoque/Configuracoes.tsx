@@ -611,9 +611,13 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false, somenteSolic
 
       if (uploadError) throw uploadError;
 
-      // Obter URL pública
+      // Obter URL pública sem reaproveitar a imagem anterior do cache do navegador.
       const { data } = supabase.storage.from('branding').getPublicUrl(fileName);
-      setLogoUrl(data.publicUrl);
+      const publicUrlAtualizada = `${data.publicUrl}?v=${Date.now()}`;
+      setLogoUrl(publicUrlAtualizada);
+      window.dispatchEvent(new CustomEvent('branding-logo-updated', {
+        detail: { url: publicUrlAtualizada },
+      }));
 
       toast({
         title: "Logo atualizado!",
@@ -640,7 +644,8 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false, somenteSolic
       if (files && files.length > 0) {
         const logoFile = files[0];
         const { data } = supabase.storage.from('branding').getPublicUrl(logoFile.name);
-        setLogoUrl(data.publicUrl);
+        const versao = encodeURIComponent(logoFile.updated_at || logoFile.created_at || String(Date.now()));
+        setLogoUrl(`${data.publicUrl}?v=${versao}`);
       }
     } catch (error) {
       console.error('Erro ao carregar logo:', error);
