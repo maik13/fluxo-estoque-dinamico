@@ -39,6 +39,7 @@ interface PermissaoTipoUsuario {
   pode_aprovar_financeiro: boolean;
   pode_programar_financeiro: boolean;
   pode_conciliar_financeiro: boolean;
+  pode_ver_relatorios_financeiro: boolean;
 }
 
 const TIPOS_USUARIO_LABELS: Record<string, string> = {
@@ -120,6 +121,7 @@ export const PERMISSOES_GRUPOS: PermissaoGrupo[] = [
       { key: 'pode_aprovar_financeiro', label: 'Aprovar compromissos financeiros' },
       { key: 'pode_programar_financeiro', label: 'Programar pagamentos' },
       { key: 'pode_conciliar_financeiro', label: 'Conciliar banco' },
+      { key: 'pode_ver_relatorios_financeiro', label: 'Visualizar relatórios financeiros' },
     ],
   },
   {
@@ -167,6 +169,7 @@ export const PermissoesPanel = () => {
         pode_aprovar_financeiro: item.pode_aprovar_financeiro ?? false,
         pode_programar_financeiro: item.pode_programar_financeiro ?? false,
         pode_conciliar_financeiro: item.pode_conciliar_financeiro ?? false,
+        pode_ver_relatorios_financeiro: item.pode_ver_relatorios_financeiro ?? false,
       })) as PermissaoTipoUsuario[]);
     } catch (error) {
       console.error('Erro ao carregar permissões:', error);

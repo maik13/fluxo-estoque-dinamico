@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
+import { FinanceiroRelatorios } from './FinanceiroRelatorios';
 
 type Registro = Record<string, any>;
 
@@ -76,6 +77,7 @@ export const Financeiro = () => {
     canApproveFinanceiro,
     canProgramFinanceiro,
     canConciliarFinanceiro,
+    canViewFinanceiroReports,
   } = usePermissions();
 
   const [loading, setLoading] = useState(true);
@@ -495,6 +497,7 @@ export const Financeiro = () => {
           <TabsTrigger value="programacao">Programação</TabsTrigger>
           <TabsTrigger value="conciliacao">Conciliação</TabsTrigger>
           <TabsTrigger value="projecoes">Projeções</TabsTrigger>
+          {canViewFinanceiroReports() && <TabsTrigger value="relatorios">Relatórios</TabsTrigger>}
           {canManageFinanceiro() && <TabsTrigger value="configuracoes">Configurações</TabsTrigger>}
         </TabsList>
 
@@ -675,6 +678,12 @@ export const Financeiro = () => {
             </div></CardContent>
           </Card>
         </TabsContent>
+
+        {canViewFinanceiroReports() && (
+          <TabsContent value="relatorios" className="mt-5">
+            <FinanceiroRelatorios lancamentos={lancamentos} posicoes={posicoes} contas={contas} />
+          </TabsContent>
+        )}
 
         <TabsContent value="configuracoes" className="mt-5 space-y-5">
           <Card>
