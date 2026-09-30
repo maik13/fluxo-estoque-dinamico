@@ -28,6 +28,7 @@ const Index = () => {
   const { session, loading, signOut } = useAuth();
   const {
     isGestor,
+    isEstoquista,
     canManageStock,
     canManageSettings,
     canSolicitacaoMaterial,
@@ -120,7 +121,9 @@ const Index = () => {
         {(() => {
           const showEstoque = canManageStock();
           const showMovimentacoes = canManageStock();
-          const showConfiguracoes = isGestor() || canManageSettings();
+          const podeGerenciarConfiguracoes = isGestor() || canManageSettings();
+          const acessoSolicitantesEstoquista = isEstoquista() && !podeGerenciarConfiguracoes;
+          const showConfiguracoes = podeGerenciarConfiguracoes || acessoSolicitantesEstoquista;
           const podeVerGerencialAlmoxarifado = canAccessManagerial();
           const podeVerBIProducao = canViewBIProducao();
           const showGerencial = podeVerGerencialAlmoxarifado || podeVerBIProducao;
@@ -212,7 +215,7 @@ const Index = () => {
                     {showMovimentacoes && <TabsContent value="movimentacoes" className="mt-0 space-y-6"><TabelaMovimentacoes /></TabsContent>}
                     {showConfiguracoes && (
                       <TabsContent value="configuracoes" className="mt-0 space-y-6">
-                        <Configuracoes modoPagina />
+                        <Configuracoes modoPagina somenteSolicitantes={acessoSolicitantesEstoquista} />
                       </TabsContent>
                     )}
                     <TabsContent value="mensagens" className="mt-0 space-y-6"><Mensagens /></TabsContent>
