@@ -34,6 +34,7 @@ const statusLabel: Record<string, string> = {
   em_definicao: 'Em definição',
   em_cotacao: 'Em cotação',
   aguardando_aprovacao: 'Aguardando aprovação',
+  aguardando_vencimento: 'Aguardando vencimento',
   aprovado: 'Aprovado',
   aprovada: 'Aprovada',
   rejeitada: 'Rejeitada',
@@ -89,6 +90,8 @@ export const Financeiro = () => {
   const [categorias, setCategorias] = useState<Registro[]>([]);
   const [subcategorias, setSubcategorias] = useState<Registro[]>([]);
   const [categoriaSubcategorias, setCategoriaSubcategorias] = useState<Registro[]>([]);
+  const [ultimoSaldoDia, setUltimoSaldoDia] = useState<Registro | null>(null);
+  const [ultimoSaldoRealizado, setUltimoSaldoRealizado] = useState<Registro | null>(null);
 
   const [dialogPn, setDialogPn] = useState(false);
   const [dialogRc, setDialogRc] = useState(false);
@@ -144,6 +147,8 @@ export const Financeiro = () => {
         (supabase as any).from('financeiro_categorias').select('*').order('ordem', { ascending: true }).order('nome', { ascending: true }),
         (supabase as any).from('financeiro_subcategorias').select('*').order('ordem', { ascending: true }).order('nome', { ascending: true }),
         (supabase as any).from('financeiro_categoria_subcategorias').select('*'),
+        (supabase as any).from('financeiro_importacao_pagina54').select('linha,data_posicao_original,saldo_dia_original').not('data_posicao_original','is',null).order('linha',{ascending:false}).limit(1).maybeSingle(),
+        (supabase as any).from('financeiro_importacao_pagina54').select('linha,data_realizada_original,saldo_original').not('data_realizada_original','is',null).order('linha',{ascending:false}).limit(1).maybeSingle(),
       ]);
 
       consultas.forEach((q: any) => { if (q.error) throw q.error; });
@@ -158,6 +163,8 @@ export const Financeiro = () => {
       setCategorias(consultas[8].data ?? []);
       setSubcategorias(consultas[9].data ?? []);
       setCategoriaSubcategorias(consultas[10].data ?? []);
+      setUltimoSaldoDia(consultas[11].data ?? null);
+      setUltimoSaldoRealizado(consultas[12].data ?? null);
     } catch (error) {
       console.error('Erro ao carregar Financeiro:', error);
       toast.error('Não foi possível carregar todos os dados do Financeiro.');
@@ -169,6 +176,12 @@ export const Financeiro = () => {
   useEffect(() => { void carregar(); }, []);
 
   const contaNome = (id?: string | null) => contas.find((c) => c.id === id)?.nome || '—';
+  const moedaOriginalParaNumero = (valor?: string | null) => {
+    if (!valor) return 0;
+    const texto = String(valor).replace(/[^0-9,.-]/g, '').replace(/\./g, '').replace(',', '.');
+    const numero = Number(texto);
+    return Number.isFinite(numero) ? numero : 0;
+  };
 
   const subcategoriasPermitidas = (categoriaNome?: string | null) => {
     const ativas = subcategorias.filter((s) => s.ativo);
@@ -187,20 +200,15 @@ export const Financeiro = () => {
   const indicadores = useMemo(() => {
     const abertas = necessidades.filter((n) => n.status !== 'cancelado');
     const semValor = abertas.filter((n) => n.valor_estimado == null || n.estimativa_incompleta);
-    const aguardando = abertas.filter((n) => n.status === 'aguardando_aprovacao').length
-      + rcs.filter((r) => r.status_financeiro_rc === 'aguardando_aprovacao').length;
+    const aguardandoVencimento = lancamentos.filter((l) => l.status === 'aguardando_vencimento').length;
     const saidasPrevistas = lancamentos
       .filter((l) => l.tipo === 'saida' && !['cancelado', 'pago', 'conciliado'].includes(l.status))
       .reduce((soma, l) => soma + Number(l.valor_previsto || 0), 0);
-    const ultimoDia = posicoes[0]?.data;
-    const saldoBancario = posicoes
-      .filter((p) => p.data === ultimoDia)
-      .reduce((soma, p) => soma + Number(p.saldo_final_bancario || 0), 0);
-    const saldoGerencial = posicoes
-      .filter((p) => p.data === ultimoDia)
-      .reduce((soma, p) => soma + Number(p.saldo_financeiro_gerencial || 0), 0);
-    return { abertas: abertas.length, semValor: semValor.length, aguardando, saidasPrevistas, saldoBancario, saldoGerencial, ultimoDia };
-  }, [necessidades, lancamentos, rcs, posicoes]);
+    const saldoBancario = moedaOriginalParaNumero(ultimoSaldoDia?.saldo_dia_original);
+    const saldoGerencial = moedaOriginalParaNumero(ultimoSaldoRealizado?.saldo_original);
+    const ultimoDia = ultimoSaldoDia?.data_posicao_original || null;
+    return { abertas: abertas.length, semValor: semValor.length, aguardandoVencimento, saidasPrevistas, saldoBancario, saldoGerencial, ultimoDia };
+  }, [necessidades, lancamentos, ultimoSaldoDia, ultimoSaldoRealizado]);
 
   const projecoes = useMemo(() => {
     const hoje = new Date();
@@ -492,10 +500,10 @@ export const Financeiro = () => {
 
         <TabsContent value="visao" className="mt-5 space-y-5">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Card><CardHeader className="pb-2"><CardDescription>Saldo bancário</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><Landmark className="h-5 w-5"/>{moeda(indicadores.saldoBancario)}</CardTitle><CardDescription>{indicadores.ultimoDia ? `posição de ${dataPt(indicadores.ultimoDia)}` : 'posição ainda não informada'}</CardDescription></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription>Saldo bancário</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><Landmark className="h-5 w-5"/>{moeda(indicadores.saldoBancario)}</CardTitle><CardDescription>{indicadores.ultimoDia ? `posição de ${indicadores.ultimoDia}` : 'posição ainda não informada'}</CardDescription></CardHeader></Card>
             <Card><CardHeader className="pb-2"><CardDescription>Saldo financeiro gerencial</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><WalletCards className="h-5 w-5"/>{moeda(indicadores.saldoGerencial)}</CardTitle></CardHeader></Card>
             <Card><CardHeader className="pb-2"><CardDescription>Saídas previstas</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><TrendingDown className="h-5 w-5"/>{moeda(indicadores.saidasPrevistas)}</CardTitle></CardHeader></Card>
-            <Card><CardHeader className="pb-2"><CardDescription>Aguardando aprovação</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><FileClock className="h-5 w-5"/>{indicadores.aguardando}</CardTitle></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription>Aguardando vencimento</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><FileClock className="h-5 w-5"/>{indicadores.aguardandoVencimento}</CardTitle></CardHeader></Card>
           </div>
 
           <Card>
