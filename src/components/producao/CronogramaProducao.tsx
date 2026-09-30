@@ -188,6 +188,7 @@ export const CronogramaProducao = () => {
   const [visualizacao, setVisualizacao] = useState<Visualizacao>('semana');
   const [deslocamento, setDeslocamento] = useState(0);
   const [configAberta, setConfigAberta] = useState(false);
+  const [mostrarConcluidas, setMostrarConcluidas] = useState(false);
   const [larguraViewport, setLarguraViewport] = useState(0);
   const ganttViewportRef = useRef<HTMLDivElement>(null);
   const [configForm, setConfigForm] = useState<ConfiguracaoCronogramaProducao>({
@@ -296,15 +297,18 @@ export const CronogramaProducao = () => {
   const linhas = useMemo(
     () => linhasProgramadas.filter((linha) => {
       const intervalo = linha.tipo === 'etapa' ? intervaloEtapa(linha.etapa) : intervaloOrdem(linha.ordem);
+      const concluida = linha.tipo === 'etapa'
+        ? linha.etapa.status === 'finalizado'
+        : linha.ordem.status === 'concluida';
       return Boolean(
-        intervalo
+        (mostrarConcluidas || !concluida)
+        && intervalo
         && intervalo.fim.getTime() >= periodo.inicio.getTime()
         && intervalo.inicio.getTime() <= periodo.fim.getTime()
       );
     }),
-    [linhasProgramadas, periodo.fim, periodo.inicio],
+    [linhasProgramadas, mostrarConcluidas, periodo.fim, periodo.inicio],
   );
-  const totalOps = etapasFiltradas.reduce((soma, etapa) => soma + etapa.ordens.filter((ordem) => ordem.status !== 'cancelada').length, 0);
   const alertasAltos = alertas.filter((alerta) => alerta.severidade === 'alta').length;
 
   const salvarConfig = async () => {
@@ -341,7 +345,7 @@ export const CronogramaProducao = () => {
         <div>
           <h3 className="text-lg font-medium">Cronograma de Produção</h3>
           <p className="text-sm text-muted-foreground">
-            Visão limpa do planejamento: somente atividades com período definido aparecem no quadro. Itens sem datas ficam separados abaixo.
+            Visão operacional: mostra por padrão somente o que ainda está programado ou em execução. Concluídas podem ser exibidas pelo filtro.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -388,6 +392,10 @@ export const CronogramaProducao = () => {
                 <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="14dias">14 dias</SelectItem><SelectItem value="semana">Semana</SelectItem><SelectItem value="mes">Mês</SelectItem></SelectContent>
               </Select>
+              <label className="flex h-10 items-center gap-2 rounded-md border px-3 text-sm">
+                <Checkbox checked={mostrarConcluidas} onCheckedChange={(checked) => setMostrarConcluidas(checked === true)} />
+                Mostrar concluídas
+              </label>
               <Button variant="outline" size="icon" onClick={() => setDeslocamento((valor) => valor - 1)}><ChevronLeft className="h-4 w-4" /></Button>
               <Button variant="outline" onClick={() => setDeslocamento(0)}><CalendarDays className="mr-2 h-4 w-4" />Hoje</Button>
               <Button variant="outline" size="icon" onClick={() => setDeslocamento((valor) => valor + 1)}><ChevronRight className="h-4 w-4" /></Button>
@@ -407,19 +415,28 @@ export const CronogramaProducao = () => {
                       {linha.tipo === 'etapa' ? (
                         <>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-sm font-semibold">{linha.etapa.codigo} · {linha.etapa.etapa_nome}</span>
+                            <span className="truncate text-sm font-semibold">ETAPA · {linha.etapa.projeto_nome} · {linha.etapa.etapa_nome}</span>
                             <span className="shrink-0 text-[11px] text-muted-foreground">{statusEtapaLabel[linha.etapa.status] ?? linha.etapa.status}</span>
                           </div>
-                          <span className="truncate text-xs text-muted-foreground">{linha.etapa.projeto_nome}</span>
+                          <span className="truncate text-xs text-muted-foreground">{linha.etapa.codigo}</span>
                         </>
                       ) : (
                         <>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-sm font-medium">{formatarIdentificacaoOrdemProducao(linha.ordem)}</span>
-                            <span className="shrink-0 text-[11px] text-muted-foreground">{statusOpLabel[linha.ordem.status] ?? linha.ordem.status}</span>
+                            <span
+                              className="truncate text-sm font-semibold"
+                              title={`${formatarNumeroOrdemProducao(linha.ordem.numero)} — ${linha.etapa.projeto_nome} — ${linha.ordem.tarefa_nome_snapshot ?? 'Atividade'}`}
+                            >
+                              {formatarNumeroOrdemProducao(linha.ordem.numero)} — {linha.etapa.projeto_nome} — {linha.ordem.tarefa_nome_snapshot ?? 'Atividade'}
+                            </span>
+                            <span className="shrink-0 text-[11px] text-muted-foreground">
+                              {linha.ordem.status === 'em_execucao' && Number(linha.ordem.percentual_realizado) >= 100
+                                ? '100% · aguardando conclusão'
+                                : statusOpLabel[linha.ordem.status] ?? linha.ordem.status}
+                            </span>
                           </div>
                           <span className="truncate text-[11px] text-muted-foreground">
-                            {linha.etapa.projeto_nome} · {linha.etapa.codigo} · {linha.etapa.etapa_nome}
+                            {linha.etapa.codigo} · {linha.etapa.etapa_nome}
                             {linha.ordem.responsavel_nome ? ` · ${linha.ordem.responsavel_nome}` : ''}
                           </span>
                         </>
