@@ -85,6 +85,7 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false, somenteSolic
     senha: '',
     tipo: 'estoquista',
   });
+  const [perfisAcesso, setPerfisAcesso] = useState<{ tipo_usuario: string }[]>([]);
 
   const [novoEstoque, setNovoEstoque] = useState({
     nome: '',
@@ -181,6 +182,17 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false, somenteSolic
     document.documentElement.classList.toggle('dark', tema === 'dark');
     onConfigChange?.();
   };
+
+  useEffect(() => {
+    const carregarPerfisAcesso = async () => {
+      const { data, error } = await (supabase as any)
+        .from('permissoes_tipo_usuario')
+        .select('tipo_usuario')
+        .order('tipo_usuario');
+      if (!error) setPerfisAcesso(data ?? []);
+    };
+    void carregarPerfisAcesso();
+  }, []);
 
   // Validações em tempo real da senha
   const senhaValidations = {
