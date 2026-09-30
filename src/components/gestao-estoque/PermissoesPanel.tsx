@@ -217,7 +217,7 @@ export const PermissoesPanel = () => {
 
     setCriandoPerfil(true);
     try {
-      const { error } = await (supabase as any).from('permissoes_tipo_usuario').insert({ tipo_usuario: tipo });
+      const { error } = await (supabase as any).rpc('criar_perfil_acesso', { p_tipo_usuario: tipo });
       if (error) throw error;
       setNovoPerfil('');
       toast({ title: 'Perfil criado', description: 'Agora marque os acessos padrão e salve.' });
