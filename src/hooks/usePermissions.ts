@@ -258,6 +258,7 @@ export const usePermissions = () => {
   const canApproveFinanceiro = () => isAdmin() || hasPermission('financeiro.aprovar');
   const canProgramFinanceiro = () => isAdmin() || hasPermission('financeiro.programar');
   const canConciliarFinanceiro = () => isAdmin() || hasPermission('financeiro.conciliar') || hasPermission('financeiro.gerenciar');
+  const canViewFinanceiroReports = () => isAdmin() || hasPermission('financeiro.relatorios');
 
   return useMemo(() => ({
     userProfile,
@@ -298,5 +299,6 @@ export const usePermissions = () => {
     canApproveFinanceiro,
     canProgramFinanceiro,
     canConciliarFinanceiro,
+    canViewFinanceiroReports,
   }), [hasPermission, loading, permissoesDinamicas, permissoesEfetivas, recarregarPermissoes, userProfile]);
 };
