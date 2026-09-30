@@ -444,7 +444,7 @@ export const VisaoGeralEstoque = ({ onAbrirEstoque, onAbrirMovimentacoes, onAbri
           />
           <KpiCard title="Saídas hoje" value={dashboard.saidasHoje.length} subtitle="movimentações registradas" icon={ArrowUpFromLine} tone="info" trend={dashboard.saidaSeries} onClick={onAbrirMovimentacoes} />
           {podeVerSolicitacoes && <KpiCard title="Requisições pendentes" value={pendentes ?? '—'} subtitle="aguardando atendimento" icon={FileClock} tone={(pendentes || 0) > 0 ? 'warning' : 'success'} onClick={onAbrirMenu} />}
-          {podeVerCompras && <KpiCard title="Pedidos de compra" value={pedidosAbertos ?? '—'} subtitle="pedidos em aberto" icon={ShoppingCart} tone={(pedidosAbertos || 0) > 0 ? 'warning' : 'primary'} onClick={onAbrirMenu} />}
+          {podeVerCompras && <KpiCard title="Requisições de compra" value={pedidosAbertos ?? '—'} subtitle="requisições em aberto" icon={ShoppingCart} tone={(pedidosAbertos || 0) > 0 ? 'warning' : 'primary'} onClick={onAbrirMenu} />}
         </div>
       )}
 
