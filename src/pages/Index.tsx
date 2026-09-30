@@ -12,6 +12,7 @@ import { NavegacaoLateralEstoque } from '@/components/gestao-estoque/NavegacaoLa
 import { Configuracoes } from '@/components/gestao-estoque/Configuracoes';
 import { Producao } from '@/components/producao/Producao';
 import { Financeiro } from '@/components/financeiro/Financeiro';
+import { PrimeiroAcessoSenha } from '@/components/auth/PrimeiroAcessoSenha';
 import { Package, LogOut, BarChart3, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +40,8 @@ const Index = () => {
     canViewBIProducao,
     canConfigurarProducao,
     canAccessFinanceiro,
+    userProfile,
+    loading: loadingPermissoes,
   } = usePermissions();
   const podeGerenciarSolicitacoesMaterial = canSolicitacaoMaterial();
   const { pendentesCount: solicitacoesPendentesCount } = useSolicitacoesMaterialPendentes({
@@ -80,6 +83,10 @@ const Index = () => {
       console.error('Erro ao carregar logo:', error);
     }
   };
+
+  if (!loading && session && !loadingPermissoes && userProfile?.deve_trocar_senha) {
+    return <PrimeiroAcessoSenha />;
+  }
 
   return (
     <EstoqueProvider>
