@@ -162,7 +162,7 @@ export const Financeiro = () => {
     }
 
     const valor = form.valor.trim()
-      ? Number(form.valor.replace(/./g, '').replace(',', '.'))
+      ? Number(form.valor.replace(/\./g, '').replace(',', '.'))
       : null;
 
     if (valor != null && (!Number.isFinite(valor) || valor < 0)) {
@@ -308,7 +308,7 @@ export const Financeiro = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Saídas previstas</CardDescription>
-            <CardTitle className="flex items-center gap-2 text-2xl"><BanknoteArrowDown className="h-5 w-5" />{moeda(indicadores.previstoSaida)}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-2xl"><TrendingDown className="h-5 w-5" />{moeda(indicadores.previstoSaida)}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
