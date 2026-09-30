@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, Banknote, CalendarRange, CheckCircle2, ClipboardList, FileClock, Landmark, Plus, RefreshCcw, TrendingDown, WalletCards } from 'lucide-react';
+import { AlertTriangle, Banknote, CalendarRange, CheckCircle2, ChevronDown, ClipboardList, FileClock, Landmark, Plus, RefreshCcw, Settings, TrendingDown, WalletCards } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -81,6 +81,7 @@ export const Financeiro = () => {
   } = usePermissions();
 
   const [loading, setLoading] = useState(true);
+  const [abaFinanceiro, setAbaFinanceiro] = useState('visao');
   const [necessidades, setNecessidades] = useState<Registro[]>([]);
   const [lancamentos, setLancamentos] = useState<Registro[]>([]);
   const [rcs, setRcs] = useState<Registro[]>([]);
@@ -482,12 +483,25 @@ export const Financeiro = () => {
             Fluxo integrado ao procedimento oficial: PN → RC → PC → programação → pagamento → conciliação.
           </p>
         </div>
-        <Button variant="outline" onClick={() => void carregar()} disabled={loading}>
-          <RefreshCcw className="mr-2 h-4 w-4" />Atualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => void carregar()} disabled={loading}>
+            <RefreshCcw className="mr-2 h-4 w-4" />Atualizar
+          </Button>
+          {canManageFinanceiro() && (
+            <Button
+              variant={abaFinanceiro === 'configuracoes' ? 'default' : 'outline'}
+              size="icon"
+              onClick={() => setAbaFinanceiro('configuracoes')}
+              title="Configurações do Financeiro"
+              aria-label="Configurações do Financeiro"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
-      <Tabs defaultValue="visao" className="w-full">
+      <Tabs value={abaFinanceiro} onValueChange={setAbaFinanceiro} className="w-full">
         <TabsList className="flex h-auto flex-wrap justify-start gap-1">
           <TabsTrigger value="visao">Visão Geral</TabsTrigger>
           <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
@@ -498,7 +512,6 @@ export const Financeiro = () => {
           <TabsTrigger value="conciliacao">Conciliação</TabsTrigger>
           <TabsTrigger value="projecoes">Projeções</TabsTrigger>
           {canViewFinanceiroReports() && <TabsTrigger value="relatorios">Relatórios</TabsTrigger>}
-          {canManageFinanceiro() && <TabsTrigger value="configuracoes">Configurações</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="visao" className="mt-5 space-y-5">
@@ -685,64 +698,80 @@ export const Financeiro = () => {
           </TabsContent>
         )}
 
-        <TabsContent value="configuracoes" className="mt-5 space-y-5">
+        <TabsContent value="configuracoes" className="mt-5 space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Configurações do Financeiro</CardTitle>
               <CardDescription>
-                Aqui ficam os cadastros usados nos menus do Financeiro. Categorias e subcategorias foram inicializadas conforme a planilha e podem ser mantidas daqui para frente sem alterar o histórico importado.
+                Parametrizações do módulo. Cada item fica recolhido por padrão; clique no card para expandir e administrar suas opções.
               </CardDescription>
             </CardHeader>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-3">
+          <details className="group rounded-xl border bg-card">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
               <div>
-                <CardTitle>Categorias</CardTitle>
-                <CardDescription>Parametrizadas com os valores existentes na Página54. Novos lançamentos passam a selecionar a categoria por menu.</CardDescription>
+                <p className="font-semibold">Categorias</p>
+                <p className="mt-1 text-sm text-muted-foreground">{categorias.length} categoria(s) cadastrada(s)</p>
               </div>
-              <Dialog open={dialogCategoria} onOpenChange={setDialogCategoria}>
-                <DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova categoria</Button></DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Nova categoria financeira</DialogTitle></DialogHeader>
-                  <div className="space-y-3">
-                    <Field label="Nome"><Input value={categoriaForm.nome} onChange={(e)=>setCategoriaForm({...categoriaForm,nome:e.target.value})} placeholder="Ex.: CUSTO"/></Field>
-                    <Field label="Observação"><Textarea value={categoriaForm.observacao} onChange={(e)=>setCategoriaForm({...categoriaForm,observacao:e.target.value})}/></Field>
-                  </div>
-                  <DialogFooter><Button variant="outline" onClick={()=>setDialogCategoria(false)}>Cancelar</Button><Button onClick={()=>void criarCategoria()}>Criar categoria</Button></DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <Table><TableHeader><TableRow><TableHead>Categoria</TableHead><TableHead>Origem</TableHead><TableHead>Status</TableHead><TableHead>Observação</TableHead><TableHead></TableHead></TableRow></TableHeader>
-              <TableBody>{categorias.map(c=><TableRow key={c.id}><TableCell className="font-medium">{c.nome}</TableCell><TableCell>{c.origem_planilha?'Página54':'Sistema'}</TableCell><TableCell>{c.ativo?'Ativa':'Inativa'}</TableCell><TableCell>{c.observacao||'—'}</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" onClick={()=>void alternarAtivo('financeiro_categorias',c)}>{c.ativo?'Inativar':'Ativar'}</Button></TableCell></TableRow>)}</TableBody></Table>
-            </CardContent>
-          </Card>
+              <ChevronDown className="h-5 w-5 shrink-0 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="border-t px-5 py-4">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Categorias usadas nos lançamentos financeiros. As importadas da planilha permanecem identificadas pela origem.
+                </p>
+                <Dialog open={dialogCategoria} onOpenChange={setDialogCategoria}>
+                  <DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova categoria</Button></DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader><DialogTitle>Nova categoria financeira</DialogTitle></DialogHeader>
+                    <div className="space-y-3">
+                      <Field label="Nome"><Input value={categoriaForm.nome} onChange={(e)=>setCategoriaForm({...categoriaForm,nome:e.target.value})} placeholder="Ex.: CUSTO"/></Field>
+                      <Field label="Observação"><Textarea value={categoriaForm.observacao} onChange={(e)=>setCategoriaForm({...categoriaForm,observacao:e.target.value})}/></Field>
+                    </div>
+                    <DialogFooter><Button variant="outline" onClick={()=>setDialogCategoria(false)}>Cancelar</Button><Button onClick={()=>void criarCategoria()}>Criar categoria</Button></DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+              <div className="overflow-x-auto rounded-md border">
+                <Table><TableHeader><TableRow><TableHead>Categoria</TableHead><TableHead>Origem</TableHead><TableHead>Status</TableHead><TableHead>Observação</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                <TableBody>{categorias.map(c=><TableRow key={c.id}><TableCell className="font-medium">{c.nome}</TableCell><TableCell>{c.origem_planilha?'Planilha histórica':'Sistema'}</TableCell><TableCell>{c.ativo?'Ativa':'Inativa'}</TableCell><TableCell>{c.observacao||'—'}</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" onClick={()=>void alternarAtivo('financeiro_categorias',c)}>{c.ativo?'Inativar':'Ativar'}</Button></TableCell></TableRow>)}</TableBody></Table>
+              </div>
+            </div>
+          </details>
 
-          <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-3">
+          <details className="group rounded-xl border bg-card">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
               <div>
-                <CardTitle>Subcategorias</CardTitle>
-                <CardDescription>Também carregadas a partir da Página54. Quando houver relação conhecida, o menu é filtrado pela categoria escolhida.</CardDescription>
+                <p className="font-semibold">Subcategorias</p>
+                <p className="mt-1 text-sm text-muted-foreground">{subcategorias.length} subcategoria(s) cadastrada(s)</p>
               </div>
-              <Dialog open={dialogSubcategoria} onOpenChange={setDialogSubcategoria}>
-                <DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova subcategoria</Button></DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Nova subcategoria financeira</DialogTitle></DialogHeader>
-                  <div className="space-y-3">
-                    <Field label="Nome"><Input value={subcategoriaForm.nome} onChange={(e)=>setSubcategoriaForm({...subcategoriaForm,nome:e.target.value})} placeholder="Ex.: FIXO"/></Field>
-                    <Field label="Categoria relacionada (opcional)"><Select value={subcategoriaForm.categoriaId || undefined} onValueChange={(v)=>setSubcategoriaForm({...subcategoriaForm,categoriaId:v})}><SelectTrigger><SelectValue placeholder="Sem vínculo obrigatório"/></SelectTrigger><SelectContent>{categorias.filter(c=>c.ativo).map(c=><SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent></Select></Field>
-                    <Field label="Observação"><Textarea value={subcategoriaForm.observacao} onChange={(e)=>setSubcategoriaForm({...subcategoriaForm,observacao:e.target.value})}/></Field>
-                  </div>
-                  <DialogFooter><Button variant="outline" onClick={()=>setDialogSubcategoria(false)}>Cancelar</Button><Button onClick={()=>void criarSubcategoria()}>Criar subcategoria</Button></DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <Table><TableHeader><TableRow><TableHead>Subcategoria</TableHead><TableHead>Origem</TableHead><TableHead>Status</TableHead><TableHead>Revisão</TableHead><TableHead>Relacionada a</TableHead><TableHead></TableHead></TableRow></TableHeader>
-              <TableBody>{subcategorias.map(s=>{const rels=categoriaSubcategorias.filter(r=>r.subcategoria_id===s.id).map(r=>categorias.find(c=>c.id===r.categoria_id)?.nome).filter(Boolean);return <TableRow key={s.id}><TableCell className="font-medium">{s.nome}</TableCell><TableCell>{s.origem_planilha?'Página54':'Sistema'}</TableCell><TableCell>{s.ativo?'Ativa':'Inativa'}</TableCell><TableCell>{s.revisao_pendente?<Badge variant="outline">Revisar</Badge>:'—'}</TableCell><TableCell>{rels.length?rels.join(', '):'Sem vínculo específico'}</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" onClick={()=>void alternarAtivo('financeiro_subcategorias',s)}>{s.ativo?'Inativar':'Ativar'}</Button></TableCell></TableRow>})}</TableBody></Table>
-            </CardContent>
-          </Card>
+              <ChevronDown className="h-5 w-5 shrink-0 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="border-t px-5 py-4">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Subcategorias e seus vínculos com categorias. Esse mesmo padrão de card expansível deve ser usado para novas parametrizações do Financeiro.
+                </p>
+                <Dialog open={dialogSubcategoria} onOpenChange={setDialogSubcategoria}>
+                  <DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova subcategoria</Button></DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader><DialogTitle>Nova subcategoria financeira</DialogTitle></DialogHeader>
+                    <div className="space-y-3">
+                      <Field label="Nome"><Input value={subcategoriaForm.nome} onChange={(e)=>setSubcategoriaForm({...subcategoriaForm,nome:e.target.value})} placeholder="Ex.: FIXO"/></Field>
+                      <Field label="Categoria relacionada (opcional)"><Select value={subcategoriaForm.categoriaId || undefined} onValueChange={(v)=>setSubcategoriaForm({...subcategoriaForm,categoriaId:v})}><SelectTrigger><SelectValue placeholder="Sem vínculo obrigatório"/></SelectTrigger><SelectContent>{categorias.filter(c=>c.ativo).map(c=><SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent></Select></Field>
+                      <Field label="Observação"><Textarea value={subcategoriaForm.observacao} onChange={(e)=>setSubcategoriaForm({...subcategoriaForm,observacao:e.target.value})}/></Field>
+                    </div>
+                    <DialogFooter><Button variant="outline" onClick={()=>setDialogSubcategoria(false)}>Cancelar</Button><Button onClick={()=>void criarSubcategoria()}>Criar subcategoria</Button></DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+              <div className="overflow-x-auto rounded-md border">
+                <Table><TableHeader><TableRow><TableHead>Subcategoria</TableHead><TableHead>Origem</TableHead><TableHead>Status</TableHead><TableHead>Revisão</TableHead><TableHead>Relacionada a</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                <TableBody>{subcategorias.map(s=>{const rels=categoriaSubcategorias.filter(r=>r.subcategoria_id===s.id).map(r=>categorias.find(c=>c.id===r.categoria_id)?.nome).filter(Boolean);return <TableRow key={s.id}><TableCell className="font-medium">{s.nome}</TableCell><TableCell>{s.origem_planilha?'Planilha histórica':'Sistema'}</TableCell><TableCell>{s.ativo?'Ativa':'Inativa'}</TableCell><TableCell>{s.revisao_pendente?<Badge variant="outline">Revisar</Badge>:'—'}</TableCell><TableCell>{rels.length?rels.join(', '):'Sem vínculo específico'}</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" onClick={()=>void alternarAtivo('financeiro_subcategorias',s)}>{s.ativo?'Inativar':'Ativar'}</Button></TableCell></TableRow>})}</TableBody></Table>
+              </div>
+            </div>
+          </details>
         </TabsContent>
       </Tabs>
 
