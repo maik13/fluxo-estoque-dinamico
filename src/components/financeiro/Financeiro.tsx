@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertTriangle, BanknoteArrowDown, CircleDollarSign, FileClock, Plus, RefreshCcw } from 'lucide-react';
+import { AlertTriangle, TrendingDown, CircleDollarSign, FileClock, Plus, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
 type Necessidade = {
