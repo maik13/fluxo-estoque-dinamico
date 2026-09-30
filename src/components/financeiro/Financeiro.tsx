@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AlertTriangle, Banknote, CalendarRange, CheckCircle2, ClipboardList, FileClock, Landmark, Plus, RefreshCcw, TrendingDown, WalletCards } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -62,7 +62,7 @@ const BadgeStatus = ({ status }: { status?: string | null }) => (
   </Badge>
 );
 
-const Field = ({ label, children, className = '' }: { label: string; children: React.ReactNode; className?: string }) => (
+const Field = ({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) => (
   <div className={className}>
     <Label className="mb-1.5 block text-xs text-muted-foreground">{label}</Label>
     {children}
