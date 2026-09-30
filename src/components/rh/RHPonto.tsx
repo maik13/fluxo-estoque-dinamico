@@ -74,7 +74,7 @@ function ControlePonto(){
   },[mes]);
   useEffect(()=>{void carregar()},[carregar]);
   const aprovar=async(id:string,novo:string)=>{
-    const {error}=await sb.from('rh_registros_ponto').update({status:novo,aprovado_em:novo==='aprovado'?new Date().toISOString():null}).eq('id',id);
+    const {error}=await sb.rpc('rh_atualizar_status_ponto',{p_registro_id:id,p_status:novo});
     if(error) toast.error(error.message); else {toast.success(novo==='aprovado'?'Ponto aprovado':'Ponto rejeitado');void carregar()}
   };
   return <div className="space-y-4">
