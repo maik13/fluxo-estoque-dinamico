@@ -195,7 +195,9 @@ export const ControlesJornadaOp = ({
               Execução atual
             </p>
             <p className="mt-0.5 text-sm font-medium">
-              {jornada.pendente_dia_anterior
+              {jornada.interrompida_em
+                ? 'Interrompido · equipe liberada'
+                : jornada.pendente_dia_anterior
                 ? 'Registro pendente de fechamento'
                 : 'Apontamento em andamento'}
             </p>
@@ -217,6 +219,12 @@ export const ControlesJornadaOp = ({
           )}
         </div>
 
+        {jornada.interrompida_em && (
+          <div className="mt-3 rounded-md border bg-muted/20 px-2.5 py-2 text-xs">
+            Interrompido em {formatarInicio(jornada.interrompida_em)}. A equipe está liberada.
+            Feche o trabalho realizado até a pausa antes de iniciar outro apontamento nesta OP.
+          </div>
+        )}
         {producaoCompleta && (
           <div className="mt-3 rounded-md border border-amber-500/35 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-700 dark:text-amber-300">
             {opDePintura ? (

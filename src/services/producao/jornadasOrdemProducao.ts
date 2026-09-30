@@ -10,6 +10,7 @@ export interface JornadaOpAberta {
   id: string;
   ordem_producao_id: string;
   iniciado_em: string;
+  interrompida_em?: string | null;
   iniciado_por_id: string | null;
   iniciado_por_nome_snapshot: string | null;
   pendente_dia_anterior: boolean;
@@ -30,6 +31,7 @@ export interface ContextoFechamentoJornadaOp {
   jornadaId: string;
   ordemProducaoId: string;
   iniciadoEm: string;
+  interrompidaEm?: string | null;
   concluirOp: boolean;
   tarefaId: string | null;
   membrosIds: string[];
@@ -100,6 +102,7 @@ const normalizarJornada = (item: any): JornadaOpAberta => ({
   id: String(item.id),
   ordem_producao_id: String(item.ordem_producao_id),
   iniciado_em: String(item.iniciado_em),
+  interrompida_em: item.interrompida_em ?? null,
   iniciado_por_id: item.iniciado_por_id ?? null,
   iniciado_por_nome_snapshot: item.iniciado_por_nome_snapshot ?? null,
   pendente_dia_anterior: Boolean(item.pendente_dia_anterior),
@@ -126,7 +129,7 @@ const normalizarJornada = (item: any): JornadaOpAberta => ({
 
 export const listarJornadasOpAbertas = async (): Promise<JornadaOpAberta[]> => {
   const { data, error } = await (supabase.rpc as any)(
-    'listar_jornadas_op_abertas_v1',
+    'listar_jornadas_op_abertas_v2',
   );
 
   if (error) {
@@ -152,6 +155,7 @@ export const contextoFechamentoJornada = (
   jornadaId: jornada.id,
   ordemProducaoId: jornada.ordem_producao_id,
   iniciadoEm: jornada.iniciado_em,
+  interrompidaEm: jornada.interrompida_em ?? null,
   concluirOp,
   tarefaId: jornada.tarefa_id,
   membrosIds: jornada.membros_ids,

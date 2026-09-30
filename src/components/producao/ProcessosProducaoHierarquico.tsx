@@ -403,6 +403,7 @@ export const ProcessosProducaoHierarquico = ({
   const ocupacoesMembros = useMemo(() => {
     const resultado: Record<string, OcupacaoMembroProducao> = {};
     jornadasAbertas.forEach((jornada) => {
+      if (jornada.interrompida_em) return;
       const op = ordens.find((ordem) => ordem.id === jornada.ordem_producao_id);
       if (!op) return;
       jornada.membros_ids.forEach((membroId) => {

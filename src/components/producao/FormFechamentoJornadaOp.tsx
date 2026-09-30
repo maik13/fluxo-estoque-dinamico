@@ -91,6 +91,7 @@ export const FormFechamentoJornadaOp = ({
   const [inicioOriginal, setInicioOriginal] = useState('');
   const [motivoAjusteInicio, setMotivoAjusteInicio] = useState('');
   const [termino, setTermino] = useState('');
+  const [interrompidaEm, setInterrompidaEm] = useState<string | null>(jornadaContexto.interrompidaEm ?? null);
   const [quantidade, setQuantidade] = useState('');
   const [minutosImprodutivos, setMinutosImprodutivos] = useState('0');
   const [motivoImprodutivo, setMotivoImprodutivo] = useState('');
@@ -142,6 +143,7 @@ export const FormFechamentoJornadaOp = ({
     let ativo = true;
     const aplicar = async () => {
       let iniciadoEm = jornadaContexto.iniciadoEm;
+      let interrupcao = jornadaContexto.interrompidaEm ?? null;
       let tarefa = jornadaContexto.tarefaId;
       let equipe = jornadaContexto.membrosIds;
       let horarios = jornadaContexto.horariosMembros;
@@ -157,6 +159,7 @@ export const FormFechamentoJornadaOp = ({
         const atual = await obterJornadaOpAberta(jornadaContexto.jornadaId);
         if (atual) {
           iniciadoEm = atual.iniciado_em;
+          interrupcao = atual.interrompida_em ?? null;
           tarefa = atual.tarefa_id ?? tarefa;
           equipe = atual.membros_ids;
           horarios = atual.horarios_membros_rascunho;
@@ -180,6 +183,7 @@ export const FormFechamentoJornadaOp = ({
         ? MOTIVOS_REGULARIZACAO.includes(motivoRegularizacaoSalvo)
         : false;
 
+      setInterrompidaEm(interrupcao);
       setData(dataInicio);
       setDataOriginal(dataInicio);
       setInicio(horaInicio);
@@ -195,7 +199,7 @@ export const FormFechamentoJornadaOp = ({
             termino: normalizarHora(item.termino),
           }]),
       ));
-      setTermino(normalizarHora(terminoSalvo) || (dataInicio < hoje() ? '' : horaAtual()));
+      setTermino(normalizarHora(terminoSalvo) || (interrupcao ? horaLocal(new Date(interrupcao)) : (dataInicio < hoje() ? '' : horaAtual())));
       setQuantidade(quantidadeSalva == null ? '' : String(quantidadeSalva).replace('.', ','));
       setMinutosImprodutivos(improdutivosSalvos == null ? '0' : String(improdutivosSalvos));
       setMotivoImprodutivo(motivoImprodutivoSalvo ?? '');
@@ -560,6 +564,16 @@ export const FormFechamentoJornadaOp = ({
         </p>
       </div>
 
+      {interrompidaEm && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            A equipe foi liberada na pausa em {new Date(interrompidaEm).toLocaleString('pt-BR')}.
+            Registre somente o trabalho realizado até esse horário.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Alert className={fechamentoRetroativo ? 'border-amber-500/40 bg-amber-500/5' : ''}>
         {fechamentoRetroativo ? <AlertTriangle className="h-4 w-4 text-amber-500" /> : <Info className="h-4 w-4" />}
         <AlertDescription>
@@ -608,8 +622,8 @@ export const FormFechamentoJornadaOp = ({
         <div className="space-y-2">
           <Label>Término real *</Label>
           <div className="flex gap-2">
-            <Input type="time" value={termino} onChange={(e) => setTermino(e.target.value)} disabled={!podeApontar} />
-            {!fechamentoRetroativo && (
+            <Input type="time" max={interrompidaEm ? horaLocal(new Date(interrompidaEm)) : undefined} value={termino} onChange={(e) => setTermino(e.target.value)} disabled={!podeApontar} />
+            {!fechamentoRetroativo && !interrompidaEm && (
               <Button type="button" variant="outline" onClick={() => setTermino(horaAtual())}>
                 <Clock className="mr-2 h-4 w-4" /> Agora
               </Button>
@@ -795,7 +809,7 @@ export const FormFechamentoJornadaOp = ({
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Término individual</Label>
-                        <Input type="time" value={ajuste?.termino ?? termino} onChange={(e) => atualizarHorarioMembro(id, 'termino', e.target.value)} />
+                        <Input type="time" max={interrompidaEm ? horaLocal(new Date(interrompidaEm)) : undefined} value={ajuste?.termino ?? termino} onChange={(e) => atualizarHorarioMembro(id, 'termino', e.target.value)} />
                       </div>
                       <Button type="button" variant="ghost" size="sm" onClick={() => usarHorarioGeral(id)} disabled={!ajuste}>Usar horário geral</Button>
                     </div>
