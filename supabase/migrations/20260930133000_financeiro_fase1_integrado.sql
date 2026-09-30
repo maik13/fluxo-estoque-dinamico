@@ -485,7 +485,10 @@ DECLARE v_id UUID;
 BEGIN
   v_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.pedido_id ELSE NEW.pedido_id END;
   PERFORM public.financeiro_sincronizar_rc(v_id);
-  RETURN COALESCE(NEW, OLD);
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
