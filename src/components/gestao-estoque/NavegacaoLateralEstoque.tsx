@@ -27,6 +27,7 @@ type NavegacaoLateralEstoqueProps = {
   onNavigate: (tab: string) => void;
   showEstoque: boolean;
   showMovimentacoes: boolean;
+  showSolicitantes: boolean;
   showGerencial: boolean;
   showProjetos: boolean;
   showProducao: boolean;
@@ -54,6 +55,7 @@ export const NavegacaoLateralEstoque = ({
   onNavigate,
   showEstoque,
   showMovimentacoes,
+  showSolicitantes,
   showGerencial,
   showProjetos,
   showProducao,
@@ -86,6 +88,12 @@ export const NavegacaoLateralEstoque = ({
           label: 'Movimentações',
           icon: History,
           visible: showMovimentacoes,
+        },
+        {
+          value: 'solicitantes',
+          label: 'Solicitantes',
+          icon: ClipboardList,
+          visible: showSolicitantes,
         },
       ],
     },
