@@ -12,6 +12,7 @@ import { NavegacaoLateralEstoque } from '@/components/gestao-estoque/NavegacaoLa
 import { Configuracoes } from '@/components/gestao-estoque/Configuracoes';
 import { Producao } from '@/components/producao/Producao';
 import { Financeiro } from '@/components/financeiro/Financeiro';
+import { RHPonto } from '@/components/rh/RHPonto';
 import { PrimeiroAcessoSenha } from '@/components/auth/PrimeiroAcessoSenha';
 import { Package, LogOut, BarChart3, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -40,6 +41,8 @@ const Index = () => {
     canViewBIProducao,
     canConfigurarProducao,
     canAccessFinanceiro,
+    hasPermission,
+    isAdmin,
     userProfile,
     loading: loadingPermissoes,
   } = usePermissions();
@@ -151,6 +154,7 @@ const Index = () => {
           const showProjetos = canAccessProjects();
           const showProducao = canApontarProducao() || canConferirProducao() || canConfigurarProducao();
           const showFinanceiro = canAccessFinanceiro();
+          const showRHPonto = isAdmin() || hasPermission('rh.acessar') || hasPermission('rh.colaboradores.visualizar') || hasPermission('ponto.registrar') || hasPermission('ponto.visualizar') || hasPermission('ponto.gerenciar') || hasPermission('ponto.aprovar');
           const somenteBIProducao = podeVerBIProducao && !podeVerGerencialAlmoxarifado;
 
           return (
@@ -165,6 +169,7 @@ const Index = () => {
                 showProjetos={showProjetos}
                 showProducao={showProducao}
                 showFinanceiro={showFinanceiro}
+                showRHPonto={showRHPonto}
                 showConfiguracoes={showConfiguracoes}
                 solicitacoesPendentesCount={solicitacoesPendentesCount}
                 somenteBIProducao={somenteBIProducao}
@@ -210,6 +215,7 @@ const Index = () => {
                     {showProjetos && <TabsContent value="projetos" className="mt-0 space-y-6"><VisaoProjetos /></TabsContent>}
                     {showProducao && <TabsContent value="producao" className="mt-0 space-y-6"><Producao /></TabsContent>}
                     {showFinanceiro && <TabsContent value="financeiro" className="mt-0 space-y-6"><Financeiro /></TabsContent>}
+                    {showRHPonto && <TabsContent value="rh-ponto" className="mt-0 space-y-6"><RHPonto /></TabsContent>}
 
                     {showEstoque && (
                       <TabsContent value="estoque" className="mt-0 space-y-6">
