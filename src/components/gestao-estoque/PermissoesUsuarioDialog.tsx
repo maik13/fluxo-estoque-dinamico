@@ -215,7 +215,7 @@ export const PermissoesUsuarioDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="grid h-[92vh] w-[min(1100px,96vw)] max-w-none grid-rows-[auto_auto_minmax(0,1fr)_auto] overflow-hidden p-0">
+      <DialogContent className="flex h-[90dvh] max-h-[90dvh] w-[min(1100px,96vw)] max-w-none flex-col overflow-hidden p-0">
         <DialogHeader className="border-b px-5 py-4 sm:px-6">
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" />
@@ -233,7 +233,7 @@ export const PermissoesUsuarioDialog = ({
           </div>
         )}
 
-        <div className="grid min-h-0 gap-4 overflow-hidden px-4 py-4 md:grid-cols-[210px_minmax(0,1fr)] sm:px-6">
+        <div className="grid min-h-0 flex-1 gap-4 overflow-hidden px-4 py-4 md:grid-cols-[210px_minmax(0,1fr)] sm:px-6">
           <aside className="hidden self-start rounded-lg border bg-muted/20 p-4 md:block">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Resumo
@@ -411,7 +411,7 @@ export const PermissoesUsuarioDialog = ({
           </section>
         </div>
 
-        <DialogFooter className="shrink-0 border-t bg-background px-5 py-3 sm:px-6">
+        <DialogFooter className="sticky bottom-0 z-20 shrink-0 border-t bg-background px-5 py-3 sm:px-6">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
