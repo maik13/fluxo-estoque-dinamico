@@ -34,6 +34,7 @@ const statusLabel: Record<string, string> = {
   em_definicao: 'Em definição',
   em_cotacao: 'Em cotação',
   aguardando_aprovacao: 'Aguardando aprovação',
+  aguardando_vencimento: 'Aguardando vencimento',
   aprovado: 'Aprovado',
   aprovada: 'Aprovada',
   rejeitada: 'Rejeitada',
@@ -89,7 +90,8 @@ export const Financeiro = () => {
   const [categorias, setCategorias] = useState<Registro[]>([]);
   const [subcategorias, setSubcategorias] = useState<Registro[]>([]);
   const [categoriaSubcategorias, setCategoriaSubcategorias] = useState<Registro[]>([]);
-  const [pagina54, setPagina54] = useState<Registro[]>([]);
+  const [ultimoSaldoDia, setUltimoSaldoDia] = useState<Registro | null>(null);
+  const [ultimoSaldoRealizado, setUltimoSaldoRealizado] = useState<Registro | null>(null);
 
   const [dialogPn, setDialogPn] = useState(false);
   const [dialogRc, setDialogRc] = useState(false);
@@ -145,7 +147,8 @@ export const Financeiro = () => {
         (supabase as any).from('financeiro_categorias').select('*').order('ordem', { ascending: true }).order('nome', { ascending: true }),
         (supabase as any).from('financeiro_subcategorias').select('*').order('ordem', { ascending: true }).order('nome', { ascending: true }),
         (supabase as any).from('financeiro_categoria_subcategorias').select('*'),
-        (supabase as any).from('financeiro_importacao_pagina54').select('*').order('linha', { ascending: true }).limit(1000),
+        (supabase as any).from('financeiro_importacao_pagina54').select('linha,data_posicao_original,saldo_dia_original').not('data_posicao_original','is',null).order('linha',{ascending:false}).limit(1).maybeSingle(),
+        (supabase as any).from('financeiro_importacao_pagina54').select('linha,data_realizada_original,saldo_original').not('data_realizada_original','is',null).order('linha',{ascending:false}).limit(1).maybeSingle(),
       ]);
 
       consultas.forEach((q: any) => { if (q.error) throw q.error; });
@@ -160,7 +163,8 @@ export const Financeiro = () => {
       setCategorias(consultas[8].data ?? []);
       setSubcategorias(consultas[9].data ?? []);
       setCategoriaSubcategorias(consultas[10].data ?? []);
-      setPagina54(consultas[11].data ?? []);
+      setUltimoSaldoDia(consultas[11].data ?? null);
+      setUltimoSaldoRealizado(consultas[12].data ?? null);
     } catch (error) {
       console.error('Erro ao carregar Financeiro:', error);
       toast.error('Não foi possível carregar todos os dados do Financeiro.');
@@ -172,6 +176,12 @@ export const Financeiro = () => {
   useEffect(() => { void carregar(); }, []);
 
   const contaNome = (id?: string | null) => contas.find((c) => c.id === id)?.nome || '—';
+  const moedaOriginalParaNumero = (valor?: string | null) => {
+    if (!valor) return 0;
+    const texto = String(valor).replace(/[^0-9,.-]/g, '').replace(/\./g, '').replace(',', '.');
+    const numero = Number(texto);
+    return Number.isFinite(numero) ? numero : 0;
+  };
 
   const subcategoriasPermitidas = (categoriaNome?: string | null) => {
     const ativas = subcategorias.filter((s) => s.ativo);
@@ -187,33 +197,18 @@ export const Financeiro = () => {
     return filtradas.length > 0 ? filtradas : ativas;
   };
 
-  const classeLinhaPagina54 = (linha: Registro) => {
-    switch (linha.sinalizacao_cor) {
-      case 'amarelo': return 'bg-yellow-300/25';
-      case 'amarelo_claro': return 'bg-amber-100/20';
-      case 'laranja': return 'bg-orange-300/25';
-      case 'vermelho_rosa': return 'bg-red-300/20';
-      default: return '';
-    }
-  };
-
   const indicadores = useMemo(() => {
     const abertas = necessidades.filter((n) => n.status !== 'cancelado');
     const semValor = abertas.filter((n) => n.valor_estimado == null || n.estimativa_incompleta);
-    const aguardando = abertas.filter((n) => n.status === 'aguardando_aprovacao').length
-      + rcs.filter((r) => r.status_financeiro_rc === 'aguardando_aprovacao').length;
+    const aguardandoVencimento = lancamentos.filter((l) => l.status === 'aguardando_vencimento').length;
     const saidasPrevistas = lancamentos
       .filter((l) => l.tipo === 'saida' && !['cancelado', 'pago', 'conciliado'].includes(l.status))
       .reduce((soma, l) => soma + Number(l.valor_previsto || 0), 0);
-    const ultimoDia = posicoes[0]?.data;
-    const saldoBancario = posicoes
-      .filter((p) => p.data === ultimoDia)
-      .reduce((soma, p) => soma + Number(p.saldo_final_bancario || 0), 0);
-    const saldoGerencial = posicoes
-      .filter((p) => p.data === ultimoDia)
-      .reduce((soma, p) => soma + Number(p.saldo_financeiro_gerencial || 0), 0);
-    return { abertas: abertas.length, semValor: semValor.length, aguardando, saidasPrevistas, saldoBancario, saldoGerencial, ultimoDia };
-  }, [necessidades, lancamentos, rcs, posicoes]);
+    const saldoBancario = moedaOriginalParaNumero(ultimoSaldoDia?.saldo_dia_original);
+    const saldoGerencial = moedaOriginalParaNumero(ultimoSaldoRealizado?.saldo_original);
+    const ultimoDia = ultimoSaldoDia?.data_posicao_original || null;
+    return { abertas: abertas.length, semValor: semValor.length, aguardandoVencimento, saidasPrevistas, saldoBancario, saldoGerencial, ultimoDia };
+  }, [necessidades, lancamentos, ultimoSaldoDia, ultimoSaldoRealizado]);
 
   const projecoes = useMemo(() => {
     const hoje = new Date();
@@ -494,27 +489,26 @@ export const Financeiro = () => {
         <TabsList className="flex h-auto flex-wrap justify-start gap-1">
           <TabsTrigger value="visao">Visão Geral</TabsTrigger>
           <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
-          <TabsTrigger value="pagina54">Página54</TabsTrigger>
           <TabsTrigger value="pn">PN</TabsTrigger>
           <TabsTrigger value="rc">RC</TabsTrigger>
           <TabsTrigger value="pc">PC</TabsTrigger>
           <TabsTrigger value="programacao">Programação</TabsTrigger>
           <TabsTrigger value="conciliacao">Conciliação</TabsTrigger>
           <TabsTrigger value="projecoes">Projeções</TabsTrigger>
-          {canManageFinanceiro() && <TabsTrigger value="cadastros">Cadastros</TabsTrigger>}
+          {canManageFinanceiro() && <TabsTrigger value="configuracoes">Configurações</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="visao" className="mt-5 space-y-5">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Card><CardHeader className="pb-2"><CardDescription>Saldo bancário</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><Landmark className="h-5 w-5"/>{moeda(indicadores.saldoBancario)}</CardTitle><CardDescription>{indicadores.ultimoDia ? `posição de ${dataPt(indicadores.ultimoDia)}` : 'posição ainda não informada'}</CardDescription></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription>Saldo bancário</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><Landmark className="h-5 w-5"/>{moeda(indicadores.saldoBancario)}</CardTitle><CardDescription>{indicadores.ultimoDia ? `posição de ${indicadores.ultimoDia}` : 'posição ainda não informada'}</CardDescription></CardHeader></Card>
             <Card><CardHeader className="pb-2"><CardDescription>Saldo financeiro gerencial</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><WalletCards className="h-5 w-5"/>{moeda(indicadores.saldoGerencial)}</CardTitle></CardHeader></Card>
             <Card><CardHeader className="pb-2"><CardDescription>Saídas previstas</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><TrendingDown className="h-5 w-5"/>{moeda(indicadores.saidasPrevistas)}</CardTitle></CardHeader></Card>
-            <Card><CardHeader className="pb-2"><CardDescription>Aguardando aprovação</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><FileClock className="h-5 w-5"/>{indicadores.aguardando}</CardTitle></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription>Aguardando vencimento</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><FileClock className="h-5 w-5"/>{indicadores.aguardandoVencimento}</CardTitle></CardHeader></Card>
           </div>
 
           <Card>
             <CardHeader className="flex flex-row items-start justify-between gap-3">
-              <div><CardTitle>Posição diária de caixa</CardTitle><CardDescription>Equivale à posição bancária que na planilha ficava distribuída nas colunas de Inter, Sicoob, Sicredi, BB e investimentos.</CardDescription></div>
+              <div><CardTitle>Posição diária de caixa</CardTitle><CardDescription>Consolidado a partir dos dados do Fluxo de Caixa e das posições bancárias importadas da planilha.</CardDescription></div>
               {canConciliarFinanceiro() && <Dialog open={dialogPosicao} onOpenChange={setDialogPosicao}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Registrar posição</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Fechamento diário / posição de caixa</DialogTitle></DialogHeader>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Data"><Input type="date" value={posicaoForm.data} onChange={(e)=>setPosicaoForm({...posicaoForm,data:e.target.value})}/></Field>
@@ -539,92 +533,6 @@ export const Financeiro = () => {
           </Card>
         </TabsContent>
 
-
-        <TabsContent value="pagina54" className="mt-5">
-          <Card>
-            <CardHeader>
-              <CardTitle>Página54 — base migrada para validação</CardTitle>
-              <CardDescription>
-                Espelho das linhas 281 a 718 da planilha enviada. Os textos, valores, saldos e sinalizações por cor foram preservados sem normalização automática.
-              </CardDescription>
-              <div className="flex flex-wrap gap-2 pt-2 text-xs text-muted-foreground">
-                <Badge variant="outline">{pagina54.length} linhas importadas</Badge>
-                <Badge variant="outline">{pagina54.filter(r=>r.revisao_pendente).length} linhas sinalizadas para revisão</Badge>
-                <span>Amarelo: {pagina54.filter(r=>r.sinalizacao_cor==='amarelo').length}</span>
-                <span>Amarelo claro: {pagina54.filter(r=>r.sinalizacao_cor==='amarelo_claro').length}</span>
-                <span>Laranja: {pagina54.filter(r=>r.sinalizacao_cor==='laranja').length}</span>
-                <span>Vermelho/rosa: {pagina54.filter(r=>r.sinalizacao_cor==='vermelho_rosa').length}</span>
-              </div>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <Table className="min-w-[2400px] text-xs">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Linha</TableHead>
-                    <TableHead>V</TableHead>
-                    <TableHead>Situação</TableHead>
-                    <TableHead>Data Prevista</TableHead>
-                    <TableHead>Data Realizada</TableHead>
-                    <TableHead className="min-w-[300px]">Descrição</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead>Subcategoria</TableHead>
-                    <TableHead className="min-w-[260px]">Anotação</TableHead>
-                    <TableHead>Débito</TableHead>
-                    <TableHead>Crédito</TableHead>
-                    <TableHead>Saldo</TableHead>
-                    <TableHead>Resultado</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Saldo do dia</TableHead>
-                    <TableHead>Inter</TableHead>
-                    <TableHead>Inter Invest.</TableHead>
-                    <TableHead>Sicoob</TableHead>
-                    <TableHead>Sicoob Invest.</TableHead>
-                    <TableHead>Sicredi</TableHead>
-                    <TableHead>BB</TableHead>
-                    <TableHead>BB Rende Fácil</TableHead>
-                    <TableHead>Revisão</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pagina54.map((r)=>(
-                    <TableRow key={r.id} className={classeLinhaPagina54(r)}>
-                      <TableCell className="font-medium">{r.linha}</TableCell>
-                      <TableCell>{r.valor_a||''}</TableCell>
-                      <TableCell>{r.situacao||''}</TableCell>
-                      <TableCell>{r.data_prevista_original||''}</TableCell>
-                      <TableCell>{r.data_realizada_original||''}</TableCell>
-                      <TableCell>{r.descricao||''}</TableCell>
-                      <TableCell>{r.categoria_original||''}</TableCell>
-                      <TableCell>{r.subcategoria_original||''}</TableCell>
-                      <TableCell>{r.anotacao||''}</TableCell>
-                      <TableCell>{r.debito_original||''}</TableCell>
-                      <TableCell>{r.credito_original||''}</TableCell>
-                      <TableCell>{r.saldo_original||''}</TableCell>
-                      <TableCell>{r.resultado_original||''}</TableCell>
-                      <TableCell>{r.data_posicao_original||''}</TableCell>
-                      <TableCell>{r.saldo_dia_original||''}</TableCell>
-                      <TableCell>{r.inter_original||''}</TableCell>
-                      <TableCell>{r.inter_invest_original||''}</TableCell>
-                      <TableCell>{r.sicoob_original||''}</TableCell>
-                      <TableCell>{r.sicoob_invest_original||''}</TableCell>
-                      <TableCell>{r.sicredi_original||''}</TableCell>
-                      <TableCell>{r.bb_original||''}</TableCell>
-                      <TableCell>{r.bb_invest_original||''}</TableCell>
-                      <TableCell>
-                        {r.revisao_pendente ? (
-                          <div className="space-y-1">
-                            <Badge variant="outline">Revisar</Badge>
-                            {r.sinalizacao_cor && <div className="text-[11px]">{r.sinalizacao_cor.replace('_',' ')}</div>}
-                          </div>
-                        ) : ''}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="fluxo" className="mt-5">
           <Card><CardHeader><CardTitle>Fluxo de Caixa</CardTitle><CardDescription>Visão sistêmica equivalente ao núcleo da Página54: previsto e realizado separados, com origem rastreável.</CardDescription></CardHeader>
@@ -768,7 +676,16 @@ export const Financeiro = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="cadastros" className="mt-5 space-y-5">
+        <TabsContent value="configuracoes" className="mt-5 space-y-5">
+          <Card>
+            <CardHeader>
+              <CardTitle>Configurações do Financeiro</CardTitle>
+              <CardDescription>
+                Aqui ficam os cadastros usados nos menus do Financeiro. Categorias e subcategorias foram inicializadas conforme a planilha e podem ser mantidas daqui para frente sem alterar o histórico importado.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
           <Card>
             <CardHeader className="flex flex-row items-start justify-between gap-3">
               <div>
