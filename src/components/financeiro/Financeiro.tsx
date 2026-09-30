@@ -80,8 +80,37 @@ export const Financeiro = () => {
     canViewFinanceiroReports,
   } = usePermissions();
 
+  const podeGerenciar = canManageFinanceiro();
+  const podeAprovar = canApproveFinanceiro();
+  const podeProgramar = canProgramFinanceiro();
+  const podeConciliar = canConciliarFinanceiro();
+  const podeRelatorios = canViewFinanceiroReports();
+
   const [loading, setLoading] = useState(true);
-  const [abaFinanceiro, setAbaFinanceiro] = useState('visao');
+  const abaInicialFinanceiro =
+    (podeGerenciar || podeAprovar) ? 'visao' :
+    podeProgramar ? 'programacao' :
+    podeConciliar ? 'conciliacao' :
+    podeRelatorios ? 'relatorios' :
+    'visao';
+  const [abaFinanceiro, setAbaFinanceiro] = useState(abaInicialFinanceiro);
+
+  const abasPermitidas = useMemo(() => {
+    const abas: string[] = [];
+    if (podeGerenciar || podeAprovar) {
+      abas.push('visao', 'fluxo');
+    }
+    if (podeGerenciar) {
+      abas.push('pn', 'rc', 'pc', 'projecoes');
+    } else if (podeAprovar) {
+      abas.push('rc', 'pc');
+    }
+    if (podeProgramar) abas.push('programacao');
+    if (podeConciliar) abas.push('conciliacao');
+    if (podeRelatorios) abas.push('relatorios');
+    if (podeGerenciar) abas.push('configuracoes');
+    return abas;
+  }, [podeGerenciar, podeAprovar, podeProgramar, podeConciliar, podeRelatorios]);
   const [necessidades, setNecessidades] = useState<Registro[]>([]);
   const [lancamentos, setLancamentos] = useState<Registro[]>([]);
   const [rcs, setRcs] = useState<Registro[]>([]);
@@ -177,6 +206,13 @@ export const Financeiro = () => {
   };
 
   useEffect(() => { void carregar(); }, []);
+
+  useEffect(() => {
+    if (abasPermitidas.length === 0) return;
+    if (!abasPermitidas.includes(abaFinanceiro)) {
+      setAbaFinanceiro(abasPermitidas[0]);
+    }
+  }, [abasPermitidas, abaFinanceiro]);
 
   const contaNome = (id?: string | null) => contas.find((c) => c.id === id)?.nome || '—';
   const moedaOriginalParaNumero = (valor?: string | null) => {
@@ -487,7 +523,7 @@ export const Financeiro = () => {
           <Button variant="outline" onClick={() => void carregar()} disabled={loading}>
             <RefreshCcw className="mr-2 h-4 w-4" />Atualizar
           </Button>
-          {canManageFinanceiro() && (
+          {podeGerenciar && (
             <Button
               variant={abaFinanceiro === 'configuracoes' ? 'default' : 'outline'}
               size="icon"
@@ -503,18 +539,18 @@ export const Financeiro = () => {
 
       <Tabs value={abaFinanceiro} onValueChange={setAbaFinanceiro} className="w-full">
         <TabsList className="flex h-auto flex-wrap justify-start gap-1">
-          <TabsTrigger value="visao">Visão Geral</TabsTrigger>
-          <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
-          <TabsTrigger value="pn">PN</TabsTrigger>
-          <TabsTrigger value="rc">RC</TabsTrigger>
-          <TabsTrigger value="pc">PC</TabsTrigger>
-          <TabsTrigger value="programacao">Programação</TabsTrigger>
-          <TabsTrigger value="conciliacao">Conciliação</TabsTrigger>
-          <TabsTrigger value="projecoes">Projeções</TabsTrigger>
-          {canViewFinanceiroReports() && <TabsTrigger value="relatorios">Relatórios</TabsTrigger>}
+          {(podeGerenciar || podeAprovar) && <TabsTrigger value="visao">Visão Geral</TabsTrigger>}
+          {(podeGerenciar || podeAprovar) && <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>}
+          {podeGerenciar && <TabsTrigger value="pn">PN</TabsTrigger>}
+          {(podeGerenciar || podeAprovar) && <TabsTrigger value="rc">RC</TabsTrigger>}
+          {(podeGerenciar || podeAprovar) && <TabsTrigger value="pc">PC</TabsTrigger>}
+          {podeProgramar && <TabsTrigger value="programacao">Programação</TabsTrigger>}
+          {podeConciliar && <TabsTrigger value="conciliacao">Conciliação</TabsTrigger>}
+          {podeGerenciar && <TabsTrigger value="projecoes">Projeções</TabsTrigger>}
+          {podeRelatorios && <TabsTrigger value="relatorios">Relatórios</TabsTrigger>}
         </TabsList>
 
-        <TabsContent value="visao" className="mt-5 space-y-5">
+        {(podeGerenciar || podeAprovar) && <TabsContent value="visao" className="mt-5 space-y-5">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <Card><CardHeader className="pb-2"><CardDescription>Saldo bancário</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><Landmark className="h-5 w-5"/>{moeda(indicadores.saldoBancario)}</CardTitle><CardDescription>{indicadores.ultimoDia ? `posição de ${indicadores.ultimoDia}` : 'posição ainda não informada'}</CardDescription></CardHeader></Card>
             <Card><CardHeader className="pb-2"><CardDescription>Saldo financeiro gerencial</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><WalletCards className="h-5 w-5"/>{moeda(indicadores.saldoGerencial)}</CardTitle></CardHeader></Card>
@@ -525,7 +561,7 @@ export const Financeiro = () => {
           <Card>
             <CardHeader className="flex flex-row items-start justify-between gap-3">
               <div><CardTitle>Posição diária de caixa</CardTitle><CardDescription>Consolidado a partir dos dados do Fluxo de Caixa e das posições bancárias importadas da planilha.</CardDescription></div>
-              {canConciliarFinanceiro() && <Dialog open={dialogPosicao} onOpenChange={setDialogPosicao}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Registrar posição</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Fechamento diário / posição de caixa</DialogTitle></DialogHeader>
+              {podeConciliar && <Dialog open={dialogPosicao} onOpenChange={setDialogPosicao}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Registrar posição</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Fechamento diário / posição de caixa</DialogTitle></DialogHeader>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Data"><Input type="date" value={posicaoForm.data} onChange={(e)=>setPosicaoForm({...posicaoForm,data:e.target.value})}/></Field>
                   <Field label="Banco / conta"><Select value={posicaoForm.contaId} onValueChange={(v)=>setPosicaoForm({...posicaoForm,contaId:v})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{contas.map(c=><SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent></Select></Field>
@@ -547,19 +583,19 @@ export const Financeiro = () => {
               <TableBody>{posicoes.length===0?<TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Nenhuma posição diária registrada.</TableCell></TableRow>:posicoes.slice(0,30).map(p=><TableRow key={p.id}><TableCell>{dataPt(p.data)}</TableCell><TableCell>{contaNome(p.conta_bancaria_id)}</TableCell><TableCell className="text-right">{moeda(p.saldo_final_bancario)}</TableCell><TableCell className="text-right">{moeda(p.pagamentos_programados_nao_liquidados)}</TableCell><TableCell className="text-right">{moeda(p.saldo_financeiro_gerencial)}</TableCell><TableCell>{p.pendencias_proximo_dia||'—'}</TableCell></TableRow>)}</TableBody></Table>
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent>}
 
 
-        <TabsContent value="fluxo" className="mt-5">
+        {(podeGerenciar || podeAprovar) && <TabsContent value="fluxo" className="mt-5">
           <Card><CardHeader><CardTitle>Fluxo de Caixa</CardTitle><CardDescription>Visão sistêmica equivalente ao núcleo da Página54: previsto e realizado separados, com origem rastreável.</CardDescription></CardHeader>
             <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Situação</TableHead><TableHead>Data prevista</TableHead><TableHead>Data realizada</TableHead><TableHead>Descrição</TableHead><TableHead>Categoria</TableHead><TableHead>Subcategoria</TableHead><TableHead>Projeto / Centro</TableHead><TableHead className="text-right">Débito</TableHead><TableHead className="text-right">Crédito</TableHead></TableRow></TableHeader>
             <TableBody>{lancamentos.length===0?<TableRow><TableCell colSpan={9} className="py-8 text-center text-muted-foreground">Nenhum lançamento.</TableCell></TableRow>:lancamentos.map(l=><TableRow key={l.id}><TableCell><BadgeStatus status={l.status}/></TableCell><TableCell>{dataPt(l.data_prevista)}</TableCell><TableCell>{dataPt(l.data_realizada)}</TableCell><TableCell className="min-w-[280px]">{l.descricao}</TableCell><TableCell>{l.categoria||'—'}</TableCell><TableCell>{l.subcategoria||'—'}</TableCell><TableCell>{l.projeto_centro_custo||'—'}</TableCell><TableCell className="text-right">{l.tipo==='saida'?moeda(l.valor_realizado??l.valor_previsto):'—'}</TableCell><TableCell className="text-right">{l.tipo==='entrada'?moeda(l.valor_realizado??l.valor_previsto):'—'}</TableCell></TableRow>)}</TableBody></Table></CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent>}
 
-        <TabsContent value="pn" className="mt-5">
+        {podeGerenciar && <TabsContent value="pn" className="mt-5">
           <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>PN — Previsão de Necessidade</CardTitle><CardDescription>Anexo A do procedimento. PN automática de RC ou manual para serviços, viagens, impostos e demais necessidades fora do estoque.</CardDescription></div>
-          {canManageFinanceiro()&&<Dialog open={dialogPn} onOpenChange={setDialogPn}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova PN</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Formulário PN</DialogTitle></DialogHeader>
+          {podeGerenciar&&<Dialog open={dialogPn} onOpenChange={setDialogPn}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova PN</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Formulário PN</DialogTitle></DialogHeader>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Solicitante / área"><Input value={pnForm.area} onChange={(e)=>setPnForm({...pnForm,area:e.target.value})}/></Field>
               <Field label="Projeto / obra / centro de custo"><Input value={pnForm.projeto} onChange={(e)=>setPnForm({...pnForm,projeto:e.target.value})}/></Field>
@@ -578,9 +614,9 @@ export const Financeiro = () => {
           </DialogContent></Dialog>}</CardHeader>
           <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>PN</TableHead><TableHead>Status</TableHead><TableHead>Origem</TableHead><TableHead>Área</TableHead><TableHead>Descrição</TableHead><TableHead>Projeto / Centro</TableHead><TableHead>Data necessária</TableHead><TableHead className="text-right">Valor estimado</TableHead></TableRow></TableHeader>
           <TableBody>{necessidades.length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Nenhuma PN.</TableCell></TableRow>:necessidades.map(n=><TableRow key={n.id}><TableCell className="font-medium">PN-{String(n.numero).padStart(4,'0')}</TableCell><TableCell><BadgeStatus status={n.status}/></TableCell><TableCell>{n.origem_tipo==='rc'?'RC':n.origem_tipo}</TableCell><TableCell>{n.area_solicitante||n.solicitante_nome||'—'}</TableCell><TableCell className="min-w-[260px]">{n.descricao}</TableCell><TableCell>{n.projeto_centro_custo||'—'}</TableCell><TableCell>{dataPt(n.data_necessidade)}</TableCell><TableCell className="text-right">{moeda(n.valor_estimado)}{n.estimativa_incompleta&&<span className="ml-1 text-xs text-amber-600">parcial</span>}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
-        </TabsContent>
+        </TabsContent>}
 
-        <TabsContent value="rc" className="mt-5">
+        {(podeGerenciar || podeAprovar) && <TabsContent value="rc" className="mt-5">
           <Card><CardHeader><CardTitle>RC — Requisição de Compra</CardTitle><CardDescription>Anexo B. O atual fluxo operacional de compra foi mantido e recebe agora os campos de cotação, impacto financeiro e validações.</CardDescription></CardHeader>
           <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>RC</TableHead><TableHead>PN</TableHead><TableHead>Status financeiro</TableHead><TableHead>Origem</TableHead><TableHead>Data necessária</TableHead><TableHead className="text-right">Cotado</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>{rcs.length===0?<TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhuma RC.</TableCell></TableRow>:rcs.map(r=><TableRow key={r.id}><TableCell className="font-medium">RC-{String(r.numero).padStart(4,'0')}</TableCell><TableCell>{r.pn_origem_id?'Vinculada':'—'}</TableCell><TableCell><BadgeStatus status={r.status_financeiro_rc}/></TableCell><TableCell>{r.solicitacao_material_numero? `Solicitação #${r.solicitacao_material_numero}`:'Manual'}</TableCell><TableCell>{dataPt(r.data_necessaria)}</TableCell><TableCell className="text-right">{moeda(r.valor_estimado_cotado)}</TableCell><TableCell><Button size="sm" variant="outline" onClick={()=>abrirRc(r)}>Abrir formulário</Button></TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
@@ -610,11 +646,11 @@ export const Financeiro = () => {
                 </div>
               </div>
             </div>
-            <DialogFooter><Button variant="outline" onClick={()=>setDialogRc(false)}>Fechar</Button>{canManageFinanceiro()&&<Button onClick={()=>void salvarRc()}>Salvar RC</Button>}</DialogFooter>
+            <DialogFooter><Button variant="outline" onClick={()=>setDialogRc(false)}>Fechar</Button>{podeGerenciar&&<Button onClick={()=>void salvarRc()}>Salvar RC</Button>}</DialogFooter>
           </DialogContent></Dialog>
-        </TabsContent>
+        </TabsContent>}
 
-        <TabsContent value="pc" className="mt-5">
+        {(podeGerenciar || podeAprovar) && <TabsContent value="pc" className="mt-5">
           <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>PC — Pedido de Compra Formal</CardTitle><CardDescription>Anexo C. Só deve representar compromisso efetivamente assumido com fornecedor após aprovação.</CardDescription></div>
           {canManageFinanceiro()&&<Dialog open={dialogPc} onOpenChange={setDialogPc}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Novo PC</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Formulário PC</DialogTitle></DialogHeader>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -633,9 +669,9 @@ export const Financeiro = () => {
           </DialogContent></Dialog>}</CardHeader>
           <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>PC</TableHead><TableHead>Fornecedor</TableHead><TableHead>Descrição</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Itens</TableHead><TableHead className="text-right">Frete</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Aprovação Mauro</TableHead></TableRow></TableHeader>
           <TableBody>{pcs.length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Nenhum PC formal criado.</TableCell></TableRow>:pcs.map(pc=><TableRow key={pc.id}><TableCell className="font-medium">PC-{String(pc.numero).padStart(4,'0')}</TableCell><TableCell>{pc.fornecedor}</TableCell><TableCell className="min-w-[220px]">{pc.descricao}</TableCell><TableCell><BadgeStatus status={pc.status}/></TableCell><TableCell className="text-right">{moeda(pc.valor_itens)}</TableCell><TableCell className="text-right">{moeda(pc.frete_custos_adicionais)}</TableCell><TableCell className="text-right">{moeda(pc.valor_total)}</TableCell><TableCell>{pc.aprovacao_mauro_em?dataPt(pc.aprovacao_mauro_em):canApproveFinanceiro()?'Pendente':'—'}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
-        </TabsContent>
+        </TabsContent>}
 
-        <TabsContent value="programacao" className="mt-5">
+        {podeProgramar && <TabsContent value="programacao" className="mt-5">
           <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>Programação Bancária</CardTitle><CardDescription>Fila formal Kátia → Guto. Programação bancária não substitui o planejamento.</CardDescription></div>
           {(canManageFinanceiro()||canProgramFinanceiro())&&<Dialog open={dialogProgramacao} onOpenChange={setDialogProgramacao}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova programação</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Programação bancária</DialogTitle></DialogHeader>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -653,9 +689,9 @@ export const Financeiro = () => {
             <DialogFooter><Button variant="outline" onClick={()=>setDialogProgramacao(false)}>Cancelar</Button><Button onClick={()=>void salvarProgramacao()}>Registrar</Button></DialogFooter>
           </DialogContent></Dialog>}</CardHeader>
           <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Status</TableHead><TableHead>Beneficiário</TableHead><TableHead>Vencimento</TableHead><TableHead>Programar em</TableHead><TableHead>Banco</TableHead><TableHead>Projeto</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader><TableBody>{programacoes.length===0?<TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhuma programação.</TableCell></TableRow>:programacoes.map(p=><TableRow key={p.id}><TableCell><BadgeStatus status={p.status}/></TableCell><TableCell>{p.beneficiario}</TableCell><TableCell>{dataPt(p.vencimento)}</TableCell><TableCell>{dataPt(p.data_programada)}</TableCell><TableCell>{p.banco_conta||'—'}</TableCell><TableCell>{p.projeto_centro_custo||'—'}</TableCell><TableCell className="text-right">{moeda(p.valor)}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
-        </TabsContent>
+        </TabsContent>}
 
-        <TabsContent value="conciliacao" className="mt-5">
+        {podeConciliar && <TabsContent value="conciliacao" className="mt-5">
           <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>Conciliação Bancária e Desvios</CardTitle><CardDescription>Anexo E. Registra o que aconteceu no banco, se estava previsto e qual tratamento a divergência recebeu.</CardDescription></div>
           {canConciliarFinanceiro()&&<Dialog open={dialogConciliacao} onOpenChange={setDialogConciliacao}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Registrar movimentação</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Movimentação / divergência</DialogTitle></DialogHeader>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -675,9 +711,9 @@ export const Financeiro = () => {
             <DialogFooter><Button variant="outline" onClick={()=>setDialogConciliacao(false)}>Cancelar</Button><Button onClick={()=>void salvarConciliacao()}>Registrar</Button></DialogFooter>
           </DialogContent></Dialog>}</CardHeader>
           <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Conta</TableHead><TableHead>Histórico / beneficiário</TableHead><TableHead>Previsto?</TableHead><TableHead>Tratamento</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Responsável / prazo</TableHead></TableRow></TableHeader><TableBody>{conciliacoes.length===0?<TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhuma movimentação em conciliação.</TableCell></TableRow>:conciliacoes.map(c=><TableRow key={c.id}><TableCell>{dataPt(c.data)}</TableCell><TableCell>{contaNome(c.conta_bancaria_id)}</TableCell><TableCell className="min-w-[220px]">{c.historico_beneficiario}</TableCell><TableCell>{c.estava_previsto===true?'Sim':c.estava_previsto===false?'Não':'—'}</TableCell><TableCell><BadgeStatus status={c.tratamento_status}/></TableCell><TableCell className="text-right">{moeda(c.valor)}</TableCell><TableCell>{c.responsavel_regularizacao||'—'}{c.prazo_regularizacao?` · ${dataPt(c.prazo_regularizacao)}`:''}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
-        </TabsContent>
+        </TabsContent>}
 
-        <TabsContent value="projecoes" className="mt-5 space-y-5">
+        {podeGerenciar && <TabsContent value="projecoes" className="mt-5 space-y-5">
           <div className="grid gap-4 md:grid-cols-3">
             <Card><CardHeader><CardDescription>Próximos 14 dias</CardDescription><CardTitle>{moeda(projecoes.entradas14 - projecoes.saidas14)}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Entradas {moeda(projecoes.entradas14)} · Saídas {moeda(projecoes.saidas14)}</CardContent></Card>
             <Card><CardHeader><CardDescription>13 semanas</CardDescription><CardTitle>{moeda(projecoes.entradas13s - projecoes.saidas13s)}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Entradas {moeda(projecoes.entradas13s)} · Saídas {moeda(projecoes.saidas13s)}</CardContent></Card>
@@ -690,15 +726,15 @@ export const Financeiro = () => {
               <div className="rounded-lg border p-4"><Banknote className="mb-2 h-5 w-5"/><p className="font-medium">6 meses</p><p className="text-sm text-muted-foreground">Visão mensal de compromissos, recebimentos e risco de caixa.</p></div>
             </div></CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent>}
 
-        {canViewFinanceiroReports() && (
+        {podeRelatorios && (
           <TabsContent value="relatorios" className="mt-5">
             <FinanceiroRelatorios lancamentos={lancamentos} posicoes={posicoes} contas={contas} />
           </TabsContent>
         )}
 
-        <TabsContent value="configuracoes" className="mt-5 space-y-4">
+        {podeGerenciar && <TabsContent value="configuracoes" className="mt-5 space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Configurações do Financeiro</CardTitle>
@@ -772,7 +808,7 @@ export const Financeiro = () => {
               </div>
             </div>
           </details>
-        </TabsContent>
+        </TabsContent>}
       </Tabs>
 
       {loading && <div className="text-sm text-muted-foreground">Atualizando informações financeiras...</div>}
