@@ -64,6 +64,7 @@ import {
 interface Props {
   tarefas: ProducaoTarefa[];
   membros: ProducaoMembro[];
+  estoqueAtivoId?: string | null;
   onFecharJornada: (contexto: ContextoFechamentoJornadaOp) => void;
 }
 
@@ -177,7 +178,12 @@ const progressoEtapa = (
   return progressoPonderadoOps(ordens);
 };
 
-export const ProcessosProducaoHierarquico = ({ tarefas, membros, onFecharJornada }: Props) => {
+export const ProcessosProducaoHierarquico = ({
+  tarefas,
+  membros,
+  estoqueAtivoId = null,
+  onFecharJornada,
+}: Props) => {
   const [busca, setBusca] = useState('');
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
   const [projetoSelecionadoId, setProjetoSelecionadoId] = useState<string | null>(null);
@@ -702,7 +708,7 @@ export const ProcessosProducaoHierarquico = ({ tarefas, membros, onFecharJornada
                         )}
                       </div>
                     </div>
-                    <MateriaisOrdemProducao ordem={ordem} />
+                    <MateriaisOrdemProducao ordem={ordem} estoqueAtivoId={estoqueAtivoId} />
                   </div>
                 );
               })}
