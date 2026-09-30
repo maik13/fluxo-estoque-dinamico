@@ -382,7 +382,7 @@ export const Financeiro = () => {
         observacao: categoriaForm.observacao.trim() || null,
         origem_planilha: false,
         ativo: true,
-        ordem: (categorias.at(-1)?.ordem || 0) + 10,
+        ordem: (categorias[categorias.length - 1]?.ordem || 0) + 10,
       });
       if (error) throw error;
       setDialogCategoria(false);
@@ -404,7 +404,7 @@ export const Financeiro = () => {
         observacao: subcategoriaForm.observacao.trim() || null,
         origem_planilha: false,
         ativo: true,
-        ordem: (subcategorias.at(-1)?.ordem || 0) + 10,
+        ordem: (subcategorias[subcategorias.length - 1]?.ordem || 0) + 10,
       }).select('id').single();
       if (error) throw error;
       if (subcategoriaForm.categoriaId && data?.id) {
