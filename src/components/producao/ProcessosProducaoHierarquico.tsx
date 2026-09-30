@@ -65,6 +65,7 @@ interface Props {
   tarefas: ProducaoTarefa[];
   membros: ProducaoMembro[];
   estoqueAtivoId?: string | null;
+  estoqueAtivoNome?: string | null;
   onFecharJornada: (contexto: ContextoFechamentoJornadaOp) => void;
 }
 
@@ -95,10 +96,14 @@ const statusProjetoClassName = (status: string) => {
   return 'border-border/70 bg-muted/40 text-muted-foreground';
 };
 
-const formatarData = (data: string | null | undefined) =>
-  data
-    ? new Date(`${data}T12:00:00`).toLocaleDateString('pt-BR')
-    : 'Não definida';
+const formatarData = (data: string | null | undefined) => {
+  if (!data) return 'Não definida';
+  const dataNormalizada = data.includes('T') ? data : `${data}T12:00:00`;
+  const dataConvertida = new Date(dataNormalizada);
+  return Number.isNaN(dataConvertida.getTime())
+    ? 'Não definida'
+    : dataConvertida.toLocaleDateString('pt-BR');
+};
 
 const clampPercent = (valor: number) => Math.max(0, Math.min(100, Math.round(valor)));
 
@@ -182,6 +187,7 @@ export const ProcessosProducaoHierarquico = ({
   tarefas,
   membros,
   estoqueAtivoId = null,
+  estoqueAtivoNome = null,
   onFecharJornada,
 }: Props) => {
   const [busca, setBusca] = useState('');
@@ -708,7 +714,11 @@ export const ProcessosProducaoHierarquico = ({
                         )}
                       </div>
                     </div>
-                    <MateriaisOrdemProducao ordem={ordem} estoqueAtivoId={estoqueAtivoId} />
+                    <MateriaisOrdemProducao
+                      ordem={ordem}
+                      estoqueAtivoId={estoqueAtivoId}
+                      estoqueAtivoNome={estoqueAtivoNome}
+                    />
                   </div>
                 );
               })}

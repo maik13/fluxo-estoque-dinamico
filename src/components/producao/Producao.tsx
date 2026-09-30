@@ -27,6 +27,7 @@ import { HistoricoApontamentosProducaoComBusca } from './HistoricoApontamentosPr
 import { ProjetosProducao } from './ProjetosProducao';
 import { PlanejamentoProducao } from './PlanejamentoProducao';
 import { ProcessosProducaoHierarquico } from './ProcessosProducaoHierarquico';
+import { SecaoProducaoSegura } from './SecaoProducaoSegura';
 
 export const Producao = () => {
   const [abaAtiva, setAbaAtiva] = useState('etapas');
@@ -50,7 +51,8 @@ export const Producao = () => {
     listarMembros,
   } = useProducao();
   const { locaisUtilizacao, obterEstoqueAtivoInfo } = useConfiguracoes();
-  const estoqueAtivoId = obterEstoqueAtivoInfo()?.id ?? null;
+  const estoqueAtivo = obterEstoqueAtivoInfo();
+  const estoqueAtivoId = estoqueAtivo?.id ?? null;
   const { diagnostico, verificar } = useDiagnosticoProducao();
   const {
     canApontarProducao,
@@ -164,13 +166,19 @@ export const Producao = () => {
           <ProjetosProducao onProjetosAtualizados={sincronizarProjetosEtapas} />
         </TabsContent>
         <TabsContent value="etapas" className="mt-5">
-          <ProcessosProducaoHierarquico
-            key={versaoEtapas}
-            tarefas={tarefas}
-            membros={membrosProducao}
-            estoqueAtivoId={estoqueAtivoId}
-            onFecharJornada={abrirFechamentoJornada}
-          />
+          <SecaoProducaoSegura
+            titulo="Não foi possível abrir as etapas"
+            resetKey={versaoEtapas}
+          >
+            <ProcessosProducaoHierarquico
+              key={versaoEtapas}
+              tarefas={tarefas}
+              membros={membrosProducao}
+              estoqueAtivoId={estoqueAtivoId}
+              estoqueAtivoNome={estoqueAtivo?.nome ?? null}
+              onFecharJornada={abrirFechamentoJornada}
+            />
+          </SecaoProducaoSegura>
         </TabsContent>
         <TabsContent value="cronograma" className="mt-5"><CronogramaProducao /></TabsContent>
 

@@ -33,6 +33,7 @@ import type { ProducaoOrdemProducao } from '@/types/producao';
 interface Props {
   ordem: ProducaoOrdemProducao;
   estoqueAtivoId?: string | null;
+  estoqueAtivoNome?: string | null;
 }
 
 const statusLabel: Record<string, string> = {
@@ -68,7 +69,11 @@ const formatarDataHora = (valor: string | null | undefined) => {
   });
 };
 
-export const MateriaisOrdemProducao = ({ ordem, estoqueAtivoId = null }: Props) => {
+export const MateriaisOrdemProducao = ({
+  ordem,
+  estoqueAtivoId = null,
+  estoqueAtivoNome = null,
+}: Props) => {
   const [materiais, setMateriais] = useState<MaterialOrdemProducao[]>([]);
   const [solicitacao, setSolicitacao] = useState<SolicitacaoMaterialOPResumo | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -133,7 +138,7 @@ export const MateriaisOrdemProducao = ({ ordem, estoqueAtivoId = null }: Props) 
       setConfirmacaoIncorporarAberta(false);
       await carregar();
       toast.success(
-        `${quantidade} item(ns) do PCP incorporado(s) e Solicitação de Material nº ${criada.numero_solicitacao} gerada para o Almoxarifado. Nenhuma reserva ou baixa de estoque foi realizada.`,
+        `${quantidade} item(ns) do PCP incorporado(s) e Solicitação de Material nº ${criada.numero} gerada para o Almoxarifado. Nenhuma reserva ou baixa de estoque foi realizada.`,
         { duration: 8000 },
       );
     } catch (error) {
@@ -320,7 +325,7 @@ export const MateriaisOrdemProducao = ({ ordem, estoqueAtivoId = null }: Props) 
           <div className="flex flex-col justify-between gap-3 rounded-lg border bg-muted/20 p-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Clock3 className="h-4 w-4" />
-              Estoque responsável: {estoqueAtivo?.nome ?? 'nenhum estoque selecionado'}
+              Estoque responsável: {estoqueAtivoNome ?? (estoqueAtivoId ? 'estoque selecionado' : 'nenhum estoque selecionado')}
             </div>
             {canConfigurarProducao() && opAberta ? (
               <Button
