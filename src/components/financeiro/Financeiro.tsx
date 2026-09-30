@@ -87,7 +87,13 @@ export const Financeiro = () => {
   const podeRelatorios = canViewFinanceiroReports();
 
   const [loading, setLoading] = useState(true);
-  const [abaFinanceiro, setAbaFinanceiro] = useState('visao');
+  const abaInicialFinanceiro =
+    (podeGerenciar || podeAprovar) ? 'visao' :
+    podeProgramar ? 'programacao' :
+    podeConciliar ? 'conciliacao' :
+    podeRelatorios ? 'relatorios' :
+    'visao';
+  const [abaFinanceiro, setAbaFinanceiro] = useState(abaInicialFinanceiro);
 
   const abasPermitidas = useMemo(() => {
     const abas: string[] = [];
