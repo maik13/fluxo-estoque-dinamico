@@ -495,7 +495,7 @@ export const Financeiro = () => {
           <TabsTrigger value="programacao">Programação</TabsTrigger>
           <TabsTrigger value="conciliacao">Conciliação</TabsTrigger>
           <TabsTrigger value="projecoes">Projeções</TabsTrigger>
-          {canManageFinanceiro() && <TabsTrigger value="cadastros">Cadastros</TabsTrigger>}
+          {canManageFinanceiro() && <TabsTrigger value="configuracoes">Configurações</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="visao" className="mt-5 space-y-5">
@@ -676,10 +676,10 @@ export const Financeiro = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="cadastros" className="mt-5 space-y-5">
+        <TabsContent value="configuracoes" className="mt-5 space-y-5">
           <Card>
             <CardHeader>
-              <CardTitle>Parametrizações do Financeiro</CardTitle>
+              <CardTitle>Configurações do Financeiro</CardTitle>
               <CardDescription>
                 Aqui ficam os cadastros usados nos menus do Financeiro. Categorias e subcategorias foram inicializadas conforme a planilha e podem ser mantidas daqui para frente sem alterar o histórico importado.
               </CardDescription>
