@@ -37,6 +37,7 @@ export const PERMISSOES_EXISTENTES: PermissaoExistenteDefinicao[] = [
   ['pode_aprovar_financeiro','financeiro.aprovar','Financeiro','Aprovação','Aprovar compromissos','Permite aprovar ou rejeitar compromissos financeiros.',320],
   ['pode_programar_financeiro','financeiro.programar','Financeiro','Programação bancária','Programar pagamentos','Permite registrar a programação bancária operacional.',330],
   ['pode_conciliar_financeiro','financeiro.conciliar','Financeiro','Conciliação','Conciliar banco','Permite fechar posição bancária e tratar divergências.',340],
+  ['pode_ver_relatorios_financeiro','financeiro.relatorios','Financeiro','Relatórios','Visualizar relatórios financeiros','Permite consultar e exportar os relatórios do módulo Financeiro.',350],
 ].map(([campo,chave,modulo,grupo,nome,descricao,ordem]) => ({
   campo: String(campo),
   chave: String(chave),
