@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
 import { CampoDescricaoComVoz } from './CampoDescricaoComVoz';
 import { supabase } from '@/integrations/supabase/client';
