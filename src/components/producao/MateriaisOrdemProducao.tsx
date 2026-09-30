@@ -22,7 +22,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import {
   type MaterialOrdemProducao,
   type SolicitacaoMaterialOPResumo,
@@ -33,6 +32,7 @@ import type { ProducaoOrdemProducao } from '@/types/producao';
 
 interface Props {
   ordem: ProducaoOrdemProducao;
+  estoqueAtivoId?: string | null;
 }
 
 const statusLabel: Record<string, string> = {
@@ -68,7 +68,7 @@ const formatarDataHora = (valor: string | null | undefined) => {
   });
 };
 
-export const MateriaisOrdemProducao = ({ ordem }: Props) => {
+export const MateriaisOrdemProducao = ({ ordem, estoqueAtivoId = null }: Props) => {
   const [materiais, setMateriais] = useState<MaterialOrdemProducao[]>([]);
   const [solicitacao, setSolicitacao] = useState<SolicitacaoMaterialOPResumo | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -78,7 +78,6 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
   const [confirmacaoIncorporarAberta, setConfirmacaoIncorporarAberta] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const { obterEstoque } = useEstoqueContext();
-  const { obterEstoqueAtivoInfo } = useConfiguracoes();
   const { canConfigurarProducao } = usePermissions();
   const {
     listarMateriaisOrdem,
@@ -87,7 +86,6 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
   } = useMateriaisProducao();
 
   const itensEstoque = obterEstoque() ?? [];
-  const estoqueAtivo = obterEstoqueAtivoInfo();
   const opAberta = ordem.status === 'liberada' || ordem.status === 'em_execucao';
   const podeGerar = canConfigurarProducao() && opAberta && !solicitacao && materiais.length > 0;
   const podeIncorporar = canConfigurarProducao() && opAberta && !solicitacao && materiais.length === 0;
@@ -120,7 +118,7 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
   }, [ordem.id]);
 
   const confirmarIncorporacao = async () => {
-    if (!estoqueAtivo?.id) {
+    if (!estoqueAtivoId) {
       toast.error('Selecione o estoque que atenderá a solicitação no cabeçalho do sistema.');
       return;
     }
@@ -130,7 +128,7 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
     try {
       const quantidade = await incorporarMateriaisPCP(ordem.id);
       materiaisIncorporados = true;
-      const criada = await gerarSolicitacaoMaterial(ordem.id, estoqueAtivo.id);
+      const criada = await gerarSolicitacaoMaterial(ordem.id, estoqueAtivoId);
       setSolicitacao(criada);
       setConfirmacaoIncorporarAberta(false);
       await carregar();
@@ -153,14 +151,14 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
   };
 
   const confirmarGeracao = async () => {
-    if (!estoqueAtivo?.id) {
+    if (!estoqueAtivoId) {
       toast.error('Selecione o estoque que atenderá a solicitação no cabeçalho do sistema.');
       return;
     }
 
     setGerando(true);
     try {
-      const criada = await gerarSolicitacaoMaterial(ordem.id, estoqueAtivo.id);
+      const criada = await gerarSolicitacaoMaterial(ordem.id, estoqueAtivoId);
       setSolicitacao(criada);
       setMateriais((atuais) => atuais.map((material) => ({
         ...material,
@@ -328,7 +326,7 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
               <Button
                 type="button"
                 onClick={() => setConfirmacaoAberta(true)}
-                disabled={!podeGerar || gerando || !estoqueAtivo?.id}
+                disabled={!podeGerar || gerando || !estoqueAtivoId}
                 className="font-bold uppercase"
               >
                 <Send className="mr-2 h-4 w-4" />Gerar Solicitação de Material
@@ -417,7 +415,7 @@ export const MateriaisOrdemProducao = ({ ordem }: Props) => {
                 event.preventDefault();
                 void confirmarGeracao();
               }}
-              disabled={gerando || !estoqueAtivo?.id}
+              disabled={gerando || !estoqueAtivoId}
               className="bg-red-600 font-bold uppercase text-white hover:bg-red-700"
             >
               {gerando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
