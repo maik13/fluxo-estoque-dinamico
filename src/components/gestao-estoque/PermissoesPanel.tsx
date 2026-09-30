@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Check, Loader2, Shield, X } from 'lucide-react';
+import { Check, Loader2, Plus, Shield, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -33,6 +34,11 @@ interface PermissaoTipoUsuario {
   pode_conferir_producao: boolean;
   pode_ver_bi_producao: boolean;
   pode_configurar_producao: boolean;
+  pode_acessar_financeiro: boolean;
+  pode_gerenciar_financeiro: boolean;
+  pode_aprovar_financeiro: boolean;
+  pode_programar_financeiro: boolean;
+  pode_conciliar_financeiro: boolean;
 }
 
 const TIPOS_USUARIO_LABELS: Record<string, string> = {
@@ -41,6 +47,7 @@ const TIPOS_USUARIO_LABELS: Record<string, string> = {
   engenharia: 'Engenharia',
   mestre: 'Mestre',
   estoquista: 'Estoquista',
+  financeiro: 'Financeiro',
 };
 
 const TIPOS_USUARIO_COLORS: Record<string, string> = {
@@ -49,6 +56,7 @@ const TIPOS_USUARIO_COLORS: Record<string, string> = {
   engenharia: 'bg-purple-500/10 text-purple-500 border-purple-500/30',
   mestre: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
   estoquista: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+  financeiro: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/30',
 };
 
 interface PermissaoGrupo {
@@ -105,6 +113,16 @@ export const PERMISSOES_GRUPOS: PermissaoGrupo[] = [
     ],
   },
   {
+    titulo: 'Financeiro',
+    campos: [
+      { key: 'pode_acessar_financeiro', label: 'Acessar Financeiro' },
+      { key: 'pode_gerenciar_financeiro', label: 'Gerenciar Financeiro' },
+      { key: 'pode_aprovar_financeiro', label: 'Aprovar compromissos financeiros' },
+      { key: 'pode_programar_financeiro', label: 'Programar pagamentos' },
+      { key: 'pode_conciliar_financeiro', label: 'Conciliar banco' },
+    ],
+  },
+  {
     titulo: 'Administração',
     campos: [
       { key: 'pode_gerenciar_configuracoes', label: 'Gerenciar configurações' },
@@ -123,6 +141,8 @@ export const PermissoesPanel = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [novoPerfil, setNovoPerfil] = useState('');
+  const [criandoPerfil, setCriandoPerfil] = useState(false);
 
   const carregarDados = async () => {
     setLoading(true);
@@ -142,6 +162,11 @@ export const PermissoesPanel = () => {
         pode_conferir_producao: item.pode_conferir_producao ?? false,
         pode_ver_bi_producao: item.pode_ver_bi_producao ?? false,
         pode_configurar_producao: item.pode_configurar_producao ?? false,
+        pode_acessar_financeiro: item.pode_acessar_financeiro ?? false,
+        pode_gerenciar_financeiro: item.pode_gerenciar_financeiro ?? false,
+        pode_aprovar_financeiro: item.pode_aprovar_financeiro ?? false,
+        pode_programar_financeiro: item.pode_programar_financeiro ?? false,
+        pode_conciliar_financeiro: item.pode_conciliar_financeiro ?? false,
       })) as PermissaoTipoUsuario[]);
     } catch (error) {
       console.error('Erro ao carregar permissões:', error);
@@ -172,6 +197,37 @@ export const PermissoesPanel = () => {
       ),
     );
     setHasChanges(true);
+  };
+
+  const criarPerfil = async () => {
+    if (!podeGerenciar) return;
+    const tipo = novoPerfil.trim().toLocaleLowerCase('pt-BR').replace(/\s+/g, '_');
+    if (!tipo) {
+      toast({ title: 'Informe o nome do perfil', variant: 'destructive' });
+      return;
+    }
+    if (!/^[a-z0-9_]+$/.test(tipo)) {
+      toast({ title: 'Nome inválido', description: 'Use letras, números e espaços.', variant: 'destructive' });
+      return;
+    }
+    if (permissoes.some((p) => p.tipo_usuario === tipo)) {
+      toast({ title: 'Perfil já existe', variant: 'destructive' });
+      return;
+    }
+
+    setCriandoPerfil(true);
+    try {
+      const { error } = await (supabase as any).rpc('criar_perfil_acesso', { p_tipo_usuario: tipo });
+      if (error) throw error;
+      setNovoPerfil('');
+      toast({ title: 'Perfil criado', description: 'Agora marque os acessos padrão e salve.' });
+      await carregarDados();
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Erro', description: 'Não foi possível criar o perfil.', variant: 'destructive' });
+    } finally {
+      setCriandoPerfil(false);
+    }
   };
 
   const salvarPerfis = async () => {
@@ -236,6 +292,18 @@ export const PermissoesPanel = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {podeGerenciar && (
+          <div className="flex flex-col gap-2 rounded-lg border bg-muted/20 p-4 sm:flex-row sm:items-end">
+            <div className="flex-1">
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Novo perfil de acesso</label>
+              <Input value={novoPerfil} onChange={(e) => setNovoPerfil(e.target.value)} placeholder="Ex.: Financeiro, Compras, Produção..." />
+            </div>
+            <Button onClick={() => void criarPerfil()} disabled={criandoPerfil || !novoPerfil.trim()}>
+              {criandoPerfil ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+              Criar perfil
+            </Button>
+          </div>
+        )}
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full min-w-[800px] table-fixed text-sm">
             <thead>

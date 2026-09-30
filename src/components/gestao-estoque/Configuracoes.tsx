@@ -85,6 +85,7 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false, somenteSolic
     senha: '',
     tipo: 'estoquista',
   });
+  const [perfisAcesso, setPerfisAcesso] = useState<{ tipo_usuario: string }[]>([]);
 
   const [novoEstoque, setNovoEstoque] = useState({
     nome: '',
@@ -181,6 +182,17 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false, somenteSolic
     document.documentElement.classList.toggle('dark', tema === 'dark');
     onConfigChange?.();
   };
+
+  useEffect(() => {
+    const carregarPerfisAcesso = async () => {
+      const { data, error } = await (supabase as any)
+        .from('permissoes_tipo_usuario')
+        .select('tipo_usuario')
+        .order('tipo_usuario');
+      if (!error) setPerfisAcesso(data ?? []);
+    };
+    void carregarPerfisAcesso();
+  }, []);
 
   // Validações em tempo real da senha
   const senhaValidations = {
@@ -931,17 +943,17 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false, somenteSolic
                     )}
                   </div>
                   <div>
-                    <Label htmlFor="tipoUsuario">Tipo de Usuário</Label>
+                    <Label htmlFor="tipoUsuario">Perfil de Acesso</Label>
                     <Select value={novoUsuario.tipo} onValueChange={(value) => setNovoUsuario(prev => ({ ...prev, tipo: value }))}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione o tipo" />
+                        <SelectValue placeholder="Selecione o perfil" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="administrador">Administrador</SelectItem>
-                        <SelectItem value="gestor">Gestor</SelectItem>
-                        <SelectItem value="engenharia">Engenharia</SelectItem>
-                        <SelectItem value="mestre">Mestre</SelectItem>
-                        <SelectItem value="estoquista">Estoquista</SelectItem>
+                        {perfisAcesso.map((perfil) => (
+                          <SelectItem key={perfil.tipo_usuario} value={perfil.tipo_usuario}>
+                            {perfil.tipo_usuario.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

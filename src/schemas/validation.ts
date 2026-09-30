@@ -40,9 +40,7 @@ export const userEditSchema = z.object({
     .email({ message: 'Email inválido' })
     .max(255, { message: 'Email muito longo' })
     .toLowerCase(),
-  tipo_usuario: z.enum(['administrador', 'gestor', 'engenharia', 'mestre', 'estoquista'], {
-    message: 'Tipo de usuário inválido'
-  })
+  tipo_usuario: z.string().trim().min(1, { message: 'Perfil de acesso obrigatório' }).max(80, { message: 'Perfil de acesso muito longo' }).regex(/^[a-z0-9_]+$/, { message: 'Perfil de acesso inválido' })
 });
 
 export type UserEditInput = z.infer<typeof userEditSchema>;
@@ -173,9 +171,7 @@ export const userCreationSchema = z.object({
   nome: nonEmptyStringSchema
     .min(2, { message: 'Nome deve ter no mínimo 2 caracteres' })
     .max(100, { message: 'Nome deve ter no máximo 100 caracteres' }),
-  tipo: z.enum(['administrador', 'gestor', 'engenharia', 'mestre', 'estoquista'], {
-    message: 'Tipo de usuário inválido'
-  }).optional()
+  tipo: z.string().trim().min(1, { message: 'Perfil de acesso obrigatório' }).max(80, { message: 'Perfil de acesso muito longo' }).regex(/^[a-z0-9_]+$/, { message: 'Perfil de acesso inválido' }).optional()
 });
 
 export type UserCreationInput = z.infer<typeof userCreationSchema>;

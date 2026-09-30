@@ -58,11 +58,10 @@ function validateUserCreation(data: any): { valid: boolean; errors: string[] } {
     }
   }
   
-  // Tipo validation (optional)
+  // Perfil de acesso (opcional). A existência é validada no banco mais abaixo.
   if (data.tipo !== undefined) {
-    const validTypes = ['administrador', 'gestor', 'engenharia', 'mestre', 'estoquista'];
-    if (!validTypes.includes(data.tipo)) {
-      errors.push('Tipo de usuário inválido');
+    if (typeof data.tipo !== 'string' || !/^[a-z0-9_]+$/.test(data.tipo) || data.tipo.length > 80) {
+      errors.push('Perfil de acesso inválido');
     }
   }
   
@@ -136,6 +135,19 @@ Deno.serve(async (req: Request) => {
     const password = body.password;
     const nome = body.nome.trim();
     const tipo = body.tipo || 'estoquista';
+
+    const { data: perfilDestino, error: perfilDestinoErr } = await supabaseAdmin
+      .from('permissoes_tipo_usuario')
+      .select('tipo_usuario')
+      .eq('tipo_usuario', tipo)
+      .maybeSingle();
+
+    if (perfilDestinoErr || !perfilDestino) {
+      return new Response(JSON.stringify({ success: false, message: 'Perfil de acesso não cadastrado' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     console.log('Creating user:', email, 'by:', callerId);
 
