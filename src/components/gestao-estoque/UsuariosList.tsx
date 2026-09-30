@@ -53,6 +53,7 @@ export const UsuariosList = () => {
   const [dialogAberto, setDialogAberto] = useState(false);
   const [usuarioPermissoes, setUsuarioPermissoes] = useState<Profile | null>(null);
   const [permissoesDialogAberto, setPermissoesDialogAberto] = useState(false);
+  const [perfisAcesso, setPerfisAcesso] = useState<{ tipo_usuario: string }[]>([]);
   const { toast } = useToast();
 
   const isAdmin = userProfile?.tipo_usuario === 'administrador';
@@ -83,10 +84,19 @@ export const UsuariosList = () => {
   useEffect(() => {
     if (podeVisualizarUsuarios) {
       void carregarUsuarios();
+      void carregarPerfisAcesso();
     } else {
       setLoading(false);
     }
   }, [podeVisualizarUsuarios]);
+
+  const carregarPerfisAcesso = async () => {
+    const { data, error } = await (supabase as any)
+      .from('permissoes_tipo_usuario')
+      .select('tipo_usuario')
+      .order('tipo_usuario');
+    if (!error) setPerfisAcesso(data ?? []);
+  };
 
   const carregarUsuarios = async () => {
     if (!podeVisualizarUsuarios) return;
@@ -444,11 +454,11 @@ export const UsuariosList = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="administrador">Administrador</SelectItem>
-                        <SelectItem value="gestor">Gestor</SelectItem>
-                        <SelectItem value="engenharia">Engenharia</SelectItem>
-                        <SelectItem value="mestre">Mestre</SelectItem>
-                        <SelectItem value="estoquista">Estoquista</SelectItem>
+                        {perfisAcesso.map((perfil) => (
+                          <SelectItem key={perfil.tipo_usuario} value={perfil.tipo_usuario}>
+                            {perfil.tipo_usuario.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
