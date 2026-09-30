@@ -11,6 +11,7 @@ import { VisaoGeralEstoque } from '@/components/gestao-estoque/VisaoGeralEstoque
 import { NavegacaoLateralEstoque } from '@/components/gestao-estoque/NavegacaoLateralEstoque';
 import { Configuracoes } from '@/components/gestao-estoque/Configuracoes';
 import { Producao } from '@/components/producao/Producao';
+import { Financeiro } from '@/components/financeiro/Financeiro';
 import { Package, LogOut, BarChart3, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -36,6 +37,7 @@ const Index = () => {
     canConferirProducao,
     canViewBIProducao,
     canConfigurarProducao,
+    canAccessFinanceiro,
   } = usePermissions();
   const podeGerenciarSolicitacoesMaterial = canSolicitacaoMaterial();
   const { pendentesCount: solicitacoesPendentesCount } = useSolicitacoesMaterialPendentes({
@@ -124,6 +126,7 @@ const Index = () => {
           const showGerencial = podeVerGerencialAlmoxarifado || podeVerBIProducao;
           const showProjetos = canAccessProjects();
           const showProducao = canApontarProducao() || canConferirProducao() || canConfigurarProducao();
+          const showFinanceiro = canAccessFinanceiro();
           const somenteBIProducao = podeVerBIProducao && !podeVerGerencialAlmoxarifado;
 
           return (
@@ -136,6 +139,7 @@ const Index = () => {
                 showGerencial={showGerencial}
                 showProjetos={showProjetos}
                 showProducao={showProducao}
+                showFinanceiro={showFinanceiro}
                 showConfiguracoes={showConfiguracoes}
                 solicitacoesPendentesCount={solicitacoesPendentesCount}
                 somenteBIProducao={somenteBIProducao}
@@ -180,6 +184,7 @@ const Index = () => {
                     {showGerencial && <TabsContent value="gerencial" className="mt-0 space-y-6"><PainelGerencialAcesso /></TabsContent>}
                     {showProjetos && <TabsContent value="projetos" className="mt-0 space-y-6"><VisaoProjetos /></TabsContent>}
                     {showProducao && <TabsContent value="producao" className="mt-0 space-y-6"><Producao /></TabsContent>}
+                    {showFinanceiro && <TabsContent value="financeiro" className="mt-0 space-y-6"><Financeiro /></TabsContent>}
 
                     {showEstoque && (
                       <TabsContent value="estoque" className="mt-0 space-y-6">

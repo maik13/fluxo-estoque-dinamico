@@ -408,7 +408,7 @@ export const MateriaisOrdemProducao = ({
               </span>
               {itensSemSaldo > 0 && (
                 <span className="block rounded-md border border-destructive/30 bg-destructive/5 p-2 font-semibold text-destructive">
-                  Existem {itensSemSaldo} item(ns) com saldo insuficiente. Eles poderão seguir para Pedido de Compra durante a aprovação do Almoxarifado.
+                  Existem {itensSemSaldo} item(ns) com saldo insuficiente. Eles poderão seguir para Requisição de Compra (RC) durante a aprovação do Almoxarifado.
                 </span>
               )}
             </AlertDialogDescription>

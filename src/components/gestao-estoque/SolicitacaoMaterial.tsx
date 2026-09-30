@@ -259,7 +259,7 @@ export const SolicitacaoMaterial = () => {
     setQuantidadeItem('');
     setUnidadeCustom('un');
     setObsItem('');
-    toast.success('Item avulso adicionado ao Pedido de Compra');
+    toast.success('Item avulso adicionado ao Requisição de Compra (RC)');
   };
 
   const removerItem = (index: number) => {
@@ -351,11 +351,11 @@ export const SolicitacaoMaterial = () => {
         jaExistia: false,
       };
     } catch (error) {
-      console.error('Erro ao criar pedido de compra automático:', error);
+      console.error('Erro ao criar requisição de compra (RC) automático:', error);
       toast.error(
         contextoErro === 'criacao'
-          ? 'Solicitação criada, mas houve erro ao encaminhar o item para o Pedido de Compra'
-          : 'Solicitação aprovada, mas houve erro ao gerar o Pedido de Compra automático'
+          ? 'Solicitação criada, mas houve erro ao encaminhar o item para o Requisição de Compra (RC)'
+          : 'Solicitação aprovada, mas houve erro ao gerar o Requisição de Compra (RC) automático'
       );
       return null;
     }
@@ -449,8 +449,8 @@ export const SolicitacaoMaterial = () => {
       if (pedidoCriado) {
         toast.success(
           pedidoCriado.jaExistia
-            ? `Solicitação #${solData.numero} vinculada ao Pedido de Compra #${pedidoCriado.numero}.`
-            : `Solicitação #${solData.numero} criada e enviada ao Pedido de Compra #${pedidoCriado.numero}.`,
+            ? `Solicitação #${solData.numero} vinculada ao Requisição de Compra (RC) #${pedidoCriado.numero}.`
+            : `Solicitação #${solData.numero} criada e enviada ao Requisição de Compra (RC) #${pedidoCriado.numero}.`,
           { duration: 6000 }
         );
         setDialogoListar(false);
@@ -458,7 +458,7 @@ export const SolicitacaoMaterial = () => {
       } else {
         toast.success(`Solicitação #${solData.numero} criada com sucesso!`);
         if (itensParaCompra.length > 0 && !canManageStock()) {
-          toast.info('Itens avulsos ou sem saldo serão enviados ao Pedido de Compra na aprovação.');
+          toast.info('Itens avulsos ou sem saldo serão enviados ao Requisição de Compra (RC) na aprovação.');
         }
       }
 
@@ -506,8 +506,8 @@ export const SolicitacaoMaterial = () => {
       toast.success(
         pedidoCriado
           ? pedidoCriado.jaExistia
-            ? `Solicitação aprovada! Pedido de Compra #${pedidoCriado.numero} já estava vinculado.`
-            : `Solicitação aprovada! Pedido de Compra #${pedidoCriado.numero} gerado automaticamente.`
+            ? `Solicitação aprovada! Requisição de Compra (RC) #${pedidoCriado.numero} já estava vinculado.`
+            : `Solicitação aprovada! Requisição de Compra (RC) #${pedidoCriado.numero} gerado automaticamente.`
           : 'Solicitação aprovada!'
       );
 
@@ -1141,7 +1141,7 @@ export const SolicitacaoMaterial = () => {
                         <TableCell>{item.unidade}</TableCell>
                         <TableCell>
                           <Badge variant={vaiParaCompra ? 'secondary' : 'default'}>
-                            {vaiParaCompra ? 'Pedido de Compra' : 'Estoque'}
+                            {vaiParaCompra ? 'Requisição de Compra (RC)' : 'Estoque'}
                           </Badge>
                         </TableCell>
                         <TableCell>{item.observacoes || '-'}</TableCell>
@@ -1374,7 +1374,7 @@ export const SolicitacaoMaterial = () => {
                           <TableCell>{item.unidade}</TableCell>
                           <TableCell>
                             <Badge variant={vaiParaCompra ? 'secondary' : 'default'} className="text-xs">
-                              {vaiParaCompra ? 'Pedido de Compra' : 'Estoque'}
+                              {vaiParaCompra ? 'Requisição de Compra (RC)' : 'Estoque'}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">{item.observacoes || '-'}</TableCell>

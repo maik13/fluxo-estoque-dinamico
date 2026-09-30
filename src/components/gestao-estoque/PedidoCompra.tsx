@@ -183,7 +183,7 @@ export const PedidoCompra = () => {
 
       if (itensError) throw itensError;
 
-      toast.success(`Pedido de Compra #${pedido.numero} criado com sucesso!`);
+      toast.success(`Requisição de Compra (RC) #${pedido.numero} criado com sucesso!`);
       setDialogoNovoPedido(false);
       setItensPedido([]);
       setObservacoes('');
@@ -191,7 +191,7 @@ export const PedidoCompra = () => {
       carregarPedidos();
     } catch (error: any) {
       console.error('Erro ao criar pedido:', error);
-      toast.error('Erro ao criar pedido de compra');
+      toast.error('Erro ao criar requisição de compra (RC)');
     }
   };
 
@@ -576,7 +576,7 @@ export const PedidoCompra = () => {
       </tr>`;
     }).join('');
 
-    printWindow.document.write(`<!DOCTYPE html><html><head><title>Pedido de Compra #${pedidoSelecionado.numero}</title>
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Requisição de Compra (RC) #${pedidoSelecionado.numero}</title>
       <style>
         body { font-family: Arial, sans-serif; font-size: 11px; margin: 20px; }
         .header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; border-bottom: 2px solid #2980b3; padding-bottom: 8px; }
@@ -589,7 +589,7 @@ export const PedidoCompra = () => {
         .obs { margin-top: 12px; padding: 8px; background: #f5f5f5; border-radius: 4px; }
         @media print { body { margin: 10px; } }
       </style></head><body>
-      <div class="header">${logoHtml}<h1>Pedido de Compra #${pedidoSelecionado.numero}</h1></div>
+      <div class="header">${logoHtml}<h1>Requisição de Compra (RC) #${pedidoSelecionado.numero}</h1></div>
       <div class="info">
         Criado por: ${pedidoSelecionado.criado_por_nome} | 
         Data/Hora: ${new Date(pedidoSelecionado.data_pedido).toLocaleString('pt-BR')} | 
@@ -621,7 +621,7 @@ export const PedidoCompra = () => {
       return `${idx + 1}. ${nomeItem} | Cód: ${snap?.codigoBarras || '-'} | Qtd: ${item.quantidade} ${snap?.unidade || ''} | Marca: ${snap?.marca || '-'} ${status}`;
     }).join('\n');
 
-    const mensagem = `📋 *Pedido de Compra #${pedidoSelecionado.numero}*\n\n` +
+    const mensagem = `📋 *Requisição de Compra (RC) #${pedidoSelecionado.numero}*\n\n` +
       `👤 Criado por: ${pedidoSelecionado.criado_por_nome}\n` +
       `📅 Data: ${new Date(pedidoSelecionado.data_pedido).toLocaleString('pt-BR')}\n` +
       `📊 Status: ${pedidoSelecionado.status === 'concluido' ? 'CONCLUÍDO' : 'ABERTO'}\n` +
@@ -663,7 +663,7 @@ export const PedidoCompra = () => {
         setDialogoDetalhe(true);
       } catch (error) {
         console.error('Erro ao abrir pedido automático:', error);
-        toast.error('Erro ao abrir o Pedido de Compra automaticamente');
+        toast.error('Erro ao abrir o Requisição de Compra (RC) automaticamente');
       }
     };
 
@@ -714,7 +714,7 @@ export const PedidoCompra = () => {
           <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
             <ShoppingCart className="h-8 w-8 text-white" />
           </div>
-          <CardTitle className="text-blue-400">Pedido de Compra</CardTitle>
+          <CardTitle className="text-blue-400">Requisição de Compra (RC)</CardTitle>
           <CardDescription className="text-blue-500/70">Criar e consultar pedidos de compra</CardDescription>
         </CardHeader>
       </Card>
@@ -795,7 +795,7 @@ export const PedidoCompra = () => {
       <Dialog open={dialogoNovoPedido} onOpenChange={setDialogoNovoPedido}>
         <DialogContent className="w-[95vw] sm:w-full max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>📋 Novo Pedido de Compra</DialogTitle>
+            <DialogTitle>📋 Novo Requisição de Compra (RC)</DialogTitle>
             <DialogDescription>Selecione os itens e quantidades para o pedido</DialogDescription>
           </DialogHeader>
 
@@ -958,7 +958,7 @@ export const PedidoCompra = () => {
         <DialogContent className="w-[95vw] sm:w-full max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              📋 Pedido de Compra #{pedidoSelecionado?.numero}
+              📋 Requisição de Compra (RC) #{pedidoSelecionado?.numero}
               {pedidoSelecionado?.editado && (
                 <Badge variant="outline" className="text-orange-500 border-orange-500/50 text-xs">
                   <Pencil className="h-3 w-3 mr-1" /> Editado
