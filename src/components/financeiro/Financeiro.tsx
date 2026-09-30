@@ -89,6 +89,7 @@ export const Financeiro = () => {
   const [categorias, setCategorias] = useState<Registro[]>([]);
   const [subcategorias, setSubcategorias] = useState<Registro[]>([]);
   const [categoriaSubcategorias, setCategoriaSubcategorias] = useState<Registro[]>([]);
+  const [pagina54, setPagina54] = useState<Registro[]>([]);
 
   const [dialogPn, setDialogPn] = useState(false);
   const [dialogRc, setDialogRc] = useState(false);
@@ -135,7 +136,7 @@ export const Financeiro = () => {
       const consultas = await Promise.all([
         (supabase as any).from('financeiro_necessidades').select('*').order('created_at', { ascending: false }).limit(500),
         (supabase as any).from('financeiro_lancamentos').select('*').order('data_prevista', { ascending: true, nullsFirst: false }).limit(1000),
-        (supabase as any).from('pedidos_compra').select('*').order('data_pedido', { ascending: false }).limit(300),
+        (supabase as any).from('pedidos_compra').select('*').not('status_financeiro_rc', 'is', null).order('data_pedido', { ascending: false }).limit(300),
         (supabase as any).from('financeiro_pedidos_compra_formais').select('*').order('created_at', { ascending: false }).limit(300),
         (supabase as any).from('financeiro_programacoes').select('*').order('data_programada', { ascending: true }).limit(500),
         (supabase as any).from('financeiro_contas_bancarias').select('*').eq('ativa', true).order('ordem', { ascending: true }),
@@ -144,6 +145,7 @@ export const Financeiro = () => {
         (supabase as any).from('financeiro_categorias').select('*').order('ordem', { ascending: true }).order('nome', { ascending: true }),
         (supabase as any).from('financeiro_subcategorias').select('*').order('ordem', { ascending: true }).order('nome', { ascending: true }),
         (supabase as any).from('financeiro_categoria_subcategorias').select('*'),
+        (supabase as any).from('financeiro_importacao_pagina54').select('*').order('linha', { ascending: true }).limit(1000),
       ]);
 
       consultas.forEach((q: any) => { if (q.error) throw q.error; });
@@ -158,6 +160,7 @@ export const Financeiro = () => {
       setCategorias(consultas[8].data ?? []);
       setSubcategorias(consultas[9].data ?? []);
       setCategoriaSubcategorias(consultas[10].data ?? []);
+      setPagina54(consultas[11].data ?? []);
     } catch (error) {
       console.error('Erro ao carregar Financeiro:', error);
       toast.error('Não foi possível carregar todos os dados do Financeiro.');
@@ -182,6 +185,16 @@ export const Financeiro = () => {
     );
     const filtradas = ativas.filter((s) => permitidas.has(s.id));
     return filtradas.length > 0 ? filtradas : ativas;
+  };
+
+  const classeLinhaPagina54 = (linha: Registro) => {
+    switch (linha.sinalizacao_cor) {
+      case 'amarelo': return 'bg-yellow-300/25';
+      case 'amarelo_claro': return 'bg-amber-100/20';
+      case 'laranja': return 'bg-orange-300/25';
+      case 'vermelho_rosa': return 'bg-red-300/20';
+      default: return '';
+    }
   };
 
   const indicadores = useMemo(() => {
@@ -481,6 +494,7 @@ export const Financeiro = () => {
         <TabsList className="flex h-auto flex-wrap justify-start gap-1">
           <TabsTrigger value="visao">Visão Geral</TabsTrigger>
           <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
+          <TabsTrigger value="pagina54">Página54</TabsTrigger>
           <TabsTrigger value="pn">PN</TabsTrigger>
           <TabsTrigger value="rc">RC</TabsTrigger>
           <TabsTrigger value="pc">PC</TabsTrigger>
@@ -521,6 +535,93 @@ export const Financeiro = () => {
             <CardContent className="overflow-x-auto">
               <Table><TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Conta</TableHead><TableHead className="text-right">Saldo bancário</TableHead><TableHead className="text-right">Programado não liquidado</TableHead><TableHead className="text-right">Saldo gerencial</TableHead><TableHead>Pendências</TableHead></TableRow></TableHeader>
               <TableBody>{posicoes.length===0?<TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Nenhuma posição diária registrada.</TableCell></TableRow>:posicoes.slice(0,30).map(p=><TableRow key={p.id}><TableCell>{dataPt(p.data)}</TableCell><TableCell>{contaNome(p.conta_bancaria_id)}</TableCell><TableCell className="text-right">{moeda(p.saldo_final_bancario)}</TableCell><TableCell className="text-right">{moeda(p.pagamentos_programados_nao_liquidados)}</TableCell><TableCell className="text-right">{moeda(p.saldo_financeiro_gerencial)}</TableCell><TableCell>{p.pendencias_proximo_dia||'—'}</TableCell></TableRow>)}</TableBody></Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
+        <TabsContent value="pagina54" className="mt-5">
+          <Card>
+            <CardHeader>
+              <CardTitle>Página54 — base migrada para validação</CardTitle>
+              <CardDescription>
+                Espelho das linhas 281 a 718 da planilha enviada. Os textos, valores, saldos e sinalizações por cor foram preservados sem normalização automática.
+              </CardDescription>
+              <div className="flex flex-wrap gap-2 pt-2 text-xs text-muted-foreground">
+                <Badge variant="outline">{pagina54.length} linhas importadas</Badge>
+                <Badge variant="outline">{pagina54.filter(r=>r.revisao_pendente).length} linhas sinalizadas para revisão</Badge>
+                <span>Amarelo: {pagina54.filter(r=>r.sinalizacao_cor==='amarelo').length}</span>
+                <span>Amarelo claro: {pagina54.filter(r=>r.sinalizacao_cor==='amarelo_claro').length}</span>
+                <span>Laranja: {pagina54.filter(r=>r.sinalizacao_cor==='laranja').length}</span>
+                <span>Vermelho/rosa: {pagina54.filter(r=>r.sinalizacao_cor==='vermelho_rosa').length}</span>
+              </div>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <Table className="min-w-[2400px] text-xs">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Linha</TableHead>
+                    <TableHead>V</TableHead>
+                    <TableHead>Situação</TableHead>
+                    <TableHead>Data Prevista</TableHead>
+                    <TableHead>Data Realizada</TableHead>
+                    <TableHead className="min-w-[300px]">Descrição</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead>Subcategoria</TableHead>
+                    <TableHead className="min-w-[260px]">Anotação</TableHead>
+                    <TableHead>Débito</TableHead>
+                    <TableHead>Crédito</TableHead>
+                    <TableHead>Saldo</TableHead>
+                    <TableHead>Resultado</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Saldo do dia</TableHead>
+                    <TableHead>Inter</TableHead>
+                    <TableHead>Inter Invest.</TableHead>
+                    <TableHead>Sicoob</TableHead>
+                    <TableHead>Sicoob Invest.</TableHead>
+                    <TableHead>Sicredi</TableHead>
+                    <TableHead>BB</TableHead>
+                    <TableHead>BB Rende Fácil</TableHead>
+                    <TableHead>Revisão</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pagina54.map((r)=>(
+                    <TableRow key={r.id} className={classeLinhaPagina54(r)}>
+                      <TableCell className="font-medium">{r.linha}</TableCell>
+                      <TableCell>{r.valor_a||''}</TableCell>
+                      <TableCell>{r.situacao||''}</TableCell>
+                      <TableCell>{r.data_prevista_original||''}</TableCell>
+                      <TableCell>{r.data_realizada_original||''}</TableCell>
+                      <TableCell>{r.descricao||''}</TableCell>
+                      <TableCell>{r.categoria_original||''}</TableCell>
+                      <TableCell>{r.subcategoria_original||''}</TableCell>
+                      <TableCell>{r.anotacao||''}</TableCell>
+                      <TableCell>{r.debito_original||''}</TableCell>
+                      <TableCell>{r.credito_original||''}</TableCell>
+                      <TableCell>{r.saldo_original||''}</TableCell>
+                      <TableCell>{r.resultado_original||''}</TableCell>
+                      <TableCell>{r.data_posicao_original||''}</TableCell>
+                      <TableCell>{r.saldo_dia_original||''}</TableCell>
+                      <TableCell>{r.inter_original||''}</TableCell>
+                      <TableCell>{r.inter_invest_original||''}</TableCell>
+                      <TableCell>{r.sicoob_original||''}</TableCell>
+                      <TableCell>{r.sicoob_invest_original||''}</TableCell>
+                      <TableCell>{r.sicredi_original||''}</TableCell>
+                      <TableCell>{r.bb_original||''}</TableCell>
+                      <TableCell>{r.bb_invest_original||''}</TableCell>
+                      <TableCell>
+                        {r.revisao_pendente ? (
+                          <div className="space-y-1">
+                            <Badge variant="outline">Revisar</Badge>
+                            {r.sinalizacao_cor && <div className="text-[11px]">{r.sinalizacao_cor.replace('_',' ')}</div>}
+                          </div>
+                        ) : ''}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
