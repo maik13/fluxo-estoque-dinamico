@@ -9,6 +9,7 @@ import {
   MessageCircle,
   Package,
   Settings,
+  WalletCards,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ type NavegacaoLateralEstoqueProps = {
   showGerencial: boolean;
   showProjetos: boolean;
   showProducao: boolean;
+  showFinanceiro: boolean;
   showConfiguracoes: boolean;
   solicitacoesPendentesCount: number;
   somenteBIProducao: boolean;
@@ -55,6 +57,7 @@ export const NavegacaoLateralEstoque = ({
   showGerencial,
   showProjetos,
   showProducao,
+  showFinanceiro,
   showConfiguracoes,
   solicitacoesPendentesCount,
   somenteBIProducao,
@@ -106,6 +109,12 @@ export const NavegacaoLateralEstoque = ({
           label: 'Produção',
           icon: Factory,
           visible: showProducao,
+        },
+        {
+          value: 'financeiro',
+          label: 'Financeiro',
+          icon: WalletCards,
+          visible: showFinanceiro,
         },
       ],
     },
