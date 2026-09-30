@@ -26,9 +26,10 @@ import { codigoSolicitanteProntoParaCracha, imprimirCrachaSolicitante } from '@/
 interface ConfiguracoesProps {
   onConfigChange?: () => void;
   modoPagina?: boolean;
+  somenteSolicitantes?: boolean;
 }
 
-export const Configuracoes = ({ onConfigChange, modoPagina = false }: ConfiguracoesProps) => {
+export const Configuracoes = ({ onConfigChange, modoPagina = false, somenteSolicitantes = false }: ConfiguracoesProps) => {
   const { toast } = useToast();
   const { canCreateUsers } = usePermissions();
   const {
@@ -842,19 +843,19 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false }: Configurac
 
   const conteudoConfiguracoes = (
     <>
-        <Tabs defaultValue={canCreateUsers() ? 'usuarios' : 'solicitantes'} className="w-full">
-          <TabsList className="grid w-full grid-cols-11 gap-1">
-            {canCreateUsers() && <TabsTrigger value="usuarios" className="text-xs">Usuários</TabsTrigger>}
+        <Tabs defaultValue={somenteSolicitantes ? 'solicitantes' : (canCreateUsers() ? 'usuarios' : 'solicitantes')} className="w-full">
+          <TabsList className={somenteSolicitantes ? 'grid w-full grid-cols-1 gap-1' : 'grid w-full grid-cols-11 gap-1'}>
+            {!somenteSolicitantes && canCreateUsers() && <TabsTrigger value="usuarios" className="text-xs">Usuários</TabsTrigger>}
             <TabsTrigger value="solicitantes" className="text-xs">Solicitantes</TabsTrigger>
-            <TabsTrigger value="grupos" className="text-xs">Grupos</TabsTrigger>
-            <TabsTrigger value="locais" className="text-xs">Locais</TabsTrigger>
-            <TabsTrigger value="estoques" className="text-xs">Estoques</TabsTrigger>
-            <TabsTrigger value="subcategorias" className="text-xs">Subcategorias</TabsTrigger>
-            <TabsTrigger value="tipos-operacao" className="text-xs">Operações</TabsTrigger>
-            <TabsTrigger value="importacao" className="text-xs">Importação</TabsTrigger>
-            <TabsTrigger value="logo" className="text-xs">Logo</TabsTrigger>
-            <TabsTrigger value="tema" className="text-xs">Tema</TabsTrigger>
-            <TabsTrigger value="auditoria" className="text-xs text-info">Auditoria</TabsTrigger>
+            {!somenteSolicitantes && <TabsTrigger value="grupos" className="text-xs">Grupos</TabsTrigger>}
+            {!somenteSolicitantes && <TabsTrigger value="locais" className="text-xs">Locais</TabsTrigger>}
+            {!somenteSolicitantes && <TabsTrigger value="estoques" className="text-xs">Estoques</TabsTrigger>}
+            {!somenteSolicitantes && <TabsTrigger value="subcategorias" className="text-xs">Subcategorias</TabsTrigger>}
+            {!somenteSolicitantes && <TabsTrigger value="tipos-operacao" className="text-xs">Operações</TabsTrigger>}
+            {!somenteSolicitantes && <TabsTrigger value="importacao" className="text-xs">Importação</TabsTrigger>}
+            {!somenteSolicitantes && <TabsTrigger value="logo" className="text-xs">Logo</TabsTrigger>}
+            {!somenteSolicitantes && <TabsTrigger value="tema" className="text-xs">Tema</TabsTrigger>}
+            {!somenteSolicitantes && <TabsTrigger value="auditoria" className="text-xs text-info">Auditoria</TabsTrigger>}
           </TabsList>
 
           {/* Aba Usuários */}
