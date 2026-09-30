@@ -910,7 +910,7 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false, somenteSolic
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="senhaUsuario">Senha</Label>
+                    <Label htmlFor="senhaUsuario">Senha provisória</Label>
                     <Input
                       id="senhaUsuario"
                       type="password"
