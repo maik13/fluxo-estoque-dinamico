@@ -10,6 +10,7 @@ import {
   Package,
   Settings,
   WalletCards,
+  UsersRound,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ type NavegacaoLateralEstoqueProps = {
   showProjetos: boolean;
   showProducao: boolean;
   showFinanceiro: boolean;
+  showRHPonto: boolean;
   showConfiguracoes: boolean;
   solicitacoesPendentesCount: number;
   somenteBIProducao: boolean;
@@ -60,6 +62,7 @@ export const NavegacaoLateralEstoque = ({
   showProjetos,
   showProducao,
   showFinanceiro,
+  showRHPonto,
   showConfiguracoes,
   solicitacoesPendentesCount,
   somenteBIProducao,
@@ -123,6 +126,12 @@ export const NavegacaoLateralEstoque = ({
           label: 'Financeiro',
           icon: WalletCards,
           visible: showFinanceiro,
+        },
+        {
+          value: 'rh-ponto',
+          label: 'RH e Ponto',
+          icon: UsersRound,
+          visible: showRHPonto,
         },
       ],
     },
