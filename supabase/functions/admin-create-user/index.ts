@@ -189,6 +189,20 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    const { error: firstAccessErr } = await supabaseAdmin
+      .from('profiles')
+      .update({ deve_trocar_senha: true, senha_redefinida_em: null })
+      .eq('user_id', targetId);
+
+    if (firstAccessErr) {
+      console.log('Failed to mark temporary password:', firstAccessErr.message);
+      await supabaseAdmin.auth.admin.deleteUser(targetId);
+      return new Response(JSON.stringify({ success: false, message: 'Não foi possível configurar o primeiro acesso do usuário' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     console.log('User created successfully:', targetId);
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

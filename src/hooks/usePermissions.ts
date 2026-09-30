@@ -9,6 +9,8 @@ export interface UserProfile {
   email: string;
   tipo_usuario: string;
   ativo: boolean;
+  deve_trocar_senha?: boolean;
+  senha_redefinida_em?: string | null;
 }
 
 export interface PermissoesFuncionalidades {
