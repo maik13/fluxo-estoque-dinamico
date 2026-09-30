@@ -122,8 +122,8 @@ const Index = () => {
           const showEstoque = canManageStock();
           const showMovimentacoes = canManageStock();
           const podeGerenciarConfiguracoes = isGestor() || canManageSettings();
-          const acessoSolicitantesEstoquista = isEstoquista() && !podeGerenciarConfiguracoes;
-          const showConfiguracoes = podeGerenciarConfiguracoes || acessoSolicitantesEstoquista;
+          const showSolicitantes = isEstoquista();
+          const showConfiguracoes = podeGerenciarConfiguracoes;
           const podeVerGerencialAlmoxarifado = canAccessManagerial();
           const podeVerBIProducao = canViewBIProducao();
           const showGerencial = podeVerGerencialAlmoxarifado || podeVerBIProducao;
@@ -139,6 +139,7 @@ const Index = () => {
                 onNavigate={setTabAtiva}
                 showEstoque={showEstoque}
                 showMovimentacoes={showMovimentacoes}
+                showSolicitantes={showSolicitantes}
                 showGerencial={showGerencial}
                 showProjetos={showProjetos}
                 showProducao={showProducao}
@@ -213,9 +214,14 @@ const Index = () => {
                     )}
 
                     {showMovimentacoes && <TabsContent value="movimentacoes" className="mt-0 space-y-6"><TabelaMovimentacoes /></TabsContent>}
+                    {showSolicitantes && (
+                      <TabsContent value="solicitantes" className="mt-0 space-y-6">
+                        <Configuracoes modoPagina somenteSolicitantes />
+                      </TabsContent>
+                    )}
                     {showConfiguracoes && (
                       <TabsContent value="configuracoes" className="mt-0 space-y-6">
-                        <Configuracoes modoPagina somenteSolicitantes={acessoSolicitantesEstoquista} />
+                        <Configuracoes modoPagina />
                       </TabsContent>
                     )}
                     <TabsContent value="mensagens" className="mt-0 space-y-6"><Mensagens /></TabsContent>
