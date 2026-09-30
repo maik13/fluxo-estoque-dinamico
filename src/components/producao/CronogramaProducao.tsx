@@ -241,10 +241,42 @@ export const CronogramaProducao = () => {
     });
   }, [busca, etapas, projetoId]);
 
-  const linhas = useMemo<LinhaGantt[]>(() => etapasFiltradas.flatMap((etapa) => [
-    { tipo: 'etapa' as const, id: `etapa-${etapa.etapa_id}`, etapa },
-    ...etapa.ordens.map((ordem) => ({ tipo: 'op' as const, id: `op-${ordem.id}`, etapa, ordem })),
-  ]), [etapasFiltradas]);
+  const linhasProgramadas = useMemo<LinhaGantt[]>(() => etapasFiltradas.flatMap((etapa) => {
+    const ordensAtivas = etapa.ordens.filter((ordem) => ordem.status !== 'cancelada');
+    const ordensProgramadas = ordensAtivas
+      .filter((ordem) => Boolean(intervaloOrdem(ordem)))
+      .map((ordem) => ({ tipo: 'op' as const, id: `op-${ordem.id}`, etapa, ordem }));
+
+    // Quando existem OPs, elas são a fonte visual do cronograma.
+    // A linha consolidada da Etapa só aparece como fallback quando não existe OP.
+    if (ordensAtivas.length > 0) return ordensProgramadas;
+    return intervaloEtapa(etapa)
+      ? [{ tipo: 'etapa' as const, id: `etapa-${etapa.etapa_id}`, etapa }]
+      : [];
+  }), [etapasFiltradas]);
+
+  const semProgramacao = useMemo(() => etapasFiltradas.flatMap((etapa) => {
+    const ordensAtivas = etapa.ordens.filter((ordem) => ordem.status !== 'cancelada');
+    if (ordensAtivas.length > 0) {
+      return ordensAtivas
+        .filter((ordem) => !intervaloOrdem(ordem))
+        .map((ordem) => ({
+          id: `op-${ordem.id}`,
+          titulo: formatarIdentificacaoOrdemProducao(ordem),
+          projeto: etapa.projeto_nome,
+          etapa: `${etapa.codigo} · ${etapa.etapa_nome}`,
+        }));
+    }
+    if (!intervaloEtapa(etapa)) {
+      return [{
+        id: `etapa-${etapa.etapa_id}`,
+        titulo: `${etapa.codigo} · ${etapa.etapa_nome}`,
+        projeto: etapa.projeto_nome,
+        etapa: 'Etapa sem OP e sem período definido',
+      }];
+    }
+    return [];
+  }), [etapasFiltradas]);
 
   const periodo = useMemo(() => calcularPeriodo(visualizacao, deslocamento), [deslocamento, visualizacao]);
   const pixelsPorDiaBase = PIXELS_POR_DIA[visualizacao];
@@ -261,7 +293,18 @@ export const CronogramaProducao = () => {
   const hojeIndice = differenceInCalendarDays(new Date(), periodo.inicio);
   const hojeOffset = hojeIndice * pixelsPorDia;
   const hojeNaFaixa = hojeIndice >= 0 && hojeIndice < dias.length;
-  const totalOps = etapasFiltradas.reduce((soma, etapa) => soma + etapa.ordens.length, 0);
+  const linhas = useMemo(
+    () => linhasProgramadas.filter((linha) => {
+      const intervalo = linha.tipo === 'etapa' ? intervaloEtapa(linha.etapa) : intervaloOrdem(linha.ordem);
+      return Boolean(
+        intervalo
+        && intervalo.fim.getTime() >= periodo.inicio.getTime()
+        && intervalo.inicio.getTime() <= periodo.fim.getTime()
+      );
+    }),
+    [linhasProgramadas, periodo.fim, periodo.inicio],
+  );
+  const totalOps = etapasFiltradas.reduce((soma, etapa) => soma + etapa.ordens.filter((ordem) => ordem.status !== 'cancelada').length, 0);
   const alertasAltos = alertas.filter((alerta) => alerta.severidade === 'alta').length;
 
   const salvarConfig = async () => {
@@ -298,7 +341,7 @@ export const CronogramaProducao = () => {
         <div>
           <h3 className="text-lg font-medium">Cronograma de Produção</h3>
           <p className="text-sm text-muted-foreground">
-            A Etapa consolida o planejamento. Cada OP aparece abaixo dela e recebe o progresso dos apontamentos conferidos.
+            Visão limpa do planejamento: somente atividades com período definido aparecem no quadro. Itens sem datas ficam separados abaixo.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -312,8 +355,8 @@ export const CronogramaProducao = () => {
 
       <div className="grid gap-3 sm:grid-cols-4 print:hidden">
         <Card className="p-4"><p className="text-xs text-muted-foreground">Equipe disponível/dia</p><p className="text-2xl font-bold">{configuracao?.equipe_disponivel_por_dia ?? '—'}</p></Card>
-        <Card className="p-4"><p className="text-xs text-muted-foreground">Etapas visíveis</p><p className="text-2xl font-bold">{etapasFiltradas.length}</p></Card>
-        <Card className="p-4"><p className="text-xs text-muted-foreground">OPs visíveis</p><p className="text-2xl font-bold">{totalOps}</p></Card>
+        <Card className="p-4"><p className="text-xs text-muted-foreground">Programados no período</p><p className="text-2xl font-bold">{linhas.length}</p></Card>
+        <Card className="p-4"><p className="text-xs text-muted-foreground">Sem programação</p><p className="text-2xl font-bold">{semProgramacao.length}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Alertas críticos</p><p className={cn('text-2xl font-bold', alertasAltos > 0 && 'text-destructive')}>{alertasAltos}</p></Card>
       </div>
 
@@ -325,7 +368,7 @@ export const CronogramaProducao = () => {
         </TabsList>
 
         <TabsContent value="gantt" className="mt-4">
-          <Card className="overflow-hidden">
+          <Card className="gantt-print-area overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 border-b p-3 print:hidden">
               <SearchableSelect
                 value={projetoId}
@@ -355,16 +398,10 @@ export const CronogramaProducao = () => {
               {format(periodo.inicio, "dd 'de' MMMM", { locale: ptBR })} a {format(periodo.fim, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })} · cada coluna representa um dia
             </div>
 
-            <AgendaPlanejamentoCronograma
-              inicio={format(periodo.inicio, 'yyyy-MM-dd')}
-              fim={format(periodo.fim, 'yyyy-MM-dd')}
-              compacto
-            />
-
-            <div ref={ganttViewportRef} className="max-h-[76vh] overflow-auto">
+            <div ref={ganttViewportRef} className="gantt-scroll max-h-[76vh] overflow-auto">
               <div className="flex" style={{ width: LABEL_WIDTH + largura }}>
                 <div className="sticky left-0 z-20 shrink-0 border-r bg-card" style={{ width: LABEL_WIDTH }}>
-                  <div className="flex h-20 items-end border-b bg-muted/50 px-3 pb-2 text-sm font-semibold">Projeto / Etapa / Ordem de Produção</div>
+                  <div className="flex h-20 items-end border-b bg-muted/50 px-3 pb-2 text-sm font-semibold">Atividade programada</div>
                   {linhas.map((linha) => (
                     <div key={linha.id} className={cn('flex flex-col justify-center border-b px-3', linha.tipo === 'op' && 'bg-muted/10 pl-9')} style={{ height: alturaLinha(linha) }}>
                       {linha.tipo === 'etapa' ? (
@@ -373,15 +410,18 @@ export const CronogramaProducao = () => {
                             <span className="truncate text-sm font-semibold">{linha.etapa.codigo} · {linha.etapa.etapa_nome}</span>
                             <span className="shrink-0 text-[11px] text-muted-foreground">{statusEtapaLabel[linha.etapa.status] ?? linha.etapa.status}</span>
                           </div>
-                          <span className="truncate text-xs text-muted-foreground">{linha.etapa.projeto_nome} · {linha.etapa.ordens.length} OP(s)</span>
+                          <span className="truncate text-xs text-muted-foreground">{linha.etapa.projeto_nome}</span>
                         </>
                       ) : (
                         <>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-sm font-medium">↳ {formatarIdentificacaoOrdemProducao(linha.ordem)}</span>
+                            <span className="truncate text-sm font-medium">{formatarIdentificacaoOrdemProducao(linha.ordem)}</span>
                             <span className="shrink-0 text-[11px] text-muted-foreground">{statusOpLabel[linha.ordem.status] ?? linha.ordem.status}</span>
                           </div>
-                          <span className="truncate text-[11px] text-muted-foreground">{linha.ordem.local_tipo}{linha.ordem.responsavel_nome ? ` · ${linha.ordem.responsavel_nome}` : ''} · {linha.ordem.quantidade_realizada}/{linha.ordem.quantidade_planejada}</span>
+                          <span className="truncate text-[11px] text-muted-foreground">
+                            {linha.etapa.projeto_nome} · {linha.etapa.codigo} · {linha.etapa.etapa_nome}
+                            {linha.ordem.responsavel_nome ? ` · ${linha.ordem.responsavel_nome}` : ''}
+                          </span>
                         </>
                       )}
                     </div>
@@ -463,10 +503,27 @@ export const CronogramaProducao = () => {
                   })}
                 </div>
               </div>
-              {!loading && linhas.length === 0 && <div className="p-10 text-center text-sm text-muted-foreground">Nenhuma etapa ou OP encontrada para os filtros informados.</div>}
+              {!loading && linhas.length === 0 && <div className="p-10 text-center text-sm text-muted-foreground">Nenhuma atividade programada neste período.</div>}
               {loading && <div className="p-10 text-center text-sm text-muted-foreground">Carregando cronograma...</div>}
             </div>
           </Card>
+
+          {!loading && semProgramacao.length > 0 && (
+            <Card className="mt-4 p-4 print:hidden">
+              <div className="mb-3">
+                <h4 className="text-sm font-semibold">Sem programação ({semProgramacao.length})</h4>
+                <p className="text-xs text-muted-foreground">Itens sem início e fim definidos não ocupam linhas do cronograma visual.</p>
+              </div>
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {semProgramacao.map((item) => (
+                  <div key={item.id} className="rounded-md border bg-muted/10 px-3 py-2">
+                    <div className="truncate text-sm font-medium">{item.titulo}</div>
+                    <div className="truncate text-xs text-muted-foreground">{item.projeto} · {item.etapa}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="plano-diario" className="mt-4"><PlanoDiarioProducao /></TabsContent>
