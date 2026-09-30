@@ -1,0 +1,18 @@
+-- Migração histórica do RH/Ponto do App Controle.
+-- Lote executado em 30/09/2026.
+-- Os dados foram importados preservando UUIDs históricos e origem_sistema='appcontrole'.
+-- Validação final esperada:
+--   6 jornadas
+--   55 colaboradores
+--   14 feriados
+--   526 registros de ponto
+--   111 dias pagos
+--   712 registros de auditoria de importação
+--
+-- Observações de identidade:
+-- - 7 usuários antigos tiveram correspondência exata por e-mail com o Auth atual.
+-- - 5 colaboradores receberam user_id novo com correspondência segura.
+-- - UUIDs antigos de autoria/aprovação/pagamento foram preservados nos campos origem_*.
+--
+-- Este arquivo documenta a operação já executada no banco de produção.
+-- Não deve ser reaplicado cegamente. O histórico importado é idempotente por UUID/origem_id.
