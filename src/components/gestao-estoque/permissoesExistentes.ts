@@ -32,6 +32,9 @@ export const PERMISSOES_EXISTENTES: PermissaoExistenteDefinicao[] = [
   ['pode_ver_relatorios','relatorios.visualizar','Administração','Administração','Ver relatórios','Permite acessar relatórios.',190],
   ['pode_acessar_gerencial','gerencial.visualizar','Gerencial','Gerencial de Almoxarifado','Acessar Gerencial de Almoxarifado','Permite acessar indicadores, saldos, devoluções e pendências do almoxarifado.',200],
   ['pode_acessar_projetos','projetos.visualizar','Administração','Administração','Acessar projetos','Permite acessar a área de projetos.',210],
+  ['pode_acessar_financeiro','financeiro.visualizar','Financeiro','Acesso','Acessar Financeiro','Permite visualizar o módulo Financeiro.',300],
+  ['pode_gerenciar_financeiro','financeiro.gerenciar','Financeiro','Operação','Gerenciar Financeiro','Permite criar e ajustar PN, previsões e lançamentos financeiros.',310],
+  ['pode_aprovar_financeiro','financeiro.aprovar','Financeiro','Aprovação','Aprovar compromissos','Permite aprovar ou rejeitar compromissos financeiros.',320],
 ].map(([campo,chave,modulo,grupo,nome,descricao,ordem]) => ({
   campo: String(campo),
   chave: String(chave),
