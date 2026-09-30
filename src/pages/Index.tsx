@@ -51,7 +51,19 @@ const Index = () => {
   }, [loading, session, navigate]);
 
   useEffect(() => {
-    carregarLogo();
+    void carregarLogo();
+
+    const atualizarLogo = (event: Event) => {
+      const customEvent = event as CustomEvent<{ url?: string }>;
+      if (customEvent.detail?.url) {
+        setLogoUrl(customEvent.detail.url);
+      } else {
+        void carregarLogo();
+      }
+    };
+
+    window.addEventListener('branding-logo-updated', atualizarLogo);
+    return () => window.removeEventListener('branding-logo-updated', atualizarLogo);
   }, []);
 
   const carregarLogo = async () => {
@@ -59,8 +71,10 @@ const Index = () => {
       const { data, error } = await supabase.storage.from('branding').list('', { limit: 1 });
       if (error) throw error;
       if (data && data.length > 0) {
-        const { data: publicUrlData } = supabase.storage.from('branding').getPublicUrl(data[0].name);
-        setLogoUrl(publicUrlData.publicUrl);
+        const logoFile = data[0];
+        const { data: publicUrlData } = supabase.storage.from('branding').getPublicUrl(logoFile.name);
+        const versao = encodeURIComponent(logoFile.updated_at || logoFile.created_at || String(Date.now()));
+        setLogoUrl(`${publicUrlData.publicUrl}?v=${versao}`);
       }
     } catch (error) {
       console.error('Erro ao carregar logo:', error);
