@@ -138,6 +138,8 @@ export const Producao = () => {
             {diagnostico.erro ?? (
               diagnostico.funcoes_ausentes.length > 0
                 ? `Funções ausentes no Supabase: ${diagnostico.funcoes_ausentes.join(', ')}.`
+                : diagnostico.tabelas_ausentes.length > 0
+                  ? `Tabelas ausentes no Supabase: ${diagnostico.tabelas_ausentes.join(', ')}.`
                 : 'Existem dependências ausentes no Supabase.'
             )} As gravações podem falhar até a migration consolidada ser aplicada.
           </AlertDescription>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -187,6 +187,9 @@ export const ProcessosProducao = ({ tarefas }: Props) => {
   const [acaoPendente, setAcaoPendente] = useState<AcaoPendente | null>(null);
   const [justificativaAcao, setJustificativaAcao] = useState('');
   const [executandoAcao, setExecutandoAcao] = useState(false);
+  const [erroCarregamento, setErroCarregamento] = useState<string | null>(
+    null,
+  );
 
   const { isAdmin, canConfigurarProducao } = usePermissions();
   const {
@@ -201,9 +204,23 @@ export const ProcessosProducao = ({ tarefas }: Props) => {
   const { ordens, listarOrdens, criarOrdem, transicaoOrdem } =
     useOrdensProducao();
 
-  useEffect(() => {
-    void Promise.all([listarProcessos(), listarOrdens()]);
+  const carregarFluxoInicial = useCallback(async () => {
+    setErroCarregamento(null);
+    try {
+      await Promise.all([listarProcessos(), listarOrdens()]);
+    } catch (error) {
+      setErroCarregamento(
+        mensagemErro(
+          error,
+          'Não foi possível carregar as etapas e Ordens de Produção.',
+        ),
+      );
+    }
   }, [listarOrdens, listarProcessos]);
+
+  useEffect(() => {
+    void carregarFluxoInicial();
+  }, [carregarFluxoInicial]);
 
   const ordensPorProcesso = useMemo(
     () =>
@@ -477,7 +494,25 @@ export const ProcessosProducao = ({ tarefas }: Props) => {
         </Button>
       </div>
 
-      {loading ? (
+      {erroCarregamento ? (
+        <div className="flex flex-col gap-3 rounded-md border border-destructive/40 bg-destructive/5 p-5 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="font-semibold">Não foi possível abrir as etapas.</p>
+              <p>{erroCarregamento}</p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            onClick={() => void carregarFluxoInicial()}
+          >
+            Tentar novamente
+          </Button>
+        </div>
+      ) : loading ? (
         <div className="rounded-md border p-8 text-center text-muted-foreground">
           Carregando etapas...
         </div>

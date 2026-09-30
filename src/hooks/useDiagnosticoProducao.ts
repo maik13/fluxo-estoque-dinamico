@@ -5,6 +5,7 @@ import { formatarErroSupabase } from '@/utils/supabaseError';
 export interface DiagnosticoProducao {
   ok: boolean;
   funcoes_ausentes: string[];
+  tabelas_ausentes: string[];
   verificado_em?: string;
   erro?: string;
 }
@@ -26,6 +27,7 @@ export const useDiagnosticoProducao = () => {
         const resultado: DiagnosticoProducao = {
           ok: false,
           funcoes_ausentes: [],
+          tabelas_ausentes: [],
           erro: mensagem.includes('diagnosticar_integridade_modulo_producao')
             ? 'A migration consolidada de integridade ainda não foi aplicada no Supabase.'
             : mensagem,
@@ -39,6 +41,9 @@ export const useDiagnosticoProducao = () => {
         ok: Boolean(resultado.ok),
         funcoes_ausentes: Array.isArray(resultado.funcoes_ausentes)
           ? resultado.funcoes_ausentes.map(String)
+          : [],
+        tabelas_ausentes: Array.isArray(resultado.tabelas_ausentes)
+          ? resultado.tabelas_ausentes.map(String)
           : [],
         verificado_em: resultado.verificado_em,
       };

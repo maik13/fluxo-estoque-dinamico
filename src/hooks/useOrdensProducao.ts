@@ -273,7 +273,9 @@ export const useOrdensProducao = () => {
     if (typeof window === 'undefined') return undefined;
 
     const recarregar = () => {
-      void listarOrdens();
+      void listarOrdens().catch((error) => {
+        console.error('Não foi possível recarregar as Ordens de Produção.', error);
+      });
     };
 
     window.addEventListener(EVENTO_ORDENS_ALTERADAS, recarregar);
