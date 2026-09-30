@@ -12,12 +12,12 @@
    * Aplicar a página nomeada diretamente ao quadro criava uma quebra antes dele,
    * deixando a primeira folha praticamente vazia.
    */
-  body:has(.max-h-\[70vh\]) {
+  body:has(.gantt-print-area) {
     page: gantt-cronograma;
   }
 
   /* O Card que contém o Gantt deve poder quebrar naturalmente entre páginas. */
-  div:has(> .max-h-\[70vh\]) {
+  .gantt-print-area {
     overflow: visible !important;
     height: auto !important;
     min-height: 0 !important;
@@ -27,7 +27,7 @@
   }
 
   /* Quadro rolável do Gantt */
-  .max-h-\[70vh\] {
+  .gantt-scroll {
     page: auto;
     display: block !important;
     height: auto !important;
@@ -47,7 +47,7 @@
    * Não impedir a quebra do quadro inteiro. Essa trava era a responsável por
    * jogar todo o conteúdo para a segunda página.
    */
-  .max-h-\[70vh\] > .flex {
+  .gantt-scroll > .flex {
     transform: none !important;
     transform-origin: top left !important;
     break-before: auto !important;
@@ -56,33 +56,33 @@
     page-break-inside: auto !important;
   }
 
-  .max-h-\[70vh\] .sticky {
+  .gantt-scroll .sticky {
     position: static !important;
   }
 
   /* Grade e cabeçalhos */
-  .max-h-\[70vh\] .border-r,
-  .max-h-\[70vh\] .border-b {
+  .gantt-scroll .border-r,
+  .gantt-scroll .border-b {
     border-color: #64748b !important;
   }
 
-  .max-h-\[70vh\] .bg-card,
-  .max-h-\[70vh\] .bg-muted,
-  .max-h-\[70vh\] .bg-muted\/50,
-  .max-h-\[70vh\] .bg-muted\/20,
-  .max-h-\[70vh\] .bg-muted\/10,
-  .max-h-\[70vh\] .bg-muted\/5 {
+  .gantt-scroll .bg-card,
+  .gantt-scroll .bg-muted,
+  .gantt-scroll .bg-muted\/50,
+  .gantt-scroll .bg-muted\/20,
+  .gantt-scroll .bg-muted\/10,
+  .gantt-scroll .bg-muted\/5 {
     background-color: #eef1f4 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  .max-h-\[70vh\] .text-muted-foreground {
+  .gantt-scroll .text-muted-foreground {
     color: #334155 !important;
   }
 
   /* Toda barra recebe contorno, mesmo quando a impressão de fundos está desabilitada. */
-  .max-h-\[70vh\] .shadow-sm {
+  .gantt-scroll .shadow-sm {
     box-shadow: none !important;
     opacity: 1 !important;
     border-width: 2px !important;
@@ -93,54 +93,54 @@
   }
 
   /* Em andamento */
-  .max-h-\[70vh\] .shadow-sm.bg-emerald-500,
-  .max-h-\[70vh\] .shadow-sm.bg-emerald-600 {
+  .gantt-scroll .shadow-sm.bg-emerald-500,
+  .gantt-scroll .shadow-sm.bg-emerald-600 {
     background-color: #86efac !important;
     border-color: #15803d !important;
     color: #052e16 !important;
   }
 
   /* Concluída, liberada e status azuis */
-  .max-h-\[70vh\] .shadow-sm.bg-blue-500,
-  .max-h-\[70vh\] .shadow-sm.bg-blue-600,
-  .max-h-\[70vh\] .shadow-sm.bg-indigo-500 {
+  .gantt-scroll .shadow-sm.bg-blue-500,
+  .gantt-scroll .shadow-sm.bg-blue-600,
+  .gantt-scroll .shadow-sm.bg-indigo-500 {
     background-color: #93c5fd !important;
     border-color: #1d4ed8 !important;
     color: #172554 !important;
   }
 
   /* Pausada */
-  .max-h-\[70vh\] .shadow-sm.bg-amber-500 {
+  .gantt-scroll .shadow-sm.bg-amber-500 {
     background-color: #fde68a !important;
     border-color: #b45309 !important;
     color: #451a03 !important;
   }
 
   /* Bloqueada */
-  .max-h-\[70vh\] .shadow-sm.bg-red-500 {
+  .gantt-scroll .shadow-sm.bg-red-500 {
     background-color: #fca5a5 !important;
     border-color: #b91c1c !important;
     color: #450a0a !important;
   }
 
   /* Planejada, rascunho e cancelada */
-  .max-h-\[70vh\] .shadow-sm.bg-slate-400,
-  .max-h-\[70vh\] .shadow-sm.bg-slate-500,
-  .max-h-\[70vh\] .shadow-sm.bg-zinc-500 {
+  .gantt-scroll .shadow-sm.bg-slate-400,
+  .gantt-scroll .shadow-sm.bg-slate-500,
+  .gantt-scroll .shadow-sm.bg-zinc-500 {
     background-color: #cbd5e1 !important;
     border-color: #475569 !important;
     color: #0f172a !important;
   }
 
   /* Faixa interna que representa o percentual realizado */
-  .max-h-\[70vh\] .shadow-sm > .absolute.inset-y-0.left-0 {
+  .gantt-scroll .shadow-sm > .absolute.inset-y-0.left-0 {
     background-color: rgba(15, 23, 42, 0.17) !important;
     border-right: 1px solid rgba(15, 23, 42, 0.45) !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  .max-h-\[70vh\] .shadow-sm > .relative {
+  .gantt-scroll .shadow-sm > .relative {
     color: inherit !important;
     font-weight: 800 !important;
     text-shadow: none !important;
