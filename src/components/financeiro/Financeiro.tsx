@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { AlertTriangle, Banknote, CalendarRange, CheckCircle2, ClipboardList, FileClock, Landmark, Plus, RefreshCcw, TrendingDown, WalletCards } from 'lucide-react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,54 +13,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertTriangle, TrendingDown, CircleDollarSign, FileClock, Plus, RefreshCcw } from 'lucide-react';
-import { toast } from 'sonner';
 
-type Necessidade = {
-  id: string;
-  numero: number;
-  status: string;
-  origem_tipo: string;
-  origem_modulo: string | null;
-  descricao: string;
-  solicitante_nome: string | null;
-  valor_estimado: number | null;
-  estimativa_incompleta: boolean;
-  data_necessidade: string | null;
-  data_prevista_desembolso: string | null;
-  urgencia: string;
-  projeto_centro_custo: string | null;
-  categoria: string | null;
-  subcategoria: string | null;
-  requisicao_compra_id: string | null;
-  created_at: string;
+type Registro = Record<string, any>;
+
+const moeda = (valor: any) => {
+  const numero = Number(valor);
+  if (valor == null || valor === '' || Number.isNaN(numero)) return 'A definir';
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(numero);
 };
 
-type Lancamento = {
-  id: string;
-  numero: number;
-  tipo: 'entrada' | 'saida';
-  status: string;
-  descricao: string;
-  categoria: string | null;
-  subcategoria: string | null;
-  projeto_centro_custo: string | null;
-  data_prevista: string | null;
-  data_realizada: string | null;
-  valor_previsto: number | null;
-  valor_realizado: number | null;
-  origem_tipo: string | null;
-  created_at: string;
-};
-
-const moeda = (valor: number | null | undefined) =>
-  valor == null
-    ? 'A definir'
-    : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
-
-const dataPt = (valor: string | null | undefined) => {
+const dataPt = (valor?: string | null) => {
   if (!valor) return '—';
-  const [ano, mes, dia] = valor.slice(0, 10).split('-');
+  const data = valor.slice(0, 10);
+  const [ano, mes, dia] = data.split('-');
   return ano && mes && dia ? `${dia}/${mes}/${ano}` : valor;
 };
 
@@ -68,362 +35,550 @@ const statusLabel: Record<string, string> = {
   em_cotacao: 'Em cotação',
   aguardando_aprovacao: 'Aguardando aprovação',
   aprovado: 'Aprovado',
+  aprovada: 'Aprovada',
+  rejeitada: 'Rejeitada',
+  convertido_em_pc: 'Convertida em PC',
   comprometido: 'Comprometido',
   solicitado: 'Solicitado',
   programado: 'Programado',
+  aguardando_programacao: 'Aguardando programação',
+  rejeitado_banco: 'Rejeitado pelo banco',
+  liquidado: 'Liquidado',
   pago: 'Pago',
   conciliado: 'Conciliado',
+  em_apuracao: 'Em apuração',
+  identificado: 'Identificado',
+  regularizado: 'Regularizado',
   cancelado: 'Cancelado',
+  rascunho: 'Rascunho',
+  confirmado: 'Confirmado',
+  recebido: 'Recebido',
+  concluido: 'Concluído',
 };
 
+const BadgeStatus = ({ status }: { status?: string | null }) => (
+  <Badge variant={status === 'cancelado' || status === 'rejeitada' ? 'secondary' : 'outline'}>
+    {statusLabel[status || ''] || status || '—'}
+  </Badge>
+);
+
+const Field = ({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) => (
+  <div className={className}>
+    <Label className="mb-1.5 block text-xs text-muted-foreground">{label}</Label>
+    {children}
+  </div>
+);
+
 export const Financeiro = () => {
-  const { canManageFinanceiro } = usePermissions();
-  const [necessidades, setNecessidades] = useState<Necessidade[]>([]);
-  const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
+  const {
+    canManageFinanceiro,
+    canApproveFinanceiro,
+    canProgramFinanceiro,
+    canConciliarFinanceiro,
+  } = usePermissions();
+
   const [loading, setLoading] = useState(true);
-  const [dialogoNovo, setDialogoNovo] = useState(false);
-  const [salvando, setSalvando] = useState(false);
-  const [form, setForm] = useState({
-    descricao: '',
-    valor: '',
-    dataNecessidade: '',
-    dataDesembolso: '',
-    urgencia: 'normal',
-    projetoCentroCusto: '',
-    categoria: '',
-    subcategoria: '',
+  const [necessidades, setNecessidades] = useState<Registro[]>([]);
+  const [lancamentos, setLancamentos] = useState<Registro[]>([]);
+  const [rcs, setRcs] = useState<Registro[]>([]);
+  const [pcs, setPcs] = useState<Registro[]>([]);
+  const [programacoes, setProgramacoes] = useState<Registro[]>([]);
+  const [contas, setContas] = useState<Registro[]>([]);
+  const [posicoes, setPosicoes] = useState<Registro[]>([]);
+  const [conciliacoes, setConciliacoes] = useState<Registro[]>([]);
+
+  const [dialogPn, setDialogPn] = useState(false);
+  const [dialogRc, setDialogRc] = useState(false);
+  const [dialogPc, setDialogPc] = useState(false);
+  const [dialogPosicao, setDialogPosicao] = useState(false);
+  const [dialogProgramacao, setDialogProgramacao] = useState(false);
+  const [dialogConciliacao, setDialogConciliacao] = useState(false);
+  const [selecionado, setSelecionado] = useState<Registro | null>(null);
+
+  const [pnForm, setPnForm] = useState({
+    descricao: '', area: '', projeto: '', especificacao: '', dataNecessidade: '',
+    valor: '', baseEstimativa: '', dataDesembolso: '', urgencia: 'normal',
+    justificativa: '', categoria: '', subcategoria: '',
+  });
+
+  const [rcForm, setRcForm] = useState<Registro>({});
+  const [pcForm, setPcForm] = useState({
+    rcId: '', fornecedor: '', identificacao: '', contato: '', descricao: '',
+    valorItens: '', frete: '', condicao: '', prazo: '', local: '',
+  });
+  const [posicaoForm, setPosicaoForm] = useState({
+    data: new Date().toISOString().slice(0, 10), contaId: '', saldoInicial: '', entradas: '',
+    saidas: '', saldoFinal: '', programados: '', recebimentosNaoRealizados: '',
+    saidasNaoPrevistas: '', saldoGerencial: '', pendencias: '',
+  });
+  const [programacaoForm, setProgramacaoForm] = useState({
+    lancamentoId: '', beneficiario: '', valor: '', vencimento: '', dataProgramada: '',
+    bancoConta: '', formaPagamento: '', categoria: '', projeto: '', observacao: '',
+  });
+  const [conciliacaoForm, setConciliacaoForm] = useState({
+    data: new Date().toISOString().slice(0, 10), contaId: '', historico: '', previsto: 'sim',
+    valor: '', valorPrevisto: '', dataPrevista: '', tipo: 'saida', tratamento: 'em_apuracao',
+    observacao: '', responsavel: '', prazo: '',
   });
 
   const carregar = async () => {
     setLoading(true);
     try {
-      const [{ data: necessidadesData, error: necessidadesError }, { data: lancamentosData, error: lancamentosError }] =
-        await Promise.all([
-          (supabase as any)
-            .from('financeiro_necessidades')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(250),
-          (supabase as any)
-            .from('financeiro_lancamentos')
-            .select('*')
-            .order('data_prevista', { ascending: true, nullsFirst: false })
-            .order('created_at', { ascending: false })
-            .limit(500),
-        ]);
+      const consultas = await Promise.all([
+        (supabase as any).from('financeiro_necessidades').select('*').order('created_at', { ascending: false }).limit(500),
+        (supabase as any).from('financeiro_lancamentos').select('*').order('data_prevista', { ascending: true, nullsFirst: false }).limit(1000),
+        (supabase as any).from('pedidos_compra').select('*').order('data_pedido', { ascending: false }).limit(300),
+        (supabase as any).from('financeiro_pedidos_compra_formais').select('*').order('created_at', { ascending: false }).limit(300),
+        (supabase as any).from('financeiro_programacoes').select('*').order('data_programada', { ascending: true }).limit(500),
+        (supabase as any).from('financeiro_contas_bancarias').select('*').eq('ativa', true).order('ordem', { ascending: true }),
+        (supabase as any).from('financeiro_posicoes_diarias').select('*').order('data', { ascending: false }).limit(500),
+        (supabase as any).from('financeiro_conciliacoes').select('*').order('data', { ascending: false }).limit(500),
+      ]);
 
-      if (necessidadesError) throw necessidadesError;
-      if (lancamentosError) throw lancamentosError;
-
-      setNecessidades((necessidadesData ?? []) as Necessidade[]);
-      setLancamentos((lancamentosData ?? []) as Lancamento[]);
+      consultas.forEach((q: any) => { if (q.error) throw q.error; });
+      setNecessidades(consultas[0].data ?? []);
+      setLancamentos(consultas[1].data ?? []);
+      setRcs(consultas[2].data ?? []);
+      setPcs(consultas[3].data ?? []);
+      setProgramacoes(consultas[4].data ?? []);
+      setContas(consultas[5].data ?? []);
+      setPosicoes(consultas[6].data ?? []);
+      setConciliacoes(consultas[7].data ?? []);
     } catch (error) {
-      console.error('Erro ao carregar financeiro:', error);
-      toast.error('Não foi possível carregar o Financeiro.');
+      console.error('Erro ao carregar Financeiro:', error);
+      toast.error('Não foi possível carregar todos os dados do Financeiro.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    void carregar();
+  useEffect(() => { void carregar(); }, []);
 
-    const channel = supabase
-      .channel('financeiro-fase1')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'financeiro_necessidades' }, () => void carregar())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'financeiro_lancamentos' }, () => void carregar())
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, []);
+  const contaNome = (id?: string | null) => contas.find((c) => c.id === id)?.nome || '—';
 
   const indicadores = useMemo(() => {
-    const abertas = necessidades.filter((item) => item.status !== 'cancelado');
-    const semValor = abertas.filter((item) => item.valor_estimado == null || item.estimativa_incompleta);
-    const aguardandoAprovacao = abertas.filter((item) => item.status === 'aguardando_aprovacao');
-    const previstoSaida = lancamentos
-      .filter((item) => item.tipo === 'saida' && !['cancelado', 'pago', 'conciliado'].includes(item.status))
-      .reduce((total, item) => total + Number(item.valor_previsto || 0), 0);
+    const abertas = necessidades.filter((n) => n.status !== 'cancelado');
+    const semValor = abertas.filter((n) => n.valor_estimado == null || n.estimativa_incompleta);
+    const aguardando = abertas.filter((n) => n.status === 'aguardando_aprovacao').length
+      + rcs.filter((r) => r.status_financeiro_rc === 'aguardando_aprovacao').length;
+    const saidasPrevistas = lancamentos
+      .filter((l) => l.tipo === 'saida' && !['cancelado', 'pago', 'conciliado'].includes(l.status))
+      .reduce((soma, l) => soma + Number(l.valor_previsto || 0), 0);
+    const ultimoDia = posicoes[0]?.data;
+    const saldoBancario = posicoes
+      .filter((p) => p.data === ultimoDia)
+      .reduce((soma, p) => soma + Number(p.saldo_final_bancario || 0), 0);
+    const saldoGerencial = posicoes
+      .filter((p) => p.data === ultimoDia)
+      .reduce((soma, p) => soma + Number(p.saldo_financeiro_gerencial || 0), 0);
+    return { abertas: abertas.length, semValor: semValor.length, aguardando, saidasPrevistas, saldoBancario, saldoGerencial, ultimoDia };
+  }, [necessidades, lancamentos, rcs, posicoes]);
 
+  const projecoes = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const limite14 = new Date(hoje); limite14.setDate(limite14.getDate() + 14);
+    const limite13s = new Date(hoje); limite13s.setDate(limite13s.getDate() + 91);
+    const limite6m = new Date(hoje); limite6m.setMonth(limite6m.getMonth() + 6);
+    const validos = lancamentos.filter((l) => l.data_prevista && !['cancelado','pago','conciliado'].includes(l.status));
+    const somarAte = (limite: Date, tipo: string) => validos
+      .filter((l) => l.tipo === tipo && new Date(`${l.data_prevista}T00:00:00`) <= limite)
+      .reduce((s, l) => s + Number(l.valor_previsto || 0), 0);
     return {
-      abertas: abertas.length,
-      semValor: semValor.length,
-      aguardandoAprovacao: aguardandoAprovacao.length,
-      previstoSaida,
+      saidas14: somarAte(limite14, 'saida'),
+      entradas14: somarAte(limite14, 'entrada'),
+      saidas13s: somarAte(limite13s, 'saida'),
+      entradas13s: somarAte(limite13s, 'entrada'),
+      saidas6m: somarAte(limite6m, 'saida'),
+      entradas6m: somarAte(limite6m, 'entrada'),
     };
-  }, [necessidades, lancamentos]);
+  }, [lancamentos]);
 
-  const criarNecessidade = async () => {
-    if (!form.descricao.trim()) {
-      toast.error('Informe a descrição da necessidade.');
-      return;
-    }
-
-    const valor = form.valor.trim()
-      ? Number(form.valor.replace(/\./g, '').replace(',', '.'))
-      : null;
-
-    if (valor != null && (!Number.isFinite(valor) || valor < 0)) {
-      toast.error('Informe um valor estimado válido.');
-      return;
-    }
-
-    setSalvando(true);
+  const criarPn = async () => {
+    if (!pnForm.descricao.trim()) return toast.error('Informe a descrição.');
+    const valor = pnForm.valor ? Number(pnForm.valor.replace(/\./g, '').replace(',', '.')) : null;
     try {
-      const { error } = await (supabase as any).rpc('financeiro_criar_necessidade_manual', {
-        p_descricao: form.descricao.trim(),
+      const { data, error } = await (supabase as any).rpc('financeiro_criar_necessidade_manual', {
+        p_descricao: pnForm.descricao.trim(),
         p_valor_estimado: valor,
-        p_data_necessidade: form.dataNecessidade || null,
-        p_data_prevista_desembolso: form.dataDesembolso || null,
-        p_urgencia: form.urgencia,
-        p_projeto_centro_custo: form.projetoCentroCusto.trim() || null,
-        p_categoria: form.categoria.trim() || null,
-        p_subcategoria: form.subcategoria.trim() || null,
+        p_data_necessidade: pnForm.dataNecessidade || null,
+        p_data_prevista_desembolso: pnForm.dataDesembolso || null,
+        p_urgencia: pnForm.urgencia,
+        p_projeto_centro_custo: pnForm.projeto || null,
+        p_categoria: pnForm.categoria || null,
+        p_subcategoria: pnForm.subcategoria || null,
       });
-
       if (error) throw error;
-
-      toast.success('Necessidade financeira registrada.');
-      setDialogoNovo(false);
-      setForm({
-        descricao: '',
-        valor: '',
-        dataNecessidade: '',
-        dataDesembolso: '',
-        urgencia: 'normal',
-        projetoCentroCusto: '',
-        categoria: '',
-        subcategoria: '',
-      });
+      if (data) {
+        const { error: updateError } = await (supabase as any).from('financeiro_necessidades').update({
+          area_solicitante: pnForm.area || null,
+          especificacao: pnForm.especificacao || null,
+          base_estimativa: pnForm.baseEstimativa || null,
+          justificativa: pnForm.justificativa || null,
+        }).eq('id', data);
+        if (updateError) throw updateError;
+      }
+      setDialogPn(false);
+      setPnForm({ descricao:'', area:'', projeto:'', especificacao:'', dataNecessidade:'', valor:'', baseEstimativa:'', dataDesembolso:'', urgencia:'normal', justificativa:'', categoria:'', subcategoria:'' });
+      toast.success('PN registrada.');
       await carregar();
     } catch (error) {
-      console.error('Erro ao criar necessidade financeira:', error);
-      toast.error('Não foi possível registrar a necessidade.');
-    } finally {
-      setSalvando(false);
+      console.error(error);
+      toast.error('Erro ao registrar PN.');
+    }
+  };
+
+  const abrirRc = (rc: Registro) => {
+    setSelecionado(rc);
+    setRcForm({ ...rc });
+    setDialogRc(true);
+  };
+
+  const salvarRc = async () => {
+    if (!selecionado) return;
+    try {
+      const campos = {
+        projeto_centro_custo: rcForm.projeto_centro_custo || null,
+        especificacao_tecnica: rcForm.especificacao_tecnica || null,
+        data_necessaria: rcForm.data_necessaria || null,
+        conferencia_estoque: rcForm.conferencia_estoque || null,
+        fornecedores_consultados: rcForm.fornecedores_consultados || null,
+        valor_estimado_cotado: rcForm.valor_estimado_cotado === '' ? null : Number(rcForm.valor_estimado_cotado),
+        frete_custos_adicionais: rcForm.frete_custos_adicionais === '' ? null : Number(rcForm.frete_custos_adicionais),
+        condicao_pagamento: rcForm.condicao_pagamento || null,
+        lead_time_dias: rcForm.lead_time_dias === '' ? null : Number(rcForm.lead_time_dias),
+        data_limite_compra: rcForm.data_limite_compra || null,
+        impacto_financeiro: rcForm.impacto_financeiro || null,
+        status_financeiro_rc: rcForm.status_financeiro_rc || 'em_cotacao',
+      };
+      const { error } = await (supabase as any).from('pedidos_compra').update(campos).eq('id', selecionado.id);
+      if (error) throw error;
+      setDialogRc(false);
+      toast.success('RC atualizada.');
+      await carregar();
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao atualizar RC.');
+    }
+  };
+
+  const criarPc = async () => {
+    const rc = rcs.find((item) => item.id === pcForm.rcId);
+    if (!rc || !pcForm.fornecedor.trim() || !pcForm.descricao.trim()) return toast.error('Selecione a RC e informe fornecedor e descrição.');
+    try {
+      const { error } = await (supabase as any).from('financeiro_pedidos_compra_formais').insert({
+        requisicao_compra_id: rc.id,
+        necessidade_id: rc.pn_origem_id || null,
+        fornecedor: pcForm.fornecedor.trim(),
+        fornecedor_identificacao: pcForm.identificacao || null,
+        fornecedor_contato: pcForm.contato || null,
+        descricao: pcForm.descricao.trim(),
+        valor_itens: Number(pcForm.valorItens || 0),
+        frete_custos_adicionais: Number(pcForm.frete || 0),
+        condicao_pagamento: pcForm.condicao || null,
+        prazo_entrega: pcForm.prazo || null,
+        local_entrega: pcForm.local || null,
+      });
+      if (error) throw error;
+      await (supabase as any).from('pedidos_compra').update({ status_financeiro_rc: 'convertida_em_pc' }).eq('id', rc.id);
+      setDialogPc(false);
+      setPcForm({ rcId:'', fornecedor:'', identificacao:'', contato:'', descricao:'', valorItens:'', frete:'', condicao:'', prazo:'', local:'' });
+      toast.success('PC formal criado.');
+      await carregar();
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao criar PC. Verifique se esta RC já possui PC formal.');
+    }
+  };
+
+  const salvarPosicao = async () => {
+    if (!posicaoForm.contaId || !posicaoForm.data) return toast.error('Informe a conta e a data.');
+    const num = (v: string) => Number(v.replace(/\./g,'').replace(',','.')) || 0;
+    try {
+      const { error } = await (supabase as any).from('financeiro_posicoes_diarias').upsert({
+        data: posicaoForm.data,
+        conta_bancaria_id: posicaoForm.contaId,
+        saldo_inicial_bancario: num(posicaoForm.saldoInicial),
+        entradas_realizadas: num(posicaoForm.entradas),
+        saidas_realizadas: num(posicaoForm.saidas),
+        saldo_final_bancario: num(posicaoForm.saldoFinal),
+        pagamentos_programados_nao_liquidados: num(posicaoForm.programados),
+        recebimentos_previstos_nao_realizados: num(posicaoForm.recebimentosNaoRealizados),
+        saidas_nao_previstas_diferencas: num(posicaoForm.saidasNaoPrevistas),
+        saldo_financeiro_gerencial: num(posicaoForm.saldoGerencial),
+        pendencias_proximo_dia: posicaoForm.pendencias || null,
+      }, { onConflict: 'data,conta_bancaria_id' });
+      if (error) throw error;
+      setDialogPosicao(false);
+      toast.success('Posição diária registrada.');
+      await carregar();
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao registrar posição diária.');
+    }
+  };
+
+  const salvarProgramacao = async () => {
+    if (!programacaoForm.lancamentoId || !programacaoForm.beneficiario || !programacaoForm.valor || !programacaoForm.dataProgramada) {
+      return toast.error('Informe lançamento, beneficiário, valor e data programada.');
+    }
+    try {
+      const { error } = await (supabase as any).from('financeiro_programacoes').insert({
+        lancamento_id: programacaoForm.lancamentoId,
+        beneficiario: programacaoForm.beneficiario,
+        valor: Number(programacaoForm.valor.replace(/\./g,'').replace(',','.')),
+        vencimento: programacaoForm.vencimento || null,
+        data_programada: programacaoForm.dataProgramada,
+        banco_conta: programacaoForm.bancoConta || null,
+        forma_pagamento: programacaoForm.formaPagamento || null,
+        categoria: programacaoForm.categoria || null,
+        projeto_centro_custo: programacaoForm.projeto || null,
+        observacao: programacaoForm.observacao || null,
+      });
+      if (error) throw error;
+      setDialogProgramacao(false);
+      toast.success('Programação registrada.');
+      await carregar();
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao registrar programação.');
+    }
+  };
+
+  const salvarConciliacao = async () => {
+    if (!conciliacaoForm.contaId || !conciliacaoForm.historico || !conciliacaoForm.valor) return toast.error('Informe conta, histórico e valor.');
+    try {
+      const { error } = await (supabase as any).from('financeiro_conciliacoes').insert({
+        data: conciliacaoForm.data,
+        conta_bancaria_id: conciliacaoForm.contaId,
+        historico_beneficiario: conciliacaoForm.historico,
+        estava_previsto: conciliacaoForm.previsto === 'sim',
+        valor: Number(conciliacaoForm.valor.replace(/\./g,'').replace(',','.')),
+        valor_previsto: conciliacaoForm.valorPrevisto ? Number(conciliacaoForm.valorPrevisto.replace(/\./g,'').replace(',','.')) : null,
+        data_prevista: conciliacaoForm.dataPrevista || null,
+        tipo: conciliacaoForm.tipo,
+        tratamento_status: conciliacaoForm.tratamento,
+        tratamento_observacao: conciliacaoForm.observacao || null,
+        responsavel_regularizacao: conciliacaoForm.responsavel || null,
+        prazo_regularizacao: conciliacaoForm.prazo || null,
+      });
+      if (error) throw error;
+      setDialogConciliacao(false);
+      toast.success('Movimentação registrada para conciliação.');
+      await carregar();
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao registrar conciliação.');
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-2xl font-bold">Financeiro</h2>
           <p className="text-sm text-muted-foreground">
-            Previsões e necessidades integradas aos processos operacionais. Nesta fase, novas RCs alimentam automaticamente o fluxo previsto.
+            Fluxo integrado ao procedimento oficial: PN → RC → PC → programação → pagamento → conciliação.
           </p>
         </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => void carregar()} disabled={loading}>
-            <RefreshCcw className="mr-2 h-4 w-4" />
-            Atualizar
-          </Button>
-
-          {canManageFinanceiro() && (
-            <Dialog open={dialogoNovo} onOpenChange={setDialogoNovo}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nova necessidade
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Nova necessidade financeira</DialogTitle>
-                </DialogHeader>
-
-                <div className="grid gap-4 py-2 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <Label>Descrição</Label>
-                    <Textarea
-                      value={form.descricao}
-                      onChange={(e) => setForm((atual) => ({ ...atual, descricao: e.target.value }))}
-                      placeholder="Ex.: Frete Maringá → Brusque"
-                    />
-                  </div>
-                  <div>
-                    <Label>Valor estimado</Label>
-                    <Input
-                      value={form.valor}
-                      onChange={(e) => setForm((atual) => ({ ...atual, valor: e.target.value }))}
-                      placeholder="0,00"
-                    />
-                  </div>
-                  <div>
-                    <Label>Urgência</Label>
-                    <Select value={form.urgencia} onValueChange={(value) => setForm((atual) => ({ ...atual, urgencia: value }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="baixa">Baixa</SelectItem>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="alta">Alta</SelectItem>
-                        <SelectItem value="urgente">Urgente</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Data da necessidade</Label>
-                    <Input type="date" value={form.dataNecessidade} onChange={(e) => setForm((atual) => ({ ...atual, dataNecessidade: e.target.value }))} />
-                  </div>
-                  <div>
-                    <Label>Data provável do desembolso</Label>
-                    <Input type="date" value={form.dataDesembolso} onChange={(e) => setForm((atual) => ({ ...atual, dataDesembolso: e.target.value }))} />
-                  </div>
-                  <div>
-                    <Label>Projeto / Centro de custo</Label>
-                    <Input value={form.projetoCentroCusto} onChange={(e) => setForm((atual) => ({ ...atual, projetoCentroCusto: e.target.value }))} />
-                  </div>
-                  <div>
-                    <Label>Categoria</Label>
-                    <Input value={form.categoria} onChange={(e) => setForm((atual) => ({ ...atual, categoria: e.target.value }))} />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <Label>Subcategoria</Label>
-                    <Input value={form.subcategoria} onChange={(e) => setForm((atual) => ({ ...atual, subcategoria: e.target.value }))} />
-                  </div>
-                </div>
-
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setDialogoNovo(false)} disabled={salvando}>Cancelar</Button>
-                  <Button onClick={() => void criarNecessidade()} disabled={salvando}>
-                    {salvando ? 'Salvando...' : 'Registrar necessidade'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
+        <Button variant="outline" onClick={() => void carregar()} disabled={loading}>
+          <RefreshCcw className="mr-2 h-4 w-4" />Atualizar
+        </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Necessidades abertas</CardDescription>
-            <CardTitle className="flex items-center gap-2 text-2xl"><FileClock className="h-5 w-5" />{indicadores.abertas}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Saídas previstas</CardDescription>
-            <CardTitle className="flex items-center gap-2 text-2xl"><TrendingDown className="h-5 w-5" />{moeda(indicadores.previstoSaida)}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Estimativas incompletas</CardDescription>
-            <CardTitle className="flex items-center gap-2 text-2xl"><AlertTriangle className="h-5 w-5" />{indicadores.semValor}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Aguardando aprovação</CardDescription>
-            <CardTitle className="flex items-center gap-2 text-2xl"><CircleDollarSign className="h-5 w-5" />{indicadores.aguardandoAprovacao}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="necessidades" className="w-full">
-        <TabsList>
-          <TabsTrigger value="necessidades">Necessidades / PN</TabsTrigger>
+      <Tabs defaultValue="visao" className="w-full">
+        <TabsList className="flex h-auto flex-wrap justify-start gap-1">
+          <TabsTrigger value="visao">Visão Geral</TabsTrigger>
           <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
+          <TabsTrigger value="pn">PN</TabsTrigger>
+          <TabsTrigger value="rc">RC</TabsTrigger>
+          <TabsTrigger value="pc">PC</TabsTrigger>
+          <TabsTrigger value="programacao">Programação</TabsTrigger>
+          <TabsTrigger value="conciliacao">Conciliação</TabsTrigger>
+          <TabsTrigger value="projecoes">Projeções</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="necessidades" className="mt-4">
+        <TabsContent value="visao" className="mt-5 space-y-5">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <Card><CardHeader className="pb-2"><CardDescription>Saldo bancário</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><Landmark className="h-5 w-5"/>{moeda(indicadores.saldoBancario)}</CardTitle><CardDescription>{indicadores.ultimoDia ? `posição de ${dataPt(indicadores.ultimoDia)}` : 'posição ainda não informada'}</CardDescription></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription>Saldo financeiro gerencial</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><WalletCards className="h-5 w-5"/>{moeda(indicadores.saldoGerencial)}</CardTitle></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription>Saídas previstas</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><TrendingDown className="h-5 w-5"/>{moeda(indicadores.saidasPrevistas)}</CardTitle></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription>Aguardando aprovação</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><FileClock className="h-5 w-5"/>{indicadores.aguardando}</CardTitle></CardHeader></Card>
+          </div>
+
           <Card>
-            <CardHeader>
-              <CardTitle>Necessidades financeiras</CardTitle>
-              <CardDescription>
-                PN automáticas originadas por RC e necessidades manuais que não passam pelo Almoxarifado.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between gap-3">
+              <div><CardTitle>Posição diária de caixa</CardTitle><CardDescription>Equivale à posição bancária que na planilha ficava distribuída nas colunas de Inter, Sicoob, Sicredi, BB e investimentos.</CardDescription></div>
+              {canConciliarFinanceiro() && <Dialog open={dialogPosicao} onOpenChange={setDialogPosicao}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Registrar posição</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Fechamento diário / posição de caixa</DialogTitle></DialogHeader>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Data"><Input type="date" value={posicaoForm.data} onChange={(e)=>setPosicaoForm({...posicaoForm,data:e.target.value})}/></Field>
+                  <Field label="Banco / conta"><Select value={posicaoForm.contaId} onValueChange={(v)=>setPosicaoForm({...posicaoForm,contaId:v})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{contas.map(c=><SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent></Select></Field>
+                  <Field label="Saldo inicial bancário"><Input value={posicaoForm.saldoInicial} onChange={(e)=>setPosicaoForm({...posicaoForm,saldoInicial:e.target.value})}/></Field>
+                  <Field label="Entradas realizadas no dia"><Input value={posicaoForm.entradas} onChange={(e)=>setPosicaoForm({...posicaoForm,entradas:e.target.value})}/></Field>
+                  <Field label="Saídas realizadas no dia"><Input value={posicaoForm.saidas} onChange={(e)=>setPosicaoForm({...posicaoForm,saidas:e.target.value})}/></Field>
+                  <Field label="Saldo final bancário"><Input value={posicaoForm.saldoFinal} onChange={(e)=>setPosicaoForm({...posicaoForm,saldoFinal:e.target.value})}/></Field>
+                  <Field label="Pagamentos programados e não liquidados"><Input value={posicaoForm.programados} onChange={(e)=>setPosicaoForm({...posicaoForm,programados:e.target.value})}/></Field>
+                  <Field label="Recebimentos previstos e não realizados"><Input value={posicaoForm.recebimentosNaoRealizados} onChange={(e)=>setPosicaoForm({...posicaoForm,recebimentosNaoRealizados:e.target.value})}/></Field>
+                  <Field label="Saídas não previstas / diferenças"><Input value={posicaoForm.saidasNaoPrevistas} onChange={(e)=>setPosicaoForm({...posicaoForm,saidasNaoPrevistas:e.target.value})}/></Field>
+                  <Field label="Saldo financeiro gerencial"><Input value={posicaoForm.saldoGerencial} onChange={(e)=>setPosicaoForm({...posicaoForm,saldoGerencial:e.target.value})}/></Field>
+                  <Field label="Pendências para o próximo dia" className="sm:col-span-2"><Textarea value={posicaoForm.pendencias} onChange={(e)=>setPosicaoForm({...posicaoForm,pendencias:e.target.value})}/></Field>
+                </div>
+                <DialogFooter><Button variant="outline" onClick={()=>setDialogPosicao(false)}>Cancelar</Button><Button onClick={()=>void salvarPosicao()}>Salvar posição</Button></DialogFooter>
+              </DialogContent></Dialog>}
             </CardHeader>
             <CardContent className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>PN</TableHead>
-                    <TableHead>Situação</TableHead>
-                    <TableHead>Origem</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Projeto / Centro</TableHead>
-                    <TableHead>Necessidade</TableHead>
-                    <TableHead className="text-right">Estimativa</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Carregando...</TableCell></TableRow>
-                  ) : necessidades.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Nenhuma necessidade financeira registrada.</TableCell></TableRow>
-                  ) : necessidades.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">PN-{String(item.numero).padStart(4, '0')}</TableCell>
-                      <TableCell><Badge variant={item.status === 'cancelado' ? 'secondary' : 'outline'}>{statusLabel[item.status] ?? item.status}</Badge></TableCell>
-                      <TableCell>{item.origem_tipo === 'rc' ? 'RC' : item.origem_tipo}</TableCell>
-                      <TableCell className="min-w-[280px]">{item.descricao}</TableCell>
-                      <TableCell>{item.projeto_centro_custo || '—'}</TableCell>
-                      <TableCell>{dataPt(item.data_necessidade)}</TableCell>
-                      <TableCell className="text-right">
-                        <span>{moeda(item.valor_estimado)}</span>
-                        {item.estimativa_incompleta && <span className="ml-2 text-xs text-amber-600">parcial</span>}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <Table><TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Conta</TableHead><TableHead className="text-right">Saldo bancário</TableHead><TableHead className="text-right">Programado não liquidado</TableHead><TableHead className="text-right">Saldo gerencial</TableHead><TableHead>Pendências</TableHead></TableRow></TableHeader>
+              <TableBody>{posicoes.length===0?<TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Nenhuma posição diária registrada.</TableCell></TableRow>:posicoes.slice(0,30).map(p=><TableRow key={p.id}><TableCell>{dataPt(p.data)}</TableCell><TableCell>{contaNome(p.conta_bancaria_id)}</TableCell><TableCell className="text-right">{moeda(p.saldo_final_bancario)}</TableCell><TableCell className="text-right">{moeda(p.pagamentos_programados_nao_liquidados)}</TableCell><TableCell className="text-right">{moeda(p.saldo_financeiro_gerencial)}</TableCell><TableCell>{p.pendencias_proximo_dia||'—'}</TableCell></TableRow>)}</TableBody></Table>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="fluxo" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Fluxo de Caixa</CardTitle>
-              <CardDescription>
-                Primeira visão sistêmica inspirada na Página54: previsto e realizado permanecem separados.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Situação</TableHead>
-                    <TableHead>Data prevista</TableHead>
-                    <TableHead>Data realizada</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead>Subcategoria</TableHead>
-                    <TableHead>Projeto / Centro</TableHead>
-                    <TableHead className="text-right">Débito</TableHead>
-                    <TableHead className="text-right">Crédito</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow><TableCell colSpan={9} className="py-10 text-center text-muted-foreground">Carregando...</TableCell></TableRow>
-                  ) : lancamentos.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} className="py-10 text-center text-muted-foreground">Nenhum lançamento financeiro registrado.</TableCell></TableRow>
-                  ) : lancamentos.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell><Badge variant="outline">{statusLabel[item.status] ?? item.status}</Badge></TableCell>
-                      <TableCell>{dataPt(item.data_prevista)}</TableCell>
-                      <TableCell>{dataPt(item.data_realizada)}</TableCell>
-                      <TableCell className="min-w-[280px]">{item.descricao}</TableCell>
-                      <TableCell>{item.categoria || '—'}</TableCell>
-                      <TableCell>{item.subcategoria || '—'}</TableCell>
-                      <TableCell>{item.projeto_centro_custo || '—'}</TableCell>
-                      <TableCell className="text-right">{item.tipo === 'saida' ? moeda(item.valor_realizado ?? item.valor_previsto) : '—'}</TableCell>
-                      <TableCell className="text-right">{item.tipo === 'entrada' ? moeda(item.valor_realizado ?? item.valor_previsto) : '—'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
+        <TabsContent value="fluxo" className="mt-5">
+          <Card><CardHeader><CardTitle>Fluxo de Caixa</CardTitle><CardDescription>Visão sistêmica equivalente ao núcleo da Página54: previsto e realizado separados, com origem rastreável.</CardDescription></CardHeader>
+            <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Situação</TableHead><TableHead>Data prevista</TableHead><TableHead>Data realizada</TableHead><TableHead>Descrição</TableHead><TableHead>Categoria</TableHead><TableHead>Subcategoria</TableHead><TableHead>Projeto / Centro</TableHead><TableHead className="text-right">Débito</TableHead><TableHead className="text-right">Crédito</TableHead></TableRow></TableHeader>
+            <TableBody>{lancamentos.length===0?<TableRow><TableCell colSpan={9} className="py-8 text-center text-muted-foreground">Nenhum lançamento.</TableCell></TableRow>:lancamentos.map(l=><TableRow key={l.id}><TableCell><BadgeStatus status={l.status}/></TableCell><TableCell>{dataPt(l.data_prevista)}</TableCell><TableCell>{dataPt(l.data_realizada)}</TableCell><TableCell className="min-w-[280px]">{l.descricao}</TableCell><TableCell>{l.categoria||'—'}</TableCell><TableCell>{l.subcategoria||'—'}</TableCell><TableCell>{l.projeto_centro_custo||'—'}</TableCell><TableCell className="text-right">{l.tipo==='saida'?moeda(l.valor_realizado??l.valor_previsto):'—'}</TableCell><TableCell className="text-right">{l.tipo==='entrada'?moeda(l.valor_realizado??l.valor_previsto):'—'}</TableCell></TableRow>)}</TableBody></Table></CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pn" className="mt-5">
+          <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>PN — Previsão de Necessidade</CardTitle><CardDescription>Anexo A do procedimento. PN automática de RC ou manual para serviços, viagens, impostos e demais necessidades fora do estoque.</CardDescription></div>
+          {canManageFinanceiro()&&<Dialog open={dialogPn} onOpenChange={setDialogPn}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova PN</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Formulário PN</DialogTitle></DialogHeader>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Solicitante / área"><Input value={pnForm.area} onChange={(e)=>setPnForm({...pnForm,area:e.target.value})}/></Field>
+              <Field label="Projeto / obra / centro de custo"><Input value={pnForm.projeto} onChange={(e)=>setPnForm({...pnForm,projeto:e.target.value})}/></Field>
+              <Field label="Descrição da necessidade" className="sm:col-span-2"><Textarea value={pnForm.descricao} onChange={(e)=>setPnForm({...pnForm,descricao:e.target.value})}/></Field>
+              <Field label="Especificação / quantidade" className="sm:col-span-2"><Input value={pnForm.especificacao} onChange={(e)=>setPnForm({...pnForm,especificacao:e.target.value})}/></Field>
+              <Field label="Data em que será necessária"><Input type="date" value={pnForm.dataNecessidade} onChange={(e)=>setPnForm({...pnForm,dataNecessidade:e.target.value})}/></Field>
+              <Field label="Valor estimado"><Input value={pnForm.valor} onChange={(e)=>setPnForm({...pnForm,valor:e.target.value})}/></Field>
+              <Field label="Base da estimativa"><Input value={pnForm.baseEstimativa} onChange={(e)=>setPnForm({...pnForm,baseEstimativa:e.target.value})} placeholder="Histórico / cotação prévia / estimativa técnica"/></Field>
+              <Field label="Data provável de desembolso"><Input type="date" value={pnForm.dataDesembolso} onChange={(e)=>setPnForm({...pnForm,dataDesembolso:e.target.value})}/></Field>
+              <Field label="Urgência"><Select value={pnForm.urgencia} onValueChange={(v)=>setPnForm({...pnForm,urgencia:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="normal">Normal</SelectItem><SelectItem value="alta">Atenção</SelectItem><SelectItem value="urgente">Crítica</SelectItem></SelectContent></Select></Field>
+              <Field label="Categoria"><Input value={pnForm.categoria} onChange={(e)=>setPnForm({...pnForm,categoria:e.target.value})}/></Field>
+              <Field label="Subcategoria"><Input value={pnForm.subcategoria} onChange={(e)=>setPnForm({...pnForm,subcategoria:e.target.value})}/></Field>
+              <Field label="Justificativa / impacto se não atendida" className="sm:col-span-2"><Textarea value={pnForm.justificativa} onChange={(e)=>setPnForm({...pnForm,justificativa:e.target.value})}/></Field>
+            </div>
+            <DialogFooter><Button variant="outline" onClick={()=>setDialogPn(false)}>Cancelar</Button><Button onClick={()=>void criarPn()}>Registrar PN</Button></DialogFooter>
+          </DialogContent></Dialog>}</CardHeader>
+          <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>PN</TableHead><TableHead>Status</TableHead><TableHead>Origem</TableHead><TableHead>Área</TableHead><TableHead>Descrição</TableHead><TableHead>Projeto / Centro</TableHead><TableHead>Data necessária</TableHead><TableHead className="text-right">Valor estimado</TableHead></TableRow></TableHeader>
+          <TableBody>{necessidades.length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Nenhuma PN.</TableCell></TableRow>:necessidades.map(n=><TableRow key={n.id}><TableCell className="font-medium">PN-{String(n.numero).padStart(4,'0')}</TableCell><TableCell><BadgeStatus status={n.status}/></TableCell><TableCell>{n.origem_tipo==='rc'?'RC':n.origem_tipo}</TableCell><TableCell>{n.area_solicitante||n.solicitante_nome||'—'}</TableCell><TableCell className="min-w-[260px]">{n.descricao}</TableCell><TableCell>{n.projeto_centro_custo||'—'}</TableCell><TableCell>{dataPt(n.data_necessidade)}</TableCell><TableCell className="text-right">{moeda(n.valor_estimado)}{n.estimativa_incompleta&&<span className="ml-1 text-xs text-amber-600">parcial</span>}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+        </TabsContent>
+
+        <TabsContent value="rc" className="mt-5">
+          <Card><CardHeader><CardTitle>RC — Requisição de Compra</CardTitle><CardDescription>Anexo B. O atual fluxo operacional de compra foi mantido e recebe agora os campos de cotação, impacto financeiro e validações.</CardDescription></CardHeader>
+          <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>RC</TableHead><TableHead>PN</TableHead><TableHead>Status financeiro</TableHead><TableHead>Origem</TableHead><TableHead>Data necessária</TableHead><TableHead className="text-right">Cotado</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableBody>{rcs.length===0?<TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhuma RC.</TableCell></TableRow>:rcs.map(r=><TableRow key={r.id}><TableCell className="font-medium">RC-{String(r.numero).padStart(4,'0')}</TableCell><TableCell>{r.pn_origem_id?'Vinculada':'—'}</TableCell><TableCell><BadgeStatus status={r.status_financeiro_rc}/></TableCell><TableCell>{r.solicitacao_material_numero? `Solicitação #${r.solicitacao_material_numero}`:'Manual'}</TableCell><TableCell>{dataPt(r.data_necessaria)}</TableCell><TableCell className="text-right">{moeda(r.valor_estimado_cotado)}</TableCell><TableCell><Button size="sm" variant="outline" onClick={()=>abrirRc(r)}>Abrir formulário</Button></TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+
+          <Dialog open={dialogRc} onOpenChange={setDialogRc}><DialogContent className="sm:max-w-4xl"><DialogHeader><DialogTitle>Formulário RC {selecionado? `#${selecionado.numero}`:''}</DialogTitle></DialogHeader>
+            <div className="grid max-h-[65vh] gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
+              <Field label="PN de origem"><Input value={selecionado?.pn_origem_id?'PN vinculada automaticamente':'Sem PN vinculada'} disabled/></Field>
+              <Field label="Projeto / OP / centro de custo"><Input value={rcForm.projeto_centro_custo||''} onChange={(e)=>setRcForm({...rcForm,projeto_centro_custo:e.target.value})}/></Field>
+              <Field label="Especificação técnica" className="sm:col-span-2"><Textarea value={rcForm.especificacao_tecnica||''} onChange={(e)=>setRcForm({...rcForm,especificacao_tecnica:e.target.value})}/></Field>
+              <Field label="Data necessária"><Input type="date" value={rcForm.data_necessaria||''} onChange={(e)=>setRcForm({...rcForm,data_necessaria:e.target.value})}/></Field>
+              <Field label="Conferência de estoque"><Input value={rcForm.conferencia_estoque||''} onChange={(e)=>setRcForm({...rcForm,conferencia_estoque:e.target.value})} placeholder="Saldo / reserva / trânsito / reaproveitamento"/></Field>
+              <Field label="Fornecedor(es) consultado(s)" className="sm:col-span-2"><Textarea value={rcForm.fornecedores_consultados||''} onChange={(e)=>setRcForm({...rcForm,fornecedores_consultados:e.target.value})}/></Field>
+              <Field label="Valor estimado / cotado"><Input value={rcForm.valor_estimado_cotado??''} onChange={(e)=>setRcForm({...rcForm,valor_estimado_cotado:e.target.value})}/></Field>
+              <Field label="Frete / custos adicionais"><Input value={rcForm.frete_custos_adicionais??''} onChange={(e)=>setRcForm({...rcForm,frete_custos_adicionais:e.target.value})}/></Field>
+              <Field label="Condição de pagamento"><Input value={rcForm.condicao_pagamento||''} onChange={(e)=>setRcForm({...rcForm,condicao_pagamento:e.target.value})}/></Field>
+              <Field label="Lead time (dias)"><Input type="number" value={rcForm.lead_time_dias??''} onChange={(e)=>setRcForm({...rcForm,lead_time_dias:e.target.value})}/></Field>
+              <Field label="Data-limite de compra"><Input type="date" value={rcForm.data_limite_compra||''} onChange={(e)=>setRcForm({...rcForm,data_limite_compra:e.target.value})}/></Field>
+              <Field label="Status"><Select value={rcForm.status_financeiro_rc||'em_cotacao'} onValueChange={(v)=>setRcForm({...rcForm,status_financeiro_rc:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="em_cotacao">Em cotação</SelectItem><SelectItem value="aguardando_aprovacao">Aguardando aprovação</SelectItem><SelectItem value="aprovada">Aprovada</SelectItem><SelectItem value="rejeitada">Rejeitada</SelectItem><SelectItem value="convertida_em_pc">Convertida em PC</SelectItem></SelectContent></Select></Field>
+              <Field label="Impacto atualizado por Kátia" className="sm:col-span-2"><Textarea value={rcForm.impacto_financeiro||''} onChange={(e)=>setRcForm({...rcForm,impacto_financeiro:e.target.value})} placeholder="Datas e valores no fluxo"/></Field>
+              <div className="sm:col-span-2 rounded-md border p-3 text-sm">
+                <p className="font-medium">Validações da RC</p>
+                <div className="mt-2 grid gap-1 text-muted-foreground sm:grid-cols-2">
+                  <span>Estoque conferido: {rcForm.estoque_conferido_por||'pendente'}</span>
+                  <span>Especificação confirmada: {rcForm.especificacao_confirmada_por||'pendente'}</span>
+                  <span>Impacto financeiro: {rcForm.impacto_financeiro_registrado_por||'pendente'}</span>
+                  <span>Aprovação executiva: {rcForm.aprovacao_executiva_por||'pendente'}</span>
+                </div>
+              </div>
+            </div>
+            <DialogFooter><Button variant="outline" onClick={()=>setDialogRc(false)}>Fechar</Button>{canManageFinanceiro()&&<Button onClick={()=>void salvarRc()}>Salvar RC</Button>}</DialogFooter>
+          </DialogContent></Dialog>
+        </TabsContent>
+
+        <TabsContent value="pc" className="mt-5">
+          <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>PC — Pedido de Compra Formal</CardTitle><CardDescription>Anexo C. Só deve representar compromisso efetivamente assumido com fornecedor após aprovação.</CardDescription></div>
+          {canManageFinanceiro()&&<Dialog open={dialogPc} onOpenChange={setDialogPc}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Novo PC</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Formulário PC</DialogTitle></DialogHeader>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="RC de origem"><Select value={pcForm.rcId} onValueChange={(v)=>setPcForm({...pcForm,rcId:v})}><SelectTrigger><SelectValue placeholder="Selecione a RC"/></SelectTrigger><SelectContent>{rcs.filter(r=>r.status_financeiro_rc!=='convertida_em_pc').map(r=><SelectItem key={r.id} value={r.id}>RC-{String(r.numero).padStart(4,'0')}</SelectItem>)}</SelectContent></Select></Field>
+              <Field label="Fornecedor"><Input value={pcForm.fornecedor} onChange={(e)=>setPcForm({...pcForm,fornecedor:e.target.value})}/></Field>
+              <Field label="CNPJ / identificação"><Input value={pcForm.identificacao} onChange={(e)=>setPcForm({...pcForm,identificacao:e.target.value})}/></Field>
+              <Field label="Contato"><Input value={pcForm.contato} onChange={(e)=>setPcForm({...pcForm,contato:e.target.value})}/></Field>
+              <Field label="Descrição do pedido" className="sm:col-span-2"><Textarea value={pcForm.descricao} onChange={(e)=>setPcForm({...pcForm,descricao:e.target.value})}/></Field>
+              <Field label="Valor dos itens"><Input value={pcForm.valorItens} onChange={(e)=>setPcForm({...pcForm,valorItens:e.target.value})}/></Field>
+              <Field label="Frete / custos adicionais"><Input value={pcForm.frete} onChange={(e)=>setPcForm({...pcForm,frete:e.target.value})}/></Field>
+              <Field label="Condição de pagamento"><Input value={pcForm.condicao} onChange={(e)=>setPcForm({...pcForm,condicao:e.target.value})}/></Field>
+              <Field label="Prazo de entrega"><Input value={pcForm.prazo} onChange={(e)=>setPcForm({...pcForm,prazo:e.target.value})}/></Field>
+              <Field label="Local de entrega" className="sm:col-span-2"><Input value={pcForm.local} onChange={(e)=>setPcForm({...pcForm,local:e.target.value})}/></Field>
+            </div>
+            <DialogFooter><Button variant="outline" onClick={()=>setDialogPc(false)}>Cancelar</Button><Button onClick={()=>void criarPc()}>Criar PC formal</Button></DialogFooter>
+          </DialogContent></Dialog>}</CardHeader>
+          <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>PC</TableHead><TableHead>Fornecedor</TableHead><TableHead>Descrição</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Itens</TableHead><TableHead className="text-right">Frete</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Aprovação Mauro</TableHead></TableRow></TableHeader>
+          <TableBody>{pcs.length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Nenhum PC formal criado.</TableCell></TableRow>:pcs.map(pc=><TableRow key={pc.id}><TableCell className="font-medium">PC-{String(pc.numero).padStart(4,'0')}</TableCell><TableCell>{pc.fornecedor}</TableCell><TableCell className="min-w-[220px]">{pc.descricao}</TableCell><TableCell><BadgeStatus status={pc.status}/></TableCell><TableCell className="text-right">{moeda(pc.valor_itens)}</TableCell><TableCell className="text-right">{moeda(pc.frete_custos_adicionais)}</TableCell><TableCell className="text-right">{moeda(pc.valor_total)}</TableCell><TableCell>{pc.aprovacao_mauro_em?dataPt(pc.aprovacao_mauro_em):canApproveFinanceiro()?'Pendente':'—'}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+        </TabsContent>
+
+        <TabsContent value="programacao" className="mt-5">
+          <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>Programação Bancária</CardTitle><CardDescription>Fila formal Kátia → Guto. Programação bancária não substitui o planejamento.</CardDescription></div>
+          {(canManageFinanceiro()||canProgramFinanceiro())&&<Dialog open={dialogProgramacao} onOpenChange={setDialogProgramacao}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova programação</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Programação bancária</DialogTitle></DialogHeader>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Lançamento"><Select value={programacaoForm.lancamentoId} onValueChange={(v)=>setProgramacaoForm({...programacaoForm,lancamentoId:v})}><SelectTrigger><SelectValue placeholder="Selecione o lançamento"/></SelectTrigger><SelectContent>{lancamentos.filter(l=>l.tipo==='saida'&&!['cancelado','pago','conciliado'].includes(l.status)).map(l=><SelectItem key={l.id} value={l.id}>{l.descricao.slice(0,60)} · {moeda(l.valor_previsto)}</SelectItem>)}</SelectContent></Select></Field>
+              <Field label="Beneficiário"><Input value={programacaoForm.beneficiario} onChange={(e)=>setProgramacaoForm({...programacaoForm,beneficiario:e.target.value})}/></Field>
+              <Field label="Valor"><Input value={programacaoForm.valor} onChange={(e)=>setProgramacaoForm({...programacaoForm,valor:e.target.value})}/></Field>
+              <Field label="Vencimento"><Input type="date" value={programacaoForm.vencimento} onChange={(e)=>setProgramacaoForm({...programacaoForm,vencimento:e.target.value})}/></Field>
+              <Field label="Data programada"><Input type="date" value={programacaoForm.dataProgramada} onChange={(e)=>setProgramacaoForm({...programacaoForm,dataProgramada:e.target.value})}/></Field>
+              <Field label="Banco / conta"><Input value={programacaoForm.bancoConta} onChange={(e)=>setProgramacaoForm({...programacaoForm,bancoConta:e.target.value})}/></Field>
+              <Field label="Forma de pagamento"><Input value={programacaoForm.formaPagamento} onChange={(e)=>setProgramacaoForm({...programacaoForm,formaPagamento:e.target.value})}/></Field>
+              <Field label="Categoria"><Input value={programacaoForm.categoria} onChange={(e)=>setProgramacaoForm({...programacaoForm,categoria:e.target.value})}/></Field>
+              <Field label="Projeto / centro de custo"><Input value={programacaoForm.projeto} onChange={(e)=>setProgramacaoForm({...programacaoForm,projeto:e.target.value})}/></Field>
+              <Field label="Observação" className="sm:col-span-2"><Textarea value={programacaoForm.observacao} onChange={(e)=>setProgramacaoForm({...programacaoForm,observacao:e.target.value})}/></Field>
+            </div>
+            <DialogFooter><Button variant="outline" onClick={()=>setDialogProgramacao(false)}>Cancelar</Button><Button onClick={()=>void salvarProgramacao()}>Registrar</Button></DialogFooter>
+          </DialogContent></Dialog>}</CardHeader>
+          <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Status</TableHead><TableHead>Beneficiário</TableHead><TableHead>Vencimento</TableHead><TableHead>Programar em</TableHead><TableHead>Banco</TableHead><TableHead>Projeto</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader><TableBody>{programacoes.length===0?<TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhuma programação.</TableCell></TableRow>:programacoes.map(p=><TableRow key={p.id}><TableCell><BadgeStatus status={p.status}/></TableCell><TableCell>{p.beneficiario}</TableCell><TableCell>{dataPt(p.vencimento)}</TableCell><TableCell>{dataPt(p.data_programada)}</TableCell><TableCell>{p.banco_conta||'—'}</TableCell><TableCell>{p.projeto_centro_custo||'—'}</TableCell><TableCell className="text-right">{moeda(p.valor)}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+        </TabsContent>
+
+        <TabsContent value="conciliacao" className="mt-5">
+          <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>Conciliação Bancária e Desvios</CardTitle><CardDescription>Anexo E. Registra o que aconteceu no banco, se estava previsto e qual tratamento a divergência recebeu.</CardDescription></div>
+          {canConciliarFinanceiro()&&<Dialog open={dialogConciliacao} onOpenChange={setDialogConciliacao}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Registrar movimentação</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Movimentação / divergência</DialogTitle></DialogHeader>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Data"><Input type="date" value={conciliacaoForm.data} onChange={(e)=>setConciliacaoForm({...conciliacaoForm,data:e.target.value})}/></Field>
+              <Field label="Banco / conta"><Select value={conciliacaoForm.contaId} onValueChange={(v)=>setConciliacaoForm({...conciliacaoForm,contaId:v})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{contas.map(c=><SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent></Select></Field>
+              <Field label="Histórico / beneficiário" className="sm:col-span-2"><Input value={conciliacaoForm.historico} onChange={(e)=>setConciliacaoForm({...conciliacaoForm,historico:e.target.value})}/></Field>
+              <Field label="Estava previsto?"><Select value={conciliacaoForm.previsto} onValueChange={(v)=>setConciliacaoForm({...conciliacaoForm,previsto:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="sim">Sim</SelectItem><SelectItem value="nao">Não</SelectItem></SelectContent></Select></Field>
+              <Field label="Tipo"><Select value={conciliacaoForm.tipo} onValueChange={(v)=>setConciliacaoForm({...conciliacaoForm,tipo:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="saida">Saída</SelectItem><SelectItem value="entrada">Entrada</SelectItem></SelectContent></Select></Field>
+              <Field label="Valor realizado"><Input value={conciliacaoForm.valor} onChange={(e)=>setConciliacaoForm({...conciliacaoForm,valor:e.target.value})}/></Field>
+              <Field label="Valor previsto"><Input value={conciliacaoForm.valorPrevisto} onChange={(e)=>setConciliacaoForm({...conciliacaoForm,valorPrevisto:e.target.value})}/></Field>
+              <Field label="Data prevista"><Input type="date" value={conciliacaoForm.dataPrevista} onChange={(e)=>setConciliacaoForm({...conciliacaoForm,dataPrevista:e.target.value})}/></Field>
+              <Field label="Tratamento / status"><Select value={conciliacaoForm.tratamento} onValueChange={(v)=>setConciliacaoForm({...conciliacaoForm,tratamento:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="em_apuracao">Em apuração</SelectItem><SelectItem value="identificado">Identificado</SelectItem><SelectItem value="regularizado">Regularizado</SelectItem><SelectItem value="conciliado">Conciliado</SelectItem></SelectContent></Select></Field>
+              <Field label="Responsável pela regularização"><Input value={conciliacaoForm.responsavel} onChange={(e)=>setConciliacaoForm({...conciliacaoForm,responsavel:e.target.value})}/></Field>
+              <Field label="Prazo da regularização"><Input type="date" value={conciliacaoForm.prazo} onChange={(e)=>setConciliacaoForm({...conciliacaoForm,prazo:e.target.value})}/></Field>
+              <Field label="Tratamento / observação" className="sm:col-span-2"><Textarea value={conciliacaoForm.observacao} onChange={(e)=>setConciliacaoForm({...conciliacaoForm,observacao:e.target.value})}/></Field>
+            </div>
+            <DialogFooter><Button variant="outline" onClick={()=>setDialogConciliacao(false)}>Cancelar</Button><Button onClick={()=>void salvarConciliacao()}>Registrar</Button></DialogFooter>
+          </DialogContent></Dialog>}</CardHeader>
+          <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Conta</TableHead><TableHead>Histórico / beneficiário</TableHead><TableHead>Previsto?</TableHead><TableHead>Tratamento</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Responsável / prazo</TableHead></TableRow></TableHeader><TableBody>{conciliacoes.length===0?<TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhuma movimentação em conciliação.</TableCell></TableRow>:conciliacoes.map(c=><TableRow key={c.id}><TableCell>{dataPt(c.data)}</TableCell><TableCell>{contaNome(c.conta_bancaria_id)}</TableCell><TableCell className="min-w-[220px]">{c.historico_beneficiario}</TableCell><TableCell>{c.estava_previsto===true?'Sim':c.estava_previsto===false?'Não':'—'}</TableCell><TableCell><BadgeStatus status={c.tratamento_status}/></TableCell><TableCell className="text-right">{moeda(c.valor)}</TableCell><TableCell>{c.responsavel_regularizacao||'—'}{c.prazo_regularizacao?` · ${dataPt(c.prazo_regularizacao)}`:''}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+        </TabsContent>
+
+        <TabsContent value="projecoes" className="mt-5 space-y-5">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card><CardHeader><CardDescription>Próximos 14 dias</CardDescription><CardTitle>{moeda(projecoes.entradas14 - projecoes.saidas14)}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Entradas {moeda(projecoes.entradas14)} · Saídas {moeda(projecoes.saidas14)}</CardContent></Card>
+            <Card><CardHeader><CardDescription>13 semanas</CardDescription><CardTitle>{moeda(projecoes.entradas13s - projecoes.saidas13s)}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Entradas {moeda(projecoes.entradas13s)} · Saídas {moeda(projecoes.saidas13s)}</CardContent></Card>
+            <Card><CardHeader><CardDescription>6 meses</CardDescription><CardTitle>{moeda(projecoes.entradas6m - projecoes.saidas6m)}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Entradas {moeda(projecoes.entradas6m)} · Saídas {moeda(projecoes.saidas6m)}</CardContent></Card>
+          </div>
+          <Card><CardHeader><CardTitle>Horizontes do procedimento</CardTitle><CardDescription>Os valores acima são calculados diretamente dos lançamentos previstos atuais. O horizonte anual será acrescentado quando houver base suficiente de compromissos e recebimentos futuros.</CardDescription></CardHeader>
+            <CardContent><div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-lg border p-4"><CalendarRange className="mb-2 h-5 w-5"/><p className="font-medium">14 dias</p><p className="text-sm text-muted-foreground">Pressão imediata de caixa e decisões urgentes.</p></div>
+              <div className="rounded-lg border p-4"><ClipboardList className="mb-2 h-5 w-5"/><p className="font-medium">13 semanas</p><p className="text-sm text-muted-foreground">Fluxo móvel semanal para operação e sazonal.</p></div>
+              <div className="rounded-lg border p-4"><Banknote className="mb-2 h-5 w-5"/><p className="font-medium">6 meses</p><p className="text-sm text-muted-foreground">Visão mensal de compromissos, recebimentos e risco de caixa.</p></div>
+            </div></CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {loading && <div className="text-sm text-muted-foreground">Atualizando informações financeiras...</div>}
+      {!loading && indicadores.semValor > 0 && <div className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm"><AlertTriangle className="h-4 w-4 text-amber-600"/><span>{indicadores.semValor} necessidade(s) ainda possuem valor ausente ou estimativa parcial.</span></div>}
+      {!loading && indicadores.abertas > 0 && <div className="flex items-center gap-2 rounded-md border p-3 text-sm text-muted-foreground"><CheckCircle2 className="h-4 w-4"/><span>Rastreabilidade ativa: PN, RC, PC, programação e conciliação permanecem em estruturas separadas, mas relacionadas.</span></div>}
     </div>
   );
 };
