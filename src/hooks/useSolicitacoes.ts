@@ -21,6 +21,7 @@ export const useSolicitacoes = () => {
   const isLoadingRef = useRef(false);
   const lastLoadTimeRef = useRef<number>(0);
   const isCreatingRef = useRef(false);
+  const devolucaoPendenteRef = useRef<{ chave: string; id: string } | null>(null);
 
   // Função de carregamento com debounce para evitar chamadas múltiplas
   const carregarSolicitacoesDebounced = useCallback(() => {
@@ -209,6 +210,22 @@ export const useSolicitacoes = () => {
     isCreatingRef.current = true;
 
     try {
+      if (novaSolicitacao.tipo_operacao === 'devolucao' || novaSolicitacao.tipo_operacao === 'devolucao_estoque') {
+        const dados = { ...novaSolicitacao, estoque_id: obterEstoqueAtivoInfo()?.id ?? null };
+        const chave = JSON.stringify(dados);
+        if (devolucaoPendenteRef.current?.chave !== chave) {
+          devolucaoPendenteRef.current = { chave, id: crypto.randomUUID() };
+        }
+        const { error } = await (supabase.rpc as any)('registrar_devolucao_lote_v1', {
+          p_requisicao_id: devolucaoPendenteRef.current.id,
+          p_dados: dados,
+        });
+        if (error) throw error;
+        devolucaoPendenteRef.current = null;
+        toast.success('Devolução registrada e estoque atualizado!');
+        return true;
+      }
+
       // Validação de ferramentas antes de iniciar qualquer operação
       const isRetiradaCheck = !novaSolicitacao.tipo_operacao || 
                               novaSolicitacao.tipo_operacao === 'retirada' || 
@@ -361,7 +378,7 @@ export const useSolicitacoes = () => {
       return true;
     } catch (error) {
       console.error('Erro ao criar solicitação:', error);
-      toast.error('Erro ao criar solicitação');
+      toast.error((error as { message?: string })?.message || 'Erro ao criar solicitação');
       return false;
     } finally {
       isCreatingRef.current = false;
