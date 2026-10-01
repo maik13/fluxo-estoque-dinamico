@@ -44,7 +44,18 @@ Deno.serve(async (req: Request) => {
     if (createLogin && !email) return json(400, { error: "Email é obrigatório para criar acesso de login" });
     if (createLogin && (!password || password.length < 8)) return json(400, { error: "Senha deve ter pelo menos 8 caracteres" });
 
+    const existingColaboradorId = body.existing_colaborador_id ? String(body.existing_colaborador_id) : null;
     let userId: string | null = null;
+
+    if (existingColaboradorId) {
+      const { data: existing, error: existingError } = await admin
+        .from("rh_colaboradores")
+        .select("id,user_id,email")
+        .eq("id", existingColaboradorId)
+        .maybeSingle();
+      if (existingError || !existing) return json(404, { error: "Colaborador não encontrado" });
+      if (existing.user_id) return json(400, { error: "Este colaborador já possui acesso vinculado" });
+    }
 
     if (createLogin) {
       const { data: created, error: createError } = await admin.auth.admin.createUser({
@@ -114,10 +125,34 @@ Deno.serve(async (req: Request) => {
       origem_sistema: "fluxo_estoque_dinamico",
     };
 
-    const { data: colaborador, error: insertError } = await admin.from("rh_colaboradores").insert(payload).select("*").single();
-    if (insertError) {
-      if (userId) await admin.auth.admin.deleteUser(userId);
-      return json(400, { error: insertError.message });
+    let colaborador: any = null;
+    if (existingColaboradorId) {
+      const { data: updated, error: updateError } = await admin
+        .from("rh_colaboradores")
+        .update({
+          ...payload,
+          user_id: userId,
+          rh_cadastrado: true,
+        })
+        .eq("id", existingColaboradorId)
+        .select("*")
+        .single();
+      if (updateError) {
+        if (userId) await admin.auth.admin.deleteUser(userId);
+        return json(400, { error: updateError.message });
+      }
+      colaborador = updated;
+    } else {
+      const { data: inserted, error: insertError } = await admin
+        .from("rh_colaboradores")
+        .insert(payload)
+        .select("*")
+        .single();
+      if (insertError) {
+        if (userId) await admin.auth.admin.deleteUser(userId);
+        return json(400, { error: insertError.message });
+      }
+      colaborador = inserted;
     }
 
     return json(200, {
