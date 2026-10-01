@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Search, MapPin, Calendar, FolderOpen, CircleCheck } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useProjetosProducao } from '@/hooks/useProjetosProducao';
@@ -18,12 +19,26 @@ export const ProjetosProducao = ({ onProjetosAtualizados }: Props) => {
   const { projetos, loading, listarProjetos } = useProjetosProducao();
   const { canConfigurarProducao, isAdmin } = usePermissions();
 
+  const [progressos, setProgressos] = useState<Record<string, number>>({});
+  const [erroProgresso, setErroProgresso] = useState(false);
+  const carregarProgressos = useCallback(async () => {
+    const { data, error } = await (supabase.rpc as any)('listar_painel_gerencial_producao_v2');
+    if (error || !Array.isArray(data)) { setErroProgresso(true); return; }
+    setProgressos(Object.fromEntries(data.map((p: any) => [
+      p.projeto_id, Math.max(0, Math.min(100, Number(p.percentual_realizado) || 0)),
+    ])));
+    setErroProgresso(false);
+  }, []);
+
   useEffect(() => {
     void listarProjetos();
-  }, [listarProjetos]);
+    void carregarProgressos();
+    const intervalo = setInterval(() => void carregarProgressos(), 30000);
+    return () => clearInterval(intervalo);
+  }, [listarProjetos, carregarProgressos]);
 
   const atualizarProjetos = async () => {
-    await listarProjetos();
+    await Promise.all([listarProjetos(), carregarProgressos()]);
     onProjetosAtualizados?.();
   };
 
@@ -116,6 +131,20 @@ export const ProjetosProducao = ({ onProjetosAtualizados }: Props) => {
                     {format(new Date(projeto.created_at), "dd 'de' MMM, yyyy", { locale: ptBR })}
                   </span>
                 </div>
+              </div>
+
+              <div className="rounded-xl border border-border/70 bg-muted/15 p-3.5">
+                <div className="mb-2.5 flex items-center justify-between gap-3">
+                  <span className="text-xs font-medium text-muted-foreground">Progresso geral</span>
+                  <span className="text-lg font-bold leading-none text-primary">
+                    {progressos[projeto.id] === undefined ? '—' : `${progressos[projeto.id].toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
+                  </span>
+                </div>
+                <div role="progressbar" aria-label={`Progresso de ${projeto.nome}`} aria-valuemin={0} aria-valuemax={100}
+                  aria-valuenow={progressos[projeto.id]} className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progressos[projeto.id] ?? 0}%` }} />
+                </div>
+                {erroProgresso && <p className="mt-2 text-xs text-amber-600">Não foi possível atualizar o progresso. Tentando novamente automaticamente.</p>}
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">

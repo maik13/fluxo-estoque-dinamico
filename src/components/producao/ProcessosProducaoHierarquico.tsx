@@ -54,6 +54,7 @@ import { FormProcessoProducao } from './FormProcessoProducao';
 import { FormRetificarProcesso } from './FormRetificarProcesso';
 import { MateriaisEtapaProducao } from './MateriaisEtapaProducao';
 import { MateriaisOrdemProducao } from './MateriaisOrdemProducao';
+import { ExcluirProjetoProducao } from './ExcluirProjetoProducao';
 import { ModalExcluirProcesso } from './ModalExcluirProcesso';
 import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
 import {
@@ -1043,6 +1044,14 @@ export const ProcessosProducaoHierarquico = ({
                   </div>
                 </div>
 
+                {isAdmin() && (
+                  <div className="mt-3" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+                    <ExcluirProjetoProducao projeto={projeto} onSuccess={async () => {
+                      setProjetoSelecionadoId(null);
+                      await recarregar();
+                    }} />
+                  </div>
+                )}
                 <div className="mt-3 flex items-end justify-between gap-3 border-t border-border/50 pt-3">
                   <div className="min-w-0">
                     {dataInicioReal ? (
