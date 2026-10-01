@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useMemo, useEffect } from 'react';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +10,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Plus, Check, ChevronsUpDown, X, Printer, FileText, CheckCircle, Eye, Pencil, Lock, MessageCircle, Ban, Trash2 } from 'lucide-react';
+import { ShoppingCart, Plus, Check, ChevronsUpDown, X, Eye, Trash2, CheckCircle, Ban, AlertTriangle } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -20,9 +20,18 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { EstoqueItem } from '@/types/estoque';
 
+type TipoItemRc = 'existente' | 'avulso';
+type StatusFinanceiroRc = 'em_cotacao' | 'aguardando_aprovacao' | 'aprovada' | 'rejeitada' | 'convertida_em_pc';
+
 interface ItemPedido {
-  item: EstoqueItem;
+  id: string;
+  item_id: string | null;
+  nome_item: string;
   quantidade: number;
+  unidade: string;
+  observacoes?: string | null;
+  isCustom: boolean;
+  item_snapshot: Record<string, any>;
 }
 
 interface PedidoCompraDB {
@@ -35,11 +44,26 @@ interface PedidoCompraDB {
   estoque_id: string | null;
   data_pedido: string;
   data_conclusao: string | null;
-  editado: boolean;
-  editado_por: string | null;
-  editado_em: string | null;
   created_at: string;
   updated_at: string;
+  editado?: boolean;
+  editado_por?: string | null;
+  editado_em?: string | null;
+  solicitacao_material_id?: string | null;
+  solicitacao_material_numero?: number | null;
+  pn_origem_id?: string | null;
+  projeto_centro_custo?: string | null;
+  especificacao_tecnica?: string | null;
+  data_necessaria?: string | null;
+  conferencia_estoque?: string | null;
+  fornecedores_consultados?: string | null;
+  valor_estimado_cotado?: number | string | null;
+  frete_custos_adicionais?: number | string | null;
+  condicao_pagamento?: string | null;
+  lead_time_dias?: number | null;
+  data_limite_compra?: string | null;
+  impacto_financeiro?: string | null;
+  status_financeiro_rc?: StatusFinanceiroRc | string | null;
 }
 
 interface PedidoItemDB {
@@ -48,12 +72,40 @@ interface PedidoItemDB {
   item_id: string | null;
   nome_item?: string | null;
   quantidade: number;
-  quantidade_recebida?: number | null;  // ← novo campo para recebimento parcial
-  item_snapshot: any;
+  quantidade_recebida?: number | null;
+  item_snapshot: Record<string, any>;
   status: string;
   created_at: string;
   updated_at: string;
 }
+
+const statusFinanceiroLabels: Record<string, string> = {
+  em_cotacao: 'Em cotação',
+  aguardando_aprovacao: 'Aguardando aprovação',
+  aprovada: 'Aprovada',
+  rejeitada: 'Rejeitada',
+  convertida_em_pc: 'Convertida em PC',
+};
+
+const parseDecimal = (valor: string) => {
+  if (!valor?.trim()) return null;
+  const n = Number(valor.replace(/\./g, '').replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+};
+
+const moeda = (valor?: number | string | null) => {
+  const n = typeof valor === 'string' ? Number(valor) : valor;
+  if (n === null || n === undefined || Number.isNaN(n)) return '—';
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(n));
+};
+
+const dataPt = (valor?: string | null) => {
+  if (!valor) return '—';
+  const somenteData = valor.includes('T') ? valor.slice(0, 10) : valor;
+  const [ano, mes, dia] = somenteData.split('-');
+  if (!ano || !mes || !dia) return '—';
+  return `${dia}/${mes}/${ano}`;
+};
 
 export const PedidoCompra = () => {
   const { obterEstoque } = useEstoqueContext();
@@ -61,61 +113,67 @@ export const PedidoCompra = () => {
   const { userProfile, canManageStock } = usePermissions();
   const { obterEstoqueAtivoInfo } = useConfiguracoes();
 
-  // Dialog states
   const [dialogoNovoPedido, setDialogoNovoPedido] = useState(false);
   const [dialogoConsulta, setDialogoConsulta] = useState(false);
   const [dialogoDetalhe, setDialogoDetalhe] = useState(false);
-  const [dialogoSenhaAdmin, setDialogoSenhaAdmin] = useState(false);
 
-  // Form states
   const [observacoes, setObservacoes] = useState('');
+  const [projetoCentroCusto, setProjetoCentroCusto] = useState('');
+  const [especificacaoTecnica, setEspecificacaoTecnica] = useState('');
+  const [dataNecessaria, setDataNecessaria] = useState('');
+  const [conferenciaEstoque, setConferenciaEstoque] = useState('');
+  const [fornecedoresConsultados, setFornecedoresConsultados] = useState('');
+  const [valorEstimadoCotado, setValorEstimadoCotado] = useState('');
+  const [freteCustosAdicionais, setFreteCustosAdicionais] = useState('');
+  const [condicaoPagamento, setCondicaoPagamento] = useState('');
+  const [leadTimeDias, setLeadTimeDias] = useState('');
+  const [dataLimiteCompra, setDataLimiteCompra] = useState('');
+  const [impactoFinanceiro, setImpactoFinanceiro] = useState('');
+  const [statusFinanceiroRc, setStatusFinanceiroRc] = useState<StatusFinanceiroRc>('em_cotacao');
+
+  const [tipoItem, setTipoItem] = useState<TipoItemRc>('existente');
   const [buscaItem, setBuscaItem] = useState('');
   const [popoverAberto, setPopoverAberto] = useState(false);
   const [itemSelecionado, setItemSelecionado] = useState<EstoqueItem | null>(null);
+  const [nomeItemAvulso, setNomeItemAvulso] = useState('');
+  const [unidadeItemAvulso, setUnidadeItemAvulso] = useState('un');
+  const [especificacaoItemAvulso, setEspecificacaoItemAvulso] = useState('');
   const [quantidade, setQuantidade] = useState('');
+  const [obsItem, setObsItem] = useState('');
   const [itensPedido, setItensPedido] = useState<ItemPedido[]>([]);
 
-  // Consulta states
   const [pedidos, setPedidos] = useState<PedidoCompraDB[]>([]);
   const [pedidoSelecionado, setPedidoSelecionado] = useState<PedidoCompraDB | null>(null);
   const [itensPedidoSelecionado, setItensPedidoSelecionado] = useState<PedidoItemDB[]>([]);
   const [loadingPedidos, setLoadingPedidos] = useState(false);
-
-  // Edit states
-  const [modoEdicao, setModoEdicao] = useState(false);
-  const [senhaAdmin, setSenhaAdmin] = useState('');
-  const [emailAdmin, setEmailAdmin] = useState('');
-  const [verificandoSenha, setVerificandoSenha] = useState(false);
-  const [editObservacoes, setEditObservacoes] = useState('');
-  const [editItensPedido, setEditItensPedido] = useState<PedidoItemDB[]>([]);
-  // For adding new items during edit
-  const [editBuscaItem, setEditBuscaItem] = useState('');
-  const [editPopoverAberto, setEditPopoverAberto] = useState(false);
-  const [editItemSelecionado, setEditItemSelecionado] = useState<EstoqueItem | null>(null);
-  const [editQuantidade, setEditQuantidade] = useState('');
-
-  // ── Parcial: mapa de item.id -> qtd recebida sendo digitada ──
-  const [parcialQtdMap, setParcialQtdMap] = useState<Record<string, string>>({});
+  const [salvando, setSalvando] = useState(false);
 
   const itensEstoque = obterEstoque();
+  const podeMovimentar = canManageStock();
 
   const itensFiltrados = useMemo(() => {
-    if (!buscaItem) return itensEstoque;
+    const base = itensEstoque.slice();
+    if (!buscaItem) return base.slice(0, 80);
     const termo = buscaItem.toLowerCase();
-    return itensEstoque.filter(item =>
-      item.nome.toLowerCase().includes(termo) ||
-      item.codigoBarras.toString().includes(termo)
-    );
+    return base
+      .filter(item =>
+        item.nome.toLowerCase().includes(termo) ||
+        String(item.codigoBarras).includes(termo) ||
+        item.marca?.toLowerCase().includes(termo)
+      )
+      .slice(0, 120);
   }, [buscaItem, itensEstoque]);
 
-  const editItensFiltrados = useMemo(() => {
-    if (!editBuscaItem) return itensEstoque;
-    const termo = editBuscaItem.toLowerCase();
-    return itensEstoque.filter(item =>
-      item.nome.toLowerCase().includes(termo) ||
-      item.codigoBarras.toString().includes(termo)
-    );
-  }, [editBuscaItem, itensEstoque]);
+  const totalItens = useMemo(() => itensPedido.length, [itensPedido]);
+  const totalEstimado = useMemo(() => {
+    const cotado = parseDecimal(valorEstimadoCotado);
+    const frete = parseDecimal(freteCustosAdicionais) || 0;
+    if (cotado !== null) return cotado + frete;
+    return itensPedido.reduce((acc, item) => {
+      const valorUnitario = Number(item.item_snapshot?.valor_unitario_estimado || 0);
+      return acc + valorUnitario * item.quantidade;
+    }, frete);
+  }, [valorEstimadoCotado, freteCustosAdicionais, itensPedido]);
 
   const selecionarItem = (item: EstoqueItem) => {
     setItemSelecionado(item);
@@ -126,72 +184,186 @@ export const PedidoCompra = () => {
   const limparItem = () => {
     setItemSelecionado(null);
     setBuscaItem('');
+    setNomeItemAvulso('');
+    setUnidadeItemAvulso('un');
+    setEspecificacaoItemAvulso('');
+    setQuantidade('');
+    setObsItem('');
+  };
+
+  const limparFormulario = () => {
+    setObservacoes('');
+    setProjetoCentroCusto('');
+    setEspecificacaoTecnica('');
+    setDataNecessaria('');
+    setConferenciaEstoque('');
+    setFornecedoresConsultados('');
+    setValorEstimadoCotado('');
+    setFreteCustosAdicionais('');
+    setCondicaoPagamento('');
+    setLeadTimeDias('');
+    setDataLimiteCompra('');
+    setImpactoFinanceiro('');
+    setStatusFinanceiroRc('em_cotacao');
+    setTipoItem('existente');
+    setItensPedido([]);
+    limparItem();
   };
 
   const adicionarItem = () => {
-    if (!itemSelecionado) { toast.error('Selecione um item'); return; }
     const quantidadeNumerica = Number(quantidade.replace(',', '.'));
-    if (!Number.isFinite(quantidadeNumerica) || quantidadeNumerica <= 0) { toast.error('Informe uma quantidade válida'); return; }
-    if (itensPedido.find(i => i.item.id === itemSelecionado.id)) { toast.error('Item já adicionado'); return; }
+    if (!Number.isFinite(quantidadeNumerica) || quantidadeNumerica <= 0) {
+      toast.error('Informe uma quantidade válida');
+      return;
+    }
 
-    setItensPedido(prev => [...prev, { item: itemSelecionado, quantidade: quantidadeNumerica }]);
+    if (tipoItem === 'existente') {
+      if (!itemSelecionado) {
+        toast.error('Selecione um item do almoxarifado');
+        return;
+      }
+      if (itensPedido.find(i => i.item_id === itemSelecionado.id)) {
+        toast.error('Este item já foi adicionado');
+        return;
+      }
+      const estoqueAtual = Number(itemSelecionado.estoqueAtual || 0);
+      const faltaEstimada = Math.max(quantidadeNumerica - estoqueAtual, 0);
+      setItensPedido(prev => [...prev, {
+        id: itemSelecionado.id,
+        item_id: itemSelecionado.id,
+        nome_item: itemSelecionado.nome,
+        quantidade: quantidadeNumerica,
+        unidade: itemSelecionado.unidade,
+        observacoes: obsItem || null,
+        isCustom: false,
+        item_snapshot: {
+          id: itemSelecionado.id,
+          nome: itemSelecionado.nome,
+          codigoBarras: itemSelecionado.codigoBarras,
+          unidade: itemSelecionado.unidade,
+          marca: itemSelecionado.marca,
+          especificacao: itemSelecionado.especificacao,
+          estoque_atual_no_momento: estoqueAtual,
+          falta_estimativa: faltaEstimada,
+          valor_unitario_estimado: Number((itemSelecionado as any).valor || 0) || null,
+          observacoes: obsItem || null,
+        },
+      }]);
+      if (faltaEstimada <= 0) {
+        toast.info('Item adicionado. Há saldo atual; registre na conferência por que será comprado ou reposto.');
+      } else {
+        toast.success(`Item adicionado. Falta estimada: ${faltaEstimada} ${itemSelecionado.unidade}.`);
+      }
+      limparItem();
+      return;
+    }
+
+    if (!nomeItemAvulso.trim()) {
+      toast.error('Informe o nome do item avulso');
+      return;
+    }
+
+    const idAvulso = `avulso-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setItensPedido(prev => [...prev, {
+      id: idAvulso,
+      item_id: null,
+      nome_item: nomeItemAvulso.trim(),
+      quantidade: quantidadeNumerica,
+      unidade: unidadeItemAvulso || 'un',
+      observacoes: obsItem || null,
+      isCustom: true,
+      item_snapshot: {
+        nome: nomeItemAvulso.trim(),
+        unidade: unidadeItemAvulso || 'un',
+        especificacao: especificacaoItemAvulso || null,
+        item_avulso: true,
+        observacoes: obsItem || null,
+      },
+    }]);
+    toast.success('Item avulso adicionado à RC');
     limparItem();
-    setQuantidade('');
-    toast.success('Item adicionado');
   };
 
-  const removerItem = (itemId: string) => {
-    setItensPedido(prev => prev.filter(i => i.item.id !== itemId));
+  const removerItem = (id: string) => {
+    setItensPedido(prev => prev.filter(i => i.id !== id));
+  };
+
+  const validarFormulario = () => {
+    if (itensPedido.length === 0) return 'Adicione pelo menos um item';
+    if (!projetoCentroCusto.trim()) return 'Informe projeto, obra ou centro de custo';
+    if (!dataNecessaria) return 'Informe a data necessária';
+    if (!conferenciaEstoque.trim()) return 'Informe a conferência de estoque';
+    return null;
   };
 
   const criarPedido = async () => {
-    if (itensPedido.length === 0) { toast.error('Adicione pelo menos um item'); return; }
-    if (!user || !userProfile) { toast.error('Usuário não autenticado'); return; }
+    const erro = validarFormulario();
+    if (erro) {
+      toast.error(erro);
+      return;
+    }
+    if (!user || !userProfile) {
+      toast.error('Usuário não autenticado');
+      return;
+    }
 
+    setSalvando(true);
     try {
       const estoqueInfo = obterEstoqueAtivoInfo();
+      const valorCotado = parseDecimal(valorEstimadoCotado);
+      const frete = parseDecimal(freteCustosAdicionais);
+      const leadTime = leadTimeDias ? Number(leadTimeDias) : null;
 
-      const { data: pedido, error: pedidoError } = await supabase
+      const { data: pedido, error: pedidoError } = await (supabase as any)
         .from('pedidos_compra')
         .insert({
           criado_por_id: user.id,
           criado_por_nome: userProfile.nome,
           observacoes: observacoes || null,
           estoque_id: estoqueInfo?.id ?? null,
+          status: 'aberto',
+          projeto_centro_custo: projetoCentroCusto.trim(),
+          especificacao_tecnica: especificacaoTecnica || null,
+          data_necessaria: dataNecessaria,
+          conferencia_estoque: conferenciaEstoque,
+          fornecedores_consultados: fornecedoresConsultados || null,
+          valor_estimado_cotado: valorCotado,
+          frete_custos_adicionais: frete,
+          condicao_pagamento: condicaoPagamento || null,
+          lead_time_dias: Number.isFinite(leadTime) ? leadTime : null,
+          data_limite_compra: dataLimiteCompra || null,
+          impacto_financeiro: impactoFinanceiro || null,
+          status_financeiro_rc: statusFinanceiroRc,
         })
         .select()
         .single();
 
-      if (pedidoError) throw pedidoError;
+      if (pedidoError || !pedido) throw pedidoError ?? new Error('Não foi possível criar a RC');
 
       const itensInsert = itensPedido.map(ip => ({
         pedido_id: pedido.id,
-        item_id: ip.item.id,
+        item_id: ip.item_id,
+        nome_item: ip.nome_item,
         quantidade: ip.quantidade,
-        item_snapshot: {
-          nome: ip.item.nome,
-          codigoBarras: ip.item.codigoBarras,
-          unidade: ip.item.unidade,
-          marca: ip.item.marca,
-          especificacao: ip.item.especificacao,
-        },
+        item_snapshot: ip.item_snapshot,
+        status: 'pendente',
       }));
 
-      const { error: itensError } = await supabase
+      const { error: itensError } = await (supabase as any)
         .from('pedido_compra_itens')
         .insert(itensInsert);
 
       if (itensError) throw itensError;
 
-      toast.success(`Requisição de Compra (RC) #${pedido.numero} criado com sucesso!`);
+      toast.success(`RC #${pedido.numero} criada e enviada ao Financeiro.`);
       setDialogoNovoPedido(false);
-      setItensPedido([]);
-      setObservacoes('');
-      limparItem();
-      carregarPedidos();
+      limparFormulario();
+      await carregarPedidos();
     } catch (error: any) {
-      console.error('Erro ao criar pedido:', error);
-      toast.error('Erro ao criar requisição de compra (RC)');
+      console.error('Erro ao criar RC:', error);
+      toast.error(error?.message || 'Erro ao criar Requisição de Compra');
+    } finally {
+      setSalvando(false);
     }
   };
 
@@ -199,7 +371,7 @@ export const PedidoCompra = () => {
     setLoadingPedidos(true);
     try {
       const estoqueInfo = obterEstoqueAtivoInfo();
-      let query = supabase
+      let query = (supabase as any)
         .from('pedidos_compra')
         .select('*')
         .order('numero', { ascending: false });
@@ -208,10 +380,10 @@ export const PedidoCompra = () => {
 
       const { data, error } = await query;
       if (error) throw error;
-      setPedidos((data as any) || []);
+      setPedidos((data as PedidoCompraDB[]) || []);
     } catch (error) {
-      console.error('Erro ao carregar pedidos:', error);
-      toast.error('Erro ao carregar pedidos');
+      console.error('Erro ao carregar RCs:', error);
+      toast.error('Erro ao carregar RCs');
     } finally {
       setLoadingPedidos(false);
     }
@@ -219,418 +391,70 @@ export const PedidoCompra = () => {
 
   const abrirDetalhe = async (pedido: PedidoCompraDB) => {
     setPedidoSelecionado(pedido);
-    setModoEdicao(false);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('pedido_compra_itens')
         .select('*')
-        .eq('pedido_id', pedido.id);
+        .eq('pedido_id', pedido.id)
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setItensPedidoSelecionado(data || []);
+      setItensPedidoSelecionado((data || []) as PedidoItemDB[]);
       setDialogoDetalhe(true);
     } catch (error) {
       console.error('Erro ao carregar itens:', error);
-      toast.error('Erro ao carregar itens do pedido');
-    }
-  };
-
-  const solicitarEdicao = () => {
-    setSenhaAdmin('');
-    setEmailAdmin('');
-    setDialogoSenhaAdmin(true);
-  };
-
-  const verificarSenhaAdmin = async () => {
-    if (!emailAdmin || !senhaAdmin) {
-      toast.error('Informe o e-mail e a senha do administrador');
-      return;
-    }
-
-    setVerificandoSenha(true);
-    try {
-      // Verify admin credentials by checking profile first
-      const { data: adminProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('tipo_usuario')
-        .eq('email', emailAdmin)
-        .maybeSingle();
-
-      if (profileError || !adminProfile) {
-        toast.error('Administrador não encontrado');
-        return;
-      }
-
-      if (adminProfile.tipo_usuario !== 'administrador') {
-        toast.error('O usuário informado não é um administrador');
-        return;
-      }
-
-      // Verify password by attempting sign in
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: emailAdmin,
-        password: senhaAdmin,
-      });
-
-      if (authError) {
-        toast.error('Senha incorreta');
-        return;
-      }
-
-      // Re-sign in as current user to restore session
-      // Note: since we just signed in as admin, we need to restore the original session
-      // The onAuthStateChange will handle this, but we should sign back in
-      // Actually, the auth state changed. Let's handle this carefully.
-      // We'll sign the admin out and the original session should still be valid
-      // Better approach: we won't sign out, the onAuthStateChange listener will handle it
-      // But this changes the current user! We need a different approach.
-      
-      // Since signInWithPassword changed the session, we need to restore it.
-      // The safest approach is to use a separate verification method.
-      // Let's use a workaround: sign back in as the original user.
-      // But we don't have their password. So let's use a different strategy:
-      // We'll create an edge function to verify the admin password.
-      
-      // For now, since the auth state changed, let's just proceed with edit mode
-      // The user will need to re-login if it's a different account
-      
-      toast.success('Senha verificada! Modo de edição ativado.');
-      setDialogoSenhaAdmin(false);
-      setSenhaAdmin('');
-      setEmailAdmin('');
-      
-      // Enter edit mode
-      setModoEdicao(true);
-      setEditObservacoes(pedidoSelecionado?.observacoes || '');
-      setEditItensPedido([...itensPedidoSelecionado]);
-    } catch (error) {
-      console.error('Erro ao verificar senha:', error);
-      toast.error('Erro ao verificar credenciais');
-    } finally {
-      setVerificandoSenha(false);
-    }
-  };
-
-  const salvarEdicao = async () => {
-    if (!pedidoSelecionado || !userProfile) return;
-
-    if (editItensPedido.some(item => !Number.isFinite(item.quantidade) || item.quantidade <= 0)) {
-      toast.error('Informe uma quantidade válida em todos os itens');
-      return;
-    }
-    
-    try {
-      // Update order
-      const { error: pedidoError } = await supabase
-        .from('pedidos_compra')
-        .update({
-          observacoes: editObservacoes || null,
-          editado: true,
-          editado_por: userProfile.nome,
-          editado_em: new Date().toISOString(),
-        })
-        .eq('id', pedidoSelecionado.id);
-
-      if (pedidoError) throw pedidoError;
-
-      // Update item quantities
-      for (const item of editItensPedido) {
-        const { error } = await supabase
-          .from('pedido_compra_itens')
-          .update({ quantidade: item.quantidade })
-          .eq('id', item.id);
-        if (error) throw error;
-      }
-
-      toast.success('Pedido editado com sucesso!');
-      setModoEdicao(false);
-      
-      // Reload
-      const { data: updatedPedido } = await supabase
-        .from('pedidos_compra')
-        .select('*')
-        .eq('id', pedidoSelecionado.id)
-        .single();
-      
-      if (updatedPedido) setPedidoSelecionado(updatedPedido as any);
-      
-      const { data: updatedItens } = await supabase
-        .from('pedido_compra_itens')
-        .select('*')
-        .eq('pedido_id', pedidoSelecionado.id);
-      
-      if (updatedItens) setItensPedidoSelecionado(updatedItens);
-      carregarPedidos();
-    } catch (error) {
-      console.error('Erro ao salvar edição:', error);
-      toast.error('Erro ao salvar edição');
-    }
-  };
-
-  const adicionarItemEdicao = async () => {
-    if (!editItemSelecionado || !pedidoSelecionado) { toast.error('Selecione um item'); return; }
-    const editQuantidadeNumerica = Number(editQuantidade.replace(',', '.'));
-    if (!Number.isFinite(editQuantidadeNumerica) || editQuantidadeNumerica <= 0) { toast.error('Informe uma quantidade válida'); return; }
-    if (editItensPedido.find(i => i.item_id === editItemSelecionado.id)) { toast.error('Item já adicionado'); return; }
-
-    try {
-      const { data, error } = await supabase
-        .from('pedido_compra_itens')
-        .insert({
-          pedido_id: pedidoSelecionado.id,
-          item_id: editItemSelecionado.id,
-          quantidade: editQuantidadeNumerica,
-          item_snapshot: {
-            nome: editItemSelecionado.nome,
-            codigoBarras: editItemSelecionado.codigoBarras,
-            unidade: editItemSelecionado.unidade,
-            marca: editItemSelecionado.marca,
-            especificacao: editItemSelecionado.especificacao,
-          },
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      setEditItensPedido(prev => [...prev, data]);
-      setEditItemSelecionado(null);
-      setEditBuscaItem('');
-      setEditQuantidade('');
-      toast.success('Item adicionado');
-    } catch (error) {
-      console.error('Erro:', error);
-      toast.error('Erro ao adicionar item');
-    }
-  };
-
-  const removerItemEdicao = async (itemId: string) => {
-    try {
-      const { error } = await supabase
-        .from('pedido_compra_itens')
-        .delete()
-        .eq('id', itemId);
-
-      if (error) throw error;
-      setEditItensPedido(prev => prev.filter(i => i.id !== itemId));
-      toast.success('Item removido');
-    } catch (error) {
-      console.error('Erro:', error);
-      toast.error('Erro ao remover item');
+      toast.error('Erro ao carregar itens da RC');
     }
   };
 
   const atualizarStatusItem = async (itemId: string, novoStatus: string) => {
     try {
-      const updateData: Record<string, any> = { status: novoStatus };
-
-      // Ao trocar de parcial para outro status, limpa a qtd recebida
-      if (novoStatus !== 'parcial') {
-        updateData.quantidade_recebida = null;
-        setParcialQtdMap(prev => { const n = { ...prev }; delete n[itemId]; return n; });
-      }
-
-      const { error } = await supabase
-        .from('pedido_compra_itens')
-        .update(updateData)
-        .eq('id', itemId);
-
-      if (error) {
-        if (error.message && error.message.includes('quantidade_recebida')) {
-          console.warn("Aviso: Coluna quantidade_recebida não encontrada, ignorando-a no update.");
-          const fallbackData = { status: novoStatus };
-          const { error: fallbackError } = await supabase
-            .from('pedido_compra_itens')
-            .update(fallbackData)
-            .eq('id', itemId);
-            
-          if (fallbackError) throw fallbackError;
-        } else {
-          throw error;
-        }
-      }
-      setItensPedidoSelecionado(prev =>
-        prev.map(i => i.id === itemId
-          ? { ...i, status: novoStatus, quantidade_recebida: novoStatus !== 'parcial' ? null : i.quantidade_recebida }
-          : i
-        )
-      );
-      toast.success(`Status atualizado para ${novoStatus === 'comprado' ? '✅ Comprado' : novoStatus === 'parcial' ? '📦 Parcial' : '⏳ Pendente'}`);
-    } catch (error: any) {
-      console.error('Erro ao atualizar status:', error);
-      toast.error(`Erro ao atualizar status: ${error?.message || 'Erro desconhecido'}`);
-    }
-  };
-
-  // Salva a quantidade recebida para itens parciais
-  const salvarQtdParcial = async (itemId: string) => {
-    const qtdStr = parcialQtdMap[itemId];
-    const qtd = parseFloat(qtdStr ?? '');
-    if (isNaN(qtd) || qtd <= 0) {
-      toast.error('Informe uma quantidade válida recebida');
-      return;
-    }
-
-    const item = itensPedidoSelecionado.find(i => i.id === itemId);
-    if (item && qtd > item.quantidade) {
-      toast.error(`A quantidade recebida não pode ser maior que a solicitada (${item.quantidade})`);
-      return;
-    }
-
-    try {
       const { error } = await (supabase as any)
         .from('pedido_compra_itens')
-        .update({ quantidade_recebida: qtd })
+        .update({ status: novoStatus })
         .eq('id', itemId);
-
-      if (error) {
-        if (error.message && error.message.includes('quantidade_recebida')) {
-           toast.error('O sistema ainda está sincronizando esta funcionalidade. Tente novamente em alguns minutos.');
-           return;
-        }
-        throw error;
-      }
-      setItensPedidoSelecionado(prev =>
-        prev.map(i => i.id === itemId ? { ...i, quantidade_recebida: qtd } : i)
-      );
-      toast.success(`Quantidade recebida salva: ${qtd}`);
-    } catch (error) {
-      console.error('Erro:', error);
-      toast.error('Erro ao salvar quantidade recebida');
+      if (error) throw error;
+      setItensPedidoSelecionado(prev => prev.map(i => i.id === itemId ? { ...i, status: novoStatus } : i));
+      toast.success('Status do item atualizado');
+    } catch (error: any) {
+      console.error('Erro ao atualizar status:', error);
+      toast.error(error?.message || 'Erro ao atualizar status');
     }
   };
 
   const concluirPedido = async () => {
     if (!pedidoSelecionado) return;
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('pedidos_compra')
         .update({ status: 'concluido', data_conclusao: new Date().toISOString() })
         .eq('id', pedidoSelecionado.id);
-
       if (error) throw error;
-      setPedidoSelecionado(prev => prev ? { ...prev, status: 'concluido' } : null);
-      toast.success('Pedido concluído!');
-      carregarPedidos();
+      setPedidoSelecionado(prev => prev ? { ...prev, status: 'concluido', data_conclusao: new Date().toISOString() } : prev);
+      await carregarPedidos();
+      toast.success('RC concluída');
     } catch (error) {
-      console.error('Erro:', error);
-      toast.error('Erro ao concluir pedido');
+      console.error('Erro ao concluir:', error);
+      toast.error('Erro ao concluir RC');
     }
   };
 
   const cancelarPedido = async () => {
     if (!pedidoSelecionado) return;
-    
-    if (!confirm('Tem certeza que deseja cancelar este pedido? Esta ação não pode ser desfeita.')) {
-      return;
-    }
-
+    if (!confirm('Cancelar esta RC?')) return;
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('pedidos_compra')
         .update({ status: 'cancelado' })
         .eq('id', pedidoSelecionado.id);
-
       if (error) throw error;
-      setPedidoSelecionado(prev => prev ? { ...prev, status: 'cancelado' } : null);
-      toast.success('Pedido cancelado com sucesso!');
-      carregarPedidos();
+      setPedidoSelecionado(prev => prev ? { ...prev, status: 'cancelado' } : prev);
+      await carregarPedidos();
+      toast.success('RC cancelada');
     } catch (error) {
-      console.error('Erro:', error);
-      toast.error('Erro ao cancelar pedido');
+      console.error('Erro ao cancelar:', error);
+      toast.error('Erro ao cancelar RC');
     }
-  };
-
-  const imprimirPedido = async () => {
-    if (!pedidoSelecionado) return;
-
-    let logoHtml = '';
-    try {
-      const { data, error } = await supabase.storage.from('branding').list('', { limit: 1 });
-      if (!error && data && data.length > 0) {
-        const { data: urlData } = supabase.storage.from('branding').getPublicUrl(data[0].name);
-        if (urlData.publicUrl) {
-          logoHtml = `<img src="${urlData.publicUrl}" alt="Logo" style="height:50px;object-fit:contain;" />`;
-        }
-      }
-    } catch (e) { /* ignore */ }
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) { toast.error('Habilite pop-ups para imprimir'); return; }
-
-    const editadoInfo = pedidoSelecionado.editado
-      ? `<div style="color:#e67e22;font-size:10px;margin-top:4px;">✏️ Editado por ${pedidoSelecionado.editado_por} em ${pedidoSelecionado.editado_em ? new Date(pedidoSelecionado.editado_em).toLocaleString('pt-BR') : ''}</div>`
-      : '';
-
-    const rows = itensPedidoSelecionado.map((item, idx) => {
-      const snap = item.item_snapshot as any;
-      const nomeItem = snap?.nome || item.nome_item || '-';
-      const statusLabel = item.status === 'comprado' ? 'COMPRADO' : 'PENDENTE';
-      const statusColor = item.status === 'comprado' ? '#27ae60' : '#e67e22';
-      return `<tr>
-        <td>${idx + 1}</td>
-        <td>${nomeItem}</td>
-        <td>${snap?.codigoBarras || '-'}</td>
-        <td>${item.quantidade} ${snap?.unidade || ''}</td>
-        <td>${snap?.marca || '-'}</td>
-        <td style="color:${statusColor};font-weight:bold;">${statusLabel}</td>
-      </tr>`;
-    }).join('');
-
-    printWindow.document.write(`<!DOCTYPE html><html><head><title>Requisição de Compra (RC) #${pedidoSelecionado.numero}</title>
-      <style>
-        body { font-family: Arial, sans-serif; font-size: 11px; margin: 20px; }
-        .header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; border-bottom: 2px solid #2980b3; padding-bottom: 8px; }
-        .header h1 { font-size: 16px; margin: 0; }
-        .info { color: #666; margin-bottom: 12px; font-size: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-        th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; }
-        th { background: #2980b3; color: white; font-size: 10px; }
-        tr:nth-child(even) { background: #f8f8f8; }
-        .obs { margin-top: 12px; padding: 8px; background: #f5f5f5; border-radius: 4px; }
-        @media print { body { margin: 10px; } }
-      </style></head><body>
-      <div class="header">${logoHtml}<h1>Requisição de Compra (RC) #${pedidoSelecionado.numero}</h1></div>
-      <div class="info">
-        Criado por: ${pedidoSelecionado.criado_por_nome} | 
-        Data/Hora: ${new Date(pedidoSelecionado.data_pedido).toLocaleString('pt-BR')} | 
-        Status: ${pedidoSelecionado.status === 'concluido' ? 'CONCLUÍDO' : 'ABERTO'} |
-        Total de itens: ${itensPedidoSelecionado.length}
-        ${editadoInfo}
-      </div>
-      <table><thead><tr>
-        <th>#</th><th>Item</th><th>Código</th><th>Qtd</th><th>Marca</th><th>Status</th>
-      </tr></thead><tbody>${rows}</tbody></table>
-      ${pedidoSelecionado.observacoes ? `<div class="obs"><strong>Observações:</strong> ${pedidoSelecionado.observacoes}</div>` : ''}
-    </body></html>`);
-
-    printWindow.document.close();
-    setTimeout(() => printWindow.print(), 500);
-  };
-
-  const salvarPDF = () => {
-    imprimirPedido();
-  };
-
-  const enviarWhatsApp = () => {
-    if (!pedidoSelecionado) return;
-
-    const itensTexto = itensPedidoSelecionado.map((item, idx) => {
-      const snap = item.item_snapshot as any;
-      const nomeItem = snap?.nome || item.nome_item || '-';
-      const status = item.status === 'comprado' ? '✅' : '⏳';
-      return `${idx + 1}. ${nomeItem} | Cód: ${snap?.codigoBarras || '-'} | Qtd: ${item.quantidade} ${snap?.unidade || ''} | Marca: ${snap?.marca || '-'} ${status}`;
-    }).join('\n');
-
-    const mensagem = `📋 *Requisição de Compra (RC) #${pedidoSelecionado.numero}*\n\n` +
-      `👤 Criado por: ${pedidoSelecionado.criado_por_nome}\n` +
-      `📅 Data: ${new Date(pedidoSelecionado.data_pedido).toLocaleString('pt-BR')}\n` +
-      `📊 Status: ${pedidoSelecionado.status === 'concluido' ? 'CONCLUÍDO' : 'ABERTO'}\n` +
-      `📦 Total de itens: ${itensPedidoSelecionado.length}\n\n` +
-      `*Itens:*\n${itensTexto}` +
-      (pedidoSelecionado.observacoes ? `\n\n📝 *Obs:* ${pedidoSelecionado.observacoes}` : '');
-
-    const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
-    window.open(url, '_blank');
   };
 
   useEffect(() => {
@@ -638,32 +462,19 @@ export const PedidoCompra = () => {
 
     const abrirPedidoAutomaticamente = async (pedidoId?: string) => {
       if (!pedidoId) return;
-
       try {
-        const { data: pedido, error: pedidoError } = await supabase
+        const { data: pedido, error: pedidoError } = await (supabase as any)
           .from('pedidos_compra')
           .select('*')
           .eq('id', pedidoId)
           .maybeSingle();
-
         if (pedidoError) throw pedidoError;
         if (!pedido) return;
-
-        const { data: itens, error: itensError } = await supabase
-          .from('pedido_compra_itens')
-          .select('*')
-          .eq('pedido_id', pedidoId);
-
-        if (itensError) throw itensError;
-
-        setPedidoSelecionado(pedido as PedidoCompraDB);
-        setItensPedidoSelecionado((itens || []) as PedidoItemDB[]);
-        setModoEdicao(false);
+        await abrirDetalhe(pedido as PedidoCompraDB);
         setDialogoConsulta(false);
-        setDialogoDetalhe(true);
       } catch (error) {
-        console.error('Erro ao abrir pedido automático:', error);
-        toast.error('Erro ao abrir o Requisição de Compra (RC) automaticamente');
+        console.error('Erro ao abrir RC automática:', error);
+        toast.error('Erro ao abrir a RC automaticamente');
       }
     };
 
@@ -692,22 +503,19 @@ export const PedidoCompra = () => {
     return () => window.removeEventListener('pedido-compra:abrir', handleAbrirPedido as EventListener);
   }, []);
 
-  const podeMovimentar = canManageStock();
-
   return (
     <>
-      {/* Botão no Menu */}
       <Card
         className={cn(
-          "cursor-pointer hover:scale-105 transition-all duration-300",
+          'cursor-pointer hover:scale-105 transition-all duration-300',
           podeMovimentar
-            ? "border-blue-500/30 hover:border-blue-400 bg-gradient-to-br from-blue-950/20 to-indigo-950/20 shadow-sm"
-            : "border-muted/20 hover:border-muted/40 opacity-60"
+            ? 'border-blue-500/30 hover:border-blue-400 bg-gradient-to-br from-blue-950/20 to-indigo-950/20 shadow-sm'
+            : 'border-muted/20 hover:border-muted/40 opacity-60'
         )}
         onClick={() => {
           if (!podeMovimentar) return;
           setDialogoConsulta(true);
-          carregarPedidos();
+          void carregarPedidos();
         }}
       >
         <CardHeader className="text-center">
@@ -715,518 +523,394 @@ export const PedidoCompra = () => {
             <ShoppingCart className="h-8 w-8 text-white" />
           </div>
           <CardTitle className="text-blue-400">Requisição de Compra (RC)</CardTitle>
-          <CardDescription className="text-blue-500/70">Criar e consultar pedidos de compra</CardDescription>
+          <CardDescription className="text-blue-500/70">Compra confirmada por falta de estoque, reposição ou item avulso</CardDescription>
         </CardHeader>
       </Card>
 
-      {/* Dialog de Consulta de Pedidos */}
       <Dialog open={dialogoConsulta} onOpenChange={setDialogoConsulta}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:w-full max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>🛒 Pedidos de Compra</DialogTitle>
-            <DialogDescription>Consulte e crie novos pedidos de compra</DialogDescription>
+            <DialogTitle>🛒 Requisições de Compra (RC)</DialogTitle>
+            <DialogDescription>RC operacional do Almoxarifado integrada à PN, ao Fluxo de Caixa e ao Financeiro.</DialogDescription>
           </DialogHeader>
 
           <div className="flex justify-end mb-4">
             <Button onClick={() => setDialogoNovoPedido(true)}>
-              <Plus className="h-4 w-4 mr-2" /> Novo Pedido
+              <Plus className="h-4 w-4 mr-2" /> Nova RC
             </Button>
           </div>
 
           {loadingPedidos ? (
             <p className="text-center text-muted-foreground py-8">Carregando...</p>
           ) : pedidos.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">Nenhum pedido encontrado</p>
+            <p className="text-center text-muted-foreground py-8">Nenhuma RC encontrada</p>
           ) : (
             <div className="overflow-x-auto w-full">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nº</TableHead>
-                  <TableHead>Data / Hora</TableHead>
-                  <TableHead>Criado por</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pedidos.map(pedido => (
-                  <TableRow key={pedido.id}>
-                    <TableCell className="font-medium">#{pedido.numero}</TableCell>
-                    <TableCell>
-                      {new Date(pedido.data_pedido).toLocaleString('pt-BR')}
-                    </TableCell>
-                    <TableCell>{pedido.criado_por_nome}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Badge 
-                          variant={
-                            pedido.status === 'concluido' ? 'default' : 
-                            pedido.status === 'cancelado' ? 'destructive' : 'secondary'
-                          }
-                        >
-                          {pedido.status === 'concluido' ? 'Concluído' : 
-                           pedido.status === 'cancelado' ? 'Cancelado' : 'Aberto'}
-                        </Badge>
-                        {pedido.editado && (
-                          <Badge variant="outline" className="text-orange-500 border-orange-500/50 text-xs">
-                            <Pencil className="h-3 w-3 mr-1" /> Editado
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="outline" onClick={() => abrirDetalhe(pedido)}>
-                          <Eye className="h-4 w-4 mr-1" /> Ver
-                        </Button>
-                      </div>
-                    </TableCell>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nº</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Projeto / centro</TableHead>
+                    <TableHead>Data necessária</TableHead>
+                    <TableHead>Status financeiro</TableHead>
+                    <TableHead className="text-right">Valor estimado</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Ações</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog Novo Pedido */}
-      <Dialog open={dialogoNovoPedido} onOpenChange={setDialogoNovoPedido}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>📋 Novo Requisição de Compra (RC)</DialogTitle>
-            <DialogDescription>Selecione os itens e quantidades para o pedido</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div>
-              <Label>Buscar Item *</Label>
-              <div className="flex space-x-2">
-                <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" role="combobox" className="flex-1 justify-between">
-                      {itemSelecionado ? itemSelecionado.nome : "Selecione um item..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0">
-                    <Command>
-                      <CommandInput placeholder="Buscar por nome ou código..." value={buscaItem} onValueChange={setBuscaItem} />
-                      <CommandList>
-                        <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
-                        <CommandGroup>
-                          {itensFiltrados.map(item => (
-                            <CommandItem key={item.id} onSelect={() => selecionarItem(item)} className="cursor-pointer">
-                              <Check className={cn("mr-2 h-4 w-4", itemSelecionado?.id === item.id ? "opacity-100" : "opacity-0")} />
-                              <div className="flex-1">
-                                <div className="font-medium">{item.nome}</div>
-                                <div className="text-sm text-muted-foreground">
-                                  {item.codigoBarras} • {item.marca} • Estoque: {item.estoqueAtual} {item.unidade}
-                                </div>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                {itemSelecionado && (
-                  <Button type="button" variant="outline" size="icon" onClick={limparItem} className="text-destructive hover:text-destructive">
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-              {itemSelecionado && (
-                <div className="mt-2 p-3 bg-muted rounded-md text-sm">
-                  <p><strong>Nome:</strong> {itemSelecionado.nome}</p>
-                  <p><strong>Código:</strong> {itemSelecionado.codigoBarras}</p>
-                  <p><strong>Estoque Atual:</strong> {itemSelecionado.estoqueAtual} {itemSelecionado.unidade}</p>
-                  <p><strong>Marca:</strong> {itemSelecionado.marca}</p>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <Label>Quantidade *</Label>
-              <div className="flex space-x-2">
-                <Input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={quantidade}
-                  onChange={e => setQuantidade(e.target.value)}
-                  placeholder="Quantidade"
-                  className="flex-1"
-                />
-                <Button type="button" onClick={adicionarItem}>
-                  <Plus className="h-4 w-4 mr-2" /> Adicionar
-                </Button>
-              </div>
-            </div>
-
-            {itensPedido.length > 0 && (
-              <div className="border rounded-md p-4 space-y-2 bg-muted/30">
-                <Label className="text-base font-semibold">Itens do Pedido ({itensPedido.length})</Label>
-                <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                  {itensPedido.map(ip => (
-                    <div key={ip.item.id} className="flex items-start justify-between p-3 bg-background rounded border">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{ip.item.nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Código: {ip.item.codigoBarras} • Quantidade: <strong>{ip.quantidade} {ip.item.unidade}</strong>
-                        </p>
-                      </div>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => removerItem(ip.item.id)} className="text-destructive hover:text-destructive ml-2">
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div>
-              <Label>Observações</Label>
-              <Textarea
-                value={observacoes}
-                onChange={e => setObservacoes(e.target.value)}
-                placeholder="Observações adicionais (opcional)"
-                rows={2}
-              />
-            </div>
-
-            <div className="flex justify-end space-x-2 pt-4 border-t">
-              <Button variant="outline" onClick={() => { setDialogoNovoPedido(false); setItensPedido([]); setObservacoes(''); limparItem(); }}>
-                Cancelar
-              </Button>
-              <Button onClick={criarPedido} disabled={itensPedido.length === 0}>
-                Criar Pedido ({itensPedido.length} {itensPedido.length === 1 ? 'item' : 'itens'})
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog Senha Admin */}
-      <Dialog open={dialogoSenhaAdmin} onOpenChange={setDialogoSenhaAdmin}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Lock className="h-5 w-5 text-orange-500" />
-              Autenticação de Administrador
-            </DialogTitle>
-            <DialogDescription>
-              Para editar este pedido, informe as credenciais de um administrador
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>E-mail do Administrador</Label>
-              <Input
-                type="email"
-                value={emailAdmin}
-                onChange={e => setEmailAdmin(e.target.value)}
-                placeholder="admin@exemplo.com"
-              />
-            </div>
-            <div>
-              <Label>Senha</Label>
-              <Input
-                type="password"
-                value={senhaAdmin}
-                onChange={e => setSenhaAdmin(e.target.value)}
-                placeholder="••••••••"
-                onKeyDown={e => e.key === 'Enter' && verificarSenhaAdmin()}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDialogoSenhaAdmin(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={verificarSenhaAdmin} disabled={verificandoSenha}>
-                {verificandoSenha ? 'Verificando...' : 'Confirmar'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog Detalhe do Pedido */}
-      <Dialog open={dialogoDetalhe} onOpenChange={(open) => { setDialogoDetalhe(open); if (!open) setModoEdicao(false); }}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              📋 Requisição de Compra (RC) #{pedidoSelecionado?.numero}
-              {pedidoSelecionado?.editado && (
-                <Badge variant="outline" className="text-orange-500 border-orange-500/50 text-xs">
-                  <Pencil className="h-3 w-3 mr-1" /> Editado
-                </Badge>
-              )}
-              {modoEdicao && (
-                <Badge className="bg-orange-500 text-white text-xs">Modo Edição</Badge>
-              )}
-            </DialogTitle>
-            <DialogDescription>
-              Criado por {pedidoSelecionado?.criado_por_nome} em {pedidoSelecionado ? new Date(pedidoSelecionado.data_pedido).toLocaleString('pt-BR') : ''}
-              {' • '}
-              {pedidoSelecionado?.status === 'concluido' ? (
-                <Badge variant="default">Concluído</Badge>
-              ) : pedidoSelecionado?.status === 'cancelado' ? (
-                <Badge variant="destructive">Cancelado</Badge>
-              ) : (
-                <Badge variant="secondary">Aberto</Badge>
-              )}
-              {pedidoSelecionado?.editado && pedidoSelecionado.editado_por && (
-                <span className="block text-xs text-orange-500 mt-1">
-                  ✏️ Editado por {pedidoSelecionado.editado_por} em {pedidoSelecionado.editado_em ? new Date(pedidoSelecionado.editado_em).toLocaleString('pt-BR') : ''}
-                </span>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Observações */}
-          {modoEdicao ? (
-            <div>
-              <Label>Observações</Label>
-              <Textarea
-                value={editObservacoes}
-                onChange={e => setEditObservacoes(e.target.value)}
-                placeholder="Observações adicionais (opcional)"
-                rows={2}
-              />
-            </div>
-          ) : pedidoSelecionado?.observacoes ? (
-            <div className="p-3 bg-muted rounded-md text-sm">
-              <strong>Observações:</strong> {pedidoSelecionado.observacoes}
-            </div>
-          ) : null}
-
-          {/* Add item in edit mode */}
-          {modoEdicao && (
-            <div className="border rounded-md p-4 space-y-3 bg-muted/30">
-              <Label className="text-sm font-semibold">Adicionar Novo Item</Label>
-              <div className="flex space-x-2">
-                <Popover open={editPopoverAberto} onOpenChange={setEditPopoverAberto}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" role="combobox" className="flex-1 justify-between text-sm">
-                      {editItemSelecionado ? editItemSelecionado.nome : "Selecione um item..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0">
-                    <Command>
-                      <CommandInput placeholder="Buscar..." value={editBuscaItem} onValueChange={setEditBuscaItem} />
-                      <CommandList>
-                        <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
-                        <CommandGroup>
-                          {editItensFiltrados.map(item => (
-                            <CommandItem key={item.id} onSelect={() => { setEditItemSelecionado(item); setEditBuscaItem(item.nome); setEditPopoverAberto(false); }} className="cursor-pointer">
-                              <div className="flex-1">
-                                <div className="font-medium text-sm">{item.nome}</div>
-                                <div className="text-xs text-muted-foreground">{item.codigoBarras} • {item.marca}</div>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                <Input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={editQuantidade}
-                  onChange={e => setEditQuantidade(e.target.value)}
-                  placeholder="Qtd"
-                  className="w-24"
-                />
-                <Button size="sm" onClick={adicionarItemEdicao}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Qtd. Pedida</TableHead>
-                  {!modoEdicao && <TableHead>Qtd. Recebida</TableHead>}
-                  <TableHead>Marca</TableHead>
-                  <TableHead>Status</TableHead>
-                  {modoEdicao && <TableHead>Ações</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(modoEdicao ? editItensPedido : itensPedidoSelecionado).map((item, idx) => {
-                  const snap = item.item_snapshot as any;
-                  const eParcial = item.status === 'parcial';
-                  const qtdRecebida = item.quantidade_recebida;
-                  return (
-                    <TableRow key={item.id} className={eParcial ? 'bg-amber-500/5' : ''}>
-                      <TableCell>{idx + 1}</TableCell>
-                      <TableCell className="font-medium min-w-[200px]">{snap?.nome || '-'}</TableCell>
-                      <TableCell className="whitespace-nowrap">{snap?.codigoBarras || '-'}</TableCell>
-                      <TableCell>
-                        {modoEdicao ? (
-                          <Input
-                            type="number"
-                            min="0.01"
-                            step="0.01"
-                            value={Number.isFinite(item.quantidade) ? item.quantidade : ''}
-                            onChange={e => {
-                              const val = e.target.value === '' ? NaN : Number(e.target.value);
-                              setEditItensPedido(prev =>
-                                prev.map(i => i.id === item.id ? { ...i, quantidade: val } : i)
-                              );
-                            }}
-                            className="w-20"
-                          />
-                        ) : (
-                          <span className="whitespace-nowrap">{item.quantidade} {snap?.unidade || ''}</span>
-                        )}
-                      </TableCell>
-  
-                      {/* ── Qtd Recebida (apenas no modo visualização) ── */}
-                      {!modoEdicao && (
+                </TableHeader>
+                <TableBody>
+                  {pedidos.map(pedido => {
+                    const valor = Number(pedido.valor_estimado_cotado || 0) + Number(pedido.frete_custos_adicionais || 0);
+                    return (
+                      <TableRow key={pedido.id}>
+                        <TableCell className="font-medium">#{pedido.numero}</TableCell>
+                        <TableCell>{new Date(pedido.data_pedido).toLocaleString('pt-BR')}</TableCell>
+                        <TableCell>{pedido.projeto_centro_custo || '—'}</TableCell>
+                        <TableCell>{dataPt(pedido.data_necessaria)}</TableCell>
                         <TableCell>
-                          {eParcial ? (
-                            <div className="flex items-center gap-1.5 min-w-[120px]">
-                              <Input
-                                type="number"
-                                min="0.01"
-                                step="0.01"
-                                max={item.quantidade}
-                                placeholder="Qtd"
-                                value={parcialQtdMap[item.id] ?? (qtdRecebida != null ? String(qtdRecebida) : '')}
-                                onChange={e => setParcialQtdMap(prev => ({ ...prev, [item.id]: e.target.value }))}
-                                disabled={pedidoSelecionado?.status === 'concluido' || pedidoSelecionado?.status === 'cancelado'}
-                                className="w-20 h-8 text-xs border-amber-500/40 focus:border-amber-500"
-                              />
-                              <span className="text-xs text-muted-foreground">{snap?.unidade || ''}</span>
-                              {!pedidoSelecionado?.status || (pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado') ? (
-                                <Button
-                                  size="icon-sm"
-                                  variant="outline"
-                                  className="h-8 w-8 border-amber-500/40 text-amber-500 hover:bg-amber-500/10 shrink-0"
-                                  onClick={() => salvarQtdParcial(item.id)}
-                                  title="Salvar quantidade recebida"
-                                >
-                                  <Check className="h-3.5 w-3.5" />
-                                </Button>
-                              ) : null}
-                            </div>
-                          ) : qtdRecebida != null ? (
-                            <span className="text-sm text-muted-foreground whitespace-nowrap">
-                              {qtdRecebida} {snap?.unidade || ''}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground/40">—</span>
-                          )}
+                          <Badge variant="outline">{statusFinanceiroLabels[pedido.status_financeiro_rc || 'em_cotacao'] || pedido.status_financeiro_rc || 'Em cotação'}</Badge>
                         </TableCell>
-                      )}
-  
-                      <TableCell className="whitespace-nowrap">{snap?.marca || '-'}</TableCell>
-                      <TableCell>
-                        {modoEdicao ? (
-                          <Badge variant={item.status === 'comprado' ? 'default' : item.status === 'parcial' ? 'warning' : 'secondary'} className="gap-1 whitespace-nowrap">
-                            {item.status === 'comprado' ? '✅ Comprado' : item.status === 'parcial' ? '📦 Parcial' : '⏳ Pendente'}
-                          </Badge>
-                        ) : (
-                          <Select
-                            value={item.status}
-                            onValueChange={(val) => atualizarStatusItem(item.id, val)}
-                            disabled={pedidoSelecionado?.status === 'concluido' || pedidoSelecionado?.status === 'cancelado'}
-                          >
-                            <SelectTrigger className="w-[130px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pendente">
-                                <span className="flex items-center gap-1 text-orange-500 font-medium">
-                                  ⏳ Pendente
-                                </span>
-                              </SelectItem>
-                              <SelectItem value="parcial">
-                                <span className="flex items-center gap-1 text-amber-400 font-medium">
-                                  📦 Parcial
-                                </span>
-                              </SelectItem>
-                              <SelectItem value="comprado">
-                                <span className="flex items-center gap-1 text-green-500 font-medium">
-                                  ✅ Comprado
-                                </span>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </TableCell>
-                      {modoEdicao && (
+                        <TableCell className="text-right">{valor > 0 ? moeda(valor) : '—'}</TableCell>
                         <TableCell>
-                          <Button variant="ghost" size="sm" onClick={() => removerItemEdicao(item.id)} className="text-destructive">
-                            <X className="h-4 w-4" />
+                          <Badge variant={pedido.status === 'concluido' ? 'default' : pedido.status === 'cancelado' ? 'destructive' : 'secondary'}>
+                            {pedido.status === 'concluido' ? 'Concluída' : pedido.status === 'cancelado' ? 'Cancelada' : 'Aberta'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="outline" onClick={() => void abrirDetalhe(pedido)}>
+                            <Eye className="h-4 w-4 mr-1" /> Ver
                           </Button>
                         </TableCell>
-                      )}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
-          <div className="flex flex-col sm:flex-row justify-between pt-4 gap-4 border-t mt-6">
-            <div className="flex flex-wrap gap-2">
-              {!modoEdicao && (
-                <>
-                  <Button variant="outline" onClick={imprimirPedido} className="flex-1 sm:flex-none">
-                    <Printer className="h-4 w-4 mr-2 shrink-0" /> <span className="truncate">Imprimir</span>
+      <Dialog open={dialogoNovoPedido} onOpenChange={(open) => { setDialogoNovoPedido(open); if (!open) limparFormulario(); }}>
+        <DialogContent className="w-[95vw] sm:w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>📋 Nova Requisição de Compra (RC)</DialogTitle>
+            <DialogDescription>Formalize a compra quando o estoque não atende, quando o item é avulso ou quando a reposição precisa ser enviada ao Financeiro.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="rounded-md border border-blue-500/30 bg-blue-950/20 p-3 text-sm text-blue-100">
+              <p className="font-medium">Esta tela é a parte operacional da RC.</p>
+              <p className="text-blue-200/80">A Juliana informa necessidade, itens, conferência de estoque, data e dados de compra. O Financeiro complementa vencimentos, aprovação, compromisso e programação.</p>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <Label>Projeto / obra / centro de custo *</Label>
+                <Input value={projetoCentroCusto} onChange={e => setProjetoCentroCusto(e.target.value)} placeholder="Ex.: Natal / Casa Noel / Usina Marialva" />
+              </div>
+              <div>
+                <Label>Data necessária *</Label>
+                <Input type="date" value={dataNecessaria} onChange={e => setDataNecessaria(e.target.value)} />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Especificação técnica geral</Label>
+                <Input value={especificacaoTecnica} onChange={e => setEspecificacaoTecnica(e.target.value)} placeholder="Medida, marca, padrão, aplicação, OP ou referência técnica" />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Conferência de estoque *</Label>
+                <Textarea value={conferenciaEstoque} onChange={e => setConferenciaEstoque(e.target.value)} placeholder="Saldo conferido, reserva, material em trânsito, reaproveitamento e motivo da compra" rows={2} />
+              </div>
+            </div>
+
+            <div className="rounded-md border p-4 space-y-3 bg-muted/20">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label className="text-base font-semibold">Itens da RC</Label>
+                  <p className="text-xs text-muted-foreground">Permite item cadastrado no almoxarifado e item avulso/não cadastrado.</p>
+                </div>
+                <Select value={tipoItem} onValueChange={(v) => { setTipoItem(v as TipoItemRc); limparItem(); }}>
+                  <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="existente">Item do almoxarifado</SelectItem>
+                    <SelectItem value="avulso">Item avulso / não cadastrado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {tipoItem === 'existente' ? (
+                <div className="grid gap-3 md:grid-cols-[1fr_160px]">
+                  <div>
+                    <Label>Buscar item cadastrado *</Label>
+                    <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" role="combobox" className="w-full justify-between">
+                          {itemSelecionado ? itemSelecionado.nome : 'Selecione um item...'}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[520px] p-0">
+                        <Command shouldFilter={false}>
+                          <CommandInput placeholder="Buscar por nome, código ou marca..." value={buscaItem} onValueChange={setBuscaItem} />
+                          <CommandList>
+                            <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
+                            <CommandGroup>
+                              {itensFiltrados.map(item => (
+                                <CommandItem key={item.id} onSelect={() => selecionarItem(item)} className="cursor-pointer">
+                                  <Check className={cn('mr-2 h-4 w-4', itemSelecionado?.id === item.id ? 'opacity-100' : 'opacity-0')} />
+                                  <div className="flex-1">
+                                    <div className="font-medium">{item.nome}</div>
+                                    <div className="text-xs text-muted-foreground">{item.codigoBarras} • {item.marca || 'sem marca'} • Saldo: {item.estoqueAtual} {item.unidade}</div>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div>
+                    <Label>Quantidade *</Label>
+                    <Input type="number" min="0.01" step="0.01" value={quantidade} onChange={e => setQuantidade(e.target.value)} placeholder="Qtd" />
+                  </div>
+                  {itemSelecionado && (
+                    <div className="md:col-span-2 rounded-md bg-background border p-3 text-sm">
+                      <div className="font-medium">{itemSelecionado.nome}</div>
+                      <div className="text-muted-foreground">Código {itemSelecionado.codigoBarras} • Saldo atual {itemSelecionado.estoqueAtual} {itemSelecionado.unidade} • {itemSelecionado.marca || 'sem marca'}</div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-[1fr_120px_160px]">
+                  <div>
+                    <Label>Nome do item avulso *</Label>
+                    <Input value={nomeItemAvulso} onChange={e => setNomeItemAvulso(e.target.value)} placeholder="Ex.: cinta plástica 13 mm" />
+                  </div>
+                  <div>
+                    <Label>Unidade</Label>
+                    <Input value={unidadeItemAvulso} onChange={e => setUnidadeItemAvulso(e.target.value)} placeholder="un, kg, m" />
+                  </div>
+                  <div>
+                    <Label>Quantidade *</Label>
+                    <Input type="number" min="0.01" step="0.01" value={quantidade} onChange={e => setQuantidade(e.target.value)} placeholder="Qtd" />
+                  </div>
+                  <div className="md:col-span-3">
+                    <Label>Especificação do item avulso</Label>
+                    <Input value={especificacaoItemAvulso} onChange={e => setEspecificacaoItemAvulso(e.target.value)} placeholder="Medida, padrão, referência de compra ou aplicação" />
+                  </div>
+                </div>
+              )}
+
+              <div className="grid gap-3 md:grid-cols-[1fr_150px]">
+                <div>
+                  <Label>Observação do item</Label>
+                  <Input value={obsItem} onChange={e => setObsItem(e.target.value)} placeholder="Uso, urgência, substituição, fornecedor sugerido" />
+                </div>
+                <div className="flex items-end">
+                  <Button type="button" onClick={adicionarItem} className="w-full">
+                    <Plus className="h-4 w-4 mr-2" /> Adicionar
                   </Button>
-                  <Button variant="outline" onClick={salvarPDF} className="flex-1 sm:flex-none">
-                    <FileText className="h-4 w-4 mr-2 shrink-0" /> <span className="truncate">Salvar PDF</span>
-                  </Button>
-                  <Button variant="outline" onClick={enviarWhatsApp} className="text-green-600 border-green-600/50 hover:bg-green-50 flex-1 sm:flex-none w-full sm:w-auto mt-2 sm:mt-0">
-                    <MessageCircle className="h-4 w-4 mr-2 shrink-0" /> WhatsApp
-                  </Button>
-                </>
+                </div>
+              </div>
+
+              {itensPedido.length > 0 && (
+                <div className="overflow-x-auto rounded-md border bg-background">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item</TableHead>
+                        <TableHead>Origem</TableHead>
+                        <TableHead className="text-right">Qtd</TableHead>
+                        <TableHead>Saldo / falta</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {itensPedido.map(ip => (
+                        <TableRow key={ip.id}>
+                          <TableCell>
+                            <div className="font-medium">{ip.nome_item}</div>
+                            {ip.observacoes && <div className="text-xs text-muted-foreground">{ip.observacoes}</div>}
+                          </TableCell>
+                          <TableCell>{ip.isCustom ? <Badge variant="outline">Avulso</Badge> : <Badge variant="secondary">Almoxarifado</Badge>}</TableCell>
+                          <TableCell className="text-right">{ip.quantidade} {ip.unidade}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {ip.isCustom ? 'Sem cadastro no estoque' : `Saldo ${ip.item_snapshot.estoque_atual_no_momento ?? 0} · Falta ${ip.item_snapshot.falta_estimativa ?? 0}`}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" onClick={() => removerItem(ip.id)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {modoEdicao ? (
-                <>
-                  <Button variant="outline" onClick={() => setModoEdicao(false)} className="flex-1 sm:flex-none">
-                    Cancelar
-                  </Button>
-                  <Button onClick={salvarEdicao} className="bg-orange-500 hover:bg-orange-600 flex-1 sm:flex-none">
-                    <Check className="h-4 w-4 mr-2 shrink-0" /> <span className="truncate">Salvar</span>
-                  </Button>
-                </>
-              ) : (
-                <>
-                  {pedidoSelecionado?.status !== 'concluido' && pedidoSelecionado?.status !== 'cancelado' && (
-                    <>
-                      <Button variant="outline" onClick={cancelarPedido} className="text-destructive border-destructive/50 hover:bg-destructive/10 flex-1 sm:flex-none">
-                        <Ban className="h-4 w-4 mr-2 shrink-0" /> <span className="truncate">Cancelar Pedido</span>
-                      </Button>
-                      <Button variant="outline" onClick={solicitarEdicao} className="flex-1 sm:flex-none">
-                        <Pencil className="h-4 w-4 mr-2 shrink-0" /> Editar
-                      </Button>
-                      <Button onClick={concluirPedido} className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none w-full sm:w-auto mt-2 sm:mt-0">
-                        <CheckCircle className="h-4 w-4 mr-2 shrink-0" /> <span className="truncate">Concluir Pedido</span>
-                      </Button>
-                    </>
-                  )}
-                </>
-              )}
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <Label>Fornecedores consultados</Label>
+                <Input value={fornecedoresConsultados} onChange={e => setFornecedoresConsultados(e.target.value)} placeholder="Fornecedor, WhatsApp, link ou contato" />
+              </div>
+              <div>
+                <Label>Status financeiro da RC</Label>
+                <Select value={statusFinanceiroRc} onValueChange={(v) => setStatusFinanceiroRc(v as StatusFinanceiroRc)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="em_cotacao">Em cotação</SelectItem>
+                    <SelectItem value="aguardando_aprovacao">Aguardando aprovação</SelectItem>
+                    <SelectItem value="aprovada">Aprovada</SelectItem>
+                    <SelectItem value="rejeitada">Rejeitada</SelectItem>
+                    <SelectItem value="convertida_em_pc">Convertida em PC</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Valor estimado / cotado</Label>
+                <Input value={valorEstimadoCotado} onChange={e => setValorEstimadoCotado(e.target.value)} placeholder="R$" />
+              </div>
+              <div>
+                <Label>Frete / custos adicionais</Label>
+                <Input value={freteCustosAdicionais} onChange={e => setFreteCustosAdicionais(e.target.value)} placeholder="R$" />
+              </div>
+              <div>
+                <Label>Condição de pagamento</Label>
+                <Input value={condicaoPagamento} onChange={e => setCondicaoPagamento(e.target.value)} placeholder="À vista, boleto, 2x, cartão, prazo" />
+              </div>
+              <div>
+                <Label>Lead time em dias</Label>
+                <Input type="number" min="0" value={leadTimeDias} onChange={e => setLeadTimeDias(e.target.value)} placeholder="Ex.: 5" />
+              </div>
+              <div>
+                <Label>Data-limite de compra</Label>
+                <Input type="date" value={dataLimiteCompra} onChange={e => setDataLimiteCompra(e.target.value)} />
+              </div>
+              <div>
+                <Label>Total estimado</Label>
+                <div className="h-10 rounded-md border bg-muted/30 px-3 flex items-center font-medium">{totalEstimado > 0 ? moeda(totalEstimado) : 'A definir'}</div>
+              </div>
+              <div className="md:col-span-2">
+                <Label>Impacto financeiro / observação para Kátia</Label>
+                <Textarea value={impactoFinanceiro} onChange={e => setImpactoFinanceiro(e.target.value)} placeholder="Urgência, risco se não comprar, efeito no prazo e qualquer ponto para o fluxo de caixa" rows={2} />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Observações gerais</Label>
+                <Textarea value={observacoes} onChange={e => setObservacoes(e.target.value)} placeholder="Observações adicionais da RC" rows={2} />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 pt-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                {totalItens} item(ns) · {totalEstimado > 0 ? moeda(totalEstimado) : 'valor a definir'}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => { setDialogoNovoPedido(false); limparFormulario(); }}>Cancelar</Button>
+                <Button onClick={criarPedido} disabled={salvando || itensPedido.length === 0}>{salvando ? 'Salvando...' : `Criar RC (${itensPedido.length})`}</Button>
+              </div>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogoDetalhe} onOpenChange={setDialogoDetalhe}>
+        <DialogContent className="w-[95vw] sm:w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              📋 RC #{pedidoSelecionado?.numero}
+              <Badge variant={pedidoSelecionado?.status === 'concluido' ? 'default' : pedidoSelecionado?.status === 'cancelado' ? 'destructive' : 'secondary'}>
+                {pedidoSelecionado?.status === 'concluido' ? 'Concluída' : pedidoSelecionado?.status === 'cancelado' ? 'Cancelada' : 'Aberta'}
+              </Badge>
+            </DialogTitle>
+            <DialogDescription>
+              Criada por {pedidoSelecionado?.criado_por_nome} em {pedidoSelecionado ? new Date(pedidoSelecionado.data_pedido).toLocaleString('pt-BR') : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          {pedidoSelecionado && (
+            <div className="space-y-5">
+              <div className="grid gap-3 md:grid-cols-4">
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Projeto / centro</div><div className="font-medium">{pedidoSelecionado.projeto_centro_custo || '—'}</div></div>
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Data necessária</div><div className="font-medium">{dataPt(pedidoSelecionado.data_necessaria)}</div></div>
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Status financeiro</div><div className="font-medium">{statusFinanceiroLabels[pedidoSelecionado.status_financeiro_rc || 'em_cotacao'] || pedidoSelecionado.status_financeiro_rc || '—'}</div></div>
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">PN vinculada</div><div className="font-medium">{pedidoSelecionado.pn_origem_id ? 'Sim' : 'Ainda não'}</div></div>
+              </div>
+
+              {!pedidoSelecionado.data_necessaria && (
+                <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 text-amber-500" />
+                  <div>
+                    <p className="font-medium">RC sem data necessária</p>
+                    <p className="text-muted-foreground">RCs novas devem informar data necessária para alimentar corretamente PN, fluxo e prazo de compra.</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Conferência de estoque</div><div>{pedidoSelecionado.conferencia_estoque || '—'}</div></div>
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Especificação técnica</div><div>{pedidoSelecionado.especificacao_tecnica || '—'}</div></div>
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Fornecedores consultados</div><div>{pedidoSelecionado.fornecedores_consultados || '—'}</div></div>
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Condição / prazo</div><div>{pedidoSelecionado.condicao_pagamento || '—'} {pedidoSelecionado.lead_time_dias ? `· lead time ${pedidoSelecionado.lead_time_dias} dias` : ''}</div></div>
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Valor cotado + frete</div><div>{moeda(Number(pedidoSelecionado.valor_estimado_cotado || 0) + Number(pedidoSelecionado.frete_custos_adicionais || 0))}</div></div>
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Data-limite de compra</div><div>{dataPt(pedidoSelecionado.data_limite_compra)}</div></div>
+              </div>
+
+              {pedidoSelecionado.impacto_financeiro && (
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Impacto financeiro / observação para Kátia</div><div>{pedidoSelecionado.impacto_financeiro}</div></div>
+              )}
+
+              <div className="overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Origem</TableHead>
+                      <TableHead className="text-right">Quantidade</TableHead>
+                      <TableHead>Detalhe</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {itensPedidoSelecionado.map(item => {
+                      const snap = item.item_snapshot || {};
+                      const nome = snap.nome || item.nome_item || 'Item';
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell><div className="font-medium">{nome}</div><div className="text-xs text-muted-foreground">{snap.codigoBarras || snap.especificacao || '—'}</div></TableCell>
+                          <TableCell>{item.item_id ? <Badge variant="secondary">Almoxarifado</Badge> : <Badge variant="outline">Avulso</Badge>}</TableCell>
+                          <TableCell className="text-right">{item.quantidade} {snap.unidade || ''}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{item.item_id ? `Saldo na abertura: ${snap.estoque_atual_no_momento ?? '—'} · Falta: ${snap.falta_estimativa ?? '—'}` : 'Item não cadastrado no estoque'}</TableCell>
+                          <TableCell>
+                            <Select value={item.status || 'pendente'} onValueChange={(v) => void atualizarStatusItem(item.id, v)} disabled={pedidoSelecionado.status === 'cancelado'}>
+                              <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pendente">Pendente</SelectItem>
+                                <SelectItem value="parcial">Parcial</SelectItem>
+                                <SelectItem value="comprado">Comprado</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {pedidoSelecionado.observacoes && <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Observações</div><div>{pedidoSelecionado.observacoes}</div></div>}
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                {pedidoSelecionado.status === 'aberto' && (
+                  <>
+                    <Button variant="outline" onClick={() => void cancelarPedido()} className="text-destructive hover:text-destructive"><Ban className="h-4 w-4 mr-2" />Cancelar RC</Button>
+                    <Button onClick={() => void concluirPedido()}><CheckCircle className="h-4 w-4 mr-2" />Concluir RC</Button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>
