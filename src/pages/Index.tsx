@@ -12,7 +12,9 @@ import { NavegacaoLateralEstoque } from '@/components/gestao-estoque/NavegacaoLa
 import { Configuracoes } from '@/components/gestao-estoque/Configuracoes';
 import { Producao } from '@/components/producao/Producao';
 import { Financeiro } from '@/components/financeiro/Financeiro';
-import { RHPonto } from '@/components/rh/RHPonto';
+import MeuPonto from '@/components/rh/MeuPonto';
+import ControlePontoEspelho from '@/components/rh/ControlePontoEspelho';
+import RHInformacoes from '@/components/rh/RHInformacoes';
 import { PrimeiroAcessoSenha } from '@/components/auth/PrimeiroAcessoSenha';
 import { Package, LogOut, BarChart3, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -154,7 +156,9 @@ const Index = () => {
           const showProjetos = canAccessProjects();
           const showProducao = canApontarProducao() || canConferirProducao() || canConfigurarProducao();
           const showFinanceiro = canAccessFinanceiro();
-          const showRHPonto = isAdmin() || hasPermission('rh.acessar') || hasPermission('rh.colaboradores.visualizar') || hasPermission('ponto.registrar') || hasPermission('ponto.visualizar') || hasPermission('ponto.gerenciar') || hasPermission('ponto.aprovar');
+          const showMeuPonto = isAdmin() || hasPermission('ponto.registrar') || hasPermission('ponto.visualizar');
+          const showControlePonto = isAdmin() || hasPermission('ponto.visualizar') || hasPermission('ponto.gerenciar') || hasPermission('ponto.aprovar');
+          const showRHInformacoes = isAdmin() || hasPermission('rh.acessar') || hasPermission('rh.colaboradores.visualizar') || hasPermission('rh.colaboradores.gerenciar') || hasPermission('rh.jornadas.gerenciar') || hasPermission('rh.feriados.gerenciar');
           const somenteBIProducao = podeVerBIProducao && !podeVerGerencialAlmoxarifado;
 
           return (
@@ -169,7 +173,9 @@ const Index = () => {
                 showProjetos={showProjetos}
                 showProducao={showProducao}
                 showFinanceiro={showFinanceiro}
-                showRHPonto={showRHPonto}
+                showMeuPonto={showMeuPonto}
+                showControlePonto={showControlePonto}
+                showRHInformacoes={showRHInformacoes}
                 showConfiguracoes={showConfiguracoes}
                 solicitacoesPendentesCount={solicitacoesPendentesCount}
                 somenteBIProducao={somenteBIProducao}
@@ -215,7 +221,9 @@ const Index = () => {
                     {showProjetos && <TabsContent value="projetos" className="mt-0 space-y-6"><VisaoProjetos /></TabsContent>}
                     {showProducao && <TabsContent value="producao" className="mt-0 space-y-6"><Producao /></TabsContent>}
                     {showFinanceiro && <TabsContent value="financeiro" className="mt-0 space-y-6"><Financeiro /></TabsContent>}
-                    {showRHPonto && <TabsContent value="rh-ponto" className="mt-0 space-y-6"><RHPonto /></TabsContent>}
+                    {showMeuPonto && <TabsContent value="meu-ponto" className="mt-0 space-y-6"><MeuPonto /></TabsContent>}
+                    {showControlePonto && <TabsContent value="controle-ponto" className="mt-0 space-y-6"><ControlePontoEspelho /></TabsContent>}
+                    {showRHInformacoes && <TabsContent value="rh-informacoes" className="mt-0 space-y-6"><RHInformacoes /></TabsContent>}
 
                     {showEstoque && (
                       <TabsContent value="estoque" className="mt-0 space-y-6">
