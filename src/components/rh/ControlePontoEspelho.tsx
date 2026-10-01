@@ -40,6 +40,8 @@ import {
 } from "@/lib/pontoCalculos";
 import { toast } from "sonner";
 
+const db = supabase as any;
+
 interface Colaborador {
   id: string;
   nome: string;
@@ -257,9 +259,9 @@ export default function ControlePontoEspelhoCorrigido() {
     setLoading(true);
     try {
       const [collaboratorResponse, journeyResponse, holidayResponse] = await Promise.all([
-        (supabase as any).from("rh_colaboradores").select("*").eq("ativo", true).eq("controla_ponto", true).order("nome"),
-        supabase.from("rh_jornadas").select("*"),
-        supabase.from("rh_feriados").select("*").eq("ativo", true),
+        db.from("rh_colaboradores").select("*").eq("ativo", true).eq("controla_ponto", true).order("nome"),
+        db.from("rh_jornadas").select("*"),
+        db.from("rh_feriados").select("*").eq("ativo", true),
       ]);
 
       if (collaboratorResponse.error) throw collaboratorResponse.error;
@@ -287,9 +289,9 @@ export default function ControlePontoEspelhoCorrigido() {
       const startDate = `${selectedMonth}-01`;
       const endDate = `${selectedMonth}-${String(lastDay).padStart(2, "0")}`;
       const [entriesResponse, paidResponse] = await Promise.all([
-        supabase.from("rh_registros_ponto").select("*")
+        db.from("rh_registros_ponto").select("*")
           .eq("colaborador_id", selectedColaborador).gte("data", startDate).lte("data", endDate).order("data"),
-        (supabase as any).from("rh_ponto_dias_pagos").select("*")
+        db.from("rh_ponto_dias_pagos").select("*")
           .eq("colaborador_id", selectedColaborador).gte("data", startDate).lte("data", endDate).order("data"),
       ]);
 
@@ -487,7 +489,7 @@ export default function ControlePontoEspelhoCorrigido() {
     setPaymentSaving(true);
     try {
       if (!checked) {
-        const { error } = await (supabase as any).from("rh_ponto_dias_pagos").delete()
+        const { error } = await db.from("rh_ponto_dias_pagos").delete()
           .eq("colaborador_id", selectedColaborador).eq("data", row.dateStr);
         if (error) throw error;
       } else {
@@ -502,7 +504,7 @@ export default function ControlePontoEspelhoCorrigido() {
             ? Math.max(0, row.expectedMinutes || 0) / expectedMonthMinutes
             : 0,
         });
-        const { error } = await (supabase as any).from("rh_ponto_dias_pagos").upsert({
+        const { error } = await db.from("rh_ponto_dias_pagos").upsert({
           colaborador_id: selectedColaborador,
           data: row.dateStr,
           valor_diaria: dayValue.salarioBase,
@@ -528,7 +530,7 @@ export default function ControlePontoEspelhoCorrigido() {
     setPaymentSaving(true);
     try {
       if (!checked) {
-        const { error } = await (supabase as any).from("rh_ponto_dias_pagos").delete()
+        const { error } = await db.from("rh_ponto_dias_pagos").delete()
           .eq("colaborador_id", selectedColaborador).gte("data", `${selectedMonth}-01`).lte("data", `${selectedMonth}-31`);
         if (error) throw error;
       } else {
@@ -551,7 +553,7 @@ export default function ControlePontoEspelhoCorrigido() {
             valor_total: dayValue.totalBruto, pago_em: new Date().toISOString(), updated_at: new Date().toISOString(),
           };
         });
-        const { error } = await (supabase as any).from("rh_ponto_dias_pagos").upsert(records, { onConflict: "colaborador_id,data" });
+        const { error } = await db.from("rh_ponto_dias_pagos").upsert(records, { onConflict: "colaborador_id,data" });
         if (error) throw error;
       }
       await fetchEntriesForMonth();
@@ -628,7 +630,7 @@ export default function ControlePontoEspelhoCorrigido() {
         if (error) throw error;
       } else {
         if (!selectedColaborador || !newValue) return;
-        const { error } = await supabase.from("rh_registros_ponto").insert({
+        const { error } = await db.from("rh_registros_ponto").insert({
           colaborador_id: selectedColaborador,
           data: dateStr,
           [field]: newValue,
