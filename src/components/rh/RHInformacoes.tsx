@@ -128,7 +128,7 @@ function JornadasTab() {
   const fetchJornadas = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.from("rh_jornadas").select("*").order("nome");
+      const { data, error } = await db.from("rh_jornadas").select("*").order("nome");
       if (error) throw error;
       setJornadas((data || []) as Jornada[]);
     } catch (error) {
@@ -213,8 +213,8 @@ function JornadasTab() {
         ativo,
       };
       const query = editingJornada
-        ? supabase.from("rh_jornadas").update(payload).eq("id", editingJornada.id)
-        : supabase.from("rh_jornadas").insert(payload);
+        ? db.from("rh_jornadas").update(payload).eq("id", editingJornada.id)
+        : db.from("rh_jornadas").insert(payload);
       const { error } = await query;
       if (error) throw error;
       toast.success(editingJornada ? "Jornada atualizada!" : "Jornada criada!");
@@ -330,7 +330,7 @@ function FeriadosTab() {
   const fetchFeriados = async () => {
     setLoading(true);
     try {
-      const { data: rows, error } = await supabase.from("rh_feriados").select("*").order("data");
+      const { data: rows, error } = await db.from("rh_feriados").select("*").order("data");
       if (error) throw error;
       setFeriados((rows || []) as Feriado[]);
     } catch (error) {
@@ -352,7 +352,7 @@ function FeriadosTab() {
     setSaving(true);
     try {
       const payload = { nome: nome.trim(), data, tipo };
-      const query = editingFeriado ? supabase.from("rh_feriados").update(payload).eq("id", editingFeriado.id) : supabase.from("rh_feriados").insert(payload);
+      const query = editingFeriado ? db.from("rh_feriados").update(payload).eq("id", editingFeriado.id) : db.from("rh_feriados").insert(payload);
       const { error } = await query;
       if (error) throw error;
       toast.success(editingFeriado ? "Feriado atualizado!" : "Feriado cadastrado!");
@@ -390,7 +390,7 @@ function FeriadosTab() {
           {loading ? <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : (
             <div className="overflow-hidden rounded-lg border border-border"><Table><TableHeader><TableRow className="bg-muted/50"><TableHead>Data</TableHead><TableHead>Feriado</TableHead><TableHead>Tipo</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader><TableBody>
               {feriados.length === 0 ? <TableRow><TableCell colSpan={4} className="py-12 text-center text-muted-foreground">Nenhum feriado cadastrado</TableCell></TableRow> : feriados.map((feriado) => (
-                <TableRow key={feriado.id}><TableCell className="font-medium">{format(new Date(`${feriado.data}T12:00:00`), "dd/MM/yyyy", { locale: ptBR })}</TableCell><TableCell>{feriado.nome}</TableCell><TableCell><Badge variant="outline" className="capitalize">{feriado.tipo}</Badge></TableCell><TableCell className="text-right"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" onClick={() => openEditDialog(feriado)}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={() => void handleDelete(feriado.id)} disabled={deleting === feriado.id} className="text-destructive hover:text-destructive">{deleting === feriado.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}</Button></div></TableCell></TableRow>
+                <TableRow key={feriado.id}><TableCell className="font-medium">{format(new Date(`${feriado.data}T12:00:00`), "dd/MM/yyyy", { locale: ptBR })}</TableCell><TableCell>{feriado.nome}</TableCell><TableCell><Badge variant="outline" className="capitalize">{feriado.tipo}</Badge></TableCell><TableCell className="text-right"><div className="flex justify-end gap-1">{canManage && <><Button variant="ghost" size="icon" onClick={() => openEditDialog(feriado)}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={() => void handleDelete(feriado.id)} disabled={deleting === feriado.id} className="text-destructive hover:text-destructive">{deleting === feriado.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}</Button></>}</div></TableCell></TableRow>
               ))}
             </TableBody></Table></div>
           )}
