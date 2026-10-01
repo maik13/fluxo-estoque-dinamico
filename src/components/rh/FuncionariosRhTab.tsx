@@ -388,7 +388,7 @@ export function FuncionariosRhTab() {
     const { error } = await db.rpc("rh_set_colaborador_contextos", {
       p_colaborador_id: id,
       p_rh_ativo: nextRh,
-      p_pista_ativo_legado: nextPista,
+      p_pista_ativo: nextPista,
     });
     if (error) throw error;
   };
