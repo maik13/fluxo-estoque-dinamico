@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   BarChart3,
   ClipboardList,
@@ -13,6 +13,7 @@ import {
   UsersRound,
   UserRound,
   Clock3,
+  ChevronDown,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -54,6 +55,7 @@ type NavItem = {
 type NavSection = {
   label: string;
   items: NavItem[];
+  collapsible?: boolean;
 };
 
 export const NavegacaoLateralEstoque = ({
@@ -74,6 +76,9 @@ export const NavegacaoLateralEstoque = ({
   somenteBIProducao,
 }: NavegacaoLateralEstoqueProps) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [openSections, setOpenSections] = useState<Set<string>>(
+    () => new Set(['Painel', 'Almoxarifado']),
+  );
 
   const sections: NavSection[] = [
     {
@@ -84,6 +89,7 @@ export const NavegacaoLateralEstoque = ({
     },
     {
       label: 'Almoxarifado',
+      collapsible: true,
       items: [
         {
           value: 'menu',
@@ -108,6 +114,7 @@ export const NavegacaoLateralEstoque = ({
     },
     {
       label: 'Gestão',
+      collapsible: true,
       items: [
         {
           value: 'gerencial',
@@ -137,6 +144,7 @@ export const NavegacaoLateralEstoque = ({
     },
     {
       label: 'RH',
+      collapsible: true,
       items: [
         {
           value: 'meu-ponto',
@@ -160,6 +168,7 @@ export const NavegacaoLateralEstoque = ({
     },
     {
       label: 'Administração',
+      collapsible: true,
       items: [
         {
           value: 'configuracoes',
@@ -171,11 +180,49 @@ export const NavegacaoLateralEstoque = ({
     },
     {
       label: 'Comunicação',
+      collapsible: true,
       items: [
         { value: 'mensagens', label: 'Mensagens', icon: MessageCircle },
       ],
     },
   ];
+
+  useEffect(() => {
+    const activeSection = sections.find((section) =>
+      section.items.some((item) => item.value === tabAtiva && item.visible !== false),
+    );
+
+    if (!activeSection) return;
+
+    setOpenSections((current) => {
+      if (current.has(activeSection.label)) return current;
+      const next = new Set(current);
+      next.add(activeSection.label);
+      return next;
+    });
+  }, [
+    tabAtiva,
+    showEstoque,
+    showMovimentacoes,
+    showSolicitantes,
+    showGerencial,
+    showProjetos,
+    showProducao,
+    showFinanceiro,
+    showMeuPonto,
+    showControlePonto,
+    showRHInformacoes,
+    showConfiguracoes,
+  ]);
+
+  const toggleSection = (label: string) => {
+    setOpenSections((current) => {
+      const next = new Set(current);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  };
 
   const handleNavigate = (value: string, closeMobile = false) => {
     onNavigate(value);
@@ -188,54 +235,82 @@ export const NavegacaoLateralEstoque = ({
         const visibleItems = section.items.filter((item) => item.visible !== false);
         if (visibleItems.length === 0) return null;
 
+        const isOpen = section.collapsible ? openSections.has(section.label) : true;
+        const hasActiveItem = visibleItems.some((item) => item.value === tabAtiva);
+
         return (
           <div key={section.label} className="space-y-1.5">
-            <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              {section.label}
-            </p>
-            <div className="space-y-1">
-              {visibleItems.map((item) => {
-                const Icon = item.icon;
-                const active = tabAtiva === item.value;
-                const badge = item.badge && item.badge > 0 ? item.badge : 0;
+            {section.collapsible ? (
+              <button
+                type="button"
+                onClick={() => toggleSection(section.label)}
+                aria-expanded={isOpen}
+                className={cn(
+                  'flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors',
+                  hasActiveItem
+                    ? 'text-primary'
+                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                )}
+              >
+                <span>{section.label}</span>
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 transition-transform duration-200',
+                    isOpen ? 'rotate-180' : 'rotate-0',
+                  )}
+                />
+              </button>
+            ) : (
+              <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                {section.label}
+              </p>
+            )}
 
-                return (
-                  <button
-                    key={item.value}
-                    type="button"
-                    aria-current={active ? 'page' : undefined}
-                    onClick={() => handleNavigate(item.value, closeMobile)}
-                    className={cn(
-                      'group flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors',
-                      active
-                        ? 'border-primary/30 bg-primary/10 text-primary shadow-sm'
-                        : 'border-transparent text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground',
-                    )}
-                  >
-                    <span
+            {isOpen && (
+              <div className="space-y-1">
+                {visibleItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = tabAtiva === item.value;
+                  const badge = item.badge && item.badge > 0 ? item.badge : 0;
+
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      aria-current={active ? 'page' : undefined}
+                      onClick={() => handleNavigate(item.value, closeMobile)}
                       className={cn(
-                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors',
+                        'group flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors',
                         active
-                          ? 'bg-primary/15 text-primary'
-                          : 'bg-muted/60 text-muted-foreground group-hover:text-foreground',
+                          ? 'border-primary/30 bg-primary/10 text-primary shadow-sm'
+                          : 'border-transparent text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground',
                       )}
                     >
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                    {badge > 0 && (
                       <span
-                        className="inline-flex min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 py-0.5 text-[11px] font-bold leading-none text-destructive-foreground shadow-sm"
-                        aria-label={`${badge} ${badge === 1 ? 'solicitação pendente' : 'solicitações pendentes'}`}
-                        title={`${badge} ${badge === 1 ? 'solicitação pendente' : 'solicitações pendentes'}`}
+                        className={cn(
+                          'flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors',
+                          active
+                            ? 'bg-primary/15 text-primary'
+                            : 'bg-muted/60 text-muted-foreground group-hover:text-foreground',
+                        )}
                       >
-                        {badge > 99 ? '99+' : badge}
+                        <Icon className="h-4 w-4" />
                       </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                      {badge > 0 && (
+                        <span
+                          className="inline-flex min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 py-0.5 text-[11px] font-bold leading-none text-destructive-foreground shadow-sm"
+                          aria-label={`${badge} ${badge === 1 ? 'solicitação pendente' : 'solicitações pendentes'}`}
+                          title={`${badge} ${badge === 1 ? 'solicitação pendente' : 'solicitações pendentes'}`}
+                        >
+                          {badge > 99 ? '99+' : badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       })}
