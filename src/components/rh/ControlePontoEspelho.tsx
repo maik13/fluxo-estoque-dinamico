@@ -200,10 +200,13 @@ function observationForRow(row: DayRow): string {
 }
 
 export default function ControlePontoEspelhoCorrigido() {
-  const { isAdmin, hasPermission } = usePermissions();
-  const [accessLoading, setAccessLoading] = useState(true);
-  const [isGestor, setIsGestor] = useState(false);
-  const [isPontoViewer, setIsPontoViewer] = useState(false);
+  const { isAdmin, hasPermission, loading: permissionsLoading } = usePermissions();
+  const isGestor = isAdmin() || hasPermission("ponto.gerenciar");
+  const isPontoViewer =
+    isAdmin() ||
+    hasPermission("ponto.visualizar") ||
+    hasPermission("ponto.gerenciar") ||
+    hasPermission("ponto.aprovar");
   const [loading, setLoading] = useState(true);
   const [entriesLoading, setEntriesLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
@@ -218,7 +221,7 @@ export default function ControlePontoEspelhoCorrigido() {
   const [jornadaData, setJornadaData] = useState<Jornada | null>(null);
 
   useEffect(() => {
-    void Promise.all([checkAccess(), fetchInitialData()]);
+    void fetchInitialData();
   }, []);
 
   useEffect(() => {
@@ -226,18 +229,6 @@ export default function ControlePontoEspelhoCorrigido() {
       void fetchEntriesForMonth();
     }
   }, [selectedColaborador, selectedMonth, colaboradores, jornadas]);
-
-  const checkAccess = async () => {
-    const admin = isAdmin();
-    setIsGestor(Boolean(admin || hasPermission("ponto.gerenciar")));
-    setIsPontoViewer(Boolean(
-      admin ||
-      hasPermission("ponto.visualizar") ||
-      hasPermission("ponto.gerenciar") ||
-      hasPermission("ponto.aprovar")
-    ));
-    setAccessLoading(false);
-  };
 
   const fetchInitialData = async () => {
     setLoading(true);
@@ -803,7 +794,7 @@ export default function ControlePontoEspelhoCorrigido() {
     toast.success("Excel exportado com memória financeira");
   };
 
-  if (accessLoading || loading) {
+  if (permissionsLoading || loading) {
     return (
       <div className="flex items-center justify-center py-24"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
     );
