@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';
 import { itemEhFerramentaUnitaria } from '@/utils/itemClassification';
+import { carregarSaldosCompletos } from '@/services/estoque/carregarSaldosCompletos';
 
 export const useEstoque = () => {
   const [itens, setItens] = useState<Item[]>([]);
@@ -564,14 +565,23 @@ export const useEstoque = () => {
       // 2) Saldos e última movimentação calculados no servidor.
       // O catálogo só é publicado junto com uma posição de saldo confirmada;
       // ausência/falha de saldo nunca pode ser interpretada como estoque zero.
-      const { data: saldosData, error: saldosError } = await (supabase as any).rpc(
-        'listar_saldos_estoque_v1',
-        {
-          p_estoque_id: estoqueId ?? null,
-          p_incluir_sem_estoque: incluirSemEstoque,
-        },
+      const saldosData = await carregarSaldosCompletos<{
+        item_id: string;
+        saldo_atual: number | string | null;
+        ultima_movimentacao: Movimentacao | null;
+      }>((inicio, fim) =>
+        (supabase as any)
+          .rpc(
+            'listar_saldos_estoque_v1',
+            {
+              p_estoque_id: estoqueId ?? null,
+              p_incluir_sem_estoque: incluirSemEstoque,
+            },
+            { count: 'exact' },
+          )
+          .order('item_id', { ascending: true })
+          .range(inicio, fim),
       );
-      if (saldosError) throw saldosError;
 
       const novoMapaSaldos = new Map<string, number>();
       const novoMapaUltimas = new Map<string, Movimentacao>();
