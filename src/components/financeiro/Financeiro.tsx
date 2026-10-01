@@ -165,6 +165,12 @@ export const Financeiro = () => {
     observacao: '', responsavel: '', prazo: '',
   });
 
+  const [mostrarPnCanceladas, setMostrarPnCanceladas] = useState(false);
+  const necessidadesVisiveis = useMemo(
+    () => necessidades.filter((n) => mostrarPnCanceladas || n.status !== 'cancelado'),
+    [necessidades, mostrarPnCanceladas],
+  );
+
   const carregar = async () => {
     setLoading(true);
     try {
@@ -208,7 +214,21 @@ export const Financeiro = () => {
     }
   };
 
-  useEffect(() => { void carregar(); }, []);
+  useEffect(() => {
+    void carregar();
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+    const atualizar = () => {
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(() => { void carregar(); }, 500);
+    };
+    const canal = supabase.channel('financeiro-integracao-rc-pn')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'financeiro_necessidades' }, atualizar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'financeiro_lancamentos' }, atualizar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_compra' }, atualizar)
+      .subscribe();
+    const intervalo = setInterval(atualizar, 30000);
+    return () => { if (debounce) clearTimeout(debounce); clearInterval(intervalo); void supabase.removeChannel(canal); };
+  }, []);
 
   useEffect(() => {
     if (abasPermitidas.length === 0) return;
@@ -633,8 +653,16 @@ export const Financeiro = () => {
             </div>
             <DialogFooter><Button variant="outline" onClick={()=>setDialogPn(false)}>Cancelar</Button><Button onClick={()=>void criarPn()}>Registrar PN</Button></DialogFooter>
           </DialogContent></Dialog>}</CardHeader>
-          <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>PN</TableHead><TableHead>Status</TableHead><TableHead>Origem</TableHead><TableHead>Área</TableHead><TableHead>Descrição</TableHead><TableHead>Projeto / Centro</TableHead><TableHead>Data necessária</TableHead><TableHead className="text-right">Valor estimado</TableHead></TableRow></TableHeader>
-          <TableBody>{necessidades.length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Nenhuma PN.</TableCell></TableRow>:necessidades.map(n=><TableRow key={n.id}><TableCell className="font-medium">PN-{String(n.numero).padStart(4,'0')}</TableCell><TableCell><BadgeStatus status={n.status}/></TableCell><TableCell>{n.origem_tipo==='rc'?'RC':n.origem_tipo}</TableCell><TableCell>{n.area_solicitante||n.solicitante_nome||'—'}</TableCell><TableCell className="min-w-[260px]">{n.descricao}</TableCell><TableCell>{n.projeto_centro_custo||'—'}</TableCell><TableCell>{dataPt(n.data_necessidade)}</TableCell><TableCell className="text-right">{moeda(n.valor_estimado)}{n.estimativa_incompleta&&<span className="ml-1 text-xs text-amber-600">parcial</span>}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+          <CardContent className="overflow-x-auto">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-muted-foreground">Necessidades canceladas ficam no histórico e não representam uma compra pendente.</p>
+              <Button variant="outline" size="sm" aria-pressed={mostrarPnCanceladas}
+                onClick={() => setMostrarPnCanceladas((atual) => !atual)}>
+                {mostrarPnCanceladas ? 'Ocultar canceladas' : 'Mostrar canceladas (histórico)'}
+              </Button>
+            </div>
+            <Table><TableHeader><TableRow><TableHead>PN</TableHead><TableHead>Status</TableHead><TableHead>Origem</TableHead><TableHead>Área</TableHead><TableHead>Descrição</TableHead><TableHead>Projeto / Centro</TableHead><TableHead>Data necessária</TableHead><TableHead className="text-right">Valor estimado</TableHead></TableRow></TableHeader>
+          <TableBody>{necessidadesVisiveis.length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Nenhuma PN.</TableCell></TableRow>:necessidadesVisiveis.map(n=><TableRow key={n.id}><TableCell className="font-medium">PN-{String(n.numero).padStart(4,'0')}</TableCell><TableCell><BadgeStatus status={n.status}/></TableCell><TableCell>{n.origem_tipo==='rc'?'RC':n.origem_tipo}</TableCell><TableCell>{n.area_solicitante||n.solicitante_nome||'—'}</TableCell><TableCell className="min-w-[260px]">{n.descricao}</TableCell><TableCell>{n.projeto_centro_custo||'—'}</TableCell><TableCell>{dataPt(n.data_necessidade)}</TableCell><TableCell className="text-right">{moeda(n.valor_estimado)}{n.estimativa_incompleta&&<span className="ml-1 text-xs text-amber-600">parcial</span>}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
         </TabsContent>}
 
         {(podeGerenciar || podeAprovar) && <TabsContent value="rc" className="mt-5">
