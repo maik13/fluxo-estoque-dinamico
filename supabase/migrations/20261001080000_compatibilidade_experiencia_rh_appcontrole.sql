@@ -1,20 +1,9 @@
 BEGIN;
 
 -- Perfil mínimo para usuários que apenas utilizam o próprio ponto.
-INSERT INTO public.permissoes_tipo_usuario(
-  tipo_usuario,
-  pode_cadastrar_itens,pode_editar_itens,pode_excluir_itens,pode_registrar_movimentacoes,
-  pode_gerenciar_configuracoes,pode_gerenciar_usuarios,pode_solicitar_material,pode_devolver_material,
-  pode_registrar_entrada,pode_transferir,pode_registrar_saida,pode_pedido_compra,pode_solicitacao_material,
-  pode_ver_relatorios,pode_editar_movimentacoes,pode_acessar_gerencial,pode_acessar_projetos,
-  pode_apontar_producao,pode_conferir_producao,pode_ver_bi_producao,pode_configurar_producao,
-  pode_acessar_financeiro,pode_gerenciar_financeiro,pode_aprovar_financeiro,pode_programar_financeiro,
-  pode_conciliar_financeiro,pode_ver_relatorios_financeiro
-)
-SELECT
-  'colaborador',
-  false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,
-  false,false,false,false,false,false,false,false,false,false,false
+-- As demais permissões do perfil usam os defaults atuais da tabela e permanecem desabilitadas.
+INSERT INTO public.permissoes_tipo_usuario(tipo_usuario)
+SELECT 'colaborador'
 WHERE NOT EXISTS (
   SELECT 1 FROM public.permissoes_tipo_usuario WHERE tipo_usuario='colaborador'
 );
