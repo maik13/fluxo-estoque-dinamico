@@ -27,6 +27,7 @@ type Colaborador = {
   cargo: string | null;
   departamento: string | null;
   email: string | null;
+  user_id: string | null;
   cpf_cnpj: string | null;
   telefone: string | null;
   data_nascimento: string | null;
@@ -557,11 +558,12 @@ export function FuncionariosRhTab() {
     }
 
     const nextPista = canManageRh ? pistaAtivo : editingFuncionario?.pista_ativo_legado ?? false;
-    if (!editingFuncionario && criarLogin && !rhAtivo) {
+    const needsNewLogin = criarLogin && (!editingFuncionario || !editingFuncionario.user_id);
+    if (needsNewLogin && !rhAtivo) {
       toast.error("Acesso para registro de ponto só pode ser criado para colaborador vinculado ao RH");
       return;
     }
-    if (!editingFuncionario && criarLogin) {
+    if (needsNewLogin) {
       if (!email.trim()) {
         toast.error("Email é obrigatório para criar acesso de login");
         return;
@@ -594,6 +596,22 @@ export function FuncionariosRhTab() {
       }
 
       if (!collaboratorId) throw new Error("Colaborador sem identificador válido");
+
+      if (editingFuncionario && needsNewLogin) {
+        const payload = employeePayload(jornadaMode === "preset" ? jornadaId || null : null);
+        const response = await supabase.functions.invoke("create-rh-employee-user", {
+          body: {
+            ...payload,
+            email: email.trim() || null,
+            password: senha,
+            ativo: rhAtivo || nextPista,
+            create_login: true,
+            existing_colaborador_id: collaboratorId,
+          },
+        });
+        if (response.error) throw new Error(response.error.message || "Erro ao criar acesso do funcionário");
+        if (response.data?.error) throw new Error(response.data.error);
+      }
 
       let resolvedJornadaId: string | null = null;
       if (jornadaMode === "custom") {
@@ -901,13 +919,13 @@ export function FuncionariosRhTab() {
               </div>
             </div>
 
-            {!editingFuncionario && rhAtivo && (
+            {rhAtivo && (!editingFuncionario || !editingFuncionario.user_id) && (
               <div className="space-y-4">
                 <h3 className="flex items-center gap-2 font-semibold"><UserPlus className="h-4 w-4" /> Acesso ao Sistema (Registro de Ponto)</h3>
                 <div className="rounded-lg border bg-muted/30 p-4">
                   <div className="flex items-center gap-3">
                     <Switch checked={criarLogin} onCheckedChange={setCriarLogin} id="criar-login" />
-                    <Label htmlFor="criar-login">Criar acesso para o funcionário registrar ponto</Label>
+                    <Label htmlFor="criar-login">{editingFuncionario ? "Criar acesso deste colaborador no novo sistema" : "Criar acesso para o funcionário registrar ponto"}</Label>
                   </div>
                   {criarLogin && (
                     <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
