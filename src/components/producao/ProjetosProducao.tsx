@@ -5,6 +5,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useProjetosProducao } from '@/hooks/useProjetosProducao';
 import { FormProjetoProducao } from './FormProjetoProducao';
 import { FormEditarProjetoProducao } from './FormEditarProjetoProducao';
+import { ExcluirProjetoProducao } from './ExcluirProjetoProducao';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -15,7 +16,7 @@ interface Props {
 export const ProjetosProducao = ({ onProjetosAtualizados }: Props) => {
   const [busca, setBusca] = useState('');
   const { projetos, loading, listarProjetos } = useProjetosProducao();
-  const { canConfigurarProducao } = usePermissions();
+  const { canConfigurarProducao, isAdmin } = usePermissions();
 
   useEffect(() => {
     void listarProjetos();
@@ -122,6 +123,7 @@ export const ProjetosProducao = ({ onProjetosAtualizados }: Props) => {
                   <CircleCheck className="h-3.5 w-3.5 text-emerald-500" />
                   Adicionado à Produção
                 </span>
+                {isAdmin() && <ExcluirProjetoProducao projeto={projeto} onSuccess={atualizarProjetos} />}
                 {canConfigurarProducao() && (
                   <FormEditarProjetoProducao
                     projeto={projeto}

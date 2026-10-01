@@ -74,6 +74,7 @@ export const useProjetosProducao = () => {
       let configsQuery = supabase
         .from('producao_projetos')
         .select('*')
+        .is('excluido_em' as any, null)
         .order('nome', { ascending: true });
 
       if (somenteAtivos) configsQuery = configsQuery.eq('ativo', true);
