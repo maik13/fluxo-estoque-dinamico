@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import RHInformacoes from '@/components/rh/RHInformacoes';
 
 const sb = supabase as any;
 type Ponto = { id:string; data:string; hora_entrada_1:string|null; hora_saida_1:string|null; hora_entrada_2:string|null; hora_saida_2:string|null; hora_entrada_3:string|null; hora_saida_3:string|null; status:string; colaborador_id?:string; rh_colaboradores?:{nome:string}|null };
@@ -145,7 +146,7 @@ export function RHPonto(){
     </TabsList>
     <TabsContent value="meu-ponto"><MeuPonto/></TabsContent>
     {podeControle&&<TabsContent value="controle"><ControlePonto/></TabsContent>}
-    {podeRH&&<TabsContent value="rh"><CadastrosRH/></TabsContent>}
+    {podeRH&&<TabsContent value="rh"><RHInformacoes/></TabsContent>}
     </Tabs>
   </div>
 }
