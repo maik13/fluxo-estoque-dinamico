@@ -110,7 +110,7 @@ const dataPt = (valor?: string | null) => {
 export const PedidoCompra = () => {
   const { obterEstoque } = useEstoqueContext();
   const { user } = useAuth();
-  const { userProfile, canManageStock } = usePermissions();
+  const { userProfile, canManageStock, canPedidoCompra } = usePermissions();
   const { obterEstoqueAtivoInfo } = useConfiguracoes();
 
   const [dialogoNovoPedido, setDialogoNovoPedido] = useState(false);
@@ -149,7 +149,7 @@ export const PedidoCompra = () => {
   const [salvando, setSalvando] = useState(false);
 
   const itensEstoque = obterEstoque();
-  const podeMovimentar = canManageStock();
+  const podeMovimentar = canManageStock() && canPedidoCompra();
 
   const itensFiltrados = useMemo(() => {
     const base = itensEstoque.slice();
@@ -297,6 +297,10 @@ export const PedidoCompra = () => {
   };
 
   const criarPedido = async () => {
+    if (!podeMovimentar) {
+      toast.error('A solicitação de compra deve ser feita pelo Almoxarifado. Envie uma Solicitação de Material.');
+      return;
+    }
     const erro = validarFormulario();
     if (erro) {
       toast.error(erro);
@@ -458,7 +462,7 @@ export const PedidoCompra = () => {
   };
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !podeMovimentar) return;
 
     const abrirPedidoAutomaticamente = async (pedidoId?: string) => {
       if (!pedidoId) return;
@@ -501,7 +505,9 @@ export const PedidoCompra = () => {
 
     window.addEventListener('pedido-compra:abrir', handleAbrirPedido as EventListener);
     return () => window.removeEventListener('pedido-compra:abrir', handleAbrirPedido as EventListener);
-  }, []);
+  }, [podeMovimentar]);
+
+  if (!podeMovimentar) return null;
 
   return (
     <>

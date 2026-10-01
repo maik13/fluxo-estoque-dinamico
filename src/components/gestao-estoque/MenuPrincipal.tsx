@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X, BarChart3, MessageCircle, Factory } from 'lucide-react';
+import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X, MessageCircle } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Item, EstoqueItem } from '@/types/estoque';
@@ -32,10 +32,7 @@ import { itemRegistrationSchema, exitRegistrationSchema } from '@/schemas/valida
 import { toast } from 'sonner';
 
 export const MenuPrincipal = ({ 
-  onAbrirGerencial, 
-  onAbrirProjetos,
-  onAbrirMensagens,
-  onAbrirProducao
+  onAbrirMensagens
 }: { 
   onAbrirGerencial?: () => void;
   onAbrirProjetos?: () => void;
@@ -53,13 +50,7 @@ export const MenuPrincipal = ({
     canTransferir, 
     canRegistrarSaida, 
     canPedidoCompra, 
-    canSolicitacaoMaterial, 
-    canAccessManagerial,
-    canAccessProjects,
-    canApontarProducao,
-    canConferirProducao,
-    canViewBIProducao,
-    canConfigurarProducao
+    canSolicitacaoMaterial
   } = usePermissions();
   
   // Estados para controlar os diálogos
@@ -160,11 +151,6 @@ export const MenuPrincipal = ({
   const estoqueAtivoInfo = obterEstoqueAtivoInfo();
   const podeUsarCadastro = canCreateItems();
   const podeMovimentar = canManageStock();
-  const podeAcessarProducao =
-    canApontarProducao() ||
-    canConferirProducao() ||
-    canViewBIProducao() ||
-    canConfigurarProducao();
 
   // Buscar próximo código disponível quando o dialog de cadastro abrir
   useEffect(() => {
@@ -830,63 +816,8 @@ export const MenuPrincipal = ({
         {/* Registrar Entrada */}
         {canRegistrarEntrada() && <RegistrarEntrada />}
 
-        {/* LINHA 2: Gerencial, Projetos, Pedido Compra, Solicitação, Saída */}
-        {canAccessManagerial() && (
-          <Card 
-            className="group cursor-pointer hover:scale-105 transition-all duration-300 border-primary/20 hover:border-primary/40 shadow-sm hover:shadow-primary/10 overflow-hidden relative"
-            onClick={onAbrirGerencial}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <CardHeader className="text-center relative z-10">
-              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                <BarChart3 className="h-8 w-8 text-primary" />
-              </div>
-              <CardTitle className="text-primary">Gerencial</CardTitle>
-              <CardDescription>
-                Indicadores e visão consolidada por grupo
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )}
-
-        {canAccessProjects() && (
-          <Card 
-            className="group cursor-pointer hover:scale-105 transition-all duration-300 border-warning/20 hover:border-warning/40 shadow-sm hover:shadow-warning/10 overflow-hidden relative"
-            onClick={onAbrirProjetos}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-warning/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <CardHeader className="text-center relative z-10">
-              <div className="mx-auto w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-warning/20 transition-colors">
-                <Package className="h-8 w-8 text-warning" />
-              </div>
-              <CardTitle className="text-warning">Projetos</CardTitle>
-              <CardDescription>
-                Resumo e saldo de materiais por projeto/local
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )}
-
-        {podeAcessarProducao && (
-          <Card
-            className="group cursor-pointer hover:scale-105 transition-all duration-300 border-emerald-500/20 hover:border-emerald-500/40 shadow-sm hover:shadow-emerald-500/10 overflow-hidden relative"
-            onClick={onAbrirProducao}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <CardHeader className="text-center relative z-10">
-              <div className="mx-auto w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 group-hover:bg-emerald-500/20 transition-colors">
-                <Factory className="h-8 w-8 text-emerald-500" />
-              </div>
-              <CardTitle className="text-emerald-500">Produção</CardTitle>
-              <CardDescription>
-                Lançamentos e acompanhamento de apontamentos produtivos
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )}
-
         {/* Pedido de Compra */}
-        {canPedidoCompra() && <PedidoCompra />}
+        {canPedidoCompra() && canManageStock() && <PedidoCompra />}
 
         {/* Solicitação de Material */}
         {canSolicitacaoMaterial() && <SolicitacaoMaterial />}
