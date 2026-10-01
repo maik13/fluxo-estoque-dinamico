@@ -15,6 +15,7 @@ import { Financeiro } from '@/components/financeiro/Financeiro';
 import MeuPonto from '@/components/rh/MeuPonto';
 import ControlePontoEspelho from '@/components/rh/ControlePontoEspelho';
 import RHInformacoes from '@/components/rh/RHInformacoes';
+import { AprovacoesPontoTab, RegistrosPontoTab } from '@/components/rh/ControlePontoAbas';
 import { PrimeiroAcessoSenha } from '@/components/auth/PrimeiroAcessoSenha';
 import { Package, LogOut, BarChart3, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,6 +30,7 @@ import { useSolicitacoesMaterialPendentes } from '@/hooks/useSolicitacoesMateria
 const Index = () => {
   const [tabAtiva, setTabAtiva] = useState('visao-geral');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [tabPonto, setTabPonto] = useState('espelho');
   const { session, loading, signOut } = useAuth();
   const {
     isGestor,
@@ -222,7 +224,22 @@ const Index = () => {
                     {showProducao && <TabsContent value="producao" className="mt-0 space-y-6"><Producao /></TabsContent>}
                     {showFinanceiro && <TabsContent value="financeiro" className="mt-0 space-y-6"><Financeiro /></TabsContent>}
                     {showMeuPonto && <TabsContent value="meu-ponto" className="mt-0 space-y-6"><MeuPonto /></TabsContent>}
-                    {showControlePonto && <TabsContent value="controle-ponto" className="mt-0 space-y-6"><ControlePontoEspelho /></TabsContent>}
+                    {showControlePonto && (
+  <TabsContent value="controle-ponto" className="mt-0 space-y-6">
+    <Tabs value={tabPonto} onValueChange={setTabPonto}>
+      <TabsList className="h-auto flex-wrap">
+        <TabsTrigger value="espelho">Espelho de Ponto</TabsTrigger>
+        <TabsTrigger value="meu-ponto">Meu Ponto</TabsTrigger>
+        {(isAdmin() || hasPermission('ponto.aprovar')) && <TabsTrigger value="aprovacoes">Aprovações</TabsTrigger>}
+        {(isAdmin() || hasPermission('ponto.gerenciar')) && <TabsTrigger value="registros">Registros</TabsTrigger>}
+      </TabsList>
+      <TabsContent value="espelho" className="mt-6"><ControlePontoEspelho /></TabsContent>
+      <TabsContent value="meu-ponto" className="mt-6"><MeuPonto /></TabsContent>
+      {(isAdmin() || hasPermission('ponto.aprovar')) && <TabsContent value="aprovacoes" className="mt-6"><AprovacoesPontoTab /></TabsContent>}
+      {(isAdmin() || hasPermission('ponto.gerenciar')) && <TabsContent value="registros" className="mt-6"><RegistrosPontoTab /></TabsContent>}
+    </Tabs>
+  </TabsContent>
+)}
                     {showRHInformacoes && <TabsContent value="rh-informacoes" className="mt-0 space-y-6"><RHInformacoes /></TabsContent>}
 
                     {showEstoque && (
