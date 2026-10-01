@@ -27,6 +27,7 @@ import { HistoricoApontamentosProducaoComBusca } from './HistoricoApontamentosPr
 import { ProjetosProducao } from './ProjetosProducao';
 import { PlanejamentoProducao } from './PlanejamentoProducao';
 import { ProcessosProducaoHierarquico } from './ProcessosProducaoHierarquico';
+import { ConsultaFerramentaProducao } from './ConsultaFerramentaProducao';
 import { SecaoProducaoSegura } from './SecaoProducaoSegura';
 
 export const Producao = () => {
@@ -131,6 +132,8 @@ export const Producao = () => {
           <p className="text-sm text-muted-foreground">Projetos, etapas, cronograma e execução em uma única fonte de dados.</p>
         </div>
       </div>
+
+      <ConsultaFerramentaProducao />
 
       {diagnostico && !diagnostico.ok && (
         <Alert variant="destructive">
