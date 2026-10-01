@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import RHInformacoes from '@/components/rh/RHInformacoes';
 import MeuPontoAppControle from '@/components/rh/MeuPonto';
+import ControlePontoEspelhoAppControle from '@/components/rh/ControlePontoEspelho';
 
 const sb = supabase as any;
 type Ponto = { id:string; data:string; hora_entrada_1:string|null; hora_saida_1:string|null; hora_entrada_2:string|null; hora_saida_2:string|null; hora_entrada_3:string|null; hora_saida_3:string|null; status:string; colaborador_id?:string; rh_colaboradores?:{nome:string}|null };
@@ -146,7 +147,7 @@ export function RHPonto(){
       {podeRH&&<TabsTrigger value="rh" className="gap-2"><UsersRound className="h-4 w-4"/>RH</TabsTrigger>}
     </TabsList>
     <TabsContent value="meu-ponto"><MeuPontoAppControle/></TabsContent>
-    {podeControle&&<TabsContent value="controle"><ControlePonto/></TabsContent>}
+    {podeControle&&<TabsContent value="controle"><ControlePontoEspelhoAppControle/></TabsContent>}
     {podeRH&&<TabsContent value="rh"><RHInformacoes/></TabsContent>}
     </Tabs>
   </div>
