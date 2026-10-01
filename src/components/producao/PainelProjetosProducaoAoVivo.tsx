@@ -36,6 +36,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 
+import { chaveCidade, filtrarOrdenarProjetos, type SituacaoGerencial } from '@/services/producao/filtrarProjetosGerencial';
+
 type TipoGrafico = 'barras' | 'linha';
 
 type OpPainel = {
@@ -63,6 +65,8 @@ type EtapaPainel = {
 };
 
 type ProjetoPainel = {
+  cidade: string | null;
+  uf: string | null;
   projeto_id: string;
   local_utilizacao_id: string;
   projeto_nome: string;
@@ -192,6 +196,17 @@ export const PainelProjetosProducaoAoVivo = () => {
       return null;
     }
   });
+  const [situacao, setSituacao] = useState<SituacaoGerencial>('todos');
+  const [cidadesSelecionadas, setCidadesSelecionadas] = useState<string[] | null>(null);
+  const cidades = useMemo(() => {
+    const mapa = new Map<string, string>();
+    projetos.forEach((p) => mapa.set(chaveCidade(p.cidade), p.cidade?.trim() || 'Sem cidade cadastrada'));
+    return [...mapa].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'));
+  }, [projetos]);
+  const limparFiltros = () => {
+    setSituacao('todos'); setCidadesSelecionadas(null); setProjetosSelecionados(null);
+    setSomenteComOps(false); setSomenteComTinta(false);
+  };
   const painelRef = useRef<HTMLDivElement | null>(null);
   const debounceRef = useRef<number | null>(null);
 
@@ -204,11 +219,12 @@ export const PainelProjetosProducaoAoVivo = () => {
         { data, error },
         { data: consumosTinta, error: erroTinta },
       ] = await Promise.all([
-        (supabase.rpc as any)('listar_painel_gerencial_producao_v1'),
+        (supabase.rpc as any)('listar_painel_gerencial_producao_v2'),
         (supabase.rpc as any)('listar_consumo_tinta_por_projeto_v1'),
       ]);
 
       if (error) throw error;
+      if (!Array.isArray(data)) throw new Error('Resposta inválida do painel de projetos.');
       if (erroTinta) throw erroTinta;
 
       const tintaPorProjeto = new Map(
@@ -330,8 +346,8 @@ export const PainelProjetosProducaoAoVivo = () => {
         (projeto) => Number(projeto.consumo_tinta_ml ?? 0) > 0,
       );
     }
-    return resultado;
-  }, [projetos, somenteComOps, somenteComTinta]);
+    return filtrarOrdenarProjetos(resultado, situacao, cidadesSelecionadas);
+  }, [projetos, somenteComOps, somenteComTinta, situacao, cidadesSelecionadas]);
 
   const projetosExibidos = useMemo(() => {
     if (projetosSelecionados === null) return projetosElegiveis;
@@ -460,6 +476,40 @@ export const PainelProjetosProducaoAoVivo = () => {
         </div>
 
         <div className="gerencial-producao-live-controles flex flex-wrap items-center gap-1.5">
+          <Select value={situacao} onValueChange={(valor) => setSituacao(valor as SituacaoGerencial)}>
+            <SelectTrigger className="h-8 w-[250px] text-xs" aria-label="Situação dos projetos"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos — em andamento primeiro</SelectItem>
+              <SelectItem value="em_andamento">Somente em andamento</SelectItem>
+              <SelectItem value="com_registros">Com produção registrada</SelectItem>
+            </SelectContent>
+          </Select>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8">
+                {cidadesSelecionadas === null ? 'Todas as cidades' : `Cidades selecionadas: ${cidadesSelecionadas.length}`}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-h-80 w-72 overflow-y-auto">
+              <DropdownMenuLabel>Filtrar por cidade</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem checked={cidadesSelecionadas === null}
+                onCheckedChange={() => setCidadesSelecionadas(null)} onSelect={(e) => e.preventDefault()}>
+                Todas as cidades
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
+              {cidades.map(([chave, nome]) => (
+                <DropdownMenuCheckboxItem key={chave}
+                  checked={cidadesSelecionadas === null || cidadesSelecionadas.includes(chave)}
+                  onCheckedChange={(checked) => setCidadesSelecionadas((atual) => {
+                    const base = atual ?? cidades.map(([id]) => id);
+                    return checked ? [...new Set([...base, chave])] : base.filter((id) => id !== chave);
+                  })} onSelect={(e) => e.preventDefault()}>
+                  {nome}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button variant="ghost" size="sm" className="h-8" onClick={limparFiltros}>Limpar filtros</Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-8 gap-1.5">
@@ -467,7 +517,7 @@ export const PainelProjetosProducaoAoVivo = () => {
                 Projetos {projetosExibidos.length}/{projetos.length}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-72">
+            <DropdownMenuContent align="end" className="max-h-96 w-72 overflow-y-auto">
               <DropdownMenuLabel>Projetos exibidos no monitor</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuCheckboxItem
@@ -502,7 +552,7 @@ export const PainelProjetosProducaoAoVivo = () => {
                   onCheckedChange={() => alternarProjeto(projeto.projeto_id)}
                   onSelect={(event) => event.preventDefault()}
                 >
-                  <span className="truncate" title={projeto.projeto_nome}>{projeto.projeto_nome}</span>
+                  <span className="truncate" title={projeto.projeto_nome}>{projeto.projeto_nome} — {projeto.cidade || 'Sem cidade'}</span>
                 </DropdownMenuCheckboxItem>
               ))}
             </DropdownMenuContent>
@@ -591,7 +641,7 @@ export const PainelProjetosProducaoAoVivo = () => {
           <div className="h-[170px]">
             {graficoProjetos.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                Nenhum projeto selecionado.
+                Nenhum projeto atende aos filtros selecionados.
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -642,7 +692,7 @@ export const PainelProjetosProducaoAoVivo = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                      {projeto.cliente || 'Cliente não informado'}
+                      {projeto.cliente || 'Cliente não informado'} · {projeto.cidade || 'Sem cidade cadastrada'}{projeto.uf ? `/${projeto.uf}` : ''}
                     </p>
                     <p className="mt-0.5 line-clamp-2 text-base font-bold leading-tight" title={projeto.projeto_nome}>
                       {projeto.projeto_nome}
