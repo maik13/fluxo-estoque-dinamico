@@ -59,6 +59,7 @@ export interface SolicitacaoMaterialOPResumo {
 export interface MateriaisOrdemResultado {
   materiais: MaterialOrdemProducao[];
   solicitacao: SolicitacaoMaterialOPResumo | null;
+  historico: SolicitacaoMaterialOPResumo[];
 }
 
 const erro = (value: unknown, fallback: string) =>
@@ -124,10 +125,7 @@ export const useMateriaisProducao = () => {
     const { data: solicitacaoData, error: solicitacaoError } = await (supabase.from as any)('solicitacoes_material')
       .select('id,numero,status,created_at,data_limite_separacao,data_necessidade')
       .eq('ordem_producao_id', ordemProducaoId)
-      .neq('status', 'rejeitada')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order('created_at', { ascending: false });
 
     if (solicitacaoError) {
       throw erro(solicitacaoError, 'Não foi possível consultar a Solicitação de Material da OP.');
@@ -135,12 +133,10 @@ export const useMateriaisProducao = () => {
 
     return {
       materiais,
-      solicitacao: solicitacaoData
-        ? {
-            ...solicitacaoData,
-            numero: Number(solicitacaoData.numero),
-          } as SolicitacaoMaterialOPResumo
+      solicitacao: solicitacaoData?.[0]
+        ? { ...solicitacaoData[0], numero: Number(solicitacaoData[0].numero) }
         : null,
+      historico: (solicitacaoData ?? []).map((s: any) => ({ ...s, numero: Number(s.numero) })),
     };
   }, []);
 

@@ -75,7 +75,7 @@ export const MateriaisOrdemProducao = ({
   estoqueAtivoNome = null,
 }: Props) => {
   const [materiais, setMateriais] = useState<MaterialOrdemProducao[]>([]);
-  const [solicitacao, setSolicitacao] = useState<SolicitacaoMaterialOPResumo | null>(null);
+  const [historico, setHistorico] = useState<SolicitacaoMaterialOPResumo[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [gerando, setGerando] = useState(false);
   const [incorporando, setIncorporando] = useState(false);
@@ -92,13 +92,14 @@ export const MateriaisOrdemProducao = ({
 
   const itensEstoque = obterEstoque() ?? [];
   const opAberta = ordem.status === 'liberada' || ordem.status === 'em_execucao';
-  const podeGerar = canConfigurarProducao() && opAberta && !solicitacao && materiais.length > 0;
-  const podeIncorporar = canConfigurarProducao() && opAberta && !solicitacao && materiais.length === 0;
+  const podeGerar = canConfigurarProducao() && opAberta && materiais.some((m) => m.quantidade_planejada > m.quantidade_solicitada);
+  const podeIncorporar = canConfigurarProducao() && opAberta ;
 
   const totalItens = materiais.length;
   const itensSemSaldo = useMemo(() => materiais.filter((material) => {
+    if (material.quantidade_planejada <= material.quantidade_solicitada) return false;
     const item = itensEstoque.find((estoque) => estoque.id === material.item_id);
-    return !item || item.estoqueAtual < material.quantidade_planejada;
+    return !item || item.estoqueAtual < material.quantidade_planejada - material.quantidade_solicitada;
   }).length, [itensEstoque, materiais]);
 
   const carregar = async () => {
@@ -107,7 +108,7 @@ export const MateriaisOrdemProducao = ({
     try {
       const resultado = await listarMateriaisOrdem(ordem.id);
       setMateriais(resultado.materiais);
-      setSolicitacao(resultado.solicitacao);
+      setHistorico(resultado.historico);
     } catch (error) {
       const mensagem = error instanceof Error ? error.message : 'Não foi possível carregar os materiais da OP.';
       setErro(mensagem);
@@ -134,7 +135,6 @@ export const MateriaisOrdemProducao = ({
       const quantidade = await incorporarMateriaisPCP(ordem.id);
       materiaisIncorporados = true;
       const criada = await gerarSolicitacaoMaterial(ordem.id, estoqueAtivoId);
-      setSolicitacao(criada);
       setConfirmacaoIncorporarAberta(false);
       await carregar();
       toast.success(
@@ -165,11 +165,7 @@ export const MateriaisOrdemProducao = ({
     try {
       const criada = await gerarSolicitacaoMaterial(ordem.id, estoqueAtivoId);
       setSolicitacao(criada);
-      setMateriais((atuais) => atuais.map((material) => ({
-        ...material,
-        quantidade_solicitada: material.quantidade_planejada,
-        solicitacao_material_id: criada.id,
-      })));
+      await carregar();
       setConfirmacaoAberta(false);
       toast.success(
         criada.ja_existia
@@ -206,10 +202,16 @@ export const MateriaisOrdemProducao = ({
         <div>
           <p className="text-sm font-semibold">Materiais da OP</p>
           <p className="text-xs text-muted-foreground">
-            Snapshot proporcional do PCP salvo na Etapa.
+            Materiais do PCP e histórico de solicitações desta OP.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {podeIncorporar && materiais.length > 0 && (
+            <Button type="button" variant="outline" disabled={incorporando || gerando || !estoqueAtivoId}
+              onClick={() => setConfirmacaoIncorporarAberta(true)}>
+              <PackagePlus className="mr-2 h-4 w-4" />Solicitar materiais adicionais do PCP
+            </Button>
+          )}
           <Badge variant="outline">{totalItens} item(ns)</Badge>
           {itensSemSaldo > 0 && <Badge variant="destructive">{itensSemSaldo} com saldo insuficiente</Badge>}
         </div>
@@ -225,7 +227,7 @@ export const MateriaisOrdemProducao = ({
               <div>
                 <p className="text-sm font-semibold">O PCP atual da Etapa pode ser incorporado agora.</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  A confirmação incorpora os materiais proporcionalmente e gera a Solicitação de Material para o Almoxarifado. Não reserva nem baixa o estoque.
+                  A confirmação incorpora apenas os materiais e quantidades ainda não solicitados e gera a Solicitação de Material para o Almoxarifado. Não reserva nem baixa o estoque.
                 </p>
               </div>
               <Button
@@ -254,7 +256,8 @@ export const MateriaisOrdemProducao = ({
             const disponivel = estoque?.estoqueAtual ?? 0;
             const quantidadePlanejada = Number(material.quantidade_planejada ?? 0);
             const snapshot = material.item_snapshot ?? ({} as MaterialOrdemProducao['item_snapshot']);
-            const insuficiente = !estoque || disponivel < quantidadePlanejada;
+            const pendente = Math.max(0, quantidadePlanejada - material.quantidade_solicitada);
+            const insuficiente = pendente > 0 && (!estoque || disponivel < pendente);
             return (
               <div
                 key={material.id}
@@ -272,7 +275,7 @@ export const MateriaisOrdemProducao = ({
                     {formatarQuantidade(quantidadePlanejada)} {material.unidade_snapshot}
                   </p>
                   <p className={`text-xs ${insuficiente ? 'font-semibold text-destructive' : 'text-muted-foreground'}`}>
-                    Estoque atual: {formatarQuantidade(disponivel)} {material.unidade_snapshot}
+                    Já solicitado: {formatarQuantidade(material.quantidade_solicitada)} · A solicitar: {formatarQuantidade(pendente)} · Estoque atual: {formatarQuantidade(disponivel)} {material.unidade_snapshot}
                   </p>
                 </div>
               </div>
@@ -281,8 +284,8 @@ export const MateriaisOrdemProducao = ({
         </div>
       )}
 
-      {solicitacao ? (
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
+      {historico.map((solicitacao) => (
+        <div key={solicitacao.id} className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
             <div className="flex items-start gap-3">
               <PackageCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
@@ -306,7 +309,8 @@ export const MateriaisOrdemProducao = ({
             A geração da solicitação não baixou nem reservou o estoque. A saída ocorrerá somente quando o Almoxarifado converter a solicitação em retirada.
           </p>
         </div>
-      ) : materiais.length > 0 ? (
+      ))}
+      {podeGerar ? (
         <>
           <div className="animate-pulse rounded-lg border-2 border-red-500 bg-red-500/10 p-4 shadow-sm">
             <div className="flex items-start gap-3">
@@ -359,14 +363,14 @@ export const MateriaisOrdemProducao = ({
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3 text-center text-sm text-foreground">
               <span className="block font-bold uppercase">
-                Os materiais atuais do PCP da Etapa serão copiados proporcionalmente para esta Ordem de Produção.
+                Serão solicitados apenas os novos itens ou o aumento de quantidade do PCP. As solicitações anteriores permanecem preservadas.
               </span>
               <span className="block">
                 Esta ação incorpora os materiais e cria imediatamente a Solicitação de Material pendente para o Almoxarifado. Não reserva nem baixa o estoque.
               </span>
               {ordem.status === 'em_execucao' && (
                 <span className="block rounded-md border border-amber-500/30 bg-amber-500/5 p-2 font-semibold">
-                  Esta OP já está em execução. O snapshot incorporado ficará preservado e mudanças posteriores no PCP não o substituirão automaticamente.
+                  Esta OP está em execução e pode receber solicitações complementares. Os itens já solicitados não serão enviados novamente.
                 </span>
               )}
             </AlertDialogDescription>
