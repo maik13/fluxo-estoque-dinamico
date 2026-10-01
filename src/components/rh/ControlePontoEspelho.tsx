@@ -5,14 +5,12 @@ import * as XLSX from "xlsx";
 import {
   AlertCircle,
   CheckCircle,
-  ClipboardList,
   Clock,
   FileSpreadsheet,
   FileText,
   Loader2,
   Moon,
   Printer,
-  User,
   Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -22,11 +20,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EditableTimeCell } from "@/components/ponto/EditableTimeCell";
 import { MonthYearPicker } from "@/components/ponto/MonthYearPicker";
 import { supabase } from "@/integrations/supabase/client";
-import { useUrlTabState } from "@/hooks/useUrlTabState";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   DEFAULT_DAILY_MINUTES,
@@ -205,13 +201,8 @@ function observationForRow(row: DayRow): string {
 
 export default function ControlePontoEspelhoCorrigido() {
   const { isAdmin, hasPermission } = usePermissions();
-  const [activeTab, setActiveTab] = useUrlTabState({
-    defaultTab: "meu-ponto",
-    validTabs: ["espelho", "meu-ponto", "aprovacoes", "registros"] as const,
-  });
   const [accessLoading, setAccessLoading] = useState(true);
   const [isGestor, setIsGestor] = useState(false);
-  const [canApprove, setCanApprove] = useState(false);
   const [isPontoViewer, setIsPontoViewer] = useState(false);
   const [loading, setLoading] = useState(true);
   const [entriesLoading, setEntriesLoading] = useState(false);
@@ -231,12 +222,6 @@ export default function ControlePontoEspelhoCorrigido() {
   }, []);
 
   useEffect(() => {
-    if (!accessLoading && !isGestor && !isPontoViewer) {
-      setActiveTab("meu-ponto");
-    }
-  }, [accessLoading, isGestor, isPontoViewer, setActiveTab]);
-
-  useEffect(() => {
     if (selectedColaborador && colaboradores.length > 0) {
       void fetchEntriesForMonth();
     }
@@ -245,7 +230,6 @@ export default function ControlePontoEspelhoCorrigido() {
   const checkAccess = async () => {
     const admin = isAdmin();
     setIsGestor(Boolean(admin || hasPermission("ponto.gerenciar")));
-    setCanApprove(Boolean(admin || hasPermission("ponto.aprovar")));
     setIsPontoViewer(Boolean(
       admin ||
       hasPermission("ponto.visualizar") ||
@@ -834,15 +818,6 @@ export default function ControlePontoEspelhoCorrigido() {
           <h1 className="text-3xl font-bold text-foreground">Controle de Ponto</h1>
           <p className="mt-1 text-muted-foreground">Espelho de ponto eletrônico</p>
         </div>
-
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
-          <TabsList>
-            <TabsTrigger value="espelho" className="flex items-center gap-2"><FileText className="h-4 w-4" />Espelho de Ponto</TabsTrigger>
-            <TabsTrigger value="meu-ponto" className="flex items-center gap-2"><User className="h-4 w-4" />Meu Ponto</TabsTrigger>
-            {canApprove && <TabsTrigger value="aprovacoes" className="flex items-center gap-2"><ClipboardList className="h-4 w-4" />Aprovações</TabsTrigger>}
-            <TabsTrigger value="registros" className="flex items-center gap-2"><Clock className="h-4 w-4" />Registros</TabsTrigger>
-          </TabsList>
-        </Tabs>
 
         <Card>
           <CardContent className="pt-6">
