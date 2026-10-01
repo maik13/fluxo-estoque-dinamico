@@ -38,6 +38,11 @@ import { supabase } from '@/integrations/supabase/client';
 
 import { chaveCidade, filtrarOrdenarProjetos, type SituacaoGerencial } from '@/services/producao/filtrarProjetosGerencial';
 
+import { montarQuadroDestinos } from '@/services/producao/montarQuadroDestinos';
+
+// Parque do Japão depende da confirmação dos projetos associados ao destino.
+const PROJETOS_PARQUE_JAPAO: readonly string[] = [];
+
 type TipoGrafico = 'barras' | 'linha';
 
 type OpPainel = {
@@ -355,6 +360,11 @@ export const PainelProjetosProducaoAoVivo = () => {
     return projetosElegiveis.filter((projeto) => ids.has(projeto.projeto_id));
   }, [projetosElegiveis, projetosSelecionados]);
 
+  const quadroDestinos = useMemo(
+    () => montarQuadroDestinos(projetosExibidos, PROJETOS_PARQUE_JAPAO),
+    [projetosExibidos],
+  );
+
   const alternarProjeto = (projetoId: string) => {
     setProjetosSelecionados((atual) => {
       const base = atual === null ? projetos.map((projeto) => projeto.projeto_id) : atual;
@@ -588,6 +598,65 @@ export const PainelProjetosProducaoAoVivo = () => {
           </AlertDescription>
         </Alert>
       )}
+
+      <section aria-label="Avanço por destino" className="space-y-2">
+        <div>
+          <h4 className="text-base font-semibold">Avanço por destino</h4>
+          <p className="text-xs text-muted-foreground">
+            Média dos percentuais dos projetos exibidos, com o mesmo peso para cada projeto. Respeita os filtros acima.
+          </p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          {quadroDestinos.map((destino) => (
+            <Card key={destino.id} className="projeto-live-card border-border/70 bg-card/85">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h5 className="font-semibold">{destino.nome}</h5>
+                    <p className="text-xs text-muted-foreground">{destino.projetos.length} projetos exibidos</p>
+                  </div>
+                  <strong className="text-3xl text-primary">
+                    {destino.percentual === null ? '—' : `${numero(destino.percentual)}%`}
+                  </strong>
+                </div>
+                <div className="my-3 h-2 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-primary transition-[width] duration-500"
+                    style={{ width: `${destino.percentual ?? 0}%` }} />
+                </div>
+                {destino.id === 'parque' && PROJETOS_PARQUE_JAPAO.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Aguardando identificação dos projetos do Parque do Japão.</p>
+                ) : destino.projetos.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nenhum projeto deste destino atende aos filtros.</p>
+                ) : destino.id === 'geral' ? (
+                  <div className="space-y-2">
+                    {quadroDestinos.slice(0, 3).map((resumo) => (
+                      <div key={resumo.id} className="flex justify-between gap-3 text-sm">
+                        <span>{resumo.nome}</span>
+                        <span className="font-semibold">{resumo.percentual === null ? '—' : `${numero(resumo.percentual)}%`}</span>
+                      </div>
+                    ))}
+                    {PROJETOS_PARQUE_JAPAO.length === 0 && <p className="text-xs text-amber-600">Consolidado parcial: Parque do Japão ainda sem projetos vinculados.</p>}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {destino.projetos.map((projeto) => (
+                      <div key={projeto.projeto_id}>
+                        <div className="mb-1 flex justify-between gap-3 text-sm">
+                          <span className="min-w-0 break-words">{nomeCurto(projeto.projeto_nome)}</span>
+                          <span className="shrink-0 font-semibold">{numero(projeto.percentual_realizado)}%</span>
+                        </div>
+                        <div className="h-1 overflow-hidden rounded-full bg-muted">
+                          <div className="h-full bg-primary/70" style={{ width: `${Math.max(0, Math.min(100, projeto.percentual_realizado))}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
 
       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
         <KpiCompacto
