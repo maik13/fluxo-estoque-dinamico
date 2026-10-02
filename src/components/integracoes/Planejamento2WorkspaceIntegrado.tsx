@@ -34,7 +34,7 @@ async function loadDetail(workspace:Workspace){
   if(project?.id){
     const [or,ap]=await Promise.all([
       fluxo.from("producao_ordens_producao").select("id,numero,descricao,status,quantidade_planejada").eq("projeto_id",project.id),
-      fluxo.from("producao_apontamentos").select("quantidade_produzida,status").eq("projeto_local_id",project.id).neq("status","cancelado"),
+      fluxo.from("producao_apontamentos").select("quantidade_produzida,status").eq("projeto_local_id",project.local_utilizacao_id).neq("status","cancelado"),
     ]);
     if(!or.error) ops=or.data||[];
     if(!ap.error) produzido=(ap.data||[]).reduce((s:number,r:any)=>s+n(r.quantidade_produzida),0);
