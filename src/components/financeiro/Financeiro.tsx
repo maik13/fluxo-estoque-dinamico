@@ -657,8 +657,53 @@ export const Financeiro = () => {
 
         {(podeGerenciar || podeAprovar) && <TabsContent value="fluxo" className="mt-5">
           <Card><CardHeader><CardTitle>Fluxo de Caixa</CardTitle><CardDescription>Visão sistêmica equivalente ao núcleo da Página54: previsto e realizado separados, com origem rastreável.</CardDescription></CardHeader>
-            <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Situação</TableHead><TableHead>Data prevista</TableHead><TableHead>Data realizada</TableHead><TableHead>Descrição</TableHead><TableHead>Categoria</TableHead><TableHead>Subcategoria</TableHead><TableHead>Projeto / Centro</TableHead><TableHead className="text-right">Débito</TableHead><TableHead className="text-right">Crédito</TableHead>{podeAprovar && <TableHead>Última ação</TableHead>}{podeGerenciar && <TableHead></TableHead>}</TableRow></TableHeader>
-            <TableBody>{lancamentos.length===0?<TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">Nenhum lançamento.</TableCell></TableRow>:lancamentos.map(l=><TableRow key={l.id}><TableCell><BadgeStatus status={l.status}/></TableCell><TableCell>{dataPt(l.data_prevista)}</TableCell><TableCell>{dataPt(l.data_realizada)}</TableCell><TableCell className="min-w-[280px]">{l.descricao}</TableCell><TableCell>{l.categoria||'—'}</TableCell><TableCell>{l.subcategoria||'—'}</TableCell><TableCell>{l.projeto_centro_custo||'—'}</TableCell><TableCell className="text-right">{l.tipo==='saida'?moeda(l.valor_realizado??l.valor_previsto):'—'}</TableCell><TableCell className="text-right">{l.tipo==='entrada'?moeda(l.valor_realizado??l.valor_previsto):'—'}</TableCell>{podeAprovar && <TableCell>{(() => { const a=ultimoAtorLancamento(l.id); return a ? <div className="text-xs"><div className="font-medium">{a.usuario_nome||'Usuário'}</div><div className="text-muted-foreground">{String(a.acao||'').replace(/_/g,' ')} · {new Date(a.created_at).toLocaleString('pt-BR')}</div></div> : '—'; })()}</TableCell>}{podeGerenciar && <TableCell className="text-right">{l.tipo==='saida' && !['pago','conciliado','cancelado'].includes(l.status) && !l.liberado_programacao_em ? <Button size="sm" variant="outline" onClick={()=>void liberarParaProgramacao(l.id)}>Liberar p/ programação</Button> : l.liberado_programacao_em ? <Badge variant="outline">Liberado</Badge> : null}</TableCell>}</TableRow>)}</TableBody></Table></CardContent>
+            <CardContent className="overflow-x-auto">
+              <div className="relative mb-3 max-w-xl">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={buscaFluxo}
+                  onChange={(e) => setBuscaFluxo(e.target.value)}
+                  placeholder="Buscar por descrição, observação, nº, linha Página54, categoria, valor ou ID..."
+                  className="pl-9"
+                />
+              </div>
+              <Table><TableHeader><TableRow><TableHead>Situação</TableHead><TableHead>Data prevista</TableHead><TableHead>Data realizada</TableHead><TableHead>Descrição</TableHead><TableHead>Categoria</TableHead><TableHead>Subcategoria</TableHead><TableHead>Projeto / Centro</TableHead><TableHead className="text-right">Débito</TableHead><TableHead className="text-right">Crédito</TableHead>{podeAprovar && <TableHead>Última ação</TableHead>}{podeGerenciar && <TableHead></TableHead>}</TableRow></TableHeader>
+              <TableBody>{lancamentosFluxo.length===0?<TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">{buscaFluxo.trim() ? 'Nenhum lançamento encontrado para a busca.' : 'Nenhum lançamento.'}</TableCell></TableRow>:lancamentosFluxo.map((l: Registro) => {
+                const corP54 = corHexValida(l.sinalizacao_cor) ? (l.sinalizacao_cor as string).trim() : null;
+                return (
+                <TableRow
+                  key={l.id}
+                  style={corP54 ? { boxShadow: `inset 4px 0 0 0 ${corP54}`, backgroundColor: corFundoTranslucido(corP54) } : undefined}
+                >
+                  <TableCell><BadgeStatus status={l.status}/></TableCell>
+                  <TableCell>{dataPt(l.data_prevista)}</TableCell>
+                  <TableCell>{dataPt(l.data_realizada)}</TableCell>
+                  <TableCell className="min-w-[280px]">
+                    <div className="font-medium">{l.descricao}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                      {l.origem_tipo === 'pagina54' && <span>Página54 · linha {l.planilha_linha ?? '—'}</span>}
+                      {l.pagina54_integracao_id && <span className="max-w-[180px] truncate font-mono">ID {l.pagina54_integracao_id}</span>}
+                      {l.pagina54_sync_status && <span>Sync: {l.pagina54_sync_status}</span>}
+                      {l.pagina54_sync_erro && <span className="text-red-600">Erro: {l.pagina54_sync_erro}</span>}
+                      {corP54 && (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="inline-block h-2 w-2 rounded-full border border-border" style={{ backgroundColor: corP54 }} />
+                          Cor Página54
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>{l.categoria||'—'}</TableCell>
+                  <TableCell>{l.subcategoria||'—'}</TableCell>
+                  <TableCell>{l.projeto_centro_custo||'—'}</TableCell>
+                  <TableCell className="text-right">{l.tipo==='saida'?moeda(l.valor_realizado??l.valor_previsto):'—'}</TableCell>
+                  <TableCell className="text-right">{l.tipo==='entrada'?moeda(l.valor_realizado??l.valor_previsto):'—'}</TableCell>
+                  {podeAprovar && <TableCell>{(() => { const a=ultimoAtorLancamento(l.id); return a ? <div className="text-xs"><div className="font-medium">{a.usuario_nome||'Usuário'}</div><div className="text-muted-foreground">{String(a.acao||'').replace(/_/g,' ')} · {new Date(a.created_at).toLocaleString('pt-BR')}</div></div> : '—'; })()}</TableCell>}
+                  {podeGerenciar && <TableCell className="text-right">{l.tipo==='saida' && !['pago','conciliado','cancelado'].includes(l.status) && !l.liberado_programacao_em ? <Button size="sm" variant="outline" onClick={()=>void liberarParaProgramacao(l.id)}>Liberar p/ programação</Button> : l.liberado_programacao_em ? <Badge variant="outline">Liberado</Badge> : null}</TableCell>}
+                </TableRow>
+                );
+              })}</TableBody></Table>
+            </CardContent>
           </Card>
         </TabsContent>}
 
