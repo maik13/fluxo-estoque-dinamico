@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { FormEvent, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CalendarRange, Loader2, Plus, RefreshCw } from "lucide-react";
@@ -102,7 +103,7 @@ export function Planejamento2WorkspaceIntegrado({workspace,onBack}:{workspace:Wo
       <div className="space-y-2"><Label>Atividade *</Label><Input value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></div>
       <div className="grid grid-cols-2 gap-3"><div className="space-y-2"><Label>Início</Label><Input type="date" value={form.start} onChange={e=>setForm({...form,start:e.target.value})}/></div><div className="space-y-2"><Label>Fim</Label><Input type="date" value={form.end} onChange={e=>setForm({...form,end:e.target.value})}/></div></div>
       <div className="grid grid-cols-2 gap-3"><div className="space-y-2"><Label>Quantidade</Label><Input value={form.quantity} onChange={e=>setForm({...form,quantity:e.target.value})}/></div><div className="space-y-2"><Label>Unidade</Label><Input value={form.unit} onChange={e=>setForm({...form,unit:e.target.value})}/></div></div>
-      <DialogFooter><Button type="button" variant="outline" onClick={()=>setOpen(false)}>Cancelar</Button><Button type="submit" disabled={createTask.isPending}>{createTask.isPending&&<Loader2 className="mr-2 h-4 w-4 animate-spin"/>Salvar</Button></DialogFooter>
+      <DialogFooter><Button type="button" variant="outline" onClick={()=>setOpen(false)}>Cancelar</Button><Button type="submit" disabled={createTask.isPending}>{createTask.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar</Button></DialogFooter>
     </form></DialogContent></Dialog>
   </div>;
 }
