@@ -16,11 +16,8 @@ import { ptBR } from 'date-fns/locale';
 import {
   AlertCircle,
   CalendarDays,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronsDown,
-  ChevronsUp,
   Printer,
   RefreshCw,
   Search,
@@ -47,15 +44,9 @@ import { cn } from '@/lib/utils';
 import { PlanoDiarioProducao } from './PlanoDiarioProducao';
 import { AgendaPlanejamentoCronograma } from './AgendaPlanejamentoCronograma';
 
-const TASK_COLUMN_WIDTH = 330;
-const ASSIGNEE_COLUMN_WIDTH = 150;
-const PROGRESS_COLUMN_WIDTH = 100;
-const STATE_COLUMN_WIDTH = 140;
-const LABEL_WIDTH =
-  TASK_COLUMN_WIDTH + ASSIGNEE_COLUMN_WIDTH + PROGRESS_COLUMN_WIDTH + STATE_COLUMN_WIDTH;
-const ROW_HEIGHT_ETAPA = 52;
-const ROW_HEIGHT_OP = 52;
-const GANTT_HEADER_HEIGHT = 76;
+const LABEL_WIDTH = 390;
+const ROW_HEIGHT_ETAPA = 70;
+const ROW_HEIGHT_OP = 64;
 
 type Visualizacao = '14dias' | 'semana' | 'mes';
 
@@ -198,7 +189,6 @@ export const CronogramaProducao = () => {
   const [deslocamento, setDeslocamento] = useState(0);
   const [configAberta, setConfigAberta] = useState(false);
   const [mostrarConcluidas, setMostrarConcluidas] = useState(false);
-  const [etapasRecolhidas, setEtapasRecolhidas] = useState<Set<string>>(() => new Set());
   const [larguraViewport, setLarguraViewport] = useState(0);
   const ganttViewportRef = useRef<HTMLDivElement>(null);
   const [configForm, setConfigForm] = useState<ConfiguracaoCronogramaProducao>({
@@ -258,15 +248,13 @@ export const CronogramaProducao = () => {
       .filter((ordem) => Boolean(intervaloOrdem(ordem)))
       .map((ordem) => ({ tipo: 'op' as const, id: `op-${ordem.id}`, etapa, ordem }));
 
-    const linhaEtapa = intervaloEtapa(etapa)
+    // Quando existem OPs, elas são a fonte visual do cronograma.
+    // A linha consolidada da Etapa só aparece como fallback quando não existe OP.
+    if (ordensAtivas.length > 0) return ordensProgramadas;
+    return intervaloEtapa(etapa)
       ? [{ tipo: 'etapa' as const, id: `etapa-${etapa.etapa_id}`, etapa }]
       : [];
-
-    return [
-      ...linhaEtapa,
-      ...(etapasRecolhidas.has(etapa.etapa_id) ? [] : ordensProgramadas),
-    ];
-  }), [etapasFiltradas, etapasRecolhidas]);
+  }), [etapasFiltradas]);
 
   const semProgramacao = useMemo(() => etapasFiltradas.flatMap((etapa) => {
     const ordensAtivas = etapa.ordens.filter((ordem) => ordem.status !== 'cancelada');
@@ -297,36 +285,6 @@ export const CronogramaProducao = () => {
     const total = differenceInCalendarDays(periodo.fim, periodo.inicio) + 1;
     return Array.from({ length: total }, (_, indice) => addDays(periodo.inicio, indice));
   }, [periodo]);
-  const gruposMeses = useMemo(() => {
-    const grupos: Array<{ chave: string; label: string; quantidade: number }> = [];
-    dias.forEach((dia) => {
-      const chave = format(dia, 'yyyy-MM');
-      const ultimo = grupos[grupos.length - 1];
-      if (ultimo?.chave === chave) {
-        ultimo.quantidade += 1;
-      } else {
-        grupos.push({
-          chave,
-          label: format(dia, 'MMMM yyyy', { locale: ptBR }),
-          quantidade: 1,
-        });
-      }
-    });
-    return grupos;
-  }, [dias]);
-
-  const alternarEtapa = (etapaId: string) => {
-    setEtapasRecolhidas((atuais) => {
-      const proximo = new Set(atuais);
-      if (proximo.has(etapaId)) proximo.delete(etapaId);
-      else proximo.add(etapaId);
-      return proximo;
-    });
-  };
-
-  const expandirTudo = () => setEtapasRecolhidas(new Set());
-  const recolherTudo = () => setEtapasRecolhidas(new Set(etapasFiltradas.map((etapa) => etapa.etapa_id)));
-
   const larguraMinima = dias.length * pixelsPorDiaBase;
   const larguraTimelineDisponivel = Math.max(0, larguraViewport - LABEL_WIDTH);
   const pixelsPorDia = visualizacao === 'semana' && larguraTimelineDisponivel > larguraMinima
@@ -416,12 +374,6 @@ export const CronogramaProducao = () => {
         <TabsContent value="gantt" className="mt-4">
           <Card className="gantt-print-area overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 border-b p-3 print:hidden">
-              <Button variant="ghost" size="sm" onClick={expandirTudo}>
-                <ChevronsDown className="mr-2 h-4 w-4" />Expandir
-              </Button>
-              <Button variant="ghost" size="sm" onClick={recolherTudo}>
-                <ChevronsUp className="mr-2 h-4 w-4" />Recolher
-              </Button>
               <SearchableSelect
                 value={projetoId}
                 onValueChange={setProjetoId}
@@ -456,141 +408,59 @@ export const CronogramaProducao = () => {
 
             <div ref={ganttViewportRef} className="gantt-scroll max-h-[76vh] overflow-auto">
               <div className="flex" style={{ width: LABEL_WIDTH + largura }}>
-                <div className="sticky left-0 z-30 shrink-0 border-r bg-card" style={{ width: LABEL_WIDTH }}>
-                  <div
-                    className="sticky top-0 z-40 grid border-b bg-muted/70 text-xs font-semibold backdrop-blur"
-                    style={{
-                      height: GANTT_HEADER_HEIGHT,
-                      gridTemplateColumns: `${TASK_COLUMN_WIDTH}px ${ASSIGNEE_COLUMN_WIDTH}px ${PROGRESS_COLUMN_WIDTH}px ${STATE_COLUMN_WIDTH}px`,
-                    }}
-                  >
-                    <div className="flex items-end border-r px-3 pb-3">Nome da tarefa</div>
-                    <div className="flex items-end border-r px-3 pb-3">Atribuído</div>
-                    <div className="flex items-end border-r px-3 pb-3">Progresso</div>
-                    <div className="flex items-end px-3 pb-3">Estado</div>
-                  </div>
-
-                  {linhas.map((linha) => {
-                    const percentual = Math.min(100, Math.max(0, Number(percentualLinha(linha) ?? 0)));
-                    const status = statusLinha(linha);
-                    const estado = linha.tipo === 'etapa'
-                      ? statusEtapaLabel[status] ?? status
-                      : linha.ordem.status === 'em_execucao' && percentual >= 100
-                        ? '100% · aguardando conclusão'
-                        : statusOpLabel[status] ?? status;
-                    const responsavel = linha.tipo === 'op'
-                      ? linha.ordem.responsavel_nome || 'não atribuído'
-                      : '—';
-                    const classeEstado = linha.tipo === 'etapa'
-                      ? statusEtapaClass[status] ?? 'bg-slate-500'
-                      : statusOpClass[status] ?? 'bg-indigo-500';
-
-                    return (
-                      <div
-                        key={linha.id}
-                        className={cn(
-                          'grid border-b text-xs',
-                          linha.tipo === 'etapa' ? 'bg-muted/25 font-medium' : 'bg-card',
-                        )}
-                        style={{
-                          height: alturaLinha(linha),
-                          gridTemplateColumns: `${TASK_COLUMN_WIDTH}px ${ASSIGNEE_COLUMN_WIDTH}px ${PROGRESS_COLUMN_WIDTH}px ${STATE_COLUMN_WIDTH}px`,
-                        }}
-                      >
-                        <div className="flex min-w-0 items-center gap-2 border-r px-3">
-                          {linha.tipo === 'etapa' ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => alternarEtapa(linha.etapa.etapa_id)}
-                                className="flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-muted"
-                                aria-label={etapasRecolhidas.has(linha.etapa.etapa_id) ? 'Expandir etapa' : 'Recolher etapa'}
-                              >
-                                <ChevronDown
-                                  className={cn(
-                                    'h-4 w-4 transition-transform',
-                                    etapasRecolhidas.has(linha.etapa.etapa_id) && '-rotate-90',
-                                  )}
-                                />
-                              </button>
-                              <div className="min-w-0">
-                                <div className="truncate font-semibold" title={`${linha.etapa.projeto_nome} · ${linha.etapa.etapa_nome}`}>
-                                  {linha.etapa.etapa_nome}
-                                </div>
-                                <div className="truncate text-[11px] text-muted-foreground">
-                                  {linha.etapa.projeto_nome} · {linha.etapa.codigo}
-                                </div>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <span className="ml-8 h-2 w-2 shrink-0 rounded-full border border-primary/70" />
-                              <div className="min-w-0">
-                                <div
-                                  className="truncate font-medium"
-                                  title={`${formatarNumeroOrdemProducao(linha.ordem.numero)} — ${linha.ordem.tarefa_nome_snapshot ?? 'Atividade'}`}
-                                >
-                                  {formatarNumeroOrdemProducao(linha.ordem.numero)} — {linha.ordem.tarefa_nome_snapshot ?? 'Atividade'}
-                                </div>
-                                <div className="truncate text-[11px] text-muted-foreground">
-                                  {linha.etapa.etapa_nome}
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
-
-                        <div className="flex min-w-0 items-center border-r px-3 text-muted-foreground">
-                          <span className="truncate" title={responsavel}>{responsavel}</span>
-                        </div>
-
-                        <div className="flex items-center border-r px-3 font-semibold tabular-nums">
-                          {Math.round(percentual)}%
-                        </div>
-
-                        <div className="flex min-w-0 items-center gap-2 px-3">
-                          <span className={cn('h-2 w-2 shrink-0 rounded-full', classeEstado)} />
-                          <span className="truncate" title={estado}>{estado}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="sticky left-0 z-20 shrink-0 border-r bg-card" style={{ width: LABEL_WIDTH }}>
+                  <div className="flex h-20 items-end border-b bg-muted/50 px-3 pb-2 text-sm font-semibold">Atividade programada</div>
+                  {linhas.map((linha) => (
+                    <div key={linha.id} className={cn('flex flex-col justify-center border-b px-3', linha.tipo === 'op' && 'bg-muted/10 pl-9')} style={{ height: alturaLinha(linha) }}>
+                      {linha.tipo === 'etapa' ? (
+                        <>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="truncate text-sm font-semibold">ETAPA · {linha.etapa.projeto_nome} · {linha.etapa.etapa_nome}</span>
+                            <span className="shrink-0 text-[11px] text-muted-foreground">{statusEtapaLabel[linha.etapa.status] ?? linha.etapa.status}</span>
+                          </div>
+                          <span className="truncate text-xs text-muted-foreground">{linha.etapa.codigo}</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between gap-2">
+                            <span
+                              className="truncate text-sm font-semibold"
+                              title={`${formatarNumeroOrdemProducao(linha.ordem.numero)} — ${linha.etapa.projeto_nome} — ${linha.ordem.tarefa_nome_snapshot ?? 'Atividade'}`}
+                            >
+                              {formatarNumeroOrdemProducao(linha.ordem.numero)} — {linha.etapa.projeto_nome} — {linha.ordem.tarefa_nome_snapshot ?? 'Atividade'}
+                            </span>
+                            <span className="shrink-0 text-[11px] text-muted-foreground">
+                              {linha.ordem.status === 'em_execucao' && Number(linha.ordem.percentual_realizado) >= 100
+                                ? '100% · aguardando conclusão'
+                                : statusOpLabel[linha.ordem.status] ?? linha.ordem.status}
+                            </span>
+                          </div>
+                          <span className="truncate text-[11px] text-muted-foreground">
+                            {linha.etapa.codigo} · {linha.etapa.etapa_nome}
+                            {linha.ordem.responsavel_nome ? ` · ${linha.ordem.responsavel_nome}` : ''}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  ))}
                 </div>
 
                 <div className="relative" style={{ width: largura }}>
-                  <div
-                    className="sticky top-0 z-20 border-b bg-muted/70 backdrop-blur"
-                    style={{ height: GANTT_HEADER_HEIGHT }}
-                  >
-                    <div className="flex h-7 border-b">
-                      {gruposMeses.map((grupo) => (
-                        <div
-                          key={grupo.chave}
-                          className="flex shrink-0 items-center justify-center border-r px-2 text-[11px] font-semibold capitalize"
-                          style={{ width: grupo.quantidade * pixelsPorDia }}
-                        >
-                          {grupo.label}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex" style={{ height: GANTT_HEADER_HEIGHT - 28 }}>
-                      {dias.map((dia) => (
-                        <div
-                          key={dia.toISOString()}
-                          className={cn(
-                            'flex shrink-0 flex-col items-center justify-center border-r text-center',
-                            (isSaturday(dia) || isSunday(dia)) && 'bg-muted/60',
-                            isSameDay(dia, new Date()) && 'bg-emerald-500/15',
-                          )}
-                          style={{ width: pixelsPorDia }}
-                        >
-                          <span className="text-[11px] font-semibold">{format(dia, 'dd')}</span>
-                          <span className="text-[10px] uppercase text-muted-foreground">
-                            {format(dia, 'EEEEE', { locale: ptBR })}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="sticky top-0 z-10 flex h-20 border-b bg-muted/50">
+                    {dias.map((dia) => (
+                      <div
+                        key={dia.toISOString()}
+                        className={cn(
+                          'flex shrink-0 flex-col items-center justify-center border-r text-center',
+                          (isSaturday(dia) || isSunday(dia)) && 'bg-muted',
+                          isSameDay(dia, new Date()) && 'bg-emerald-500/15',
+                        )}
+                        style={{ width: pixelsPorDia }}
+                      >
+                        <span className="text-[11px] font-semibold">{format(dia, 'EEE', { locale: ptBR }).replace('.', '')}</span>
+                        <span className="text-[11px] text-muted-foreground">{format(dia, 'dd/MM')}</span>
+                      </div>
+                    ))}
                   </div>
 
                   {linhas.map((linha) => {
@@ -603,7 +473,7 @@ export const CronogramaProducao = () => {
                     const larguraBarra = inicioVisivel && fimVisivel
                       ? Math.max(pixelsPorDia, (differenceInCalendarDays(fimVisivel, inicioVisivel) + 1) * pixelsPorDia)
                       : 0;
-                    const percentual = Math.min(100, Math.max(0, Number(percentualLinha(linha) ?? 0)));
+                    const percentual = percentualLinha(linha);
                     const status = statusLinha(linha);
                     const titulo = linha.tipo === 'etapa'
                       ? `${linha.etapa.codigo} · ${linha.etapa.etapa_nome}`
@@ -613,48 +483,26 @@ export const CronogramaProducao = () => {
                       : statusOpClass[status] ?? 'bg-indigo-500';
 
                     return (
-                      <div
-                        key={linha.id}
-                        className={cn('relative border-b', linha.tipo === 'etapa' ? 'bg-muted/10' : 'bg-card')}
-                        style={{ height: alturaLinha(linha) }}
-                      >
-                        {dias.map((dia, indice) => (
-                          <div
-                            key={dia.toISOString()}
-                            className={cn(
-                              'absolute inset-y-0 border-r',
-                              (isSaturday(dia) || isSunday(dia)) && 'bg-muted/20',
-                            )}
-                            style={{ left: indice * pixelsPorDia, width: pixelsPorDia }}
-                          />
-                        ))}
-                        {hojeNaFaixa && (
-                          <div
-                            className="absolute inset-y-0 bg-emerald-500/10"
-                            style={{ left: hojeOffset, width: pixelsPorDia }}
-                          />
-                        )}
-
+                      <div key={linha.id} className={cn('relative border-b', linha.tipo === 'op' && 'bg-muted/5')} style={{ height: alturaLinha(linha) }}>
+                        {dias.map((dia, indice) => <div key={dia.toISOString()} className={cn('absolute inset-y-0 border-r', (isSaturday(dia) || isSunday(dia)) && 'bg-muted/20')} style={{ left: indice * pixelsPorDia, width: pixelsPorDia }} />)}
+                        {hojeNaFaixa && <div className="absolute inset-y-0 bg-emerald-500/10" style={{ left: hojeOffset, width: pixelsPorDia }} />}
                         {intervalo && intersecta && (
                           <div
-                            className={cn(
-                              'absolute top-2.5 flex h-7 items-center overflow-hidden rounded-md text-[11px] font-bold text-white shadow-sm',
-                              classe,
-                              linha.tipo === 'etapa' && 'opacity-80',
-                            )}
-                            style={{ left: esquerda + 4, width: Math.max(28, larguraBarra - 8) }}
-                            title={`${titulo} · ${format(intervalo.inicio, 'dd/MM/yyyy')} a ${format(intervalo.fim, 'dd/MM/yyyy')} · ${Math.round(percentual)}% realizado`}
+                            className={cn('absolute flex items-center overflow-hidden rounded text-xs font-bold text-white shadow-sm', classe, linha.tipo === 'etapa' ? 'top-3 h-10' : 'top-3 h-10')}
+                            style={{ left: esquerda, width: larguraBarra }}
+                            title={`${titulo} · ${intervalo.origem === 'real' ? 'período realizado' : 'período previsto'} · ${format(intervalo.inicio, 'dd/MM/yyyy')} a ${format(intervalo.fim, 'dd/MM/yyyy')} · ${percentual}% realizado`}
                           >
-                            <span
-                              className="absolute inset-y-0 left-0 bg-black/20"
-                              style={{ width: `${percentual}%` }}
-                            />
-                            <span className="relative z-10 w-full truncate px-2 text-center">
-                              {Math.round(percentual)}%
-                            </span>
+                            {linha.tipo === 'op' ? (
+                              <div className="relative z-10 flex w-full min-w-0 flex-col items-center justify-center gap-0.5 px-1 leading-none">
+                                <span className="max-w-full truncate text-[11px] font-semibold">{formatarNumeroOrdemProducao(linha.ordem.numero)}</span>
+                                <span className="shrink-0 text-xs font-extrabold">{percentual}%</span>
+                              </div>
+                            ) : (
+                              <span className="relative z-10 w-full px-1 text-center text-sm font-extrabold">{percentual}%</span>
+                            )}
+                            <span className="absolute inset-y-0 left-0 bg-black/25" style={{ width: `${Math.min(100, percentual)}%` }} />
                           </div>
                         )}
-
                         {intervalo && !intersecta && (
                           <span
                             className={cn(
@@ -666,6 +514,7 @@ export const CronogramaProducao = () => {
                             {antesDoPeriodo ? `← ${format(intervalo.fim, 'dd/MM')}` : `${format(intervalo.inicio, 'dd/MM')} →`}
                           </span>
                         )}
+                        {!intervalo && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">Sem datas de planejamento ou execução</span>}
                       </div>
                     );
                   })}
