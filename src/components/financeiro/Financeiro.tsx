@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, Banknote, CalendarRange, CheckCircle2, ChevronDown, ClipboardList, FileClock, Landmark, Plus, RefreshCcw, Settings, TrendingDown, WalletCards } from 'lucide-react';
+import { AlertTriangle, Banknote, CalendarRange, CheckCircle2, ChevronDown, ClipboardList, FileClock, Landmark, Plus, RefreshCcw, Search, Settings, TrendingDown, WalletCards } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -63,6 +63,20 @@ const BadgeStatus = ({ status }: { status?: string | null }) => (
     {statusLabel[status || ''] || status || '—'}
   </Badge>
 );
+
+const hexCorRegex = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+const corHexValida = (valor?: unknown): valor is string =>
+  typeof valor === 'string' && hexCorRegex.test(valor.trim());
+
+const corFundoTranslucido = (hex: string) => {
+  const limpo = hex.trim().replace('#', '');
+  const completo = limpo.length === 3 ? limpo.split('').map((c) => c + c).join('') : limpo;
+  const r = parseInt(completo.slice(0, 2), 16);
+  const g = parseInt(completo.slice(2, 4), 16);
+  const b = parseInt(completo.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, 0.12)`;
+};
 
 const Field = ({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) => (
   <div className={className}>
