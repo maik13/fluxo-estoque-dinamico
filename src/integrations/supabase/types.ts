@@ -65,6 +65,558 @@ export type Database = {
         }
         Relationships: []
       }
+      appcontrole_usuarios_importacao: {
+        Row: {
+          ativo: boolean
+          destino_user_id: string | null
+          email: string
+          erro: string | null
+          migrado_em: string | null
+          nome: string | null
+          source_permissions: Json
+          source_role: string | null
+          source_user_id: string
+          status: string
+        }
+        Insert: {
+          ativo?: boolean
+          destino_user_id?: string | null
+          email: string
+          erro?: string | null
+          migrado_em?: string | null
+          nome?: string | null
+          source_permissions?: Json
+          source_role?: string | null
+          source_user_id: string
+          status?: string
+        }
+        Update: {
+          ativo?: boolean
+          destino_user_id?: string | null
+          email?: string
+          erro?: string | null
+          migrado_em?: string | null
+          nome?: string | null
+          source_permissions?: Json
+          source_role?: string | null
+          source_user_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      backup_inventory_movements_20260930_auditoria100: {
+        Row: {
+          created_at: string | null
+          data_hora: string | null
+          dedupe_key: string | null
+          destinatario: string | null
+          estoque_id: string | null
+          id: string | null
+          item_id: string | null
+          item_snapshot: Json | null
+          local_utilizacao_id: string | null
+          observacoes: string | null
+          quantidade: number | null
+          quantidade_anterior: number | null
+          quantidade_atual: number | null
+          solicitacao_id: string | null
+          tipo: string | null
+          tipo_operacao_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          data_hora?: string | null
+          dedupe_key?: string | null
+          destinatario?: string | null
+          estoque_id?: string | null
+          id?: string | null
+          item_id?: string | null
+          item_snapshot?: Json | null
+          local_utilizacao_id?: string | null
+          observacoes?: string | null
+          quantidade?: number | null
+          quantidade_anterior?: number | null
+          quantidade_atual?: number | null
+          solicitacao_id?: string | null
+          tipo?: string | null
+          tipo_operacao_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          data_hora?: string | null
+          dedupe_key?: string | null
+          destinatario?: string | null
+          estoque_id?: string | null
+          id?: string | null
+          item_id?: string | null
+          item_snapshot?: Json | null
+          local_utilizacao_id?: string | null
+          observacoes?: string | null
+          quantidade?: number | null
+          quantidade_anterior?: number | null
+          quantidade_atual?: number | null
+          solicitacao_id?: string | null
+          tipo?: string | null
+          tipo_operacao_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      backup_rh_colaboradores_pre_import_20260930: {
+        Row: {
+          ativo: boolean | null
+          cargo: string | null
+          cep: string | null
+          cidade: string | null
+          controla_ponto: boolean | null
+          cpf_cnpj: string | null
+          created_at: string | null
+          data_admissao: string | null
+          data_nascimento: string | null
+          departamento: string | null
+          email: string | null
+          endereco: string | null
+          estado: string | null
+          hora_extra_gera_valor: boolean | null
+          id: string | null
+          importado_em: string | null
+          jornada_id: string | null
+          nome: string | null
+          origem_id: string | null
+          origem_sistema: string | null
+          origem_user_id: string | null
+          pis: string | null
+          pista_ativo_legado: boolean | null
+          rh_ativo: boolean | null
+          rh_cadastrado: boolean | null
+          salario: number | null
+          telefone: string | null
+          tipo_contrato: string | null
+          updated_at: string | null
+          user_id: string | null
+          valor_contrato: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          cargo?: string | null
+          cep?: string | null
+          cidade?: string | null
+          controla_ponto?: boolean | null
+          cpf_cnpj?: string | null
+          created_at?: string | null
+          data_admissao?: string | null
+          data_nascimento?: string | null
+          departamento?: string | null
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          hora_extra_gera_valor?: boolean | null
+          id?: string | null
+          importado_em?: string | null
+          jornada_id?: string | null
+          nome?: string | null
+          origem_id?: string | null
+          origem_sistema?: string | null
+          origem_user_id?: string | null
+          pis?: string | null
+          pista_ativo_legado?: boolean | null
+          rh_ativo?: boolean | null
+          rh_cadastrado?: boolean | null
+          salario?: number | null
+          telefone?: string | null
+          tipo_contrato?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          valor_contrato?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          cargo?: string | null
+          cep?: string | null
+          cidade?: string | null
+          controla_ponto?: boolean | null
+          cpf_cnpj?: string | null
+          created_at?: string | null
+          data_admissao?: string | null
+          data_nascimento?: string | null
+          departamento?: string | null
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          hora_extra_gera_valor?: boolean | null
+          id?: string | null
+          importado_em?: string | null
+          jornada_id?: string | null
+          nome?: string | null
+          origem_id?: string | null
+          origem_sistema?: string | null
+          origem_user_id?: string | null
+          pis?: string | null
+          pista_ativo_legado?: boolean | null
+          rh_ativo?: boolean | null
+          rh_cadastrado?: boolean | null
+          salario?: number | null
+          telefone?: string | null
+          tipo_contrato?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          valor_contrato?: number | null
+        }
+        Relationships: []
+      }
+      backup_rh_feriados_pre_import_20260930: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          data: string | null
+          id: string | null
+          importado_em: string | null
+          nome: string | null
+          origem_id: string | null
+          origem_sistema: string | null
+          tipo: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          data?: string | null
+          id?: string | null
+          importado_em?: string | null
+          nome?: string | null
+          origem_id?: string | null
+          origem_sistema?: string | null
+          tipo?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          data?: string | null
+          id?: string | null
+          importado_em?: string | null
+          nome?: string | null
+          origem_id?: string | null
+          origem_sistema?: string | null
+          tipo?: string | null
+        }
+        Relationships: []
+      }
+      backup_rh_jornadas_pre_import_20260930: {
+        Row: {
+          ativo: boolean | null
+          carga_horaria_semanal: number | null
+          created_at: string | null
+          descricao: string | null
+          domingo_entrada_1: string | null
+          domingo_entrada_2: string | null
+          domingo_saida_1: string | null
+          domingo_saida_2: string | null
+          feriado_entrada_1: string | null
+          feriado_entrada_2: string | null
+          feriado_saida_1: string | null
+          feriado_saida_2: string | null
+          id: string | null
+          importado_em: string | null
+          nome: string | null
+          origem_id: string | null
+          origem_sistema: string | null
+          personalizada_para_colaborador_id: string | null
+          quarta_entrada_1: string | null
+          quarta_entrada_2: string | null
+          quarta_saida_1: string | null
+          quarta_saida_2: string | null
+          quinta_entrada_1: string | null
+          quinta_entrada_2: string | null
+          quinta_saida_1: string | null
+          quinta_saida_2: string | null
+          sabado_entrada_1: string | null
+          sabado_entrada_2: string | null
+          sabado_saida_1: string | null
+          sabado_saida_2: string | null
+          segunda_entrada_1: string | null
+          segunda_entrada_2: string | null
+          segunda_saida_1: string | null
+          segunda_saida_2: string | null
+          sexta_entrada_1: string | null
+          sexta_entrada_2: string | null
+          sexta_saida_1: string | null
+          sexta_saida_2: string | null
+          terca_entrada_1: string | null
+          terca_entrada_2: string | null
+          terca_saida_1: string | null
+          terca_saida_2: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          carga_horaria_semanal?: number | null
+          created_at?: string | null
+          descricao?: string | null
+          domingo_entrada_1?: string | null
+          domingo_entrada_2?: string | null
+          domingo_saida_1?: string | null
+          domingo_saida_2?: string | null
+          feriado_entrada_1?: string | null
+          feriado_entrada_2?: string | null
+          feriado_saida_1?: string | null
+          feriado_saida_2?: string | null
+          id?: string | null
+          importado_em?: string | null
+          nome?: string | null
+          origem_id?: string | null
+          origem_sistema?: string | null
+          personalizada_para_colaborador_id?: string | null
+          quarta_entrada_1?: string | null
+          quarta_entrada_2?: string | null
+          quarta_saida_1?: string | null
+          quarta_saida_2?: string | null
+          quinta_entrada_1?: string | null
+          quinta_entrada_2?: string | null
+          quinta_saida_1?: string | null
+          quinta_saida_2?: string | null
+          sabado_entrada_1?: string | null
+          sabado_entrada_2?: string | null
+          sabado_saida_1?: string | null
+          sabado_saida_2?: string | null
+          segunda_entrada_1?: string | null
+          segunda_entrada_2?: string | null
+          segunda_saida_1?: string | null
+          segunda_saida_2?: string | null
+          sexta_entrada_1?: string | null
+          sexta_entrada_2?: string | null
+          sexta_saida_1?: string | null
+          sexta_saida_2?: string | null
+          terca_entrada_1?: string | null
+          terca_entrada_2?: string | null
+          terca_saida_1?: string | null
+          terca_saida_2?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          carga_horaria_semanal?: number | null
+          created_at?: string | null
+          descricao?: string | null
+          domingo_entrada_1?: string | null
+          domingo_entrada_2?: string | null
+          domingo_saida_1?: string | null
+          domingo_saida_2?: string | null
+          feriado_entrada_1?: string | null
+          feriado_entrada_2?: string | null
+          feriado_saida_1?: string | null
+          feriado_saida_2?: string | null
+          id?: string | null
+          importado_em?: string | null
+          nome?: string | null
+          origem_id?: string | null
+          origem_sistema?: string | null
+          personalizada_para_colaborador_id?: string | null
+          quarta_entrada_1?: string | null
+          quarta_entrada_2?: string | null
+          quarta_saida_1?: string | null
+          quarta_saida_2?: string | null
+          quinta_entrada_1?: string | null
+          quinta_entrada_2?: string | null
+          quinta_saida_1?: string | null
+          quinta_saida_2?: string | null
+          sabado_entrada_1?: string | null
+          sabado_entrada_2?: string | null
+          sabado_saida_1?: string | null
+          sabado_saida_2?: string | null
+          segunda_entrada_1?: string | null
+          segunda_entrada_2?: string | null
+          segunda_saida_1?: string | null
+          segunda_saida_2?: string | null
+          sexta_entrada_1?: string | null
+          sexta_entrada_2?: string | null
+          sexta_saida_1?: string | null
+          sexta_saida_2?: string | null
+          terca_entrada_1?: string | null
+          terca_entrada_2?: string | null
+          terca_saida_1?: string | null
+          terca_saida_2?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_rh_ponto_dias_pagos_pre_import_20260930: {
+        Row: {
+          colaborador_id: string | null
+          created_at: string | null
+          data: string | null
+          id: string | null
+          importado_em: string | null
+          origem_id: string | null
+          origem_pago_por: string | null
+          origem_sistema: string | null
+          pago_em: string | null
+          pago_por: string | null
+          updated_at: string | null
+          valor_adicionais: number | null
+          valor_diaria: number | null
+          valor_total: number | null
+        }
+        Insert: {
+          colaborador_id?: string | null
+          created_at?: string | null
+          data?: string | null
+          id?: string | null
+          importado_em?: string | null
+          origem_id?: string | null
+          origem_pago_por?: string | null
+          origem_sistema?: string | null
+          pago_em?: string | null
+          pago_por?: string | null
+          updated_at?: string | null
+          valor_adicionais?: number | null
+          valor_diaria?: number | null
+          valor_total?: number | null
+        }
+        Update: {
+          colaborador_id?: string | null
+          created_at?: string | null
+          data?: string | null
+          id?: string | null
+          importado_em?: string | null
+          origem_id?: string | null
+          origem_pago_por?: string | null
+          origem_sistema?: string | null
+          pago_em?: string | null
+          pago_por?: string | null
+          updated_at?: string | null
+          valor_adicionais?: number | null
+          valor_diaria?: number | null
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
+      backup_rh_registros_ponto_pre_import_20260930: {
+        Row: {
+          adicional_noturno_snapshot: number | null
+          aprovado_em: string | null
+          aprovado_por: string | null
+          colaborador_id: string | null
+          created_at: string | null
+          criado_por: string | null
+          data: string | null
+          hora_entrada_1: string | null
+          hora_entrada_2: string | null
+          hora_entrada_3: string | null
+          hora_saida_1: string | null
+          hora_saida_2: string | null
+          hora_saida_3: string | null
+          horas_atraso_snapshot: number | null
+          horas_extras_100_snapshot: number | null
+          horas_extras_50_snapshot: number | null
+          horas_falta_snapshot: number | null
+          horas_trabalhadas_snapshot: number | null
+          id: string | null
+          importado_em: string | null
+          is_domingo_snapshot: boolean | null
+          is_feriado_snapshot: boolean | null
+          observacao: string | null
+          origem_aprovado_por: string | null
+          origem_created_by: string | null
+          origem_id: string | null
+          origem_sistema: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          adicional_noturno_snapshot?: number | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          colaborador_id?: string | null
+          created_at?: string | null
+          criado_por?: string | null
+          data?: string | null
+          hora_entrada_1?: string | null
+          hora_entrada_2?: string | null
+          hora_entrada_3?: string | null
+          hora_saida_1?: string | null
+          hora_saida_2?: string | null
+          hora_saida_3?: string | null
+          horas_atraso_snapshot?: number | null
+          horas_extras_100_snapshot?: number | null
+          horas_extras_50_snapshot?: number | null
+          horas_falta_snapshot?: number | null
+          horas_trabalhadas_snapshot?: number | null
+          id?: string | null
+          importado_em?: string | null
+          is_domingo_snapshot?: boolean | null
+          is_feriado_snapshot?: boolean | null
+          observacao?: string | null
+          origem_aprovado_por?: string | null
+          origem_created_by?: string | null
+          origem_id?: string | null
+          origem_sistema?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          adicional_noturno_snapshot?: number | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          colaborador_id?: string | null
+          created_at?: string | null
+          criado_por?: string | null
+          data?: string | null
+          hora_entrada_1?: string | null
+          hora_entrada_2?: string | null
+          hora_entrada_3?: string | null
+          hora_saida_1?: string | null
+          hora_saida_2?: string | null
+          hora_saida_3?: string | null
+          horas_atraso_snapshot?: number | null
+          horas_extras_100_snapshot?: number | null
+          horas_extras_50_snapshot?: number | null
+          horas_falta_snapshot?: number | null
+          horas_trabalhadas_snapshot?: number | null
+          id?: string | null
+          importado_em?: string | null
+          is_domingo_snapshot?: boolean | null
+          is_feriado_snapshot?: boolean | null
+          observacao?: string | null
+          origem_aprovado_por?: string | null
+          origem_created_by?: string | null
+          origem_id?: string | null
+          origem_sistema?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backups_sistema: {
+        Row: {
+          criado_em: string
+          descricao: string | null
+          escopo: Json
+          id: string
+          nome: string
+          schema_backup: string
+          status: string
+        }
+        Insert: {
+          criado_em?: string
+          descricao?: string | null
+          escopo?: Json
+          id?: string
+          nome: string
+          schema_backup: string
+          status?: string
+        }
+        Update: {
+          criado_em?: string
+          descricao?: string | null
+          escopo?: Json
+          id?: string
+          nome?: string
+          schema_backup?: string
+          status?: string
+        }
+        Relationships: []
+      }
       categoria_subcategoria: {
         Row: {
           categoria_id: string
@@ -149,6 +701,1340 @@ export type Database = {
           id?: string
           nome?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      financeiro_auditoria: {
+        Row: {
+          acao: string
+          created_at: string
+          detalhes: Json
+          entidade: string
+          entidade_id: string
+          id: string
+          lancamento_id: string | null
+          usuario_id: string | null
+          usuario_nome: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          detalhes?: Json
+          entidade: string
+          entidade_id: string
+          id?: string
+          lancamento_id?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          detalhes?: Json
+          entidade?: string
+          entidade_id?: string
+          id?: string
+          lancamento_id?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Relationships: []
+      }
+      financeiro_categoria_subcategorias: {
+        Row: {
+          categoria_id: string
+          created_at: string
+          origem_planilha: boolean
+          subcategoria_id: string
+        }
+        Insert: {
+          categoria_id: string
+          created_at?: string
+          origem_planilha?: boolean
+          subcategoria_id: string
+        }
+        Update: {
+          categoria_id?: string
+          created_at?: string
+          origem_planilha?: boolean
+          subcategoria_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_categoria_subcategorias_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_categoria_subcategorias_subcategoria_id_fkey"
+            columns: ["subcategoria_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_subcategorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financeiro_categorias: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+          observacao: string | null
+          ordem: number
+          origem_planilha: boolean
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          observacao?: string | null
+          ordem?: number
+          origem_planilha?: boolean
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          observacao?: string | null
+          ordem?: number
+          origem_planilha?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      financeiro_conciliacoes: {
+        Row: {
+          conciliado_em: string | null
+          conciliado_por: string | null
+          conta_bancaria_id: string
+          created_at: string
+          data: string
+          data_prevista: string | null
+          estava_previsto: boolean | null
+          historico_beneficiario: string
+          id: string
+          lancamento_id: string | null
+          prazo_regularizacao: string | null
+          registrado_por_id: string | null
+          registrado_por_nome: string | null
+          responsavel_regularizacao: string | null
+          tipo: string
+          tratamento_observacao: string | null
+          tratamento_status: string
+          updated_at: string
+          valor: number
+          valor_previsto: number | null
+        }
+        Insert: {
+          conciliado_em?: string | null
+          conciliado_por?: string | null
+          conta_bancaria_id: string
+          created_at?: string
+          data: string
+          data_prevista?: string | null
+          estava_previsto?: boolean | null
+          historico_beneficiario: string
+          id?: string
+          lancamento_id?: string | null
+          prazo_regularizacao?: string | null
+          registrado_por_id?: string | null
+          registrado_por_nome?: string | null
+          responsavel_regularizacao?: string | null
+          tipo: string
+          tratamento_observacao?: string | null
+          tratamento_status?: string
+          updated_at?: string
+          valor: number
+          valor_previsto?: number | null
+        }
+        Update: {
+          conciliado_em?: string | null
+          conciliado_por?: string | null
+          conta_bancaria_id?: string
+          created_at?: string
+          data?: string
+          data_prevista?: string | null
+          estava_previsto?: boolean | null
+          historico_beneficiario?: string
+          id?: string
+          lancamento_id?: string | null
+          prazo_regularizacao?: string | null
+          registrado_por_id?: string | null
+          registrado_por_nome?: string | null
+          responsavel_regularizacao?: string | null
+          tipo?: string
+          tratamento_observacao?: string | null
+          tratamento_status?: string
+          updated_at?: string
+          valor?: number
+          valor_previsto?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_conciliacoes_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_conciliacoes_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_lancamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_conciliacoes_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_pagina54_exportacao_pendente"
+            referencedColumns: ["lancamento_id"]
+          },
+        ]
+      }
+      financeiro_contas_bancarias: {
+        Row: {
+          ativa: boolean
+          banco: string
+          created_at: string
+          id: string
+          nome: string
+          ordem: number
+          tipo: string | null
+        }
+        Insert: {
+          ativa?: boolean
+          banco: string
+          created_at?: string
+          id?: string
+          nome: string
+          ordem?: number
+          tipo?: string | null
+        }
+        Update: {
+          ativa?: boolean
+          banco?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          tipo?: string | null
+        }
+        Relationships: []
+      }
+      financeiro_importacao_pagina54: {
+        Row: {
+          aba: string
+          anotacao: string | null
+          autor_ultima_alteracao: string | null
+          bb_invest_original: string | null
+          bb_original: string | null
+          categoria_original: string | null
+          cores_originais: Json
+          credito_original: string | null
+          data_posicao_original: string | null
+          data_prevista_original: string | null
+          data_realizada_original: string | null
+          debito_original: string | null
+          descricao: string | null
+          id: string
+          importado_em: string
+          integracao_id: string | null
+          inter_invest_original: string | null
+          inter_original: string | null
+          linha: number
+          motivos_revisao: Json
+          origem_alteracao: string | null
+          resultado_original: string | null
+          revisao_pendente: boolean
+          saldo_dia_original: string | null
+          saldo_original: string | null
+          sicoob_invest_original: string | null
+          sicoob_original: string | null
+          sicredi_original: string | null
+          sinalizacao_cor: string | null
+          situacao: string | null
+          spreadsheet_id: string
+          spreadsheet_titulo: string | null
+          subcategoria_original: string | null
+          sync_em: string | null
+          sync_erro: string | null
+          sync_status: string
+          ultima_atualizacao_planilha: string | null
+          valor_a: string | null
+          valores_originais: Json
+        }
+        Insert: {
+          aba?: string
+          anotacao?: string | null
+          autor_ultima_alteracao?: string | null
+          bb_invest_original?: string | null
+          bb_original?: string | null
+          categoria_original?: string | null
+          cores_originais?: Json
+          credito_original?: string | null
+          data_posicao_original?: string | null
+          data_prevista_original?: string | null
+          data_realizada_original?: string | null
+          debito_original?: string | null
+          descricao?: string | null
+          id?: string
+          importado_em?: string
+          integracao_id?: string | null
+          inter_invest_original?: string | null
+          inter_original?: string | null
+          linha: number
+          motivos_revisao?: Json
+          origem_alteracao?: string | null
+          resultado_original?: string | null
+          revisao_pendente?: boolean
+          saldo_dia_original?: string | null
+          saldo_original?: string | null
+          sicoob_invest_original?: string | null
+          sicoob_original?: string | null
+          sicredi_original?: string | null
+          sinalizacao_cor?: string | null
+          situacao?: string | null
+          spreadsheet_id: string
+          spreadsheet_titulo?: string | null
+          subcategoria_original?: string | null
+          sync_em?: string | null
+          sync_erro?: string | null
+          sync_status?: string
+          ultima_atualizacao_planilha?: string | null
+          valor_a?: string | null
+          valores_originais?: Json
+        }
+        Update: {
+          aba?: string
+          anotacao?: string | null
+          autor_ultima_alteracao?: string | null
+          bb_invest_original?: string | null
+          bb_original?: string | null
+          categoria_original?: string | null
+          cores_originais?: Json
+          credito_original?: string | null
+          data_posicao_original?: string | null
+          data_prevista_original?: string | null
+          data_realizada_original?: string | null
+          debito_original?: string | null
+          descricao?: string | null
+          id?: string
+          importado_em?: string
+          integracao_id?: string | null
+          inter_invest_original?: string | null
+          inter_original?: string | null
+          linha?: number
+          motivos_revisao?: Json
+          origem_alteracao?: string | null
+          resultado_original?: string | null
+          revisao_pendente?: boolean
+          saldo_dia_original?: string | null
+          saldo_original?: string | null
+          sicoob_invest_original?: string | null
+          sicoob_original?: string | null
+          sicredi_original?: string | null
+          sinalizacao_cor?: string | null
+          situacao?: string | null
+          spreadsheet_id?: string
+          spreadsheet_titulo?: string | null
+          subcategoria_original?: string | null
+          sync_em?: string | null
+          sync_erro?: string | null
+          sync_status?: string
+          ultima_atualizacao_planilha?: string | null
+          valor_a?: string | null
+          valores_originais?: Json
+        }
+        Relationships: []
+      }
+      financeiro_lancamentos: {
+        Row: {
+          categoria: string | null
+          created_at: string
+          credito_original: string | null
+          criado_por_id: string | null
+          data_prevista: string | null
+          data_realizada: string | null
+          debito_original: string | null
+          descricao: string
+          descricao_original: string | null
+          id: string
+          importacao_pagina54_id: string | null
+          liberado_programacao_em: string | null
+          liberado_programacao_por_id: string | null
+          liberado_programacao_por_nome: string | null
+          motivos_revisao: Json
+          necessidade_id: string | null
+          numero: number
+          observacoes: string | null
+          origem_id: string | null
+          origem_tipo: string | null
+          pagina54_autor_alteracao: string | null
+          pagina54_integracao_id: string | null
+          pagina54_precisa_exportar: boolean
+          pagina54_sync_em: string | null
+          pagina54_sync_erro: string | null
+          pagina54_sync_status: string
+          pagina54_ultima_atualizacao: string | null
+          pagina54_ultima_origem: string | null
+          parcela_numero: number
+          parcela_total: number
+          planilha_linha: number | null
+          producao_projeto_id: string | null
+          projeto_centro_custo: string | null
+          revisao_pendente: boolean
+          saldo_original: string | null
+          sinalizacao_cor: string | null
+          situacao_original: string | null
+          status: string
+          subcategoria: string | null
+          tipo: string
+          updated_at: string
+          valor_previsto: number | null
+          valor_realizado: number | null
+        }
+        Insert: {
+          categoria?: string | null
+          created_at?: string
+          credito_original?: string | null
+          criado_por_id?: string | null
+          data_prevista?: string | null
+          data_realizada?: string | null
+          debito_original?: string | null
+          descricao: string
+          descricao_original?: string | null
+          id?: string
+          importacao_pagina54_id?: string | null
+          liberado_programacao_em?: string | null
+          liberado_programacao_por_id?: string | null
+          liberado_programacao_por_nome?: string | null
+          motivos_revisao?: Json
+          necessidade_id?: string | null
+          numero?: number
+          observacoes?: string | null
+          origem_id?: string | null
+          origem_tipo?: string | null
+          pagina54_autor_alteracao?: string | null
+          pagina54_integracao_id?: string | null
+          pagina54_precisa_exportar?: boolean
+          pagina54_sync_em?: string | null
+          pagina54_sync_erro?: string | null
+          pagina54_sync_status?: string
+          pagina54_ultima_atualizacao?: string | null
+          pagina54_ultima_origem?: string | null
+          parcela_numero?: number
+          parcela_total?: number
+          planilha_linha?: number | null
+          producao_projeto_id?: string | null
+          projeto_centro_custo?: string | null
+          revisao_pendente?: boolean
+          saldo_original?: string | null
+          sinalizacao_cor?: string | null
+          situacao_original?: string | null
+          status?: string
+          subcategoria?: string | null
+          tipo: string
+          updated_at?: string
+          valor_previsto?: number | null
+          valor_realizado?: number | null
+        }
+        Update: {
+          categoria?: string | null
+          created_at?: string
+          credito_original?: string | null
+          criado_por_id?: string | null
+          data_prevista?: string | null
+          data_realizada?: string | null
+          debito_original?: string | null
+          descricao?: string
+          descricao_original?: string | null
+          id?: string
+          importacao_pagina54_id?: string | null
+          liberado_programacao_em?: string | null
+          liberado_programacao_por_id?: string | null
+          liberado_programacao_por_nome?: string | null
+          motivos_revisao?: Json
+          necessidade_id?: string | null
+          numero?: number
+          observacoes?: string | null
+          origem_id?: string | null
+          origem_tipo?: string | null
+          pagina54_autor_alteracao?: string | null
+          pagina54_integracao_id?: string | null
+          pagina54_precisa_exportar?: boolean
+          pagina54_sync_em?: string | null
+          pagina54_sync_erro?: string | null
+          pagina54_sync_status?: string
+          pagina54_ultima_atualizacao?: string | null
+          pagina54_ultima_origem?: string | null
+          parcela_numero?: number
+          parcela_total?: number
+          planilha_linha?: number | null
+          producao_projeto_id?: string | null
+          projeto_centro_custo?: string | null
+          revisao_pendente?: boolean
+          saldo_original?: string | null
+          sinalizacao_cor?: string | null
+          situacao_original?: string | null
+          status?: string
+          subcategoria?: string | null
+          tipo?: string
+          updated_at?: string
+          valor_previsto?: number | null
+          valor_realizado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_lancamentos_importacao_pagina54_id_fkey"
+            columns: ["importacao_pagina54_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_importacao_pagina54"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_lancamentos_necessidade_id_fkey"
+            columns: ["necessidade_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_necessidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_lancamentos_producao_projeto_id_fkey"
+            columns: ["producao_projeto_id"]
+            isOneToOne: false
+            referencedRelation: "producao_projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financeiro_necessidade_historico: {
+        Row: {
+          alteracao: string
+          created_at: string
+          id: string
+          necessidade_id: string
+          responsavel_id: string | null
+          responsavel_nome: string | null
+          valor_previsto: number | null
+        }
+        Insert: {
+          alteracao: string
+          created_at?: string
+          id?: string
+          necessidade_id: string
+          responsavel_id?: string | null
+          responsavel_nome?: string | null
+          valor_previsto?: number | null
+        }
+        Update: {
+          alteracao?: string
+          created_at?: string
+          id?: string
+          necessidade_id?: string
+          responsavel_id?: string | null
+          responsavel_nome?: string | null
+          valor_previsto?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_necessidade_historico_necessidade_id_fkey"
+            columns: ["necessidade_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_necessidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financeiro_necessidades: {
+        Row: {
+          area_solicitante: string | null
+          base_estimativa: string | null
+          categoria: string | null
+          created_at: string
+          criado_automaticamente: boolean
+          criado_por_id: string | null
+          criado_por_nome: string | null
+          data_identificacao: string
+          data_necessidade: string | null
+          data_prevista_desembolso: string | null
+          descricao: string
+          especificacao: string | null
+          estimativa_incompleta: boolean
+          id: string
+          item_id: string | null
+          justificativa: string | null
+          numero: number
+          ordem_producao_id: string | null
+          origem_modulo: string | null
+          origem_tipo: string
+          processo_id: string | null
+          producao_projeto_id: string | null
+          projeto_centro_custo: string | null
+          quantidade: number | null
+          registro_katia: string | null
+          registro_katia_em: string | null
+          requisicao_compra_id: string | null
+          solicitacao_material_id: string | null
+          solicitante_id: string | null
+          solicitante_nome: string | null
+          status: string
+          subcategoria: string | null
+          unidade: string | null
+          updated_at: string
+          updated_by: string | null
+          urgencia: string
+          valor_estimado: number | null
+        }
+        Insert: {
+          area_solicitante?: string | null
+          base_estimativa?: string | null
+          categoria?: string | null
+          created_at?: string
+          criado_automaticamente?: boolean
+          criado_por_id?: string | null
+          criado_por_nome?: string | null
+          data_identificacao?: string
+          data_necessidade?: string | null
+          data_prevista_desembolso?: string | null
+          descricao: string
+          especificacao?: string | null
+          estimativa_incompleta?: boolean
+          id?: string
+          item_id?: string | null
+          justificativa?: string | null
+          numero?: number
+          ordem_producao_id?: string | null
+          origem_modulo?: string | null
+          origem_tipo?: string
+          processo_id?: string | null
+          producao_projeto_id?: string | null
+          projeto_centro_custo?: string | null
+          quantidade?: number | null
+          registro_katia?: string | null
+          registro_katia_em?: string | null
+          requisicao_compra_id?: string | null
+          solicitacao_material_id?: string | null
+          solicitante_id?: string | null
+          solicitante_nome?: string | null
+          status?: string
+          subcategoria?: string | null
+          unidade?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          urgencia?: string
+          valor_estimado?: number | null
+        }
+        Update: {
+          area_solicitante?: string | null
+          base_estimativa?: string | null
+          categoria?: string | null
+          created_at?: string
+          criado_automaticamente?: boolean
+          criado_por_id?: string | null
+          criado_por_nome?: string | null
+          data_identificacao?: string
+          data_necessidade?: string | null
+          data_prevista_desembolso?: string | null
+          descricao?: string
+          especificacao?: string | null
+          estimativa_incompleta?: boolean
+          id?: string
+          item_id?: string | null
+          justificativa?: string | null
+          numero?: number
+          ordem_producao_id?: string | null
+          origem_modulo?: string | null
+          origem_tipo?: string
+          processo_id?: string | null
+          producao_projeto_id?: string | null
+          projeto_centro_custo?: string | null
+          quantidade?: number | null
+          registro_katia?: string | null
+          registro_katia_em?: string | null
+          requisicao_compra_id?: string | null
+          solicitacao_material_id?: string | null
+          solicitante_id?: string | null
+          solicitante_nome?: string | null
+          status?: string
+          subcategoria?: string | null
+          unidade?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          urgencia?: string
+          valor_estimado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_necessidades_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_necessidades_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "producao_ordens_producao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_necessidades_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "producao_processos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_necessidades_producao_projeto_id_fkey"
+            columns: ["producao_projeto_id"]
+            isOneToOne: false
+            referencedRelation: "producao_projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_necessidades_requisicao_compra_id_fkey"
+            columns: ["requisicao_compra_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_compra"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_necessidades_solicitacao_material_id_fkey"
+            columns: ["solicitacao_material_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes_material"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financeiro_pc_parcelas: {
+        Row: {
+          conciliado: boolean
+          created_at: string
+          data_conciliado: string | null
+          data_pago: string | null
+          data_programada: string | null
+          id: string
+          lancamento_id: string | null
+          observacoes: string | null
+          pago: boolean
+          parcela_numero: number
+          pedido_compra_formal_id: string
+          programado_no_banco: boolean
+          updated_at: string
+          valor: number
+          valor_pago: number | null
+          vencimento: string
+        }
+        Insert: {
+          conciliado?: boolean
+          created_at?: string
+          data_conciliado?: string | null
+          data_pago?: string | null
+          data_programada?: string | null
+          id?: string
+          lancamento_id?: string | null
+          observacoes?: string | null
+          pago?: boolean
+          parcela_numero: number
+          pedido_compra_formal_id: string
+          programado_no_banco?: boolean
+          updated_at?: string
+          valor: number
+          valor_pago?: number | null
+          vencimento: string
+        }
+        Update: {
+          conciliado?: boolean
+          created_at?: string
+          data_conciliado?: string | null
+          data_pago?: string | null
+          data_programada?: string | null
+          id?: string
+          lancamento_id?: string | null
+          observacoes?: string | null
+          pago?: boolean
+          parcela_numero?: number
+          pedido_compra_formal_id?: string
+          programado_no_banco?: boolean
+          updated_at?: string
+          valor?: number
+          valor_pago?: number | null
+          vencimento?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_pc_parcelas_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_lancamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_pc_parcelas_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_pagina54_exportacao_pendente"
+            referencedColumns: ["lancamento_id"]
+          },
+          {
+            foreignKeyName: "financeiro_pc_parcelas_pedido_compra_formal_id_fkey"
+            columns: ["pedido_compra_formal_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_pedidos_compra_formais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financeiro_pedidos_compra_formais: {
+        Row: {
+          aprovacao_evidencia: string | null
+          aprovacao_mauro_em: string | null
+          compromisso_katia_em: string | null
+          compromisso_status: string | null
+          condicao_pagamento: string | null
+          confirmado_em: string | null
+          confirmado_por: string | null
+          created_at: string
+          criado_por_id: string | null
+          criado_por_nome: string | null
+          descricao: string
+          enviado_guto_em: string | null
+          fornecedor: string
+          fornecedor_contato: string | null
+          fornecedor_identificacao: string | null
+          frete_custos_adicionais: number
+          id: string
+          local_entrega: string | null
+          necessidade_id: string | null
+          numero: number
+          prazo_entrega: string | null
+          recebimento_divergencias: string | null
+          recebimento_em: string | null
+          recebimento_por: string | null
+          requisicao_compra_id: string
+          status: string
+          updated_at: string
+          valor_itens: number
+          valor_total: number | null
+        }
+        Insert: {
+          aprovacao_evidencia?: string | null
+          aprovacao_mauro_em?: string | null
+          compromisso_katia_em?: string | null
+          compromisso_status?: string | null
+          condicao_pagamento?: string | null
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          criado_por_id?: string | null
+          criado_por_nome?: string | null
+          descricao: string
+          enviado_guto_em?: string | null
+          fornecedor: string
+          fornecedor_contato?: string | null
+          fornecedor_identificacao?: string | null
+          frete_custos_adicionais?: number
+          id?: string
+          local_entrega?: string | null
+          necessidade_id?: string | null
+          numero?: number
+          prazo_entrega?: string | null
+          recebimento_divergencias?: string | null
+          recebimento_em?: string | null
+          recebimento_por?: string | null
+          requisicao_compra_id: string
+          status?: string
+          updated_at?: string
+          valor_itens?: number
+          valor_total?: number | null
+        }
+        Update: {
+          aprovacao_evidencia?: string | null
+          aprovacao_mauro_em?: string | null
+          compromisso_katia_em?: string | null
+          compromisso_status?: string | null
+          condicao_pagamento?: string | null
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          criado_por_id?: string | null
+          criado_por_nome?: string | null
+          descricao?: string
+          enviado_guto_em?: string | null
+          fornecedor?: string
+          fornecedor_contato?: string | null
+          fornecedor_identificacao?: string | null
+          frete_custos_adicionais?: number
+          id?: string
+          local_entrega?: string | null
+          necessidade_id?: string | null
+          numero?: number
+          prazo_entrega?: string | null
+          recebimento_divergencias?: string | null
+          recebimento_em?: string | null
+          recebimento_por?: string | null
+          requisicao_compra_id?: string
+          status?: string
+          updated_at?: string
+          valor_itens?: number
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_pedidos_compra_formais_necessidade_id_fkey"
+            columns: ["necessidade_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_necessidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_pedidos_compra_formais_requisicao_compra_id_fkey"
+            columns: ["requisicao_compra_id"]
+            isOneToOne: true
+            referencedRelation: "pedidos_compra"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financeiro_posicoes_diarias: {
+        Row: {
+          conta_bancaria_id: string
+          created_at: string
+          data: string
+          entradas_realizadas: number
+          id: string
+          pagamentos_programados_nao_liquidados: number
+          pendencias_proximo_dia: string | null
+          recebimentos_previstos_nao_realizados: number
+          responsavel: string
+          saidas_nao_previstas_diferencas: number
+          saidas_realizadas: number
+          saldo_final_bancario: number
+          saldo_financeiro_gerencial: number
+          saldo_inicial_bancario: number
+          updated_at: string
+        }
+        Insert: {
+          conta_bancaria_id: string
+          created_at?: string
+          data: string
+          entradas_realizadas?: number
+          id?: string
+          pagamentos_programados_nao_liquidados?: number
+          pendencias_proximo_dia?: string | null
+          recebimentos_previstos_nao_realizados?: number
+          responsavel?: string
+          saidas_nao_previstas_diferencas?: number
+          saidas_realizadas?: number
+          saldo_final_bancario?: number
+          saldo_financeiro_gerencial?: number
+          saldo_inicial_bancario?: number
+          updated_at?: string
+        }
+        Update: {
+          conta_bancaria_id?: string
+          created_at?: string
+          data?: string
+          entradas_realizadas?: number
+          id?: string
+          pagamentos_programados_nao_liquidados?: number
+          pendencias_proximo_dia?: string | null
+          recebimentos_previstos_nao_realizados?: number
+          responsavel?: string
+          saidas_nao_previstas_diferencas?: number
+          saidas_realizadas?: number
+          saldo_final_bancario?: number
+          saldo_financeiro_gerencial?: number
+          saldo_inicial_bancario?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_posicoes_diarias_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_contas_bancarias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financeiro_programacoes: {
+        Row: {
+          banco_conta: string | null
+          beneficiario: string
+          categoria: string | null
+          comprovante_path: string | null
+          created_at: string
+          data_programada: string
+          forma_pagamento: string | null
+          id: string
+          lancamento_id: string
+          liberado_por_katia_em: string | null
+          observacao: string | null
+          parcela_id: string | null
+          pedido_compra_formal_id: string | null
+          programado_por_guto_em: string | null
+          projeto_centro_custo: string | null
+          registrado_por_id: string | null
+          registrado_por_nome: string | null
+          status: string
+          updated_at: string
+          valor: number
+          vencimento: string | null
+        }
+        Insert: {
+          banco_conta?: string | null
+          beneficiario: string
+          categoria?: string | null
+          comprovante_path?: string | null
+          created_at?: string
+          data_programada: string
+          forma_pagamento?: string | null
+          id?: string
+          lancamento_id: string
+          liberado_por_katia_em?: string | null
+          observacao?: string | null
+          parcela_id?: string | null
+          pedido_compra_formal_id?: string | null
+          programado_por_guto_em?: string | null
+          projeto_centro_custo?: string | null
+          registrado_por_id?: string | null
+          registrado_por_nome?: string | null
+          status?: string
+          updated_at?: string
+          valor: number
+          vencimento?: string | null
+        }
+        Update: {
+          banco_conta?: string | null
+          beneficiario?: string
+          categoria?: string | null
+          comprovante_path?: string | null
+          created_at?: string
+          data_programada?: string
+          forma_pagamento?: string | null
+          id?: string
+          lancamento_id?: string
+          liberado_por_katia_em?: string | null
+          observacao?: string | null
+          parcela_id?: string | null
+          pedido_compra_formal_id?: string | null
+          programado_por_guto_em?: string | null
+          projeto_centro_custo?: string | null
+          registrado_por_id?: string | null
+          registrado_por_nome?: string | null
+          status?: string
+          updated_at?: string
+          valor?: number
+          vencimento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_programacoes_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_lancamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_programacoes_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_pagina54_exportacao_pendente"
+            referencedColumns: ["lancamento_id"]
+          },
+          {
+            foreignKeyName: "financeiro_programacoes_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_pc_parcelas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_programacoes_pedido_compra_formal_id_fkey"
+            columns: ["pedido_compra_formal_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_pedidos_compra_formais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financeiro_subcategorias: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+          observacao: string | null
+          ordem: number
+          origem_planilha: boolean
+          revisao_pendente: boolean
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          observacao?: string | null
+          ordem?: number
+          origem_planilha?: boolean
+          revisao_pendente?: boolean
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          observacao?: string | null
+          ordem?: number
+          origem_planilha?: boolean
+          revisao_pendente?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inventory_movement_repair_audit_20260922: {
+        Row: {
+          estoque_id: string | null
+          item_id: string
+          movement_id: string
+          new_quantidade_anterior: number
+          new_quantidade_atual: number
+          old_quantidade_anterior: number | null
+          old_quantidade_atual: number | null
+          reason: string
+          repair_method: string
+          repaired_at: string
+        }
+        Insert: {
+          estoque_id?: string | null
+          item_id: string
+          movement_id: string
+          new_quantidade_anterior: number
+          new_quantidade_atual: number
+          old_quantidade_anterior?: number | null
+          old_quantidade_atual?: number | null
+          reason: string
+          repair_method: string
+          repaired_at?: string
+        }
+        Update: {
+          estoque_id?: string | null
+          item_id?: string
+          movement_id?: string
+          new_quantidade_anterior?: number
+          new_quantidade_atual?: number
+          old_quantidade_anterior?: number | null
+          old_quantidade_atual?: number | null
+          reason?: string
+          repair_method?: string
+          repaired_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movement_repair_audit_20260922_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movement_repair_audit_20260922_movement_id_fkey"
+            columns: ["movement_id"]
+            isOneToOne: true
+            referencedRelation: "movements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_movement_repair_audit_20260930: {
+        Row: {
+          estoque_id: string | null
+          item_id: string
+          movement_id: string
+          new_quantidade_anterior: number
+          new_quantidade_atual: number
+          old_quantidade_anterior: number | null
+          old_quantidade_atual: number | null
+          reason: string
+          repair_method: string
+          repaired_at: string
+        }
+        Insert: {
+          estoque_id?: string | null
+          item_id: string
+          movement_id: string
+          new_quantidade_anterior: number
+          new_quantidade_atual: number
+          old_quantidade_anterior?: number | null
+          old_quantidade_atual?: number | null
+          reason: string
+          repair_method: string
+          repaired_at?: string
+        }
+        Update: {
+          estoque_id?: string | null
+          item_id?: string
+          movement_id?: string
+          new_quantidade_anterior?: number
+          new_quantidade_atual?: number
+          old_quantidade_anterior?: number | null
+          old_quantidade_atual?: number | null
+          reason?: string
+          repair_method?: string
+          repaired_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movement_repair_audit_20260930_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movement_repair_audit_20260930_movement_id_fkey"
+            columns: ["movement_id"]
+            isOneToOne: true
+            referencedRelation: "movements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_product_count_repair_audit_20260923: {
+        Row: {
+          codigo_barras: number
+          estoque_id: string
+          item_id: string
+          movement_id: string | null
+          nome: string
+          repaired_at: string
+          saldo_anterior: number
+          saldo_inventario: number
+        }
+        Insert: {
+          codigo_barras: number
+          estoque_id: string
+          item_id: string
+          movement_id?: string | null
+          nome: string
+          repaired_at?: string
+          saldo_anterior: number
+          saldo_inventario: number
+        }
+        Update: {
+          codigo_barras?: number
+          estoque_id?: string
+          item_id?: string
+          movement_id?: string | null
+          nome?: string
+          repaired_at?: string
+          saldo_anterior?: number
+          saldo_inventario?: number
+        }
+        Relationships: []
+      }
+      inventory_product_count_repair_audit_20260923_v2: {
+        Row: {
+          codigo_barras: number
+          estoque_id: string
+          item_id: string
+          movement_id: string | null
+          nome: string
+          repaired_at: string
+          saldo_anterior: number
+          saldo_inventario: number
+        }
+        Insert: {
+          codigo_barras: number
+          estoque_id: string
+          item_id: string
+          movement_id?: string | null
+          nome: string
+          repaired_at?: string
+          saldo_anterior: number
+          saldo_inventario: number
+        }
+        Update: {
+          codigo_barras?: number
+          estoque_id?: string
+          item_id?: string
+          movement_id?: string | null
+          nome?: string
+          repaired_at?: string
+          saldo_anterior?: number
+          saldo_inventario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_product_count_repair_audit_20260923__movement_id_fkey"
+            columns: ["movement_id"]
+            isOneToOne: false
+            referencedRelation: "movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_product_count_repair_audit_20260923_v_estoque_id_fkey"
+            columns: ["estoque_id"]
+            isOneToOne: false
+            referencedRelation: "estoques"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_product_count_repair_audit_20260923_v2_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: true
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_tool_unit_repair_audit_20260923: {
+        Row: {
+          codigo_barras: number | null
+          item_id: string
+          movement_id: string
+          nome: string | null
+          quantidade_anterior_original: number | null
+          quantidade_atual_original: number | null
+          quantidade_original: number | null
+          repaired_at: string
+          tipo: string | null
+        }
+        Insert: {
+          codigo_barras?: number | null
+          item_id: string
+          movement_id: string
+          nome?: string | null
+          quantidade_anterior_original?: number | null
+          quantidade_atual_original?: number | null
+          quantidade_original?: number | null
+          repaired_at?: string
+          tipo?: string | null
+        }
+        Update: {
+          codigo_barras?: number | null
+          item_id?: string
+          movement_id?: string
+          nome?: string | null
+          quantidade_anterior_original?: number | null
+          quantidade_atual_original?: number | null
+          quantidade_original?: number | null
+          repaired_at?: string
+          tipo?: string | null
         }
         Relationships: []
       }
@@ -426,58 +2312,124 @@ export type Database = {
       }
       pedidos_compra: {
         Row: {
+          aprovacao_executiva_em: string | null
+          aprovacao_executiva_por: string | null
+          condicao_pagamento: string | null
+          conferencia_estoque: string | null
           created_at: string
           criado_por_id: string | null
           criado_por_nome: string
           data_conclusao: string | null
+          data_limite_compra: string | null
+          data_necessaria: string | null
           data_pedido: string
           editado: boolean
           editado_em: string | null
           editado_por: string | null
+          especificacao_confirmada_em: string | null
+          especificacao_confirmada_por: string | null
+          especificacao_tecnica: string | null
+          estoque_conferido_em: string | null
+          estoque_conferido_por: string | null
           estoque_id: string | null
+          fornecedores_consultados: string | null
+          frete_custos_adicionais: number | null
           id: string
+          impacto_financeiro: string | null
+          impacto_financeiro_registrado_em: string | null
+          impacto_financeiro_registrado_por: string | null
+          integrar_financeiro: boolean
+          lead_time_dias: number | null
           numero: number
           observacoes: string | null
+          pn_origem_id: string | null
+          projeto_centro_custo: string | null
           solicitacao_material_id: string | null
           solicitacao_material_numero: number | null
           status: string
+          status_financeiro_rc: string | null
           updated_at: string
+          valor_estimado_cotado: number | null
         }
         Insert: {
+          aprovacao_executiva_em?: string | null
+          aprovacao_executiva_por?: string | null
+          condicao_pagamento?: string | null
+          conferencia_estoque?: string | null
           created_at?: string
           criado_por_id?: string | null
           criado_por_nome: string
           data_conclusao?: string | null
+          data_limite_compra?: string | null
+          data_necessaria?: string | null
           data_pedido?: string
           editado?: boolean
           editado_em?: string | null
           editado_por?: string | null
+          especificacao_confirmada_em?: string | null
+          especificacao_confirmada_por?: string | null
+          especificacao_tecnica?: string | null
+          estoque_conferido_em?: string | null
+          estoque_conferido_por?: string | null
           estoque_id?: string | null
+          fornecedores_consultados?: string | null
+          frete_custos_adicionais?: number | null
           id?: string
+          impacto_financeiro?: string | null
+          impacto_financeiro_registrado_em?: string | null
+          impacto_financeiro_registrado_por?: string | null
+          integrar_financeiro?: boolean
+          lead_time_dias?: number | null
           numero?: number
           observacoes?: string | null
+          pn_origem_id?: string | null
+          projeto_centro_custo?: string | null
           solicitacao_material_id?: string | null
           solicitacao_material_numero?: number | null
           status?: string
+          status_financeiro_rc?: string | null
           updated_at?: string
+          valor_estimado_cotado?: number | null
         }
         Update: {
+          aprovacao_executiva_em?: string | null
+          aprovacao_executiva_por?: string | null
+          condicao_pagamento?: string | null
+          conferencia_estoque?: string | null
           created_at?: string
           criado_por_id?: string | null
           criado_por_nome?: string
           data_conclusao?: string | null
+          data_limite_compra?: string | null
+          data_necessaria?: string | null
           data_pedido?: string
           editado?: boolean
           editado_em?: string | null
           editado_por?: string | null
+          especificacao_confirmada_em?: string | null
+          especificacao_confirmada_por?: string | null
+          especificacao_tecnica?: string | null
+          estoque_conferido_em?: string | null
+          estoque_conferido_por?: string | null
           estoque_id?: string | null
+          fornecedores_consultados?: string | null
+          frete_custos_adicionais?: number | null
           id?: string
+          impacto_financeiro?: string | null
+          impacto_financeiro_registrado_em?: string | null
+          impacto_financeiro_registrado_por?: string | null
+          integrar_financeiro?: boolean
+          lead_time_dias?: number | null
           numero?: number
           observacoes?: string | null
+          pn_origem_id?: string | null
+          projeto_centro_custo?: string | null
           solicitacao_material_id?: string | null
           solicitacao_material_numero?: number | null
           status?: string
+          status_financeiro_rc?: string | null
           updated_at?: string
+          valor_estimado_cotado?: number | null
         }
         Relationships: [
           {
@@ -485,6 +2437,13 @@ export type Database = {
             columns: ["estoque_id"]
             isOneToOne: false
             referencedRelation: "estoques"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_pn_origem_id_fkey"
+            columns: ["pn_origem_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_necessidades"
             referencedColumns: ["id"]
           },
           {
@@ -500,10 +2459,13 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          pode_acessar_financeiro: boolean
           pode_acessar_gerencial: boolean | null
           pode_acessar_projetos: boolean | null
           pode_apontar_producao: boolean
+          pode_aprovar_financeiro: boolean
           pode_cadastrar_itens: boolean
+          pode_conciliar_financeiro: boolean
           pode_conferir_producao: boolean
           pode_configurar_producao: boolean
           pode_devolver_material: boolean
@@ -511,8 +2473,10 @@ export type Database = {
           pode_editar_movimentacoes: boolean
           pode_excluir_itens: boolean
           pode_gerenciar_configuracoes: boolean
+          pode_gerenciar_financeiro: boolean
           pode_gerenciar_usuarios: boolean
           pode_pedido_compra: boolean
+          pode_programar_financeiro: boolean
           pode_registrar_entrada: boolean
           pode_registrar_movimentacoes: boolean
           pode_registrar_saida: boolean
@@ -521,16 +2485,20 @@ export type Database = {
           pode_transferir: boolean
           pode_ver_bi_producao: boolean
           pode_ver_relatorios: boolean
+          pode_ver_relatorios_financeiro: boolean
           tipo_usuario: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
+          pode_acessar_financeiro?: boolean
           pode_acessar_gerencial?: boolean | null
           pode_acessar_projetos?: boolean | null
           pode_apontar_producao?: boolean
+          pode_aprovar_financeiro?: boolean
           pode_cadastrar_itens?: boolean
+          pode_conciliar_financeiro?: boolean
           pode_conferir_producao?: boolean
           pode_configurar_producao?: boolean
           pode_devolver_material?: boolean
@@ -538,8 +2506,10 @@ export type Database = {
           pode_editar_movimentacoes?: boolean
           pode_excluir_itens?: boolean
           pode_gerenciar_configuracoes?: boolean
+          pode_gerenciar_financeiro?: boolean
           pode_gerenciar_usuarios?: boolean
           pode_pedido_compra?: boolean
+          pode_programar_financeiro?: boolean
           pode_registrar_entrada?: boolean
           pode_registrar_movimentacoes?: boolean
           pode_registrar_saida?: boolean
@@ -548,16 +2518,20 @@ export type Database = {
           pode_transferir?: boolean
           pode_ver_bi_producao?: boolean
           pode_ver_relatorios?: boolean
+          pode_ver_relatorios_financeiro?: boolean
           tipo_usuario: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
+          pode_acessar_financeiro?: boolean
           pode_acessar_gerencial?: boolean | null
           pode_acessar_projetos?: boolean | null
           pode_apontar_producao?: boolean
+          pode_aprovar_financeiro?: boolean
           pode_cadastrar_itens?: boolean
+          pode_conciliar_financeiro?: boolean
           pode_conferir_producao?: boolean
           pode_configurar_producao?: boolean
           pode_devolver_material?: boolean
@@ -565,8 +2539,10 @@ export type Database = {
           pode_editar_movimentacoes?: boolean
           pode_excluir_itens?: boolean
           pode_gerenciar_configuracoes?: boolean
+          pode_gerenciar_financeiro?: boolean
           pode_gerenciar_usuarios?: boolean
           pode_pedido_compra?: boolean
+          pode_programar_financeiro?: boolean
           pode_registrar_entrada?: boolean
           pode_registrar_movimentacoes?: boolean
           pode_registrar_saida?: boolean
@@ -575,10 +2551,122 @@ export type Database = {
           pode_transferir?: boolean
           pode_ver_bi_producao?: boolean
           pode_ver_relatorios?: boolean
+          pode_ver_relatorios_financeiro?: boolean
           tipo_usuario?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      producao_acervo_cenografico: {
+        Row: {
+          ano_origem: string | null
+          ativo: boolean
+          categoria: string | null
+          codigo: string
+          created_at: string
+          especificacoes: string | null
+          fonte: string | null
+          fonte_linha: number | null
+          historico: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          quantidade_estoque: number
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          ano_origem?: string | null
+          ativo?: boolean
+          categoria?: string | null
+          codigo: string
+          created_at?: string
+          especificacoes?: string | null
+          fonte?: string | null
+          fonte_linha?: number | null
+          historico?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          quantidade_estoque?: number
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ano_origem?: string | null
+          ativo?: boolean
+          categoria?: string | null
+          codigo?: string
+          created_at?: string
+          especificacoes?: string | null
+          fonte?: string | null
+          fonte_linha?: number | null
+          historico?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          quantidade_estoque?: number
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      producao_acervo_reservas: {
+        Row: {
+          acervo_id: string
+          created_at: string
+          criado_por_id: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          id: string
+          observacoes: string | null
+          project_group_id: string
+          quantidade: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          acervo_id: string
+          created_at?: string
+          criado_por_id?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          observacoes?: string | null
+          project_group_id: string
+          quantidade: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          acervo_id?: string
+          created_at?: string
+          criado_por_id?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          observacoes?: string | null
+          project_group_id?: string
+          quantidade?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_acervo_reservas_acervo_id_fkey"
+            columns: ["acervo_id"]
+            isOneToOne: false
+            referencedRelation: "producao_acervo_cenografico"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_acervo_reservas_project_group_id_fkey"
+            columns: ["project_group_id"]
+            isOneToOne: false
+            referencedRelation: "project_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       producao_alocacoes_diarias: {
         Row: {
@@ -778,6 +2866,7 @@ export type Database = {
           criado_por_id: string | null
           criado_por_nome_snapshot: string | null
           data: string
+          demao_numero: number | null
           duracao_minutos: number
           fechamento_retroativo: boolean
           id: string
@@ -823,6 +2912,7 @@ export type Database = {
           criado_por_id?: string | null
           criado_por_nome_snapshot?: string | null
           data: string
+          demao_numero?: number | null
           duracao_minutos: number
           fechamento_retroativo?: boolean
           id?: string
@@ -868,6 +2958,7 @@ export type Database = {
           criado_por_id?: string | null
           criado_por_nome_snapshot?: string | null
           data?: string
+          demao_numero?: number | null
           duracao_minutos?: number
           fechamento_retroativo?: boolean
           id?: string
@@ -950,6 +3041,8 @@ export type Database = {
           id: string
           ordem_producao_id: string
           quantidade_ml: number
+          quantidade_pecas: number | null
+          quantidade_unitaria_ml: number | null
         }
         Insert: {
           apontamento_id?: string | null
@@ -960,6 +3053,8 @@ export type Database = {
           id?: string
           ordem_producao_id: string
           quantidade_ml: number
+          quantidade_pecas?: number | null
+          quantidade_unitaria_ml?: number | null
         }
         Update: {
           apontamento_id?: string | null
@@ -970,6 +3065,8 @@ export type Database = {
           id?: string
           ordem_producao_id?: string
           quantidade_ml?: number
+          quantidade_pecas?: number | null
+          quantidade_unitaria_ml?: number | null
         }
         Relationships: [
           {
@@ -1061,6 +3158,69 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      producao_cronograma_marcos: {
+        Row: {
+          created_at: string
+          data: string
+          descricao: string | null
+          id: string
+          origem: string | null
+          origem_id: string | null
+          prioridade: string | null
+          project_group_id: string | null
+          projeto_id: string | null
+          status: string | null
+          tipo: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          descricao?: string | null
+          id?: string
+          origem?: string | null
+          origem_id?: string | null
+          prioridade?: string | null
+          project_group_id?: string | null
+          projeto_id?: string | null
+          status?: string | null
+          tipo?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          descricao?: string | null
+          id?: string
+          origem?: string | null
+          origem_id?: string | null
+          prioridade?: string | null
+          project_group_id?: string | null
+          projeto_id?: string | null
+          status?: string | null
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_cronograma_marcos_project_group_id_fkey"
+            columns: ["project_group_id"]
+            isOneToOne: false
+            referencedRelation: "project_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_cronograma_marcos_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "producao_projetos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       producao_etapa_materiais: {
         Row: {
@@ -1173,6 +3333,125 @@ export type Database = {
         }
         Relationships: []
       }
+      producao_led_planejado: {
+        Row: {
+          cordoes_por_peca: number
+          created_at: string
+          detalhamento: Json
+          especificacao: string | null
+          fonte: string
+          fonte_aba: string
+          fonte_linha: number
+          id: string
+          peca: string
+          projeto_id: string | null
+          quantidade_pecas: number
+          referencia: string
+          total_previsto: number
+        }
+        Insert: {
+          cordoes_por_peca?: number
+          created_at?: string
+          detalhamento?: Json
+          especificacao?: string | null
+          fonte: string
+          fonte_aba: string
+          fonte_linha: number
+          id?: string
+          peca: string
+          projeto_id?: string | null
+          quantidade_pecas?: number
+          referencia: string
+          total_previsto?: number
+        }
+        Update: {
+          cordoes_por_peca?: number
+          created_at?: string
+          detalhamento?: Json
+          especificacao?: string | null
+          fonte?: string
+          fonte_aba?: string
+          fonte_linha?: number
+          id?: string
+          peca?: string
+          projeto_id?: string | null
+          quantidade_pecas?: number
+          referencia?: string
+          total_previsto?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_led_planejado_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "producao_projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producao_led_registros: {
+        Row: {
+          apontamento_id: string | null
+          created_at: string
+          criado_por_id: string | null
+          criado_por_nome_snapshot: string | null
+          especificacao: string | null
+          id: string
+          observacoes: string | null
+          ordem_producao_id: string
+          origem: string | null
+          quantidade_cordoes: number
+          status: string | null
+          teste_funcional: boolean | null
+          voltagem: string | null
+        }
+        Insert: {
+          apontamento_id?: string | null
+          created_at?: string
+          criado_por_id?: string | null
+          criado_por_nome_snapshot?: string | null
+          especificacao?: string | null
+          id?: string
+          observacoes?: string | null
+          ordem_producao_id: string
+          origem?: string | null
+          quantidade_cordoes: number
+          status?: string | null
+          teste_funcional?: boolean | null
+          voltagem?: string | null
+        }
+        Update: {
+          apontamento_id?: string | null
+          created_at?: string
+          criado_por_id?: string | null
+          criado_por_nome_snapshot?: string | null
+          especificacao?: string | null
+          id?: string
+          observacoes?: string | null
+          ordem_producao_id?: string
+          origem?: string | null
+          quantidade_cordoes?: number
+          status?: string | null
+          teste_funcional?: boolean | null
+          voltagem?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_led_registros_apontamento_id_fkey"
+            columns: ["apontamento_id"]
+            isOneToOne: false
+            referencedRelation: "producao_apontamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_led_registros_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "producao_ordens_producao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       producao_materiais_projeto: {
         Row: {
           apontamento_id: string | null
@@ -1283,6 +3562,106 @@ export type Database = {
         }
         Relationships: []
       }
+      producao_necessidades_fabricacao: {
+        Row: {
+          calculo_snapshot: Json
+          created_at: string
+          criado_por_id: string | null
+          id: string
+          item_nome_snapshot: string
+          observacoes: string | null
+          ordem_producao_id: string | null
+          planejamento_item_id: string
+          processo_id: string | null
+          projetos_snapshot: Json
+          quantidade: number
+          status: string
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          calculo_snapshot?: Json
+          created_at?: string
+          criado_por_id?: string | null
+          id?: string
+          item_nome_snapshot: string
+          observacoes?: string | null
+          ordem_producao_id?: string | null
+          planejamento_item_id: string
+          processo_id?: string | null
+          projetos_snapshot?: Json
+          quantidade: number
+          status?: string
+          unidade?: string
+          updated_at?: string
+        }
+        Update: {
+          calculo_snapshot?: Json
+          created_at?: string
+          criado_por_id?: string | null
+          id?: string
+          item_nome_snapshot?: string
+          observacoes?: string | null
+          ordem_producao_id?: string | null
+          planejamento_item_id?: string
+          processo_id?: string | null
+          projetos_snapshot?: Json
+          quantidade?: number
+          status?: string
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_necessidades_fabricacao_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "producao_ordens_producao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_necessidades_fabricacao_planejamento_item_id_fkey"
+            columns: ["planejamento_item_id"]
+            isOneToOne: false
+            referencedRelation: "producao_planejamento_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_necessidades_fabricacao_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "producao_processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producao_nome_projeto_repair_audit_20260930: {
+        Row: {
+          corrigido_em: string
+          entidade: string
+          id: string
+          motivo: string
+          nome_anterior: string
+          nome_novo: string
+        }
+        Insert: {
+          corrigido_em?: string
+          entidade: string
+          id: string
+          motivo: string
+          nome_anterior: string
+          nome_novo: string
+        }
+        Update: {
+          corrigido_em?: string
+          entidade?: string
+          id?: string
+          motivo?: string
+          nome_anterior?: string
+          nome_novo?: string
+        }
+        Relationships: []
+      }
       producao_op_jornadas: {
         Row: {
           apontamento_id: string | null
@@ -1311,6 +3690,7 @@ export type Database = {
           inicio_ajustado_por_nome_snapshot: string | null
           inicio_ajuste_motivo: string | null
           inicio_ajuste_retroativo: boolean
+          interrompida_em: string | null
           justificativa_conclusao_rascunho: string | null
           membros_ids: string[] | null
           minutos_improdutivos_rascunho: number | null
@@ -1353,6 +3733,7 @@ export type Database = {
           inicio_ajustado_por_nome_snapshot?: string | null
           inicio_ajuste_motivo?: string | null
           inicio_ajuste_retroativo?: boolean
+          interrompida_em?: string | null
           justificativa_conclusao_rascunho?: string | null
           membros_ids?: string[] | null
           minutos_improdutivos_rascunho?: number | null
@@ -1395,6 +3776,7 @@ export type Database = {
           inicio_ajustado_por_nome_snapshot?: string | null
           inicio_ajuste_motivo?: string | null
           inicio_ajuste_retroativo?: boolean
+          interrompida_em?: string | null
           justificativa_conclusao_rascunho?: string | null
           membros_ids?: string[] | null
           minutos_improdutivos_rascunho?: number | null
@@ -1565,6 +3947,99 @@ export type Database = {
           },
         ]
       }
+      producao_ordem_materiais_pcp_fix_audit_20260930: {
+        Row: {
+          corrigido_em: string
+          item_id: string
+          motivo: string
+          numero_op: number
+          ordem_material_id: string
+          ordem_producao_id: string
+          processo_id: string
+          quantidade_antes: number
+          quantidade_pcp: number
+          solicitacao_material_id: string | null
+          status_op: string
+        }
+        Insert: {
+          corrigido_em?: string
+          item_id: string
+          motivo: string
+          numero_op: number
+          ordem_material_id: string
+          ordem_producao_id: string
+          processo_id: string
+          quantidade_antes: number
+          quantidade_pcp: number
+          solicitacao_material_id?: string | null
+          status_op: string
+        }
+        Update: {
+          corrigido_em?: string
+          item_id?: string
+          motivo?: string
+          numero_op?: number
+          ordem_material_id?: string
+          ordem_producao_id?: string
+          processo_id?: string
+          quantidade_antes?: number
+          quantidade_pcp?: number
+          solicitacao_material_id?: string | null
+          status_op?: string
+        }
+        Relationships: []
+      }
+      producao_ordem_materiais_remocao_audit_20260930: {
+        Row: {
+          item_id: string
+          item_snapshot: Json
+          motivo: string
+          numero_op: number
+          observacoes: string | null
+          ordem_material_id: string
+          ordem_producao_id: string
+          processo_id: string
+          quantidade_planejada: number
+          quantidade_solicitada: number
+          removido_em: string
+          solicitacao_material_id: string | null
+          solicitacao_material_item_id: string | null
+          unidade_snapshot: string
+        }
+        Insert: {
+          item_id: string
+          item_snapshot: Json
+          motivo: string
+          numero_op: number
+          observacoes?: string | null
+          ordem_material_id: string
+          ordem_producao_id: string
+          processo_id: string
+          quantidade_planejada: number
+          quantidade_solicitada: number
+          removido_em?: string
+          solicitacao_material_id?: string | null
+          solicitacao_material_item_id?: string | null
+          unidade_snapshot: string
+        }
+        Update: {
+          item_id?: string
+          item_snapshot?: Json
+          motivo?: string
+          numero_op?: number
+          observacoes?: string | null
+          ordem_material_id?: string
+          ordem_producao_id?: string
+          processo_id?: string
+          quantidade_planejada?: number
+          quantidade_solicitada?: number
+          removido_em?: string
+          solicitacao_material_id?: string | null
+          solicitacao_material_item_id?: string | null
+          unidade_snapshot?: string
+        }
+        Relationships: []
+      }
       producao_ordens_etapas_auditoria: {
         Row: {
           alterado_por_id: string | null
@@ -1667,6 +4142,7 @@ export type Database = {
           prioridade: string
           processo_id: string
           produto_entregavel: string | null
+          project_group_id: string | null
           projeto_id: string
           quantidade_planejada: number
           responsavel_id: string | null
@@ -1698,6 +4174,7 @@ export type Database = {
           prioridade?: string
           processo_id: string
           produto_entregavel?: string | null
+          project_group_id?: string | null
           projeto_id: string
           quantidade_planejada: number
           responsavel_id?: string | null
@@ -1729,6 +4206,7 @@ export type Database = {
           prioridade?: string
           processo_id?: string
           produto_entregavel?: string | null
+          project_group_id?: string | null
           projeto_id?: string
           quantidade_planejada?: number
           responsavel_id?: string | null
@@ -1748,6 +4226,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "producao_ordens_producao_project_group_id_fkey"
+            columns: ["project_group_id"]
+            isOneToOne: false
+            referencedRelation: "project_groups"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "producao_ordens_producao_projeto_id_fkey"
             columns: ["projeto_id"]
             isOneToOne: false
@@ -1762,6 +4247,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      producao_parametros_padrao: {
+        Row: {
+          ativo: boolean
+          complexidade: string | null
+          created_at: string
+          detalhamento: string | null
+          dias_cronograma: string | null
+          fonte: string
+          fonte_linha: number
+          gargalos_criticos: string | null
+          id: string
+          ritmo_padrao: string | null
+          tempo_unitario_horas: number | null
+          tempo_unitario_texto: string | null
+          tipologia: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          complexidade?: string | null
+          created_at?: string
+          detalhamento?: string | null
+          dias_cronograma?: string | null
+          fonte: string
+          fonte_linha: number
+          gargalos_criticos?: string | null
+          id?: string
+          ritmo_padrao?: string | null
+          tempo_unitario_horas?: number | null
+          tempo_unitario_texto?: string | null
+          tipologia: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          complexidade?: string | null
+          created_at?: string
+          detalhamento?: string | null
+          dias_cronograma?: string | null
+          fonte?: string
+          fonte_linha?: number
+          gargalos_criticos?: string | null
+          id?: string
+          ritmo_padrao?: string | null
+          tempo_unitario_horas?: number | null
+          tempo_unitario_texto?: string | null
+          tipologia?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       producao_permissoes: {
         Row: {
@@ -1822,6 +4358,486 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      producao_planejamento_agenda: {
+        Row: {
+          apontamento_referencia: string | null
+          created_at: string
+          data: string
+          descricao: string | null
+          fonte: string
+          fonte_aba: string | null
+          fonte_linha: number
+          frente: string | null
+          id: string
+          integracao_status: string
+          integrado_em: string | null
+          meta: string | null
+          observacoes: string | null
+          ordem_producao_id: string | null
+          prioridade: string | null
+          processo_id: string | null
+          project_group_id: string | null
+          projeto_chave: string | null
+          responsavel: string | null
+          status: string | null
+          tipo: string
+          turno: string | null
+          updated_at: string
+        }
+        Insert: {
+          apontamento_referencia?: string | null
+          created_at?: string
+          data: string
+          descricao?: string | null
+          fonte: string
+          fonte_aba?: string | null
+          fonte_linha: number
+          frente?: string | null
+          id?: string
+          integracao_status?: string
+          integrado_em?: string | null
+          meta?: string | null
+          observacoes?: string | null
+          ordem_producao_id?: string | null
+          prioridade?: string | null
+          processo_id?: string | null
+          project_group_id?: string | null
+          projeto_chave?: string | null
+          responsavel?: string | null
+          status?: string | null
+          tipo: string
+          turno?: string | null
+          updated_at?: string
+        }
+        Update: {
+          apontamento_referencia?: string | null
+          created_at?: string
+          data?: string
+          descricao?: string | null
+          fonte?: string
+          fonte_aba?: string | null
+          fonte_linha?: number
+          frente?: string | null
+          id?: string
+          integracao_status?: string
+          integrado_em?: string | null
+          meta?: string | null
+          observacoes?: string | null
+          ordem_producao_id?: string | null
+          prioridade?: string | null
+          processo_id?: string | null
+          project_group_id?: string | null
+          projeto_chave?: string | null
+          responsavel?: string | null
+          status?: string | null
+          tipo?: string
+          turno?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_planejamento_agenda_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "producao_ordens_producao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_planejamento_agenda_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "producao_processos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_planejamento_agenda_project_group_id_fkey"
+            columns: ["project_group_id"]
+            isOneToOne: false
+            referencedRelation: "project_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producao_planejamento_divergencias: {
+        Row: {
+          created_at: string
+          detalhes: Json
+          diferenca: number | null
+          id: string
+          necessidade_fabricacao_id: string | null
+          planejamento_item_id: string
+          resolved_at: string | null
+          status: string
+          tipo: string
+          valor_anterior: number | null
+          valor_novo: number | null
+        }
+        Insert: {
+          created_at?: string
+          detalhes?: Json
+          diferenca?: number | null
+          id?: string
+          necessidade_fabricacao_id?: string | null
+          planejamento_item_id: string
+          resolved_at?: string | null
+          status?: string
+          tipo: string
+          valor_anterior?: number | null
+          valor_novo?: number | null
+        }
+        Update: {
+          created_at?: string
+          detalhes?: Json
+          diferenca?: number | null
+          id?: string
+          necessidade_fabricacao_id?: string | null
+          planejamento_item_id?: string
+          resolved_at?: string | null
+          status?: string
+          tipo?: string
+          valor_anterior?: number | null
+          valor_novo?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_planejamento_divergenci_necessidade_fabricacao_id_fkey"
+            columns: ["necessidade_fabricacao_id"]
+            isOneToOne: false
+            referencedRelation: "producao_necessidades_fabricacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_planejamento_divergencias_planejamento_item_id_fkey"
+            columns: ["planejamento_item_id"]
+            isOneToOne: false
+            referencedRelation: "producao_planejamento_itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producao_planejamento_fontes: {
+        Row: {
+          chave: string
+          created_at: string
+          id: string
+          modo: string
+          nome: string
+          status: string
+          ultima_sincronizacao: string | null
+          ultimo_resultado: Json | null
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          chave: string
+          created_at?: string
+          id?: string
+          modo?: string
+          nome: string
+          status?: string
+          ultima_sincronizacao?: string | null
+          ultimo_resultado?: Json | null
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          chave?: string
+          created_at?: string
+          id?: string
+          modo?: string
+          nome?: string
+          status?: string
+          ultima_sincronizacao?: string | null
+          ultimo_resultado?: Json | null
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
+      producao_planejamento_itens: {
+        Row: {
+          acervo_codigo_ref: string | null
+          ativo: boolean
+          codigo_producao: string
+          created_at: string
+          demandas: Json
+          fonte: string
+          fonte_linha: number
+          id: string
+          nome: string
+          observacoes: string | null
+          qtd_estoque_referencia: number
+          status_planilha: string | null
+          updated_at: string
+        }
+        Insert: {
+          acervo_codigo_ref?: string | null
+          ativo?: boolean
+          codigo_producao: string
+          created_at?: string
+          demandas?: Json
+          fonte: string
+          fonte_linha: number
+          id?: string
+          nome: string
+          observacoes?: string | null
+          qtd_estoque_referencia?: number
+          status_planilha?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acervo_codigo_ref?: string | null
+          ativo?: boolean
+          codigo_producao?: string
+          created_at?: string
+          demandas?: Json
+          fonte?: string
+          fonte_linha?: number
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          qtd_estoque_referencia?: number
+          status_planilha?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      producao_planejamento_projeto_pecas: {
+        Row: {
+          codigo_peca: string
+          created_at: string
+          id: string
+          local_utilizacao_id: string
+          origem: string
+          planejamento_item_id: string | null
+          planejamento_projeto_id: string
+          producao_projeto_id: string
+          project_group_id: string
+          quantidade_planejada: number
+          updated_at: string
+        }
+        Insert: {
+          codigo_peca: string
+          created_at?: string
+          id?: string
+          local_utilizacao_id: string
+          origem?: string
+          planejamento_item_id?: string | null
+          planejamento_projeto_id: string
+          producao_projeto_id: string
+          project_group_id: string
+          quantidade_planejada?: number
+          updated_at?: string
+        }
+        Update: {
+          codigo_peca?: string
+          created_at?: string
+          id?: string
+          local_utilizacao_id?: string
+          origem?: string
+          planejamento_item_id?: string | null
+          planejamento_projeto_id?: string
+          producao_projeto_id?: string
+          project_group_id?: string
+          quantidade_planejada?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_planejamento_projeto_peca_planejamento_projeto_id_fkey"
+            columns: ["planejamento_projeto_id"]
+            isOneToOne: false
+            referencedRelation: "producao_planejamento_projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_planejamento_projeto_pecas_local_utilizacao_id_fkey"
+            columns: ["local_utilizacao_id"]
+            isOneToOne: false
+            referencedRelation: "locais_utilizacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_planejamento_projeto_pecas_planejamento_item_id_fkey"
+            columns: ["planejamento_item_id"]
+            isOneToOne: false
+            referencedRelation: "producao_planejamento_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_planejamento_projeto_pecas_producao_projeto_id_fkey"
+            columns: ["producao_projeto_id"]
+            isOneToOne: false
+            referencedRelation: "producao_projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_planejamento_projeto_pecas_project_group_id_fkey"
+            columns: ["project_group_id"]
+            isOneToOne: false
+            referencedRelation: "project_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producao_planejamento_projetos: {
+        Row: {
+          ativo_calculo: boolean
+          chave: string
+          created_at: string
+          fonte: string | null
+          fonte_coluna: string | null
+          id: string
+          nome: string
+          ordem: number
+          project_group_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo_calculo?: boolean
+          chave: string
+          created_at?: string
+          fonte?: string | null
+          fonte_coluna?: string | null
+          id?: string
+          nome: string
+          ordem?: number
+          project_group_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo_calculo?: boolean
+          chave?: string
+          created_at?: string
+          fonte?: string | null
+          fonte_coluna?: string | null
+          id?: string
+          nome?: string
+          ordem?: number
+          project_group_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_planejamento_projetos_project_group_id_fkey"
+            columns: ["project_group_id"]
+            isOneToOne: false
+            referencedRelation: "project_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producao_planejamento_referencias_pendentes: {
+        Row: {
+          created_at: string
+          id: string
+          motivo: string
+          planejamento_item_id: string
+          planejamento_projeto_id: string
+          project_group_id: string
+          quantidade_planejada: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          motivo?: string
+          planejamento_item_id: string
+          planejamento_projeto_id: string
+          project_group_id: string
+          quantidade_planejada?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          motivo?: string
+          planejamento_item_id?: string
+          planejamento_projeto_id?: string
+          project_group_id?: string
+          quantidade_planejada?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_planejamento_referencias__planejamento_projeto_id_fkey"
+            columns: ["planejamento_projeto_id"]
+            isOneToOne: false
+            referencedRelation: "producao_planejamento_projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_planejamento_referencias_pen_planejamento_item_id_fkey"
+            columns: ["planejamento_item_id"]
+            isOneToOne: false
+            referencedRelation: "producao_planejamento_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_planejamento_referencias_pendent_project_group_id_fkey"
+            columns: ["project_group_id"]
+            isOneToOne: false
+            referencedRelation: "project_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producao_planejamento_sincronizacoes: {
+        Row: {
+          aba: string | null
+          arquivo: string | null
+          campo: string | null
+          created_at: string
+          erro: string | null
+          fonte_id: string | null
+          id: string
+          identificador: string | null
+          origem_usuario: string | null
+          resultado: string
+          valor_anterior: Json | null
+          valor_novo: Json | null
+        }
+        Insert: {
+          aba?: string | null
+          arquivo?: string | null
+          campo?: string | null
+          created_at?: string
+          erro?: string | null
+          fonte_id?: string | null
+          id?: string
+          identificador?: string | null
+          origem_usuario?: string | null
+          resultado: string
+          valor_anterior?: Json | null
+          valor_novo?: Json | null
+        }
+        Update: {
+          aba?: string | null
+          arquivo?: string | null
+          campo?: string | null
+          created_at?: string
+          erro?: string | null
+          fonte_id?: string | null
+          id?: string
+          identificador?: string | null
+          origem_usuario?: string | null
+          resultado?: string
+          valor_anterior?: Json | null
+          valor_novo?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_planejamento_sincronizacoes_fonte_id_fkey"
+            columns: ["fonte_id"]
+            isOneToOne: false
+            referencedRelation: "producao_planejamento_fontes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       producao_processo_dependencias: {
         Row: {
@@ -2100,6 +5116,140 @@ export type Database = {
         }
         Relationships: []
       }
+      producao_programacao_diaria: {
+        Row: {
+          atividade_planejada: string
+          created_at: string
+          data: string
+          equipe_prevista: string | null
+          id: string
+          meta: string | null
+          ordem_producao_id: string | null
+          origem: string | null
+          origem_id: string | null
+          prioridade: string | null
+          processo_id: string | null
+          project_group_id: string | null
+          projeto_id: string | null
+          status: string
+          turno: string | null
+          updated_at: string
+        }
+        Insert: {
+          atividade_planejada: string
+          created_at?: string
+          data: string
+          equipe_prevista?: string | null
+          id?: string
+          meta?: string | null
+          ordem_producao_id?: string | null
+          origem?: string | null
+          origem_id?: string | null
+          prioridade?: string | null
+          processo_id?: string | null
+          project_group_id?: string | null
+          projeto_id?: string | null
+          status?: string
+          turno?: string | null
+          updated_at?: string
+        }
+        Update: {
+          atividade_planejada?: string
+          created_at?: string
+          data?: string
+          equipe_prevista?: string | null
+          id?: string
+          meta?: string | null
+          ordem_producao_id?: string | null
+          origem?: string | null
+          origem_id?: string | null
+          prioridade?: string | null
+          processo_id?: string | null
+          project_group_id?: string | null
+          projeto_id?: string | null
+          status?: string
+          turno?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_programacao_diaria_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "producao_ordens_producao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_programacao_diaria_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "producao_processos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_programacao_diaria_project_group_id_fkey"
+            columns: ["project_group_id"]
+            isOneToOne: false
+            referencedRelation: "project_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_programacao_diaria_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "producao_projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producao_projeto_grupos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          origem: string
+          project_group_id: string
+          projeto_id: string
+          quantidade_planejada: number | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          origem?: string
+          project_group_id: string
+          projeto_id: string
+          quantidade_planejada?: number | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          origem?: string
+          project_group_id?: string
+          projeto_id?: string
+          quantidade_planejada?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_projeto_grupos_project_group_id_fkey"
+            columns: ["project_group_id"]
+            isOneToOne: false
+            referencedRelation: "project_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_projeto_grupos_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "producao_projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       producao_projetos: {
         Row: {
           ativo: boolean
@@ -2116,6 +5266,7 @@ export type Database = {
           data_inicio_real: string | null
           descricao: string | null
           endereco_execucao: string | null
+          excluido_em: string | null
           id: string
           local_execucao: string | null
           local_utilizacao_id: string | null
@@ -2142,6 +5293,7 @@ export type Database = {
           data_inicio_real?: string | null
           descricao?: string | null
           endereco_execucao?: string | null
+          excluido_em?: string | null
           id?: string
           local_execucao?: string | null
           local_utilizacao_id?: string | null
@@ -2168,6 +5320,7 @@ export type Database = {
           data_inicio_real?: string | null
           descricao?: string | null
           endereco_execucao?: string | null
+          excluido_em?: string | null
           id?: string
           local_execucao?: string | null
           local_utilizacao_id?: string | null
@@ -2188,6 +5341,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      producao_projetos_exclusoes_auditoria: {
+        Row: {
+          created_at: string
+          excluido_por_id: string
+          id: string
+          nome: string
+          projeto_id: string
+          totais: Json
+        }
+        Insert: {
+          created_at?: string
+          excluido_por_id: string
+          id?: string
+          nome: string
+          projeto_id: string
+          totais: Json
+        }
+        Update: {
+          created_at?: string
+          excluido_por_id?: string
+          id?: string
+          nome?: string
+          projeto_id?: string
+          totais?: Json
+        }
+        Relationships: []
       }
       producao_tarefas: {
         Row: {
@@ -2216,13 +5396,68 @@ export type Database = {
         }
         Relationships: []
       }
+      producao_tinta_planejada: {
+        Row: {
+          created_at: string
+          demão: string | null
+          fonte: string
+          fonte_aba: string
+          fonte_linha: number
+          id: string
+          material_categoria: string
+          peca: string
+          projeto_id: string | null
+          quantidade_pecas: number | null
+          subpeca: string | null
+          volume_previsto_ml: number
+        }
+        Insert: {
+          created_at?: string
+          demão?: string | null
+          fonte: string
+          fonte_aba: string
+          fonte_linha: number
+          id?: string
+          material_categoria: string
+          peca: string
+          projeto_id?: string | null
+          quantidade_pecas?: number | null
+          subpeca?: string | null
+          volume_previsto_ml: number
+        }
+        Update: {
+          created_at?: string
+          demão?: string | null
+          fonte?: string
+          fonte_aba?: string
+          fonte_linha?: number
+          id?: string
+          material_categoria?: string
+          peca?: string
+          projeto_id?: string | null
+          quantidade_pecas?: number | null
+          subpeca?: string | null
+          volume_previsto_ml?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_tinta_planejada_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "producao_projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           ativo: boolean
           created_at: string
+          deve_trocar_senha: boolean
           email: string
           id: string
           nome: string
+          senha_redefinida_em: string | null
           tipo_usuario: string
           updated_at: string
           user_id: string
@@ -2230,9 +5465,11 @@ export type Database = {
         Insert: {
           ativo?: boolean
           created_at?: string
+          deve_trocar_senha?: boolean
           email: string
           id?: string
           nome: string
+          senha_redefinida_em?: string | null
           tipo_usuario?: string
           updated_at?: string
           user_id: string
@@ -2240,9 +5477,11 @@ export type Database = {
         Update: {
           ativo?: boolean
           created_at?: string
+          deve_trocar_senha?: boolean
           email?: string
           id?: string
           nome?: string
+          senha_redefinida_em?: string | null
           tipo_usuario?: string
           updated_at?: string
           user_id?: string
@@ -2299,6 +5538,515 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      rh_colaboradores: {
+        Row: {
+          ativo: boolean
+          cargo: string | null
+          cep: string | null
+          cidade: string | null
+          controla_ponto: boolean
+          cpf_cnpj: string | null
+          created_at: string
+          data_admissao: string | null
+          data_nascimento: string | null
+          departamento: string | null
+          email: string | null
+          endereco: string | null
+          estado: string | null
+          hora_extra_gera_valor: boolean
+          id: string
+          importado_em: string | null
+          jornada_id: string | null
+          nome: string
+          origem_id: string | null
+          origem_sistema: string
+          origem_user_id: string | null
+          pis: string | null
+          pista_ativo_legado: boolean
+          rh_ativo: boolean
+          rh_cadastrado: boolean
+          salario: number | null
+          telefone: string | null
+          tipo_contrato: string | null
+          updated_at: string
+          user_id: string | null
+          valor_contrato: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          cargo?: string | null
+          cep?: string | null
+          cidade?: string | null
+          controla_ponto?: boolean
+          cpf_cnpj?: string | null
+          created_at?: string
+          data_admissao?: string | null
+          data_nascimento?: string | null
+          departamento?: string | null
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          hora_extra_gera_valor?: boolean
+          id?: string
+          importado_em?: string | null
+          jornada_id?: string | null
+          nome: string
+          origem_id?: string | null
+          origem_sistema?: string
+          origem_user_id?: string | null
+          pis?: string | null
+          pista_ativo_legado?: boolean
+          rh_ativo?: boolean
+          rh_cadastrado?: boolean
+          salario?: number | null
+          telefone?: string | null
+          tipo_contrato?: string | null
+          updated_at?: string
+          user_id?: string | null
+          valor_contrato?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          cargo?: string | null
+          cep?: string | null
+          cidade?: string | null
+          controla_ponto?: boolean
+          cpf_cnpj?: string | null
+          created_at?: string
+          data_admissao?: string | null
+          data_nascimento?: string | null
+          departamento?: string | null
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          hora_extra_gera_valor?: boolean
+          id?: string
+          importado_em?: string | null
+          jornada_id?: string | null
+          nome?: string
+          origem_id?: string | null
+          origem_sistema?: string
+          origem_user_id?: string | null
+          pis?: string | null
+          pista_ativo_legado?: boolean
+          rh_ativo?: boolean
+          rh_cadastrado?: boolean
+          salario?: number | null
+          telefone?: string | null
+          tipo_contrato?: string | null
+          updated_at?: string
+          user_id?: string | null
+          valor_contrato?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_colaboradores_jornada_id_fkey"
+            columns: ["jornada_id"]
+            isOneToOne: false
+            referencedRelation: "rh_jornadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rh_feriados: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          data: string
+          id: string
+          importado_em: string | null
+          nome: string
+          origem_id: string | null
+          origem_sistema: string
+          tipo: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          data: string
+          id?: string
+          importado_em?: string | null
+          nome: string
+          origem_id?: string | null
+          origem_sistema?: string
+          tipo?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          data?: string
+          id?: string
+          importado_em?: string | null
+          nome?: string
+          origem_id?: string | null
+          origem_sistema?: string
+          tipo?: string | null
+        }
+        Relationships: []
+      }
+      rh_importacoes_auditoria: {
+        Row: {
+          acao: string
+          created_at: string
+          destino_id: string | null
+          detalhes: Json
+          entidade: string
+          id: string
+          origem_id: string | null
+          origem_sistema: string
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          destino_id?: string | null
+          detalhes?: Json
+          entidade: string
+          id?: string
+          origem_id?: string | null
+          origem_sistema: string
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          destino_id?: string | null
+          detalhes?: Json
+          entidade?: string
+          id?: string
+          origem_id?: string | null
+          origem_sistema?: string
+        }
+        Relationships: []
+      }
+      rh_jornadas: {
+        Row: {
+          ativo: boolean
+          carga_horaria_semanal: number | null
+          created_at: string
+          descricao: string | null
+          domingo_entrada_1: string | null
+          domingo_entrada_2: string | null
+          domingo_saida_1: string | null
+          domingo_saida_2: string | null
+          feriado_entrada_1: string | null
+          feriado_entrada_2: string | null
+          feriado_saida_1: string | null
+          feriado_saida_2: string | null
+          id: string
+          importado_em: string | null
+          nome: string
+          origem_id: string | null
+          origem_sistema: string
+          personalizada_para_colaborador_id: string | null
+          quarta_entrada_1: string | null
+          quarta_entrada_2: string | null
+          quarta_saida_1: string | null
+          quarta_saida_2: string | null
+          quinta_entrada_1: string | null
+          quinta_entrada_2: string | null
+          quinta_saida_1: string | null
+          quinta_saida_2: string | null
+          sabado_entrada_1: string | null
+          sabado_entrada_2: string | null
+          sabado_saida_1: string | null
+          sabado_saida_2: string | null
+          segunda_entrada_1: string | null
+          segunda_entrada_2: string | null
+          segunda_saida_1: string | null
+          segunda_saida_2: string | null
+          sexta_entrada_1: string | null
+          sexta_entrada_2: string | null
+          sexta_saida_1: string | null
+          sexta_saida_2: string | null
+          terca_entrada_1: string | null
+          terca_entrada_2: string | null
+          terca_saida_1: string | null
+          terca_saida_2: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          carga_horaria_semanal?: number | null
+          created_at?: string
+          descricao?: string | null
+          domingo_entrada_1?: string | null
+          domingo_entrada_2?: string | null
+          domingo_saida_1?: string | null
+          domingo_saida_2?: string | null
+          feriado_entrada_1?: string | null
+          feriado_entrada_2?: string | null
+          feriado_saida_1?: string | null
+          feriado_saida_2?: string | null
+          id?: string
+          importado_em?: string | null
+          nome: string
+          origem_id?: string | null
+          origem_sistema?: string
+          personalizada_para_colaborador_id?: string | null
+          quarta_entrada_1?: string | null
+          quarta_entrada_2?: string | null
+          quarta_saida_1?: string | null
+          quarta_saida_2?: string | null
+          quinta_entrada_1?: string | null
+          quinta_entrada_2?: string | null
+          quinta_saida_1?: string | null
+          quinta_saida_2?: string | null
+          sabado_entrada_1?: string | null
+          sabado_entrada_2?: string | null
+          sabado_saida_1?: string | null
+          sabado_saida_2?: string | null
+          segunda_entrada_1?: string | null
+          segunda_entrada_2?: string | null
+          segunda_saida_1?: string | null
+          segunda_saida_2?: string | null
+          sexta_entrada_1?: string | null
+          sexta_entrada_2?: string | null
+          sexta_saida_1?: string | null
+          sexta_saida_2?: string | null
+          terca_entrada_1?: string | null
+          terca_entrada_2?: string | null
+          terca_saida_1?: string | null
+          terca_saida_2?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          carga_horaria_semanal?: number | null
+          created_at?: string
+          descricao?: string | null
+          domingo_entrada_1?: string | null
+          domingo_entrada_2?: string | null
+          domingo_saida_1?: string | null
+          domingo_saida_2?: string | null
+          feriado_entrada_1?: string | null
+          feriado_entrada_2?: string | null
+          feriado_saida_1?: string | null
+          feriado_saida_2?: string | null
+          id?: string
+          importado_em?: string | null
+          nome?: string
+          origem_id?: string | null
+          origem_sistema?: string
+          personalizada_para_colaborador_id?: string | null
+          quarta_entrada_1?: string | null
+          quarta_entrada_2?: string | null
+          quarta_saida_1?: string | null
+          quarta_saida_2?: string | null
+          quinta_entrada_1?: string | null
+          quinta_entrada_2?: string | null
+          quinta_saida_1?: string | null
+          quinta_saida_2?: string | null
+          sabado_entrada_1?: string | null
+          sabado_entrada_2?: string | null
+          sabado_saida_1?: string | null
+          sabado_saida_2?: string | null
+          segunda_entrada_1?: string | null
+          segunda_entrada_2?: string | null
+          segunda_saida_1?: string | null
+          segunda_saida_2?: string | null
+          sexta_entrada_1?: string | null
+          sexta_entrada_2?: string | null
+          sexta_saida_1?: string | null
+          sexta_saida_2?: string | null
+          terca_entrada_1?: string | null
+          terca_entrada_2?: string | null
+          terca_saida_1?: string | null
+          terca_saida_2?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_jornadas_personalizada_colaborador_fkey"
+            columns: ["personalizada_para_colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "rh_colaboradores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rh_jornadas_personalizada_colaborador_fkey"
+            columns: ["personalizada_para_colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "rh_colaboradores_operacionais_v"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rh_ponto_dias_pagos: {
+        Row: {
+          colaborador_id: string
+          created_at: string
+          data: string
+          id: string
+          importado_em: string | null
+          origem_id: string | null
+          origem_pago_por: string | null
+          origem_sistema: string
+          pago_em: string
+          pago_por: string | null
+          updated_at: string
+          valor_adicionais: number
+          valor_diaria: number
+          valor_total: number
+        }
+        Insert: {
+          colaborador_id: string
+          created_at?: string
+          data: string
+          id?: string
+          importado_em?: string | null
+          origem_id?: string | null
+          origem_pago_por?: string | null
+          origem_sistema?: string
+          pago_em?: string
+          pago_por?: string | null
+          updated_at?: string
+          valor_adicionais?: number
+          valor_diaria?: number
+          valor_total?: number
+        }
+        Update: {
+          colaborador_id?: string
+          created_at?: string
+          data?: string
+          id?: string
+          importado_em?: string | null
+          origem_id?: string | null
+          origem_pago_por?: string | null
+          origem_sistema?: string
+          pago_em?: string
+          pago_por?: string | null
+          updated_at?: string
+          valor_adicionais?: number
+          valor_diaria?: number
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_ponto_dias_pagos_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "rh_colaboradores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rh_ponto_dias_pagos_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "rh_colaboradores_operacionais_v"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rh_registros_ponto: {
+        Row: {
+          adicional_noturno_snapshot: number | null
+          aprovado_em: string | null
+          aprovado_por: string | null
+          colaborador_id: string
+          created_at: string
+          criado_por: string | null
+          data: string
+          hora_entrada_1: string | null
+          hora_entrada_2: string | null
+          hora_entrada_3: string | null
+          hora_saida_1: string | null
+          hora_saida_2: string | null
+          hora_saida_3: string | null
+          horas_atraso_snapshot: number | null
+          horas_extras_100_snapshot: number | null
+          horas_extras_50_snapshot: number | null
+          horas_falta_snapshot: number | null
+          horas_trabalhadas_snapshot: number | null
+          id: string
+          importado_em: string | null
+          is_domingo_snapshot: boolean | null
+          is_feriado_snapshot: boolean | null
+          observacao: string | null
+          origem_aprovado_por: string | null
+          origem_created_by: string | null
+          origem_id: string | null
+          origem_sistema: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          adicional_noturno_snapshot?: number | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          colaborador_id: string
+          created_at?: string
+          criado_por?: string | null
+          data?: string
+          hora_entrada_1?: string | null
+          hora_entrada_2?: string | null
+          hora_entrada_3?: string | null
+          hora_saida_1?: string | null
+          hora_saida_2?: string | null
+          hora_saida_3?: string | null
+          horas_atraso_snapshot?: number | null
+          horas_extras_100_snapshot?: number | null
+          horas_extras_50_snapshot?: number | null
+          horas_falta_snapshot?: number | null
+          horas_trabalhadas_snapshot?: number | null
+          id?: string
+          importado_em?: string | null
+          is_domingo_snapshot?: boolean | null
+          is_feriado_snapshot?: boolean | null
+          observacao?: string | null
+          origem_aprovado_por?: string | null
+          origem_created_by?: string | null
+          origem_id?: string | null
+          origem_sistema?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          adicional_noturno_snapshot?: number | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          colaborador_id?: string
+          created_at?: string
+          criado_por?: string | null
+          data?: string
+          hora_entrada_1?: string | null
+          hora_entrada_2?: string | null
+          hora_entrada_3?: string | null
+          hora_saida_1?: string | null
+          hora_saida_2?: string | null
+          hora_saida_3?: string | null
+          horas_atraso_snapshot?: number | null
+          horas_extras_100_snapshot?: number | null
+          horas_extras_50_snapshot?: number | null
+          horas_falta_snapshot?: number | null
+          horas_trabalhadas_snapshot?: number | null
+          id?: string
+          importado_em?: string | null
+          is_domingo_snapshot?: boolean | null
+          is_feriado_snapshot?: boolean | null
+          observacao?: string | null
+          origem_aprovado_por?: string | null
+          origem_created_by?: string | null
+          origem_id?: string | null
+          origem_sistema?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_registros_ponto_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "rh_colaboradores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rh_registros_ponto_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "rh_colaboradores_operacionais_v"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       solicitacao_itens: {
         Row: {
@@ -2910,7 +6658,101 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      financeiro_pagina54_exportacao_pendente: {
+        Row: {
+          anotacao: string | null
+          categoria: string | null
+          credito: string | null
+          data_prevista: string | null
+          data_realizada: string | null
+          debito: string | null
+          descricao: string | null
+          integracao_id: string | null
+          lancamento_id: string | null
+          linha: number | null
+          origem_alteracao: string | null
+          situacao: string | null
+          subcategoria: string | null
+          ultima_atualizacao: string | null
+        }
+        Insert: {
+          anotacao?: string | null
+          categoria?: string | null
+          credito?: never
+          data_prevista?: never
+          data_realizada?: never
+          debito?: never
+          descricao?: string | null
+          integracao_id?: string | null
+          lancamento_id?: string | null
+          linha?: number | null
+          origem_alteracao?: never
+          situacao?: never
+          subcategoria?: string | null
+          ultima_atualizacao?: never
+        }
+        Update: {
+          anotacao?: string | null
+          categoria?: string | null
+          credito?: never
+          data_prevista?: never
+          data_realizada?: never
+          debito?: never
+          descricao?: string | null
+          integracao_id?: string | null
+          lancamento_id?: string | null
+          linha?: number | null
+          origem_alteracao?: never
+          situacao?: never
+          subcategoria?: string | null
+          ultima_atualizacao?: never
+        }
+        Relationships: []
+      }
+      rh_colaboradores_operacionais_v: {
+        Row: {
+          ativo: boolean | null
+          cargo: string | null
+          controla_ponto: boolean | null
+          departamento: string | null
+          email: string | null
+          id: string | null
+          jornada_id: string | null
+          nome: string | null
+          user_id: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          cargo?: string | null
+          controla_ponto?: boolean | null
+          departamento?: string | null
+          email?: string | null
+          id?: string | null
+          jornada_id?: string | null
+          nome?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          cargo?: string | null
+          controla_ponto?: boolean | null
+          departamento?: string | null
+          email?: string | null
+          id?: string | null
+          jornada_id?: string | null
+          nome?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_colaboradores_jornada_id_fkey"
+            columns: ["jornada_id"]
+            isOneToOne: false
+            referencedRelation: "rh_jornadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       adicionar_itens_solicitacao_material: {
@@ -2951,6 +6793,10 @@ export type Database = {
         }
         Returns: Json
       }
+      atualizar_planejamento_projeto_v1: {
+        Args: { p_ativo_calculo: boolean; p_projeto_id: string }
+        Returns: undefined
+      }
       atualizar_status_ordem_producao: {
         Args: { p_ordem_id: string }
         Returns: undefined
@@ -2961,10 +6807,19 @@ export type Database = {
         Args: { p_apontamento_id: string; p_justificativa: string }
         Returns: undefined
       }
+      cancelar_necessidade_fabricacao_v1: {
+        Args: { p_necessidade_id: string }
+        Returns: undefined
+      }
       cancelar_ordem_vazia_producao_admin: {
         Args: { p_ordem_producao_id: string }
         Returns: boolean
       }
+      cancelar_reserva_acervo_v1: {
+        Args: { p_reserva_id: string }
+        Returns: undefined
+      }
+      concluir_primeiro_acesso: { Args: never; Returns: undefined }
       conferir_apontamento_producao: {
         Args: { p_apontamento_id: string }
         Returns: undefined
@@ -3013,6 +6868,14 @@ export type Database = {
           p_uf?: string
         }
         Returns: string
+      }
+      consultar_ferramenta_producao_v1: {
+        Args: { p_codigo: string }
+        Returns: Json
+      }
+      converter_solicitacao_material_retirada_v1: {
+        Args: { p_solicitacao_material_id: string }
+        Returns: Json
       }
       create_visualizador_message_thread: {
         Args: {
@@ -3083,6 +6946,28 @@ export type Database = {
         }
         Returns: string
       }
+      criar_apontamento_producao_com_consumos_tinta_v2: {
+        Args: {
+          p_consumos_tinta: Json
+          p_data: string
+          p_demao_numero: number
+          p_duracao_minutos: number
+          p_inicio: string
+          p_local_tipo: string
+          p_membros: string[]
+          p_minutos_improdutivos: number
+          p_minutos_produtivos: number
+          p_motivo_improdutivo: string
+          p_observacoes: string
+          p_ordem_producao_id: string
+          p_processo_id: string
+          p_projeto_local_id: string
+          p_quantidade_produzida: number
+          p_tarefa_id: string
+          p_termino: string
+        }
+        Returns: string
+      }
       criar_apontamento_producao_com_horarios: {
         Args: {
           p_data: string
@@ -3104,6 +6989,7 @@ export type Database = {
         }
         Returns: string
       }
+      criar_cidade_planejamento_v1: { Args: { p_nome: string }; Returns: Json }
       criar_etapa_producao: {
         Args: {
           p_aceita_producao_proporcional?: boolean
@@ -3192,6 +7078,16 @@ export type Database = {
         }
         Returns: string
       }
+      criar_peca_planejamento_v1: {
+        Args: {
+          p_codigo?: string
+          p_nome: string
+          p_planejamento_projeto_id?: string
+          p_quantidade?: number
+        }
+        Returns: Json
+      }
+      criar_perfil_acesso: { Args: { p_tipo_usuario: string }; Returns: string }
       criar_processo_producao: {
         Args: {
           p_codigo?: string
@@ -3296,6 +7192,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      enviar_necessidade_fabricacao_v1: {
+        Args: {
+          p_observacoes?: string
+          p_planejamento_item_id: string
+          p_quantidade?: number
+        }
+        Returns: string
+      }
       excluir_apontamento_producao_admin: {
         Args: { p_apontamento_id: string }
         Returns: undefined
@@ -3312,10 +7216,33 @@ export type Database = {
         }
         Returns: undefined
       }
+      excluir_projeto_producao_v1: {
+        Args: { p_nome_confirmacao: string; p_projeto_id: string }
+        Returns: Json
+      }
       finalizar_jornada_op_com_consumos_v1: {
         Args: {
           p_concluir_op: boolean
           p_consumos_tinta: Json
+          p_horarios_membros: Json
+          p_jornada_id: string
+          p_justificativa_conclusao: string
+          p_membros: string[]
+          p_minutos_improdutivos: number
+          p_motivo_improdutivo: string
+          p_motivo_regularizacao: string
+          p_observacoes: string
+          p_quantidade_produzida: number
+          p_tarefa_id: string
+          p_termino: string
+        }
+        Returns: Json
+      }
+      finalizar_jornada_op_com_consumos_v2: {
+        Args: {
+          p_concluir_op: boolean
+          p_consumos_tinta: Json
+          p_demao_numero: number
           p_horarios_membros: Json
           p_jornada_id: string
           p_justificativa_conclusao: string
@@ -3351,6 +7278,74 @@ export type Database = {
         Args: { p_justificativa?: string; p_ordem_producao_id: string }
         Returns: Json
       }
+      financeiro_criar_necessidade_manual: {
+        Args: {
+          p_categoria?: string
+          p_data_necessidade?: string
+          p_data_prevista_desembolso?: string
+          p_descricao: string
+          p_projeto_centro_custo?: string
+          p_subcategoria?: string
+          p_urgencia?: string
+          p_valor_estimado?: number
+        }
+        Returns: string
+      }
+      financeiro_liberar_programacao: {
+        Args: { p_lancamento_id: string }
+        Returns: undefined
+      }
+      financeiro_pagina54_extrair_cor: {
+        Args: { p_dados: Json }
+        Returns: string
+      }
+      financeiro_pagina54_marcar_exportado: {
+        Args: { p_erro?: string; p_integracao_id: string; p_ok: boolean }
+        Returns: Json
+      }
+      financeiro_pagina54_normalizar_cor: {
+        Args: { p_cor: string }
+        Returns: string
+      }
+      financeiro_pagina54_receber_linha: {
+        Args: {
+          p_aba: string
+          p_dados: Json
+          p_linha: number
+          p_spreadsheet_id: string
+          p_spreadsheet_titulo: string
+        }
+        Returns: Json
+      }
+      financeiro_pagina54_situacao: {
+        Args: { p_status: string }
+        Returns: string
+      }
+      financeiro_pagina54_status: {
+        Args: { p_situacao: string }
+        Returns: string
+      }
+      financeiro_parse_data_br: { Args: { p_texto: string }; Returns: string }
+      financeiro_parse_moeda_br: { Args: { p_texto: string }; Returns: number }
+      financeiro_parse_timestamp_pagina54: {
+        Args: { p_texto: string }
+        Returns: string
+      }
+      financeiro_registrar_auditoria: {
+        Args: {
+          p_acao: string
+          p_detalhes?: Json
+          p_entidade: string
+          p_entidade_id: string
+          p_lancamento_id: string
+        }
+        Returns: undefined
+      }
+      financeiro_sincronizar_rc: {
+        Args: { p_pedido_id: string }
+        Returns: string
+      }
+      financeiro_usuario_nome: { Args: { p_user_id: string }; Returns: string }
       gerar_proximo_codigo: { Args: never; Returns: string }
       gerar_solicitacao_material_op: {
         Args: { p_estoque_id: string; p_ordem_producao_id: string }
@@ -3364,6 +7359,10 @@ export type Database = {
         }[]
       }
       get_current_user_role: { Args: never; Returns: string }
+      ignorar_programacao_planejamento_v1: {
+        Args: { p_agenda_id: string }
+        Returns: undefined
+      }
       incorporar_materiais_pcp_op: {
         Args: { p_ordem_producao_id: string }
         Returns: number
@@ -3395,6 +7394,21 @@ export type Database = {
           id: string
           ordem_producao_id: string
           quantidade_ml: number
+        }[]
+      }
+      listar_divergencias_planejamento_v1: {
+        Args: never
+        Returns: {
+          created_at: string
+          detalhes: Json
+          diferenca: number
+          id: string
+          item_nome: string
+          planejamento_item_id: string
+          status: string
+          tipo: string
+          valor_anterior: number
+          valor_novo: number
         }[]
       }
       listar_estimativas_ops_v1: {
@@ -3478,6 +7492,41 @@ export type Database = {
           termino_rascunho: string
         }[]
       }
+      listar_jornadas_op_abertas_v2: {
+        Args: never
+        Returns: {
+          contexto_atualizado_em: string
+          horarios_membros_rascunho: Json
+          id: string
+          iniciado_em: string
+          iniciado_por_id: string
+          iniciado_por_nome_snapshot: string
+          interrompida_em: string
+          justificativa_conclusao_rascunho: string
+          membros_ids: string[]
+          minutos_improdutivos_rascunho: number
+          motivo_improdutivo_rascunho: string
+          motivo_regularizacao_rascunho: string
+          observacoes_rascunho: string
+          ordem_producao_id: string
+          pendente_dia_anterior: boolean
+          quantidade_produzida_rascunho: number
+          tarefa_id: string
+          termino_rascunho: string
+        }[]
+      }
+      listar_led_previsto_real_v1: {
+        Args: never
+        Returns: {
+          projeto_id: string
+          projeto_nome: string
+          registros: number
+          saldo: number
+          testes_ok: number
+          total_aplicado: number
+          total_previsto: number
+        }[]
+      }
       listar_membros_ocupados_jornadas_v1: {
         Args: never
         Returns: {
@@ -3507,6 +7556,43 @@ export type Database = {
           p_visualizacao?: string
         }
         Returns: Json
+      }
+      listar_movimentacoes_paginadas_v2: {
+        Args: {
+          p_busca?: string
+          p_categoria_id?: string
+          p_data_fim?: string
+          p_data_inicio?: string
+          p_estoque_id?: string
+          p_incluir_sem_estoque?: boolean
+          p_limite?: number
+          p_local_utilizacao_id?: string
+          p_pagina?: number
+          p_subcategoria_ids?: string[]
+          p_tipo?: string
+          p_tipo_item?: string
+          p_tipo_operacao_id?: string
+          p_visualizacao?: string
+        }
+        Returns: Json
+      }
+      listar_necessidades_fabricacao_v1: {
+        Args: never
+        Returns: {
+          calculo_snapshot: Json
+          created_at: string
+          id: string
+          item_nome: string
+          observacoes: string
+          ordem_numero: number
+          ordem_producao_id: string
+          planejamento_item_id: string
+          processo_id: string
+          processo_nome: string
+          projetos_snapshot: Json
+          quantidade: number
+          status: string
+        }[]
       }
       listar_ops_pintura_pendentes_v1: {
         Args: never
@@ -3612,6 +7698,7 @@ export type Database = {
           ultima_atualizacao: string
         }[]
       }
+      listar_painel_gerencial_producao_v2: { Args: never; Returns: Json }
       listar_permissoes_usuario: {
         Args: { p_user_id: string }
         Returns: {
@@ -3628,6 +7715,8 @@ export type Database = {
           permitido_efetivo: boolean
         }[]
       }
+      listar_planejamento_producao_v1: { Args: never; Returns: Json }
+      listar_planejamento_producao_v2: { Args: never; Returns: Json }
       listar_plano_diario_producao: {
         Args: { p_data_inicio: string; p_dias?: number }
         Returns: {
@@ -3645,12 +7734,79 @@ export type Database = {
           unidade_medida: string
         }[]
       }
+      listar_posicoes_estoque_exportacao_v1: {
+        Args: {
+          p_estoque_id: string
+          p_incluir_sem_estoque?: boolean
+          p_item_ids?: string[]
+        }
+        Returns: {
+          item_id: string
+          saldo_atual: number
+          ultima_movimentacao: Json
+        }[]
+      }
+      listar_programacao_diaria_integrada_v1: {
+        Args: { p_data_inicio: string; p_dias?: number }
+        Returns: {
+          atividade_planejada: string
+          data: string
+          equipe_prevista: string
+          id: string
+          meta: string
+          ordem_numero: number
+          ordem_producao_id: string
+          prioridade: string
+          processo_id: string
+          processo_nome: string
+          projeto_id: string
+          projeto_nome: string
+          status: string
+          turno: string
+        }[]
+      }
+      listar_reservas_acervo_v1: {
+        Args: never
+        Returns: {
+          acervo_codigo: string
+          acervo_id: string
+          acervo_nome: string
+          data_fim: string
+          data_inicio: string
+          id: string
+          observacoes: string
+          project_group_id: string
+          projeto_nome: string
+          quantidade: number
+          status: string
+        }[]
+      }
+      listar_resumo_demaos_pintura_v1: {
+        Args: never
+        Returns: {
+          demaos_registradas: number
+          ordem_producao_id: string
+          proxima_demao: number
+          ultima_demao: number
+        }[]
+      }
       listar_saldos_estoque_v1: {
         Args: { p_estoque_id?: string; p_incluir_sem_estoque?: boolean }
         Returns: {
           item_id: string
           saldo_atual: number
           ultima_movimentacao: Json
+        }[]
+      }
+      listar_tinta_previsto_real_v1: {
+        Args: never
+        Returns: {
+          desvio_ml: number
+          material_categoria: string
+          projeto_id: string
+          projeto_nome: string
+          volume_previsto_ml: number
+          volume_real_ml: number
         }[]
       }
       make_user_admin_by_email: {
@@ -3662,6 +7818,7 @@ export type Database = {
         Returns: string[]
       }
       nome_usuario_producao: { Args: { p_user_id: string }; Returns: string }
+      normalizar_nome_peca_v1: { Args: { p_valor: string }; Returns: string }
       obter_minhas_permissoes: { Args: never; Returns: Json }
       obter_proximo_codigo_etapa_producao: { Args: never; Returns: string }
       obter_resumo_exclusao_processo_producao: {
@@ -3715,6 +7872,10 @@ export type Database = {
         Args: { target_email: string }
         Returns: undefined
       }
+      proxima_demao_pintura_v1: {
+        Args: { p_ordem_producao_id: string }
+        Returns: number
+      }
       proximo_codigo_etapa_producao_definitivo: { Args: never; Returns: string }
       proximo_numero_ordem_producao: { Args: never; Returns: number }
       recalcular_cronograma_producao: { Args: never; Returns: string }
@@ -3756,6 +7917,24 @@ export type Database = {
         }
         Returns: Json
       }
+      registrar_devolucao_lote_v1: {
+        Args: { p_dados: Json; p_requisicao_id: string }
+        Returns: Json
+      }
+      registrar_led_op_v1: {
+        Args: {
+          p_apontamento_id?: string
+          p_especificacao?: string
+          p_observacoes?: string
+          p_ordem_producao_id: string
+          p_origem?: string
+          p_quantidade_cordoes: number
+          p_status?: string
+          p_teste_funcional?: boolean
+          p_voltagem?: string
+        }
+        Returns: string
+      }
       regularizar_estimativa_esforco_op_v1: {
         Args: {
           p_duracao_estimada_horas: number
@@ -3770,11 +7949,37 @@ export type Database = {
           file_path: string
         }[]
       }
+      resolver_divergencia_planejamento_v1: {
+        Args: { p_acao: string; p_divergencia_id: string }
+        Returns: undefined
+      }
+      resumo_exclusao_projeto_producao_v1: {
+        Args: { p_projeto_id: string }
+        Returns: Json
+      }
       retificar_apontamento_producao_com_consumos_tinta_v1: {
         Args: {
           p_apontamento_id: string
           p_consumos_tinta?: Json
           p_data: string
+          p_horarios_membros?: Json
+          p_inicio: string
+          p_membros?: string[]
+          p_minutos_improdutivos?: number
+          p_motivo_improdutivo?: string
+          p_motivo_retificacao?: string
+          p_observacoes?: string
+          p_quantidade_produzida: number
+          p_termino: string
+        }
+        Returns: Json
+      }
+      retificar_apontamento_producao_com_consumos_tinta_v2: {
+        Args: {
+          p_apontamento_id: string
+          p_consumos_tinta?: Json
+          p_data: string
+          p_demao_numero?: number
           p_horarios_membros?: Json
           p_inicio: string
           p_membros?: string[]
@@ -3821,6 +8026,80 @@ export type Database = {
           p_quantidade_planejada?: number
           p_sequencia?: number
           p_unidade_medida?: string
+        }
+        Returns: undefined
+      }
+      rh_atualizar_status_ponto: {
+        Args: { p_registro_id: string; p_status: string }
+        Returns: Json
+      }
+      rh_current_user_colaborador_id: { Args: never; Returns: string }
+      rh_delete_colaborador: {
+        Args: { p_colaborador_id: string }
+        Returns: string
+      }
+      rh_get_meu_ponto_snapshot: { Args: { p_mes: string }; Returns: Json }
+      rh_meu_ponto_disponivel: { Args: never; Returns: boolean }
+      rh_registrar_meu_ponto_agora: { Args: never; Returns: Json }
+      rh_remover_feriado: { Args: { p_id: string }; Returns: string }
+      rh_remover_jornada: { Args: { p_id: string }; Returns: string }
+      rh_salvar_colaborador: {
+        Args: {
+          p_ativo?: boolean
+          p_cargo?: string
+          p_cep?: string
+          p_cidade?: string
+          p_controla_ponto?: boolean
+          p_cpf_cnpj?: string
+          p_data_admissao?: string
+          p_data_nascimento?: string
+          p_departamento?: string
+          p_email?: string
+          p_endereco?: string
+          p_estado?: string
+          p_hora_extra_gera_valor?: boolean
+          p_id?: string
+          p_jornada_id?: string
+          p_nome?: string
+          p_pis?: string
+          p_rh_ativo?: boolean
+          p_salario?: number
+          p_telefone?: string
+          p_tipo_contrato?: string
+          p_valor_contrato?: number
+        }
+        Returns: string
+      }
+      rh_set_colaborador_contextos: {
+        Args: {
+          p_colaborador_id: string
+          p_pista_ativo: boolean
+          p_rh_ativo: boolean
+        }
+        Returns: undefined
+      }
+      rh_update_colaborador_fields: {
+        Args: {
+          p_cargo: string
+          p_cep: string
+          p_cidade: string
+          p_colaborador_id: string
+          p_controla_ponto: boolean
+          p_cpf_cnpj: string
+          p_data_admissao: string
+          p_data_nascimento: string
+          p_departamento: string
+          p_email: string
+          p_endereco: string
+          p_estado: string
+          p_hora_extra_gera_valor: boolean
+          p_jornada_id: string
+          p_nome: string
+          p_pis: string
+          p_salario: number
+          p_telefone: string
+          p_tipo_contrato: string
+          p_valor_contrato: number
         }
         Returns: undefined
       }
@@ -3899,6 +8178,18 @@ export type Database = {
         }
         Returns: string
       }
+      salvar_reserva_acervo_v1: {
+        Args: {
+          p_acervo_id: string
+          p_data_fim?: string
+          p_data_inicio?: string
+          p_observacoes?: string
+          p_project_group_id: string
+          p_quantidade: number
+          p_reserva_id: string
+        }
+        Returns: string
+      }
       send_visualizador_message: {
         Args: { p_message: string; p_requested_date?: string }
         Returns: string
@@ -3910,6 +8201,15 @@ export type Database = {
       sincronizar_materiais_ordem_producao: {
         Args: { p_ordem_producao_id: string }
         Returns: undefined
+      }
+      sincronizar_planejamento_payload_v1: {
+        Args: {
+          p_aba: string
+          p_arquivo: string
+          p_origem_usuario?: string
+          p_payload: Json
+        }
+        Returns: Json
       }
       start_user_message_thread: {
         Args: {
@@ -3943,12 +8243,28 @@ export type Database = {
         Args: { p_permissao: string }
         Returns: boolean
       }
+      validar_demao_pintura_lote_v1: {
+        Args: {
+          p_demao_numero: number
+          p_ordem_producao_id: string
+          p_quantidade: number
+        }
+        Returns: undefined
+      }
       vincular_material_producao: {
         Args: {
           p_apontamento_id?: string
           p_movement_id: string
           p_observacoes?: string
           p_projeto_local_id: string
+        }
+        Returns: string
+      }
+      vincular_programacao_planejamento_v1: {
+        Args: {
+          p_agenda_id: string
+          p_ordem_producao_id?: string
+          p_processo_id: string
         }
         Returns: string
       }

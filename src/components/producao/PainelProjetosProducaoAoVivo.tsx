@@ -232,8 +232,8 @@ export const PainelProjetosProducaoAoVivo = () => {
       if (!Array.isArray(data)) throw new Error('Resposta inválida do painel de projetos.');
       if (erroTinta) throw erroTinta;
 
-      const tintaPorProjeto = new Map(
-        (consumosTinta ?? []).map((item: any) => [
+      const tintaPorProjeto = new Map<string, { consumo_tinta_ml: number; registros_tinta: number }>(
+        (consumosTinta ?? []).map((item: any): [string, { consumo_tinta_ml: number; registros_tinta: number }] => [
           String(item.projeto_id),
           {
             consumo_tinta_ml: Number(item.consumo_tinta_ml ?? 0),

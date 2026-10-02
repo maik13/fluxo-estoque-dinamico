@@ -242,7 +242,7 @@ export const CronogramaProducao = () => {
     });
   }, [busca, etapas, projetoId]);
 
-  const linhasProgramadas = useMemo<LinhaGantt[]>(() => etapasFiltradas.flatMap((etapa) => {
+  const linhasProgramadas = useMemo<LinhaGantt[]>(() => etapasFiltradas.flatMap((etapa): LinhaGantt[] => {
     const ordensAtivas = etapa.ordens.filter((ordem) => ordem.status !== 'cancelada');
     const ordensProgramadas = ordensAtivas
       .filter((ordem) => Boolean(intervaloOrdem(ordem)))

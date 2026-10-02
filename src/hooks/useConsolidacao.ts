@@ -54,6 +54,7 @@ export interface ConsolidacaoFiltros {
   dataInicio?: Date;
   dataFim?: Date;
   categoria?: string;
+  tipoItem?: string;
   grupoId?: string;
   localId?: string; // Novo filtro por Projeto/Local específico
 }
