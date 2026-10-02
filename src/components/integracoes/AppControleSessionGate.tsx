@@ -48,6 +48,19 @@ export function AppControleSessionGate({ children, moduleName }: Props) {
     if (!email && fluxoSession?.user?.email) setEmail(fluxoSession.user.email);
   }, [email, fluxoSession?.user?.email]);
 
+  useEffect(() => {
+    const fluxoEmail = fluxoSession?.user?.email?.trim().toLowerCase();
+    const appEmail = appSession?.user?.email?.trim().toLowerCase();
+    if (!fluxoEmail || !appEmail || fluxoEmail === appEmail) return;
+
+    void appControleSupabase.auth.signOut().finally(() => {
+      setAppSession(null);
+      setPassword("");
+      setError("Conecte a conta do App Controle correspondente ao usuário atual do Fluxo.");
+      setEmail(fluxoSession?.user?.email || "");
+    });
+  }, [appSession?.user?.email, fluxoSession?.user?.email]);
+
   const connect = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
