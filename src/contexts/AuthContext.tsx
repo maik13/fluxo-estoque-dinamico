@@ -68,24 +68,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     });
 
-    supabase.auth
-      .getSession()
-      .then(({ data: { session }, error }) => {
-        if (error) {
-          console.error("Error getting session:", error);
-          forceReauth("getSession_error");
-          return;
-        }
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to get session:", err);
-        forceReauth("getSession_exception");
-      });
+    let cancelled = false;
 
-    return () => subscription.unsubscribe();
+    const restaurarSessao = async () => {
+      let ultimoErro: unknown = null;
+
+      // Reload de Preview pode coincidir com refresh de token/reconexão.
+      // Não apagamos uma sessão persistida por uma falha transitória.
+      for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+        try {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (error) throw error;
+
+          if (!cancelled) {
+            setSession(session);
+            setUser(session?.user ?? null);
+            setLoading(false);
+          }
+          return;
+        } catch (err) {
+          ultimoErro = err;
+          if (tentativa < 2) {
+            await new Promise((resolve) => window.setTimeout(resolve, 250 * (tentativa + 1)));
+          }
+        }
+      }
+
+      console.error("Não foi possível restaurar a sessão após as tentativas:", ultimoErro);
+      if (!cancelled) {
+        // O listener de auth continua ativo e ainda pode recuperar a sessão.
+        // Não limpamos tokens nem forçamos login por erro transitório de reload.
+        setLoading(false);
+      }
+    };
+
+    void restaurarSessao();
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
