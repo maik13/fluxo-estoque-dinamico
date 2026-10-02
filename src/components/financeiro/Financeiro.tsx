@@ -127,6 +127,20 @@ export const Financeiro = () => {
   }, [podeGerenciar, podeAprovar, podeProgramar, podeConciliar, podeRelatorios]);
   const [necessidades, setNecessidades] = useState<Registro[]>([]);
   const [lancamentos, setLancamentos] = useState<Registro[]>([]);
+  const [buscaFluxo, setBuscaFluxo] = useState('');
+
+  const lancamentosFluxo = useMemo(() => {
+    const termo = buscaFluxo.trim().toLowerCase();
+    if (!termo) return lancamentos;
+    const campos = [
+      'numero', 'descricao', 'observacoes', 'categoria', 'subcategoria', 'status', 'origem_tipo',
+      'planilha_linha', 'pagina54_integracao_id', 'debito_original', 'credito_original',
+      'valor_previsto', 'valor_realizado',
+    ];
+    return lancamentos.filter((l: Registro) =>
+      campos.some((campo) => l[campo] != null && String(l[campo]).toLowerCase().includes(termo)),
+    );
+  }, [lancamentos, buscaFluxo]);
   const [rcs, setRcs] = useState<Registro[]>([]);
   const [pcs, setPcs] = useState<Registro[]>([]);
   const [programacoes, setProgramacoes] = useState<Registro[]>([]);
