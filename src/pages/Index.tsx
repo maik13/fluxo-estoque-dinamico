@@ -11,7 +11,7 @@ import { VisaoGeralEstoque } from '@/components/gestao-estoque/VisaoGeralEstoque
 import { NavegacaoLateralEstoque } from '@/components/gestao-estoque/NavegacaoLateralEstoque';
 import { Configuracoes } from '@/components/gestao-estoque/Configuracoes';
 import { Producao } from '@/components/producao/Producao';
-import { Financeiro } from '@/components/financeiro/Financeiro';
+import { FinanceiroComBusca } from '@/components/financeiro/FinanceiroComBusca';
 import MeuPonto from '@/components/rh/MeuPonto';
 import ControlePontoEspelho from '@/components/rh/ControlePontoEspelho';
 import RHInformacoes from '@/components/rh/RHInformacoes';
@@ -242,24 +242,24 @@ const Index = () => {
                     {showGerencial && <TabsContent value="gerencial" className="mt-0 space-y-6"><PainelGerencialAcesso /></TabsContent>}
                     {showProjetos && <TabsContent value="projetos" className="mt-0 space-y-6"><VisaoProjetos /></TabsContent>}
                     {showProducao && <TabsContent value="producao" className="mt-0 space-y-6"><Producao /></TabsContent>}
-                    {showFinanceiro && <TabsContent value="financeiro" className="mt-0 space-y-6"><Financeiro /></TabsContent>}
+                    {showFinanceiro && <TabsContent value="financeiro" className="mt-0 space-y-6"><FinanceiroComBusca /></TabsContent>}
                     {showMeuPonto && <TabsContent value="meu-ponto" className="mt-0 space-y-6"><MeuPonto /></TabsContent>}
                     {showControlePonto && (
-  <TabsContent value="controle-ponto" className="mt-0 space-y-6">
-    <Tabs value={tabPonto} onValueChange={setTabPonto}>
-      <TabsList className="h-auto flex-wrap">
-        <TabsTrigger value="espelho">Espelho de Ponto</TabsTrigger>
-        {meuPontoDisponivel && <TabsTrigger value="meu-ponto">Meu Ponto</TabsTrigger>}
-        {(isAdmin() || hasPermission('ponto.aprovar')) && <TabsTrigger value="aprovacoes">Aprovações</TabsTrigger>}
-        {(isAdmin() || hasPermission('ponto.gerenciar')) && <TabsTrigger value="registros">Registros</TabsTrigger>}
-      </TabsList>
-      <TabsContent value="espelho" className="mt-6"><ControlePontoEspelho /></TabsContent>
-      {meuPontoDisponivel && <TabsContent value="meu-ponto" className="mt-6"><MeuPonto /></TabsContent>}
-      {(isAdmin() || hasPermission('ponto.aprovar')) && <TabsContent value="aprovacoes" className="mt-6"><AprovacoesPontoTab /></TabsContent>}
-      {(isAdmin() || hasPermission('ponto.gerenciar')) && <TabsContent value="registros" className="mt-6"><RegistrosPontoTab /></TabsContent>}
-    </Tabs>
-  </TabsContent>
-)}
+                      <TabsContent value="controle-ponto" className="mt-0 space-y-6">
+                        <Tabs value={tabPonto} onValueChange={setTabPonto}>
+                          <TabsList className="h-auto flex-wrap">
+                            <TabsTrigger value="espelho">Espelho de Ponto</TabsTrigger>
+                            {meuPontoDisponivel && <TabsTrigger value="meu-ponto">Meu Ponto</TabsTrigger>}
+                            {(isAdmin() || hasPermission('ponto.aprovar')) && <TabsTrigger value="aprovacoes">Aprovações</TabsTrigger>}
+                            {(isAdmin() || hasPermission('ponto.gerenciar')) && <TabsTrigger value="registros">Registros</TabsTrigger>}
+                          </TabsList>
+                          <TabsContent value="espelho" className="mt-6"><ControlePontoEspelho /></TabsContent>
+                          {meuPontoDisponivel && <TabsContent value="meu-ponto" className="mt-6"><MeuPonto /></TabsContent>}
+                          {(isAdmin() || hasPermission('ponto.aprovar')) && <TabsContent value="aprovacoes" className="mt-6"><AprovacoesPontoTab /></TabsContent>}
+                          {(isAdmin() || hasPermission('ponto.gerenciar')) && <TabsContent value="registros" className="mt-6"><RegistrosPontoTab /></TabsContent>}
+                        </Tabs>
+                      </TabsContent>
+                    )}
                     {showRHInformacoes && <TabsContent value="rh-informacoes" className="mt-0 space-y-6"><RHInformacoes /></TabsContent>}
 
                     {showEstoque && (
