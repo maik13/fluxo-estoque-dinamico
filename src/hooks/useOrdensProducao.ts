@@ -238,13 +238,21 @@ export const useOrdensProducao = () => {
         ),
       );
 
-      const estimativasPorOp = new Map(
+      const estimativasPorOp = new Map<string, {
+        ordem_producao_id: string;
+        duracao_estimada_horas: number | null;
+        esforco_estimado_horas_homem: number | null;
+      }>(
         (estimativas ?? []).map(
           (item: {
             ordem_producao_id: string;
             duracao_estimada_horas: number | null;
             esforco_estimado_horas_homem: number | null;
-          }) => [item.ordem_producao_id, item],
+          }): [string, {
+            ordem_producao_id: string;
+            duracao_estimada_horas: number | null;
+            esforco_estimado_horas_homem: number | null;
+          }] => [item.ordem_producao_id, item],
         ),
       );
 

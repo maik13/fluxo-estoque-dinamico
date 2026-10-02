@@ -195,7 +195,7 @@ export const FinanceiroRelatorios = ({ lancamentos, posicoes, contas }: Props) =
     });
   }, [posicoes]);
 
-  const ultimaPosicaoPorConta = useMemo(() => contas.map(c => {
+  const ultimaPosicaoPorConta = useMemo(() => contas.map((c): { conta: string; banco: string; tipo: string; saldo: number; data?: string | null } => {
     const lista = posicoes.filter(p => p.conta_bancaria_id === c.id).sort((a,b)=>dateKey(b.data).localeCompare(dateKey(a.data)));
     return { conta: c.nome, banco: c.banco, tipo: c.tipo, ...(lista[0] || {}), saldo: Number(lista[0]?.saldo_final_bancario || 0) };
   }), [contas, posicoes]);

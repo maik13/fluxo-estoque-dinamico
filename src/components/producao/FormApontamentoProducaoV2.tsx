@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
 import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
+import { supabase } from '@/integrations/supabase/client';
 import {
   useOrdensProducao,
   formatarIdentificacaoOrdemProducao,

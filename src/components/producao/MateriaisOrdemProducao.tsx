@@ -164,7 +164,6 @@ export const MateriaisOrdemProducao = ({
     setGerando(true);
     try {
       const criada = await gerarSolicitacaoMaterial(ordem.id, estoqueAtivoId);
-      setSolicitacao(criada);
       await carregar();
       setConfirmacaoAberta(false);
       toast.success(

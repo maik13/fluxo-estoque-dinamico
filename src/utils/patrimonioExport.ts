@@ -48,7 +48,7 @@ export const exportarExcelPosicaoPatrimonio = ({
 
   const detalhamento = linhas.map((linha) => ({
     Código: linha.codigo,
-    Tipo: linha.tipo,
+    Tipo: linha.item?.tipoItem ?? '',
     Nome: linha.nome,
     Marca: linha.marca,
     Especificação: linha.especificacao,
@@ -77,7 +77,7 @@ export const exportarExcelPosicaoPatrimonio = ({
     .filter((linha) => linha.valorUnitario === null)
     .map((linha) => ({
       Código: linha.codigo,
-      Tipo: linha.tipo,
+      Tipo: linha.item?.tipoItem ?? '',
       Nome: linha.nome,
       Marca: linha.marca,
       Especificação: linha.especificacao,
