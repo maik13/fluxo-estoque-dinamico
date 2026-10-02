@@ -95,11 +95,10 @@ export const useSolicitacoes = () => {
     return (
       code === 'PGRST301' ||
       status === 401 ||
-      status === 403 ||
-      msg.toLowerCase().includes('jwt') ||
-      msg.toLowerCase().includes('token') ||
-      msg.toLowerCase().includes('unauthorized') ||
-      msg.toLowerCase().includes('invalid')
+      msg.toLowerCase().includes('jwt expired') ||
+      msg.toLowerCase().includes('invalid jwt') ||
+      msg.toLowerCase().includes('invalid token') ||
+      msg.toLowerCase().includes('unauthorized')
     );
   };
 
