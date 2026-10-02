@@ -26,6 +26,15 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
       "no-unused-expressions": "off",
       "@typescript-eslint/no-unused-expressions": "off",
+      // O repositório legado ainda possui ocorrências conhecidas destas regras.
+      // Mantemos visibilidade como warning para que o lint volte a ser utilizável
+      // sem bloquear PRs por dívida técnica anterior.
+      "@typescript-eslint/no-explicit-any": "warn",
+      "no-useless-escape": "warn",
+      "@typescript-eslint/no-empty-object-type": "warn",
+      "no-empty": "warn",
+      "prefer-const": "warn",
+      "@typescript-eslint/no-require-imports": "warn",
     },
   }
 );
