@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, FolderKanban, Loader2, Plus, RefreshCw } from "lucide-react";
+import { ArrowRight, FolderKanban, Loader2, Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { appControleSupabase } from "@/integrations/appcontrole/client";
-import { supabase } from "@/integrations/supabase/client";
 import { AppControleSessionGate } from "@/components/integracoes/AppControleSessionGate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Planejamento2WorkspaceIntegrado } from "@/components/integracoes/Planejamento2WorkspaceIntegrado";
 
 const ac = appControleSupabase as any;
-const fluxo = supabase as any;
 
 type Project = { id: string; name: string; order: number };
 type Workspace = { id: string; appProjectSettingId: string; projectName: string; status: string; updatedAt: string | null };
