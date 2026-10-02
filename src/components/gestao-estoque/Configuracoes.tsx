@@ -72,11 +72,17 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false, somenteSolic
     removerGrupoProjeto,
   } = useConfiguracoes();
 
-  const [configuracao, setConfiguracao] = useState({
-    tema: 'light',
-    notificacoes: true,
-    alertaEstoqueBaixo: true,
-    backupAutomatico: false,
+  const [configuracao, setConfiguracao] = useState(() => {
+    const salvo = localStorage.getItem('almoxarifado-theme');
+    const tema = salvo === 'dark' || salvo === 'light'
+      ? salvo
+      : (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    return {
+      tema,
+      notificacoes: true,
+      alertaEstoqueBaixo: true,
+      backupAutomatico: false,
+    };
   });
 
   const [novoUsuario, setNovoUsuario] = useState({
@@ -180,6 +186,9 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false, somenteSolic
   const handleTemaChange = (tema: 'light' | 'dark') => {
     setConfiguracao(prev => ({ ...prev, tema }));
     document.documentElement.classList.toggle('dark', tema === 'dark');
+    document.documentElement.style.colorScheme = tema;
+    localStorage.setItem('almoxarifado-theme', tema);
+    window.dispatchEvent(new CustomEvent('almoxarifado-theme-change', { detail: tema }));
     onConfigChange?.();
   };
 
