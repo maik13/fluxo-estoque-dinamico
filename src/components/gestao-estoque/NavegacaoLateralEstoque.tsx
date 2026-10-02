@@ -14,6 +14,8 @@ import {
   UserRound,
   Clock3,
   ChevronDown,
+  ClipboardCheck,
+  GanttChartSquare,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -36,6 +38,8 @@ type NavegacaoLateralEstoqueProps = {
   showProjetos: boolean;
   showProducao: boolean;
   showFinanceiro: boolean;
+  showAcompanhamentoPedido: boolean;
+  showPlanejamento2: boolean;
   showMeuPonto: boolean;
   showControlePonto: boolean;
   showRHInformacoes: boolean;
@@ -68,6 +72,8 @@ export const NavegacaoLateralEstoque = ({
   showProjetos,
   showProducao,
   showFinanceiro,
+  showAcompanhamentoPedido,
+  showPlanejamento2,
   showMeuPonto,
   showControlePonto,
   showRHInformacoes,
@@ -133,6 +139,18 @@ export const NavegacaoLateralEstoque = ({
           label: 'Produção',
           icon: Factory,
           visible: showProducao,
+        },
+        {
+          value: 'acompanhamento-pedido',
+          label: 'Acompanhamento do Pedido',
+          icon: ClipboardCheck,
+          visible: showAcompanhamentoPedido,
+        },
+        {
+          value: 'planejamento-2',
+          label: 'Planejamento 2.0',
+          icon: GanttChartSquare,
+          visible: showPlanejamento2,
         },
         {
           value: 'financeiro',
@@ -209,6 +227,8 @@ export const NavegacaoLateralEstoque = ({
     showProjetos,
     showProducao,
     showFinanceiro,
+    showAcompanhamentoPedido,
+    showPlanejamento2,
     showMeuPonto,
     showControlePonto,
     showRHInformacoes,
