@@ -74,10 +74,10 @@ async function loadProjectDetail(project: Project) {
       .from("project_production_targets")
       .select("id, descricao, quantidade_meta, unidade, processo_apuracao, projeto, project_setting_id")
       .eq("ativo", true)
-      .or(`project_setting_id.eq.${project.id},and(project_setting_id.is.null,projeto.eq.${project.name})`),
+      .eq("project_setting_id", project.id),
     fluxo
       .from("producao_projetos")
-      .select("id, nome, status, cliente")
+      .select("id, nome, status, cliente, local_utilizacao_id")
       .ilike("nome", project.name)
       .is("excluido_em", null)
       .limit(1),
@@ -120,7 +120,7 @@ async function loadProjectDetail(project: Project) {
       fluxo
         .from("producao_apontamentos")
         .select("id, ordem_producao_id, quantidade_produzida, status")
-        .eq("projeto_local_id", fluxoProject.id)
+        .eq("projeto_local_id", fluxoProject.local_utilizacao_id)
         .neq("status", "cancelado"),
     ]);
     if (!fluxoOpsResult.error) fluxoOps = fluxoOpsResult.data || [];
