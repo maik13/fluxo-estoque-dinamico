@@ -25,7 +25,28 @@ export const SeletorEstoque = () => {
     document.documentElement.classList.toggle('dark', tema === 'dark');
     document.documentElement.style.colorScheme = tema;
     localStorage.setItem(THEME_STORAGE_KEY, tema);
+    window.dispatchEvent(new CustomEvent('almoxarifado-theme-change', { detail: tema }));
   }, [tema]);
+
+  useEffect(() => {
+    const sincronizarTema = (event: Event) => {
+      const custom = event as CustomEvent<Tema>;
+      if (custom.detail === 'light' || custom.detail === 'dark') {
+        setTema(custom.detail);
+      }
+    };
+    const sincronizarStorage = (event: StorageEvent) => {
+      if (event.key === THEME_STORAGE_KEY && (event.newValue === 'light' || event.newValue === 'dark')) {
+        setTema(event.newValue);
+      }
+    };
+    window.addEventListener('almoxarifado-theme-change', sincronizarTema);
+    window.addEventListener('storage', sincronizarStorage);
+    return () => {
+      window.removeEventListener('almoxarifado-theme-change', sincronizarTema);
+      window.removeEventListener('storage', sincronizarStorage);
+    };
+  }, []);
 
   return (
     <div className="flex items-center gap-2">
