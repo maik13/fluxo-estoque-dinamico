@@ -5,6 +5,9 @@ import {
   Camera,
   CheckCircle2,
   ChevronRight,
+  ChevronDown,
+  LayoutGrid,
+  List,
   FolderKanban,
   Loader2,
   MapPin,
@@ -117,6 +120,21 @@ const BarraProgresso = ({ valor }: { valor: number }) => (
   </div>
 );
 
+const FotoProjetoLista = ({ caminho, nome }: { caminho?: string; nome: string }) => {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let ativo = true;
+    setUrl(null);
+    if (caminho) {
+      void supabase.storage.from('producao-apontamentos').createSignedUrl(caminho, 3600)
+        .then(({ data, error }) => { if (ativo && !error) setUrl(data?.signedUrl ?? null); });
+    }
+    return () => { ativo = false; };
+  }, [caminho]);
+  return url ? <img src={url} alt={`Foto vinculada a ${nome}`} loading="lazy" onError={() => setUrl(null)} className="h-10 w-10 shrink-0 rounded-md object-cover" /> :
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted"><FolderKanban className="h-5 w-5 text-muted-foreground" /></span>;
+};
+
 const pertenceAoProjeto = (processo: ProducaoProcesso, projeto: ProducaoProjeto) =>
   processo.projeto_id === projeto.config_id ||
   processo.projeto?.local_utilizacao_id === projeto.local_utilizacao_id;
@@ -191,7 +209,17 @@ export const ProcessosProducaoHierarquico = ({
   estoqueAtivoNome = null,
   onFecharJornada,
 }: Props) => {
+  const [visualizacao, setVisualizacao] = useState<'cards' | 'lista'>(() => {
+    try { return localStorage.getItem('producao-projetos-visualizacao') === 'lista' ? 'lista' : 'cards'; }
+    catch { return 'cards'; }
+  });
+  const [projetosExpandidos, setProjetosExpandidos] = useState<Set<string>>(new Set());
+  const [fotoPorOp, setFotoPorOp] = useState<Record<string, string>>({});
   const [busca, setBusca] = useState('');
+  useEffect(() => {
+    try { localStorage.setItem('producao-projetos-visualizacao', visualizacao); } catch { /* Preferência opcional. */ }
+  }, [visualizacao]);
+
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
   const [projetoSelecionadoId, setProjetoSelecionadoId] = useState<string | null>(null);
   const [processoSelecionadoId, setProcessoSelecionadoId] = useState<string | null>(null);
@@ -244,7 +272,8 @@ export const ProcessosProducaoHierarquico = ({
     const carregarOpsComImagem = async () => {
       const { data: anexos, error: anexosError } = await supabase
         .from('producao_apontamento_anexos')
-        .select('apontamento_id');
+        .select('apontamento_id,file_path')
+        .order('created_at', { ascending: false });
 
       if (anexosError || !anexos?.length) {
         setOpsComImagem(new Set());
@@ -265,6 +294,13 @@ export const ProcessosProducaoHierarquico = ({
 
       if (apontamentosError) return;
 
+      const opPorApontamento = new Map((apontamentos ?? []).map((a) => [a.id, a.ordem_producao_id]));
+      const caminhos: Record<string, string> = {};
+      for (const anexo of anexos) {
+        const opId = opPorApontamento.get(anexo.apontamento_id);
+        if (opId && !caminhos[opId]) caminhos[opId] = anexo.file_path;
+      }
+      setFotoPorOp(caminhos);
       setOpsComImagem(
         new Set(
           (apontamentos ?? [])
@@ -914,6 +950,14 @@ export const ProcessosProducaoHierarquico = ({
             className="pl-8"
           />
         </div>
+        <div className="flex gap-1" role="group" aria-label="Visualização dos projetos">
+          <Button variant={visualizacao === 'cards' ? 'default' : 'outline'} aria-pressed={visualizacao === 'cards'} onClick={() => setVisualizacao('cards')}>
+            <LayoutGrid className="mr-2 h-4 w-4" /> Cards
+          </Button>
+          <Button variant={visualizacao === 'lista' ? 'default' : 'outline'} aria-pressed={visualizacao === 'lista'} onClick={() => setVisualizacao('lista')}>
+            <List className="mr-2 h-4 w-4" /> Lista
+          </Button>
+        </div>
         <Button variant="outline" onClick={() => setMostrarConcluidos((valor) => !valor)}>
           {mostrarConcluidos ? 'Ocultar concluídos' : 'Mostrar concluídos'}
         </Button>
@@ -928,6 +972,65 @@ export const ProcessosProducaoHierarquico = ({
         <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">
           <FolderKanban className="mx-auto mb-3 h-9 w-9 opacity-50" />
           Nenhum projeto encontrado.
+        </div>
+      ) : visualizacao === 'lista' ? (
+        <div className="overflow-hidden rounded-xl border bg-card">
+          {projetosFiltrados.map(({ projeto, etapas, ops, percentual, status }) => {
+            const expandido = projetosExpandidos.has(projeto.id);
+            const foto = ops.map((op) => fotoPorOp[op.id]).find(Boolean);
+            return (
+              <div key={projeto.id} className="border-b last:border-b-0">
+                <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+                  <button type="button" aria-expanded={expandido} aria-controls={`ops-projeto-${projeto.id}`}
+                    onClick={() => setProjetosExpandidos((atuais) => {
+                      const novos = new Set(atuais);
+                      if (novos.has(projeto.id)) novos.delete(projeto.id); else novos.add(projeto.id);
+                      return novos;
+                    })}
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    aria-label={`${expandido ? 'Recolher' : 'Expandir'} OPs de ${projeto.nome}`}>
+                    {expandido ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                    <FotoProjetoLista caminho={foto} nome={projeto.nome} />
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold">{projeto.nome}</span>
+                      <span className="block text-xs text-muted-foreground">{projeto.cidade || projeto.grupo_nome || 'Local não informado'} · {ops.length} OP(s)</span>
+                    </span>
+                  </button>
+                  <div className="w-44 shrink-0 space-y-1">
+                    <div className="flex justify-between text-xs"><span>Progresso</span><strong>{percentual}%</strong></div>
+                    <BarraProgresso valor={percentual} />
+                  </div>
+                  <span className={`rounded-full border px-2.5 py-1 text-xs ${statusProjetoClassName(status)}`}>{status}</span>
+                  <Button variant="ghost" size="sm" onClick={() => setProjetoSelecionadoId(projeto.id)}>Abrir projeto</Button>
+                  {isAdmin() && <ExcluirProjetoProducao projeto={projeto} onSuccess={recarregar} />}
+                </div>
+                {expandido && (
+                  <div id={`ops-projeto-${projeto.id}`} className="border-t bg-muted/15 px-4 py-2">
+                    {ops.length === 0 ? <p className="py-4 text-sm text-muted-foreground">Este projeto ainda não possui OPs.</p> :
+                      [...ops].sort((a, b) => a.numero - b.numero).map((op) => {
+                        const etapa = etapas.find((e) => e.id === op.processo_id);
+                        const progresso = op.status === 'cancelada' ? 0 : clampPercent(percentualExecucaoOp(op));
+                        return (
+                          <div key={op.id} className="flex flex-wrap items-center gap-3 border-b py-3 pl-7 last:border-b-0">
+                            <button type="button" className="min-w-0 flex-1 text-left hover:text-primary"
+                              onClick={() => { setProjetoSelecionadoId(projeto.id); setProcessoSelecionadoId(op.processo_id); }}>
+                              <span className="block font-medium">{formatarIdentificacaoOrdemProducao(op)}</span>
+                              <span className="text-xs text-muted-foreground">{etapa?.nome || 'Etapa não informada'}{op.responsavel_nome_snapshot ? ` · ${op.responsavel_nome_snapshot}` : ''}</span>
+                            </button>
+                            <span className="text-xs text-muted-foreground">{statusOpLabel[op.status] || op.status}</span>
+                            <div className="w-44 shrink-0 space-y-1">
+                              <div className="flex justify-between text-xs"><span>Progresso da OP</span><strong>{progresso}%</strong></div>
+                              <BarraProgresso valor={progresso} />
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
