@@ -7,7 +7,7 @@ import { appControleSupabase } from "@/integrations/appcontrole/client";
 import { AppControleSessionGate } from "@/components/integracoes/AppControleSessionGate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Planejamento2WorkspaceIntegrado } from "@/components/integracoes/Planejamento2WorkspaceIntegrado";
 
 const ac = appControleSupabase as any;
@@ -78,17 +78,99 @@ function Inner() {
       <div><h2 className="text-xl font-semibold">Planejamento 2.0</h2><p className="text-sm text-muted-foreground">Tela do Fluxo; dados e regras oficiais permanecem no App Controle.</p></div>
       <Button variant="outline" size="sm" onClick={()=>void list.refetch()}><RefreshCw className="mr-2 h-4 w-4"/>Atualizar</Button>
     </div>
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {(list.data?.projects||[]).map(project=>{
-        const ws=byProject.get(project.id);
-        return <Card key={project.id} className="transition hover:border-primary/50"><CardContent className="flex h-full flex-col gap-4 p-4">
-          <div className="flex items-start gap-3"><div className="rounded-lg bg-primary/10 p-2 text-primary"><FolderKanban className="h-4 w-4"/></div><div className="min-w-0 flex-1"><div className="truncate font-semibold">{project.name}</div><Badge className="mt-1" variant={ws?"default":"outline"}>{ws?(ws.status==="active"?"Ativo":ws.status):"Pronto para planejar"}</Badge></div></div>
-          <div className="mt-auto">
-            {ws?<Button className="w-full" onClick={()=>setWorkspaceId(ws.id)}>Abrir planejamento<ArrowRight className="ml-2 h-4 w-4"/></Button>
-              :<Button className="w-full" variant="outline" disabled={create.isPending} onClick={()=>create.mutate(project)}>{create.isPending?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Plus className="mr-2 h-4 w-4"/>}Criar planejamento</Button>}
-          </div>
-        </CardContent></Card>;
-      })}
+    <div className="overflow-hidden rounded-lg border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/30">
+            <TableHead>Projeto</TableHead>
+            <TableHead className="w-[190px]">Situação</TableHead>
+            <TableHead className="w-[220px]">Última atualização</TableHead>
+            <TableHead className="w-[230px] text-right">Ação</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {(list.data?.projects||[]).map(project=>{
+            const ws=byProject.get(project.id);
+            const statusLabel = !ws
+              ? "Pronto para planejar"
+              : ws.status === "active"
+                ? "Ativo"
+                : ws.status === "draft"
+                  ? "Rascunho"
+                  : ws.status;
+            const updatedLabel = ws?.updatedAt
+              ? new Date(ws.updatedAt).toLocaleString("pt-BR", {
+                  dateStyle: "short",
+                  timeStyle: "short",
+                })
+              : "—";
+
+            return (
+              <TableRow
+                key={project.id}
+                className={ws ? "cursor-pointer transition-colors hover:bg-muted/40" : "transition-colors hover:bg-muted/20"}
+                onClick={() => {
+                  if (ws) setWorkspaceId(ws.id);
+                }}
+              >
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-md bg-primary/10 p-2 text-primary">
+                      <FolderKanban className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold">{project.name}</div>
+                      <div className="text-xs text-muted-foreground">Projeto do App Controle</div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={ws ? "default" : "outline"}>{statusLabel}</Badge>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {updatedLabel}
+                </TableCell>
+                <TableCell className="text-right">
+                  {ws ? (
+                    <Button
+                      size="sm"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setWorkspaceId(ws.id);
+                      }}
+                    >
+                      Abrir planejamento
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={create.isPending}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        create.mutate(project);
+                      }}
+                    >
+                      {create.isPending
+                        ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        : <Plus className="mr-2 h-4 w-4" />}
+                      Criar planejamento
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+          {!(list.data?.projects||[]).length && (
+            <TableRow>
+              <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
+                Nenhum projeto disponível para planejamento.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
     </div>
   </div>;
 }
