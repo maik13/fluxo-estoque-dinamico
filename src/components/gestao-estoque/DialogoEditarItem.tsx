@@ -285,6 +285,20 @@ export const DialogoEditarItem = ({ aberto, onClose, item, onSalvar, isAdmin = f
               rows={3}
             />
           </div>
+
+          <div>
+            <Label htmlFor="especificacoesDimensoes">Especificações / Dimensões</Label>
+            <Textarea
+              id="especificacoesDimensoes"
+              value={formItem.especificacoesDimensoes || ''}
+              onChange={(e) => setFormItem(prev => prev ? {...prev, especificacoesDimensoes: e.target.value} : null)}
+              placeholder="Ex.: A: 2,7 m × L: 1,15 m; D: 1,0 m"
+              rows={2}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Campo físico da peça. Não altera o nome nem o histórico do item.
+            </p>
+          </div>
           
           <UploadFotoProduto
             fotoUrl={formItem.fotoUrl}
