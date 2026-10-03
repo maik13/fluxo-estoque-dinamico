@@ -3,6 +3,7 @@ import { CheckCircle2, ExternalLink, Plus, RefreshCw, Search, Settings2 } from '
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
@@ -81,7 +82,12 @@ export const PlanejamentoProducao = () => {
     try {
       const planejamentoResult = await (supabase.rpc as any)('listar_planejamento_producao_v2');
       if (planejamentoResult.error) throw planejamentoResult.error;
-      setDados((planejamentoResult.data ?? { projetos: [], itens: [], fonte: null }) as PlanejamentoPayload);
+      const payload = (planejamentoResult.data ?? { projetos: [], itens: [], fonte: null }) as PlanejamentoPayload;
+      setDados(payload);
+      setCidadeSelecionadaId((atual) => {
+        if (atual && payload.projetos.some((projeto) => projeto.id === atual)) return atual;
+        return payload.projetos.find((projeto) => projeto.ativoCalculo)?.id ?? '';
+      });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível carregar o planejamento.');
     } finally {
@@ -297,6 +303,32 @@ export const PlanejamentoProducao = () => {
         </div>
       </Card>
 
+      <Card className="p-4">
+        <div className="mb-3">
+          <p className="font-medium">Cidades do planejamento</p>
+          <p className="text-xs text-muted-foreground">
+            Marque as cidades que fazem parte do planejamento. Uma mesma peça pode estar direcionada para várias cidades.
+          </p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {dados.projetos.map((projeto) => (
+            <label key={projeto.id} className="flex cursor-pointer items-center gap-3 rounded-lg border p-3">
+              <Checkbox
+                checked={projeto.ativoCalculo}
+                disabled={!podeConfigurar || salvandoId === projeto.id}
+                onCheckedChange={(checked) => void alternarProjeto(projeto, checked === true)}
+              />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{projeto.nome}</p>
+                <p className="text-xs text-muted-foreground">
+                  {projeto.ativoCalculo ? 'Selecionada' : 'Não selecionada'}
+                </p>
+              </div>
+            </label>
+          ))}
+        </div>
+      </Card>
+
       {podeConfigurar && (
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
@@ -370,10 +402,11 @@ export const PlanejamentoProducao = () => {
 
       <Card className="overflow-hidden">
         <div className="overflow-auto">
-          <table className="w-full min-w-[1050px] text-sm">
+          <table className="w-full min-w-[1250px] text-sm">
             <thead className="bg-muted/50 text-left">
               <tr>
                 <th className="p-3">Peça</th>
+                <th className="p-3">Cidades da peça</th>
                 <th className="p-3 text-right">Qtd. cidade</th>
                 <th className="p-3 text-right">Existente</th>
                 <th className="p-3 text-right">Disponível</th>
@@ -392,6 +425,20 @@ export const PlanejamentoProducao = () => {
                           Referência: {linha.acervoCodigo ?? '—'}{linha.acervoNome ? ` · ${linha.acervoNome}` : ''}
                         </p>
                       )}
+                    </td>
+                    <td className="p-3">
+                      <div className="flex max-w-[320px] flex-wrap gap-1">
+                        {dados.projetos
+                          .filter((projeto) => numero(linha.demandas?.[projeto.chave]) > 0)
+                          .map((projeto) => (
+                            <span key={projeto.id} className="rounded-md border bg-muted/40 px-2 py-1 text-xs">
+                              {projeto.nome}: {numero(linha.demandas?.[projeto.chave])}
+                            </span>
+                          ))}
+                        {!dados.projetos.some((projeto) => numero(linha.demandas?.[projeto.chave]) > 0) && (
+                          <span className="text-xs text-muted-foreground">Sem cidade</span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-3">
                       <Input
