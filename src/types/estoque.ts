@@ -12,6 +12,7 @@ export interface Item {
   /** @deprecated Compatibilidade técnica temporária. A classificação oficial é categoriaId + subcategoriaId. */
   tipoItem: 'Insumo' | 'Ferramenta' | 'Produto Acabado' | 'Matéria Prima';
   especificacao: string; // Amperagem bateria, bitola, tipo de pisca, etc.
+  especificacoesDimensoes?: string; // Dimensões/especificações físicas da peça cenográfica
   marca: string;
   unidade: string; // metro, peça, kg, etc.
   condicao: 'Novo' | 'Usado' | 'Defeito' | 'Descarte';
