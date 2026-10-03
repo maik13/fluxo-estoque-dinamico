@@ -438,7 +438,7 @@ export const PlanejamentoProducao = () => {
                     <td className="p-3"><Badge variant={situacao.variant}>{situacao.label}</Badge></td>
                     <td className="p-3">
                       {necessidadeAberta ? (
-                        <Badge variant="secondary">A programar · {numero(necessidadeAberta.quantidade)}</Badge>
+                        <Badge variant="secondary">{numero(necessidadeAberta.quantidade)} un. aguardando programação</Badge>
                       ) : linha.deficit > 0 && podeConfigurar ? (
                         <Button
                           size="sm"
