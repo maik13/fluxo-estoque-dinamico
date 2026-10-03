@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ExternalLink, Plus, RefreshCw, Search, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
@@ -76,7 +74,6 @@ export const PlanejamentoProducao = () => {
   const [novaCidade, setNovaCidade] = useState('');
   const [novaPecaNome, setNovaPecaNome] = useState('');
   const [novaPecaCodigo, setNovaPecaCodigo] = useState('');
-  const [novaPecaProjetoId, setNovaPecaProjetoId] = useState('');
   const [novaPecaQuantidade, setNovaPecaQuantidade] = useState('0');
 
   const carregar = useCallback(async () => {
@@ -143,11 +140,10 @@ export const PlanejamentoProducao = () => {
   }, [buscaPeca, linhas]);
 
   const resumo = useMemo(() => ({
-    projetos: projetosAtivos.length,
-    necessidades: linhas.filter((linha) => linha.necessidade > 0).length,
-    deficit: linhas.filter((linha) => linha.deficit > 0).length,
-    unidadesFaltantes: linhas.reduce((soma, linha) => soma + linha.deficit, 0),
-  }), [linhas, projetosAtivos.length]);
+    pecas: linhas.filter((linha) => linha.necessidade > 0).length,
+    unidades: linhas.reduce((soma, linha) => soma + linha.necessidade, 0),
+    produzir: linhas.reduce((soma, linha) => soma + linha.deficit, 0),
+  }), [linhas]);
 
   const alternarProjeto = async (projeto: ProjetoPlanejamento, ativo: boolean) => {
     if (!podeConfigurar) return;
@@ -222,6 +218,10 @@ export const PlanejamentoProducao = () => {
   };
 
   const cadastrarPeca = async () => {
+    if (!cidadeSelecionadaId) {
+      toast.error('Selecione uma cidade primeiro.');
+      return;
+    }
     const quantidade = Number(novaPecaQuantidade.replace(',', '.'));
     if (!novaPecaNome.trim()) {
       toast.error('Informe o nome da peça.');
@@ -236,7 +236,7 @@ export const PlanejamentoProducao = () => {
     try {
       const { error } = await (supabase.rpc as any)('criar_peca_planejamento_v1', {
         p_nome: novaPecaNome.trim(),
-        p_planejamento_projeto_id: novaPecaProjetoId || null,
+        p_planejamento_projeto_id: cidadeSelecionadaId,
         p_quantidade: quantidade,
         p_codigo: novaPecaCodigo.trim() || null,
       });
@@ -244,7 +244,6 @@ export const PlanejamentoProducao = () => {
 
       setNovaPecaNome('');
       setNovaPecaCodigo('');
-      setNovaPecaProjetoId('');
       setNovaPecaQuantidade('0');
       toast.success('Peça cadastrada. Se a cidade estiver ativa, ela já foi encaminhada para Projetos.');
       await carregar();
@@ -261,7 +260,7 @@ export const PlanejamentoProducao = () => {
         <div>
           <h3 className="text-lg font-semibold">Planejamento de Necessidades</h3>
           <p className="text-sm text-muted-foreground">
-            Selecione as cidades que entram no cálculo. Ao ativar uma cidade, suas peças são garantidas na estrutura oficial de Projetos, sem criar Etapas ou OPs automaticamente.
+            Selecione a cidade que deseja parametrizar. As peças com quantidade maior que zero entram automaticamente em Projetos.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -298,52 +297,21 @@ export const PlanejamentoProducao = () => {
         </div>
       </Card>
 
-      <Card className="p-4">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <p className="font-medium">Projetos considerados no cálculo</p>
-            <p className="text-xs text-muted-foreground">
-              Marcar inclui a cidade e provisiona suas peças na estrutura oficial. Desmarcar não exclui nada já produzido.
-            </p>
-          </div>
-          <span className="text-xs text-muted-foreground">
-            Origem: {dados.fonte?.nome ?? '—'} · {formatarDataHora(dados.fonte?.ultimaSincronizacao)}
-          </span>
-        </div>
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {dados.projetos.map((projeto) => (
-            <label key={projeto.id} className="flex items-center gap-3 rounded-lg border p-3">
-              <Checkbox
-                checked={projeto.ativoCalculo}
-                disabled={!podeConfigurar || salvandoId === projeto.id}
-                onCheckedChange={(checked) => void alternarProjeto(projeto, checked === true)}
-              />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{projeto.nome}</p>
-                <p className="text-xs text-muted-foreground">
-                  {projeto.ativoCalculo ? 'Incluído no cálculo e vinculado a Projetos' : 'Fora do cálculo'}
-                </p>
-              </div>
-            </label>
-          ))}
-        </div>
-
-        {podeConfigurar && (
-          <div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:flex-row">
-            <Input
-              value={novaCidade}
-              onChange={(e) => setNovaCidade(e.target.value)}
-              placeholder="Nova cidade/projeto"
-              className="max-w-md"
-            />
-            <Button onClick={() => void cadastrarCidade()} disabled={salvandoId === 'nova-cidade'}>
-              <Plus className="mr-2 h-4 w-4" />Cadastrar cidade
-            </Button>
-          </div>
-        )}
-      </Card>
-
       {podeConfigurar && (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            value={novaCidade}
+            onChange={(e) => setNovaCidade(e.target.value)}
+            placeholder="Nova cidade/projeto"
+            className="max-w-md"
+          />
+          <Button onClick={() => void cadastrarCidade()} disabled={salvandoId === 'nova-cidade'}>
+            <Plus className="mr-2 h-4 w-4" />Cadastrar cidade
+          </Button>
+        </div>
+      )}
+
+      {podeConfigurar && cidadeSelecionadaId && (
         <Card className="p-4">
           <div className="mb-3">
             <p className="font-medium">Cadastrar nova peça</p>
@@ -351,7 +319,7 @@ export const PlanejamentoProducao = () => {
               O código segue o padrão CÓDIGO - Nome usado nos Locais de Utilização. Se o código não for informado, o sistema gera um código alfanumérico interno.
             </p>
           </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div className="space-y-1.5 xl:col-span-2">
               <Label>Nome da peça</Label>
               <Input value={novaPecaNome} onChange={(e) => setNovaPecaNome(e.target.value)} placeholder="Ex.: Estrela 3D 5 Pontas 1m" />
@@ -359,16 +327,6 @@ export const PlanejamentoProducao = () => {
             <div className="space-y-1.5">
               <Label>Código (opcional)</Label>
               <Input value={novaPecaCodigo} onChange={(e) => setNovaPecaCodigo(e.target.value.toUpperCase())} placeholder="Ex.: E3D" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Cidade/projeto</Label>
-              <SearchableSelect
-                value={novaPecaProjetoId}
-                onValueChange={setNovaPecaProjetoId}
-                placeholder="Sem cidade"
-                searchPlaceholder="Buscar cidade/projeto..."
-                options={dados.projetos.map((projeto) => ({ value: projeto.id, label: projeto.nome }))}
-              />
             </div>
             <div className="space-y-1.5">
               <Label>Quantidade</Label>
@@ -383,11 +341,10 @@ export const PlanejamentoProducao = () => {
         </Card>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="p-4"><p className="text-xs text-muted-foreground">Projetos ativos</p><p className="text-2xl font-bold">{resumo.projetos}</p></Card>
-        <Card className="p-4"><p className="text-xs text-muted-foreground">Peças com demanda</p><p className="text-2xl font-bold">{resumo.necessidades}</p></Card>
-        <Card className="p-4"><p className="text-xs text-muted-foreground">Tipologias com déficit</p><p className="text-2xl font-bold">{resumo.deficit}</p></Card>
-        <Card className="p-4"><p className="text-xs text-muted-foreground">Unidades a produzir</p><p className="text-2xl font-bold">{resumo.unidadesFaltantes}</p></Card>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card className="p-4"><p className="text-xs text-muted-foreground">Peças da cidade</p><p className="text-2xl font-bold">{resumo.pecas}</p></Card>
+        <Card className="p-4"><p className="text-xs text-muted-foreground">Unidades planejadas</p><p className="text-2xl font-bold">{resumo.unidades}</p></Card>
+        <Card className="p-4"><p className="text-xs text-muted-foreground">Produzir / transformar</p><p className="text-2xl font-bold">{resumo.produzir}</p></Card>
       </div>
 
       <Card className="p-4">
