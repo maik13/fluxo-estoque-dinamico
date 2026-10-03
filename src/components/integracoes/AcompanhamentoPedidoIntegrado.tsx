@@ -60,7 +60,7 @@ async function loadOverview() {
   const [projectsResult, opsResult, actualsResult, targetsResult, logsResult] = await Promise.all([
     readAll(() => ac.from("settings").select("id, valor, ordem").eq("tipo", "projeto").eq("ativo", true).order("ordem").order("id")),
     readAll(() => ac.from("ordens_producao").select("id, project_setting_id, projeto, codigo_op, quantidade_planejada, status_op").order("id")),
-    readAll(() => ac.from("project_production_actuals").select("project_setting_id, quantidade_produzida, ciclos, perdas").order("id")),
+    readAll(() => ac.from("project_production_actuals").select("project_setting_id, processo, quantidade_produzida, ciclos, perdas").order("project_setting_id").order("processo")),
     readAll(() => ac.from("project_production_targets").select("id, project_setting_id, projeto").eq("ativo", true).order("id")),
     readAll(() => ac.from("production_logs").select("id, project_setting_id, ordem_producao_id, codigo_op, atividade, total, qtd_produzida").order("id")),
   ]);
