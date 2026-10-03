@@ -67,6 +67,7 @@ export const PlanejamentoProducao = () => {
   const [loading, setLoading] = useState(true);
   const [salvandoId, setSalvandoId] = useState<string | null>(null);
   const [buscaPeca, setBuscaPeca] = useState('');
+  const [cidadeSelecionadaId, setCidadeSelecionadaId] = useState('');
 
   const [novaCidade, setNovaCidade] = useState('');
   const [novaPecaNome, setNovaPecaNome] = useState('');
@@ -240,6 +241,26 @@ export const PlanejamentoProducao = () => {
           </Button>
         </div>
       </div>
+
+      <Card className="p-4">
+        <div className="space-y-2">
+          <Label>Cidade / projeto em edição</Label>
+          <SearchableSelect
+            value={cidadeSelecionadaId}
+            onValueChange={(value) => {
+              setCidadeSelecionadaId(value);
+              const projeto = dados.projetos.find((item) => item.id === value);
+              if (projeto && !projeto.ativoCalculo) void alternarProjeto(projeto, true);
+            }}
+            placeholder="Selecione a cidade..."
+            searchPlaceholder="Buscar cidade..."
+            options={dados.projetos.map((projeto) => ({ value: projeto.id, label: projeto.nome }))}
+          />
+          <p className="text-xs text-muted-foreground">
+            Ao selecionar uma cidade, ela entra no planejamento e é integrada a Projetos automaticamente.
+          </p>
+        </div>
+      </Card>
 
       <Card className="p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
