@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ExternalLink, Plus, RefreshCw, Search } from 'lucide-react';
+import { CheckCircle2, ExternalLink, Plus, RefreshCw, Search, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
+import { PlanejamentoComposicaoDialog, type EstrategiaAtendimento } from './PlanejamentoComposicaoDialog';
 
 type ProjetoPlanejamento = {
   id: string;
@@ -34,6 +35,8 @@ type ItemPlanejamento = {
   demandas: Record<string, number>;
   acervoNome: string | null;
   acervoCategoria: string | null;
+  estrategiaAtendimento: EstrategiaAtendimento;
+  componentesConfigurados: number;
 };
 
 type Fonte = {
@@ -68,6 +71,7 @@ export const PlanejamentoProducao = () => {
   const [salvandoId, setSalvandoId] = useState<string | null>(null);
   const [buscaPeca, setBuscaPeca] = useState('');
   const [cidadeSelecionadaId, setCidadeSelecionadaId] = useState('');
+  const [itemConfiguracao, setItemConfiguracao] = useState<ItemPlanejamento | null>(null);
 
   const [novaCidade, setNovaCidade] = useState('');
   const [novaPecaNome, setNovaPecaNome] = useState('');
@@ -417,6 +421,7 @@ export const PlanejamentoProducao = () => {
                 <th className="p-3 text-right">Existente</th>
                 <th className="p-3 text-right">Disponível</th>
                 <th className="p-3 text-right">Produzir</th>
+                <th className="p-3">Parametrização</th>
               </tr>
             </thead>
             <tbody>
@@ -444,6 +449,12 @@ export const PlanejamentoProducao = () => {
                     <td className="p-3 text-right">{linha.estoque}</td>
                     <td className="p-3 text-right font-medium">{linha.disponivel}</td>
                     <td className={`p-3 text-right font-bold ${linha.deficit > 0 ? 'text-destructive' : ''}`}>{linha.deficit}</td>
+                    <td className="p-3">
+                      <Button variant="outline" size="sm" onClick={() => setItemConfiguracao(linha)}>
+                        <Settings2 className="mr-2 h-4 w-4" />
+                        Parametrizar{linha.componentesConfigurados > 0 ? ` (${linha.componentesConfigurados})` : ''}
+                      </Button>
+                    </td>
                   </tr>
                 );
               })}
@@ -451,6 +462,12 @@ export const PlanejamentoProducao = () => {
           </table>
         </div>
       </Card>
+
+      <PlanejamentoComposicaoDialog
+        item={itemConfiguracao}
+        onClose={() => setItemConfiguracao(null)}
+        onSaved={() => void carregar()}
+      />
 
       <Card className="border-dashed p-4 text-sm text-muted-foreground">
         <div className="flex gap-2">
