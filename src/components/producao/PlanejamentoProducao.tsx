@@ -258,7 +258,7 @@ export const PlanejamentoProducao = () => {
     <div className="space-y-5">
       <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
         <div>
-          <h3 className="text-lg font-semibold">Planejamento de Necessidades</h3>
+          <h3 className="text-lg font-semibold">Planejamento de Acervo e Peças</h3>
           <p className="text-sm text-muted-foreground">
             Selecione a cidade que deseja parametrizar. As peças com quantidade maior que zero entram automaticamente em Projetos.
           </p>
@@ -314,7 +314,7 @@ export const PlanejamentoProducao = () => {
       {podeConfigurar && cidadeSelecionadaId && (
         <Card className="p-4">
           <div className="mb-3">
-            <p className="font-medium">Cadastrar nova peça</p>
+            <p className="font-medium">Adicionar peça à cidade selecionada</p>
             <p className="text-xs text-muted-foreground">
               O código segue o padrão CÓDIGO - Nome usado nos Locais de Utilização. Se o código não for informado, o sistema gera um código alfanumérico interno.
             </p>
@@ -377,7 +377,7 @@ export const PlanejamentoProducao = () => {
                 <th className="p-3 text-right">Qtd. cidade</th>
                 <th className="p-3 text-right">Existente</th>
                 <th className="p-3 text-right">Disponível</th>
-                <th className="p-3 text-right">Produzir</th>
+                <th className="p-3 text-right">Produzir / transformar</th>
                 <th className="p-3">Parametrização</th>
               </tr>
             </thead>
