@@ -52,14 +52,6 @@ type PlanejamentoPayload = {
   fonte: Fonte;
 };
 
-type NecessidadeFabricacao = {
-  id: string;
-  planejamento_item_id: string;
-  item_nome: string;
-  quantidade: number;
-  status: 'a_programar' | 'programada' | 'atendida' | 'cancelada';
-};
-
 const numero = (valor: unknown) => Number(valor || 0);
 
 const formatarDataHora = (valor: string | null | undefined) => {
@@ -67,18 +59,11 @@ const formatarDataHora = (valor: string | null | undefined) => {
   return new Date(valor).toLocaleString('pt-BR');
 };
 
-const statusPlanejamento = (deficit: number, necessidade: number) => {
-  if (necessidade <= 0) return { label: 'Fora do cálculo', variant: 'outline' as const };
-  if (deficit > 0) return { label: 'Déficit', variant: 'destructive' as const };
-  return { label: 'Coberto', variant: 'secondary' as const };
-};
-
 export const PlanejamentoProducao = () => {
   const { canConfigurarProducao } = usePermissions();
   const podeConfigurar = canConfigurarProducao();
 
   const [dados, setDados] = useState<PlanejamentoPayload>({ projetos: [], itens: [], fonte: null });
-  const [necessidadesFabricacao, setNecessidadesFabricacao] = useState<NecessidadeFabricacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvandoId, setSalvandoId] = useState<string | null>(null);
   const [buscaPeca, setBuscaPeca] = useState('');
@@ -92,16 +77,9 @@ export const PlanejamentoProducao = () => {
   const carregar = useCallback(async () => {
     setLoading(true);
     try {
-      const [planejamentoResult, necessidadesResult] = await Promise.all([
-        (supabase.rpc as any)('listar_planejamento_producao_v2'),
-        (supabase.rpc as any)('listar_necessidades_fabricacao_v1'),
-      ]);
-
+      const planejamentoResult = await (supabase.rpc as any)('listar_planejamento_producao_v2');
       if (planejamentoResult.error) throw planejamentoResult.error;
-      if (necessidadesResult.error) throw necessidadesResult.error;
-
       setDados((planejamentoResult.data ?? { projetos: [], itens: [], fonte: null }) as PlanejamentoPayload);
-      setNecessidadesFabricacao((necessidadesResult.data ?? []) as NecessidadeFabricacao[]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível carregar o planejamento.');
     } finally {
@@ -155,15 +133,6 @@ export const PlanejamentoProducao = () => {
       return campos.some((campo) => normalizarBusca(campo).includes(termo));
     });
   }, [buscaPeca, linhas]);
-
-  const necessidadeAbertaPorItem = useMemo(
-    () => new Map(
-      necessidadesFabricacao
-        .filter((item) => item.status === 'a_programar')
-        .map((item) => [item.planejamento_item_id, item]),
-    ),
-    [necessidadesFabricacao],
-  );
 
   const resumo = useMemo(() => ({
     projetos: projetosAtivos.length,
@@ -244,24 +213,6 @@ export const PlanejamentoProducao = () => {
       await carregar();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível cadastrar a peça.');
-    } finally {
-      setSalvandoId(null);
-    }
-  };
-
-  const enviarNecessidadeFabricacao = async (itemId: string) => {
-    setSalvandoId(`necessidade-${itemId}`);
-    try {
-      const { error } = await (supabase.rpc as any)('enviar_necessidade_fabricacao_v1', {
-        p_planejamento_item_id: itemId,
-        p_quantidade: null,
-        p_observacoes: null,
-      });
-      if (error) throw error;
-      toast.success('Déficit enviado à Produção como necessidade A programar.');
-      await carregar();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Não foi possível enviar a necessidade.');
     } finally {
       setSalvandoId(null);
     }
@@ -413,14 +364,10 @@ export const PlanejamentoProducao = () => {
                 <th className="p-3 text-right">Existente</th>
                 <th className="p-3 text-right">Disponível</th>
                 <th className="p-3 text-right">Produzir</th>
-                <th className="p-3">Situação</th>
-                <th className="p-3">Produção</th>
               </tr>
             </thead>
             <tbody>
               {linhasFiltradas.map((linha) => {
-                const situacao = statusPlanejamento(linha.deficit, linha.necessidade);
-                const necessidadeAberta = necessidadeAbertaPorItem.get(linha.id);
                 return (
                   <tr key={linha.id} className="border-t">
                     <td className="p-3">
@@ -435,22 +382,6 @@ export const PlanejamentoProducao = () => {
                     <td className="p-3 text-right">{linha.estoque}</td>
                     <td className="p-3 text-right font-medium">{linha.disponivel}</td>
                     <td className={`p-3 text-right font-bold ${linha.deficit > 0 ? 'text-destructive' : ''}`}>{linha.deficit}</td>
-                    <td className="p-3"><Badge variant={situacao.variant}>{situacao.label}</Badge></td>
-                    <td className="p-3">
-                      {necessidadeAberta ? (
-                        <Badge variant="secondary">{numero(necessidadeAberta.quantidade)} un. aguardando programação</Badge>
-                      ) : linha.deficit > 0 && podeConfigurar ? (
-                        <Button
-                          size="sm"
-                          onClick={() => void enviarNecessidadeFabricacao(linha.id)}
-                          disabled={salvandoId === `necessidade-${linha.id}`}
-                        >
-                          Enviar para Produção
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </td>
                   </tr>
                 );
               })}
