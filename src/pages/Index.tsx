@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MenuPrincipal } from '@/components/gestao-estoque/MenuPrincipal';
 import { TabelaEstoque } from '@/components/gestao-estoque/TabelaEstoque';
@@ -17,7 +17,7 @@ import ControlePontoEspelho from '@/components/rh/ControlePontoEspelho';
 import RHInformacoes from '@/components/rh/RHInformacoes';
 import { AprovacoesPontoTab, RegistrosPontoTab } from '@/components/rh/ControlePontoAbas';
 import { PrimeiroAcessoSenha } from '@/components/auth/PrimeiroAcessoSenha';
-import { Package, LogOut, BarChart3, FileSpreadsheet } from 'lucide-react';
+import { Package, LogOut, BarChart3, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,24 @@ import { SeletorEstoque } from '@/components/gestao-estoque/SeletorEstoque';
 import { EstoqueProvider } from '@/contexts/EstoqueContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useSolicitacoesMaterialPendentes } from '@/hooks/useSolicitacoesMaterialPendentes';
+
+const AcompanhamentoPedidoIntegrado = lazy(() =>
+  import('@/components/integracoes/AcompanhamentoPedidoIntegrado').then((module) => ({
+    default: module.AcompanhamentoPedidoIntegrado,
+  })),
+);
+const Planejamento2Integrado = lazy(() =>
+  import('@/components/integracoes/Planejamento2Integrado').then((module) => ({
+    default: module.Planejamento2Integrado,
+  })),
+);
+
+const ModuloIntegradoFallback = () => (
+  <div className="flex min-h-[260px] items-center justify-center gap-2 text-sm text-muted-foreground">
+    <Loader2 className="h-4 w-4 animate-spin" />
+    Carregando módulo...
+  </div>
+);
 
 const Index = () => {
   const [tabAtiva, setTabAtiva] = useState('visao-geral');
@@ -178,6 +196,8 @@ const Index = () => {
           const showProjetos = canAccessProjects();
           const showProducao = canApontarProducao() || canConferirProducao() || canConfigurarProducao();
           const showFinanceiro = canAccessFinanceiro();
+          const showAcompanhamentoPedido = isAdmin() || showGerencial || showProjetos || showProducao;
+          const showPlanejamento2 = isAdmin() || showGerencial || showProjetos || canConfigurarProducao();
           const showMeuPonto = meuPontoDisponivel;
           const showControlePonto = isAdmin() || hasPermission('ponto.visualizar') || hasPermission('ponto.gerenciar') || hasPermission('ponto.aprovar');
           const showRHInformacoes = isAdmin() || hasPermission('rh.acessar') || hasPermission('rh.colaboradores.visualizar') || hasPermission('rh.colaboradores.gerenciar') || hasPermission('rh.jornadas.gerenciar') || hasPermission('rh.feriados.gerenciar');
@@ -195,6 +215,8 @@ const Index = () => {
                 showProjetos={showProjetos}
                 showProducao={showProducao}
                 showFinanceiro={showFinanceiro}
+                showAcompanhamentoPedido={showAcompanhamentoPedido}
+                showPlanejamento2={showPlanejamento2}
                 showMeuPonto={showMeuPonto}
                 showControlePonto={showControlePonto}
                 showRHInformacoes={showRHInformacoes}
@@ -242,6 +264,20 @@ const Index = () => {
                     {showGerencial && <TabsContent value="gerencial" className="mt-0 space-y-6"><PainelGerencialAcesso /></TabsContent>}
                     {showProjetos && <TabsContent value="projetos" className="mt-0 space-y-6"><VisaoProjetos /></TabsContent>}
                     {showProducao && <TabsContent value="producao" className="mt-0 space-y-6"><Producao /></TabsContent>}
+                    {showAcompanhamentoPedido && (
+                      <TabsContent value="acompanhamento-pedido" className="mt-0 space-y-6">
+                        <Suspense fallback={<ModuloIntegradoFallback />}>
+                          <AcompanhamentoPedidoIntegrado />
+                        </Suspense>
+                      </TabsContent>
+                    )}
+                    {showPlanejamento2 && (
+                      <TabsContent value="planejamento-2" className="mt-0 space-y-6">
+                        <Suspense fallback={<ModuloIntegradoFallback />}>
+                          <Planejamento2Integrado />
+                        </Suspense>
+                      </TabsContent>
+                    )}
                     {showFinanceiro && <TabsContent value="financeiro" className="mt-0 space-y-6"><Financeiro /></TabsContent>}
                     {showMeuPonto && <TabsContent value="meu-ponto" className="mt-0 space-y-6"><MeuPonto /></TabsContent>}
                     {showControlePonto && (
