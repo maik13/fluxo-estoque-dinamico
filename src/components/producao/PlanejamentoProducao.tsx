@@ -106,17 +106,20 @@ export const PlanejamentoProducao = () => {
 
   const linhas = useMemo(
     () => dados.itens.map((item) => {
-      const necessidade = projetosAtivos.reduce(
-        (soma, projeto) => soma + numero(item.demandas?.[projeto.chave]),
-        0,
-      );
+      const projetoSelecionado = dados.projetos.find((projeto) => projeto.id === cidadeSelecionadaId);
+      const necessidade = projetoSelecionado
+        ? numero(item.demandas?.[projetoSelecionado.chave])
+        : projetosAtivos.reduce(
+            (soma, projeto) => soma + numero(item.demandas?.[projeto.chave]),
+            0,
+          );
       const estoque = numero(item.qtdEstoqueAtual);
       const reservado = numero(item.qtdReservada);
       const disponivel = numero(item.qtdDisponivelAtual);
       const deficit = Math.max(0, necessidade - disponivel);
       return { ...item, necessidade, estoque, reservado, disponivel, deficit };
     }),
-    [dados.itens, projetosAtivos],
+    [dados.itens, projetosAtivos, dados.projetos, cidadeSelecionadaId],
   );
 
   const linhasFiltradas = useMemo(() => {
@@ -159,6 +162,35 @@ export const PlanejamentoProducao = () => {
       await carregar();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível alterar o projeto.');
+    } finally {
+      setSalvandoId(null);
+    }
+  };
+
+  const salvarQuantidadeCidade = async (item: ItemPlanejamento, valor: string) => {
+    const projeto = dados.projetos.find((cidade) => cidade.id === cidadeSelecionadaId);
+    if (!projeto || !podeConfigurar) return;
+    const quantidade = Number(valor.replace(',', '.'));
+    if (!Number.isFinite(quantidade) || quantidade < 0) {
+      toast.error('Informe uma quantidade válida.');
+      return;
+    }
+    if (quantidade === numero(item.demandas?.[projeto.chave])) return;
+
+    setSalvandoId(`demanda-${item.id}`);
+    try {
+      const { error } = await (supabase.rpc as any)('salvar_demanda_planejamento_cidade_v1', {
+        p_planejamento_projeto_id: projeto.id,
+        p_planejamento_item_id: item.id,
+        p_quantidade: quantidade,
+      });
+      if (error) throw error;
+      toast.success(quantidade > 0
+        ? `${item.nome}: ${quantidade} un. em ${projeto.nome}. Projeto sincronizado automaticamente.`
+        : `${item.nome} retirada do planejamento de ${projeto.nome}.`);
+      await carregar();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível salvar a peça na cidade.');
     } finally {
       setSalvandoId(null);
     }
@@ -381,7 +413,7 @@ export const PlanejamentoProducao = () => {
             <thead className="bg-muted/50 text-left">
               <tr>
                 <th className="p-3">Peça</th>
-                <th className="p-3 text-right">Necessário</th>
+                <th className="p-3 text-right">Qtd. cidade</th>
                 <th className="p-3 text-right">Existente</th>
                 <th className="p-3 text-right">Disponível</th>
                 <th className="p-3 text-right">Produzir</th>
@@ -399,7 +431,16 @@ export const PlanejamentoProducao = () => {
                         </p>
                       )}
                     </td>
-                    <td className="p-3 text-right">{linha.necessidade}</td>
+                    <td className="p-3">
+                      <Input
+                        key={`${cidadeSelecionadaId}-${linha.id}-${linha.necessidade}`}
+                        defaultValue={linha.necessidade}
+                        inputMode="decimal"
+                        disabled={!cidadeSelecionadaId || !podeConfigurar || salvandoId === `demanda-${linha.id}`}
+                        onBlur={(event) => void salvarQuantidadeCidade(linha, event.target.value)}
+                        className="ml-auto w-24 text-right"
+                      />
+                    </td>
                     <td className="p-3 text-right">{linha.estoque}</td>
                     <td className="p-3 text-right font-medium">{linha.disponivel}</td>
                     <td className={`p-3 text-right font-bold ${linha.deficit > 0 ? 'text-destructive' : ''}`}>{linha.deficit}</td>
