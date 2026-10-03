@@ -66,6 +66,7 @@ export const MenuPrincipal = ({
     caixaOrganizador: '',
     nome: '',
     especificacao: '',
+    especificacoesDimensoes: '',
     marca: '',
     unidade: '',
     condicao: 'Novo',
@@ -235,6 +236,7 @@ export const MenuPrincipal = ({
           caixaOrganizador: data.caixa_organizador || '',
           nome: data.nome || '',
           especificacao: data.especificacao || '',
+          especificacoesDimensoes: data.especificacoes_dimensoes || '',
           marca: data.marca || '',
           unidade: data.unidade || '',
           condicao: data.condicao as any,
@@ -791,6 +793,20 @@ export const MenuPrincipal = ({
                   placeholder="Amperagem, bitola, tipo, BWG, gramatura, etc."
                   rows={3}
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="especificacoesDimensoes">Especificações / Dimensões</Label>
+                <Textarea
+                  id="especificacoesDimensoes"
+                  value={formCadastro.especificacoesDimensoes || ''}
+                  onChange={(e) => handleFormCadastroChange('especificacoesDimensoes', e.target.value)}
+                  placeholder="Ex.: A: 2,7 m × L: 1,15 m; D: 1,0 m"
+                  rows={2}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Preserve aqui as dimensões físicas da peça, separadas do nome.
+                </p>
               </div>
               
               <UploadFotoProduto
