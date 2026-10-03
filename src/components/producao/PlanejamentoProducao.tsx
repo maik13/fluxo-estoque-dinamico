@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ExternalLink, Plus, RefreshCw } from 'lucide-react';
+import { CheckCircle2, ExternalLink, Plus, RefreshCw, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -81,6 +81,7 @@ export const PlanejamentoProducao = () => {
   const [necessidadesFabricacao, setNecessidadesFabricacao] = useState<NecessidadeFabricacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvandoId, setSalvandoId] = useState<string | null>(null);
+  const [buscaPeca, setBuscaPeca] = useState('');
 
   const [novaCidade, setNovaCidade] = useState('');
   const [novaPecaNome, setNovaPecaNome] = useState('');
@@ -117,6 +118,13 @@ export const PlanejamentoProducao = () => {
     [dados.projetos],
   );
 
+  const normalizarBusca = (valor: string | null | undefined) =>
+    (valor ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+
   const linhas = useMemo(
     () => dados.itens.map((item) => {
       const necessidade = projetosAtivos.reduce(
@@ -131,6 +139,22 @@ export const PlanejamentoProducao = () => {
     }),
     [dados.itens, projetosAtivos],
   );
+
+  const linhasFiltradas = useMemo(() => {
+    const termo = normalizarBusca(buscaPeca);
+    if (!termo) return linhas;
+
+    return linhas.filter((linha) => {
+      const campos = [
+        linha.nome,
+        linha.acervoNome,
+        linha.acervoCodigo,
+        linha.acervoCategoria,
+        linha.statusPlanilha,
+      ];
+      return campos.some((campo) => normalizarBusca(campo).includes(termo));
+    });
+  }, [buscaPeca, linhas]);
 
   const necessidadeAbertaPorItem = useMemo(
     () => new Map(
@@ -358,6 +382,27 @@ export const PlanejamentoProducao = () => {
         <Card className="p-4"><p className="text-xs text-muted-foreground">Unidades a produzir</p><p className="text-2xl font-bold">{resumo.unidadesFaltantes}</p></Card>
       </div>
 
+      <Card className="p-4">
+        <div className="space-y-2">
+          <Label htmlFor="busca-peca-planejamento">Buscar peça / referência</Label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="busca-peca-planejamento"
+              value={buscaPeca}
+              onChange={(e) => setBuscaPeca(e.target.value)}
+              placeholder="Digite o nome da peça, código TEC, referência ou categoria..."
+              className="pl-9"
+            />
+          </div>
+          {buscaPeca.trim() && (
+            <p className="text-xs text-muted-foreground">
+              {linhasFiltradas.length} referência(s) encontrada(s). O nome principal é o usado no Planejamento; abaixo dele aparece o vínculo com o acervo quando existir.
+            </p>
+          )}
+        </div>
+      </Card>
+
       <Card className="overflow-hidden">
         <div className="overflow-auto">
           <table className="w-full min-w-[1050px] text-sm">
@@ -373,12 +418,19 @@ export const PlanejamentoProducao = () => {
               </tr>
             </thead>
             <tbody>
-              {linhas.map((linha) => {
+              {linhasFiltradas.map((linha) => {
                 const situacao = statusPlanejamento(linha.deficit, linha.necessidade);
                 const necessidadeAberta = necessidadeAbertaPorItem.get(linha.id);
                 return (
                   <tr key={linha.id} className="border-t">
-                    <td className="p-3 font-medium">{linha.nome}</td>
+                    <td className="p-3">
+                      <p className="font-medium">{linha.nome}</p>
+                      {(linha.acervoCodigo || linha.acervoNome) && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Referência: {linha.acervoCodigo ?? '—'}{linha.acervoNome ? ` · ${linha.acervoNome}` : ''}
+                        </p>
+                      )}
+                    </td>
                     <td className="p-3 text-right">{linha.necessidade}</td>
                     <td className="p-3 text-right">{linha.estoque}</td>
                     <td className="p-3 text-right font-medium">{linha.disponivel}</td>
