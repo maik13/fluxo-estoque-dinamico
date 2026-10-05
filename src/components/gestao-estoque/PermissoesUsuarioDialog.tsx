@@ -14,10 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import {
-  PERMISSOES_EXISTENTES,
-  type EstadoPermissaoUsuario,
-} from './permissoesExistentes';
+import { type EstadoPermissaoUsuario } from './permissoesExistentes';
 
 interface PermissaoUsuarioLinha {
   permissao_id: string;
@@ -62,39 +59,11 @@ export const PermissoesUsuarioDialog = ({
   const [saving, setSaving] = useState(false);
   const [armazenamentoIndividualDisponivel, setArmazenamentoIndividualDisponivel] = useState(true);
 
-  const carregarFallback = async () => {
-    const tipoNormalizado = userType.toLocaleLowerCase('pt-BR');
-    const { data: perfil, error } = await supabase
-      .from('permissoes_tipo_usuario')
-      .select('*')
-      .eq('tipo_usuario', tipoNormalizado)
-      .maybeSingle();
-
-    if (error) throw error;
-
-    const linhas: PermissaoUsuarioLinha[] = PERMISSOES_EXISTENTES.map((item) => ({
-      permissao_id: item.campo,
-      chave: item.chave,
-      modulo: item.modulo,
-      grupo: item.grupo,
-      nome: item.nome,
-      descricao: item.descricao,
-      ordem: item.ordem,
-      perfil_permitido: Boolean((perfil as any)?.[item.campo]),
-      estado_individual: 'herdar',
-      permitido_efetivo: Boolean((perfil as any)?.[item.campo]),
-      origem: 'perfil',
-    }));
-
-    setPermissoes(linhas);
-    setEstados(Object.fromEntries(linhas.map((item) => [item.chave, 'herdar'])));
-    setModulosAbertos(new Set(linhas.map((item) => item.modulo)));
-    setArmazenamentoIndividualDisponivel(false);
-  };
-
   const carregar = async () => {
     setLoading(true);
-    setArmazenamentoIndividualDisponivel(true);
+    setPermissoes([]);
+    setEstados({});
+    setArmazenamentoIndividualDisponivel(false);
 
     try {
       const { data, error } = await (supabase as any).rpc('listar_permissoes_usuario', {
@@ -105,21 +74,22 @@ export const PermissoesUsuarioDialog = ({
       const linhas = (data ?? []) as PermissaoUsuarioLinha[];
       if (linhas.length === 0) throw new Error('A consulta retornou uma lista vazia.');
 
+      const obrigatorias = ['rh_acessar', 'ponto_registrar', 'ponto_visualizar', 'ponto_gerenciar', 'ponto_aprovar'];
+      if (obrigatorias.some((chave) => !linhas.some((linha) => linha.chave === chave))) {
+        throw new Error('Catálogo de permissões incompleto.');
+      }
+      setArmazenamentoIndividualDisponivel(true);
       setPermissoes(linhas);
       setEstados(
         Object.fromEntries(linhas.map((item) => [item.chave, item.estado_individual])),
       );
       setModulosAbertos(new Set(linhas.map((item) => item.modulo)));
     } catch (error) {
-      console.warn('Exceções individuais indisponíveis; exibindo a matriz do perfil:', error);
-      try {
-        await carregarFallback();
-      } catch (fallbackError) {
-        console.error('Erro ao carregar a matriz do perfil:', fallbackError);
-        toast.error('Não foi possível carregar as permissões do perfil.');
-        setPermissoes([]);
-        setEstados({});
-      }
+      console.error('Erro ao carregar permissões:', error);
+      setArmazenamentoIndividualDisponivel(false);
+      setPermissoes([]);
+      setEstados({});
+      toast.error('Não foi possível carregar as permissões. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -182,6 +152,7 @@ export const PermissoesUsuarioDialog = ({
   };
 
   const salvar = async () => {
+    if (!armazenamentoIndividualDisponivel || loading || permissoes.length === 0) return;
     setSaving(true);
     try {
       const alteracoes = permissoes.map((item) => ({
@@ -199,15 +170,9 @@ export const PermissoesUsuarioDialog = ({
       onOpenChange(false);
     } catch (error) {
       console.error('Erro ao salvar permissões do usuário:', error);
-      if (!armazenamentoIndividualDisponivel) {
-        toast.error(
-          'As escolhas foram feitas na tela, mas a migration de permissões individuais ainda precisa ser aplicada no Supabase para permitir o salvamento.',
-        );
-      } else {
-        toast.error(
-          error instanceof Error ? error.message : 'Não foi possível salvar as permissões.',
-        );
-      }
+      toast.error(
+        typeof (error as any)?.message === 'string' ? (error as any).message : 'Não foi possível salvar as permissões.',
+      );
     } finally {
       setSaving(false);
     }
@@ -227,9 +192,10 @@ export const PermissoesUsuarioDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        {!armazenamentoIndividualDisponivel && (
+        {!loading && !armazenamentoIndividualDisponivel && (
           <div className="border-b border-amber-500/30 bg-amber-500/10 px-5 py-2.5 text-sm text-amber-700 dark:text-amber-300 sm:px-6">
-            Você já pode montar a personalização abaixo. Para gravá-la, aplique a migration de permissões individuais no Supabase.
+            As permissões não foram carregadas. Nenhuma alteração pode ser salva.
+            <Button variant="outline" size="sm" className="ml-3" onClick={() => void carregar()}>Tentar novamente</Button>
           </div>
         )}
 
@@ -415,7 +381,7 @@ export const PermissoesUsuarioDialog = ({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
-          <Button onClick={salvar} disabled={saving || loading || permissoes.length === 0}>
+          <Button onClick={salvar} disabled={saving || loading || !armazenamentoIndividualDisponivel || permissoes.length === 0}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Salvar permissões
           </Button>

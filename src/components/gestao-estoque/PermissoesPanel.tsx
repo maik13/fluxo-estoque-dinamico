@@ -40,6 +40,15 @@ interface PermissaoTipoUsuario {
   pode_programar_financeiro: boolean;
   pode_conciliar_financeiro: boolean;
   pode_ver_relatorios_financeiro: boolean;
+  rh_acessar: boolean;
+  rh_colaboradores_visualizar: boolean;
+  rh_colaboradores_gerenciar: boolean;
+  rh_jornadas_gerenciar: boolean;
+  rh_feriados_gerenciar: boolean;
+  ponto_registrar: boolean;
+  ponto_visualizar: boolean;
+  ponto_gerenciar: boolean;
+  ponto_aprovar: boolean;
 }
 
 const TIPOS_USUARIO_LABELS: Record<string, string> = {
@@ -125,6 +134,25 @@ export const PERMISSOES_GRUPOS: PermissaoGrupo[] = [
     ],
   },
   {
+    titulo: 'RH',
+    campos: [
+      { key: 'rh_acessar', label: 'Acessar RH' },
+      { key: 'rh_colaboradores_visualizar', label: 'Visualizar funcionários' },
+      { key: 'rh_colaboradores_gerenciar', label: 'Gerenciar funcionários' },
+      { key: 'rh_jornadas_gerenciar', label: 'Gerenciar jornadas' },
+      { key: 'rh_feriados_gerenciar', label: 'Gerenciar feriados' },
+    ],
+  },
+  {
+    titulo: 'Ponto',
+    campos: [
+      { key: 'ponto_registrar', label: 'Registrar o próprio ponto' },
+      { key: 'ponto_visualizar', label: 'Visualizar ponto' },
+      { key: 'ponto_gerenciar', label: 'Gerenciar ponto' },
+      { key: 'ponto_aprovar', label: 'Aprovar ponto' },
+    ],
+  },
+  {
     titulo: 'Administração',
     campos: [
       { key: 'pode_gerenciar_configuracoes', label: 'Gerenciar configurações' },
@@ -157,6 +185,15 @@ export const PermissoesPanel = () => {
       if (error) throw error;
       setPermissoes((data ?? []).map((item: any) => ({
         ...item,
+        rh_acessar: item.rh_acessar ?? false,
+        rh_colaboradores_visualizar: item.rh_colaboradores_visualizar ?? false,
+        rh_colaboradores_gerenciar: item.rh_colaboradores_gerenciar ?? false,
+        rh_jornadas_gerenciar: item.rh_jornadas_gerenciar ?? false,
+        rh_feriados_gerenciar: item.rh_feriados_gerenciar ?? false,
+        ponto_registrar: item.ponto_registrar ?? false,
+        ponto_visualizar: item.ponto_visualizar ?? false,
+        ponto_gerenciar: item.ponto_gerenciar ?? false,
+        ponto_aprovar: item.ponto_aprovar ?? false,
         pode_editar_movimentacoes: item.pode_editar_movimentacoes ?? false,
         pode_acessar_gerencial: item.pode_acessar_gerencial ?? false,
         pode_acessar_projetos: item.pode_acessar_projetos ?? false,
