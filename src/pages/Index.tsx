@@ -95,7 +95,14 @@ const Index = () => {
     };
 
     void verificarMeuPonto();
-    return () => { cancelado = true; };
+    const timer = window.setInterval(() => void verificarMeuPonto(), 30_000);
+    const onFocus = () => void verificarMeuPonto();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      cancelado = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [session?.user?.id, loadingPermissoes]);
 
   useEffect(() => {
@@ -196,8 +203,8 @@ const Index = () => {
           const showProjetos = canAccessProjects();
           const showProducao = canApontarProducao() || canConferirProducao() || canConfigurarProducao();
           const showFinanceiro = canAccessFinanceiro();
-          const showAcompanhamentoPedido = isAdmin() || showGerencial || showProjetos || showProducao;
-          const showPlanejamento2 = isAdmin() || showGerencial || showProjetos || canConfigurarProducao();
+          const showAcompanhamentoPedido = hasPermission('acompanhamento.acessar');
+          const showPlanejamento2 = hasPermission('planejamento2.acessar');
           const showMeuPonto = meuPontoDisponivel;
           const showControlePonto = isAdmin() || hasPermission('ponto.visualizar') || hasPermission('ponto.gerenciar') || hasPermission('ponto.aprovar');
           const showRHInformacoes = isAdmin() || hasPermission('rh.acessar') || hasPermission('rh.colaboradores.visualizar') || hasPermission('rh.colaboradores.gerenciar') || hasPermission('rh.jornadas.gerenciar') || hasPermission('rh.feriados.gerenciar');

@@ -21,6 +21,8 @@ type DiaKey = "segunda" | "terca" | "quarta" | "quinta" | "sexta" | "sabado" | "
 type PeriodosDia = { entrada1: string; saida1: string; entrada2: string; saida2: string };
 type HorariosSemana = Record<DiaKey, PeriodosDia>;
 
+type UsuarioExistente = { user_id: string; nome: string; email: string | null; colaborador_id: string | null };
+
 type Colaborador = {
   id: string;
   nome: string;
@@ -260,6 +262,8 @@ export function FuncionariosRhTab() {
   const [controlaPonto, setControlaPonto] = useState(false);
   const [tipoContrato, setTipoContrato] = useState<ContractType>("clt");
   const [valorContrato, setValorContrato] = useState("");
+  const [usuariosExistentes, setUsuariosExistentes] = useState<UsuarioExistente[]>([]);
+  const [usuarioExistenteId, setUsuarioExistenteId] = useState("");
   const [criarLogin, setCriarLogin] = useState(true);
   const [senha, setSenha] = useState("");
 
@@ -276,12 +280,15 @@ export function FuncionariosRhTab() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [funcResponse, jornadaResponse] = await Promise.all([
+      const [funcResponse, jornadaResponse, usuariosResponse] = await Promise.all([
         db.from("rh_colaboradores").select("*").order("nome"),
         db.from("rh_jornadas").select("*").order("nome"),
+        canManageRh ? db.rpc("rh_listar_usuarios_vinculaveis") : Promise.resolve({ data: [], error: null }),
       ]);
       if (funcResponse.error) throw funcResponse.error;
       if (jornadaResponse.error) throw jornadaResponse.error;
+      if (usuariosResponse.error) throw usuariosResponse.error;
+      setUsuariosExistentes(usuariosResponse.data ?? []);
       setFuncionarios((funcResponse.data ?? []) as Colaborador[]);
       setJornadas((jornadaResponse.data ?? []) as Jornada[]);
     } catch (error: any) {
@@ -321,6 +328,7 @@ export function FuncionariosRhTab() {
     setTipoContrato("clt");
     setValorContrato("");
     setCriarLogin(true);
+    setUsuarioExistenteId("");
     setSenha("");
   };
 
@@ -376,6 +384,7 @@ export function FuncionariosRhTab() {
       setValorContrato(String(func.valor_contrato ?? ""));
     }
     setCriarLogin(false);
+    setUsuarioExistenteId(func.user_id || "");
     setSenha("");
     setDialogOpen(true);
   };
@@ -558,7 +567,7 @@ export function FuncionariosRhTab() {
     }
 
     const nextPista = canManageRh ? pistaAtivo : editingFuncionario?.pista_ativo_legado ?? false;
-    const needsNewLogin = criarLogin && (!editingFuncionario || !editingFuncionario.user_id);
+    const needsNewLogin = criarLogin && !usuarioExistenteId && (!editingFuncionario || !editingFuncionario.user_id);
     if (needsNewLogin && !rhAtivo) {
       toast.error("Acesso para registro de ponto só pode ser criado para colaborador vinculado ao RH");
       return;
@@ -584,9 +593,9 @@ export function FuncionariosRhTab() {
           body: {
             ...payload,
             email: email.trim() || null,
-            password: criarLogin ? senha : null,
+            password: needsNewLogin ? senha : null,
             ativo: rhAtivo || nextPista,
-            create_login: criarLogin,
+            create_login: needsNewLogin,
           },
         });
         if (response.error) throw new Error(response.error.message || "Erro ao criar funcionário");
@@ -620,15 +629,21 @@ export function FuncionariosRhTab() {
         resolvedJornadaId = jornadaId || null;
       }
 
-      if (editingFuncionario || jornadaMode === "custom") {
-        await updateEmployeeFields(collaboratorId, resolvedJornadaId);
-      }
-
       if (jornadaMode !== "custom") {
         await deactivateCustomJourney(collaboratorId);
       }
 
       await saveMemberships(collaboratorId, rhAtivo, nextPista);
+      await updateEmployeeFields(collaboratorId, resolvedJornadaId);
+
+      const linkedUser = usuarioExistenteId || editingFuncionario?.user_id;
+      if (linkedUser) {
+        const { error } = await db.rpc("rh_vincular_usuario_existente", {
+          p_colaborador_id: collaboratorId,
+          p_user_id: linkedUser,
+        });
+        if (error) throw error;
+      }
 
       toast.success(
         editingFuncionario
@@ -919,15 +934,40 @@ export function FuncionariosRhTab() {
               </div>
             </div>
 
-            {rhAtivo && (!editingFuncionario || !editingFuncionario.user_id) && (
+            {rhAtivo && (
               <div className="space-y-4">
                 <h3 className="flex items-center gap-2 font-semibold"><UserPlus className="h-4 w-4" /> Acesso ao Sistema (Registro de Ponto)</h3>
                 <div className="rounded-lg border bg-muted/30 p-4">
-                  <div className="flex items-center gap-3">
+                  {editingFuncionario?.user_id ? (
+                    <p className="text-sm">Login já vinculado: {usuariosExistentes.find((u) => u.user_id === editingFuncionario.user_id)?.email || editingFuncionario.email || "Usuário do Fluxo"}. O acesso ao próprio ponto acompanha a opção “Participa do controle de ponto”.</p>
+                  ) : (
+                    <div className="mb-4 space-y-2">
+                      <Label>Usar usuário existente do Fluxo de Estoque</Label>
+                      <Select value={usuarioExistenteId || "none"} onValueChange={(id) => {
+                        setUsuarioExistenteId(id === "none" ? "" : id);
+                        if (id !== "none") {
+                          const selected = usuariosExistentes.find((u) => u.user_id === id);
+                          setCriarLogin(false);
+                          setSenha("");
+                          if (selected) { setEmail(selected.email || ""); if (!nome.trim()) setNome(selected.nome); }
+                        }
+                      }}>
+                        <SelectTrigger><SelectValue placeholder="Selecione um usuário" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Sem usuário selecionado</SelectItem>
+                          {usuariosExistentes.filter((u) => !u.colaborador_id || u.colaborador_id === editingFuncionario?.id).map((u) => (
+                            <SelectItem key={u.user_id} value={u.user_id}>{u.nome} — {u.email || "Sem e-mail"}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">Usa o mesmo login e senha. Usuários já vinculados a outro funcionário devem ser editados naquele cadastro.</p>
+                    </div>
+                  )}
+                  {!editingFuncionario?.user_id && !usuarioExistenteId && <div className="flex items-center gap-3">
                     <Switch checked={criarLogin} onCheckedChange={setCriarLogin} id="criar-login" />
                     <Label htmlFor="criar-login">{editingFuncionario ? "Criar acesso deste colaborador no novo sistema" : "Criar acesso para o funcionário registrar ponto"}</Label>
-                  </div>
-                  {criarLogin && (
+                  </div>}
+                  {criarLogin && !usuarioExistenteId && !editingFuncionario?.user_id && (
                     <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2"><Label>Email para Login *</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
                       <div className="space-y-2"><Label>Senha *</Label><Input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 8 caracteres" /></div>

@@ -211,6 +211,7 @@ export const usePermissions = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'permissoes_tipo_usuario' }, recarregar)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'perfil_permissoes' }, recarregar)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'usuario_permissoes', filter: `user_id=eq.${user.id}` }, recarregar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'usuario_permissoes_individuais', filter: `user_id=eq.${user.id}` }, recarregar)
       .subscribe();
 
     return () => { void supabase.removeChannel(channel); };
