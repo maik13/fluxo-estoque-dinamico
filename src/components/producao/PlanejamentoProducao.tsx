@@ -72,7 +72,7 @@ export const PlanejamentoProducao = () => {
   const [buscaPeca, setBuscaPeca] = useState('');
   const [cidadeSelecionadaId, setCidadeSelecionadaId] = useState('');
   const [itemConfiguracao, setItemConfiguracao] = useState<ItemPlanejamento | null>(null);
-  const [visaoPlanejamento, setVisaoPlanejamento] = useState<'matriz' | 'detalhado'>('matriz');
+  const [visaoPlanejamento, setVisaoPlanejamento] = useState<'matriz' | 'detalhado'>('detalhado');
 
   const [novaCidade, setNovaCidade] = useState('');
   const [novaPecaNome, setNovaPecaNome] = useState('');
@@ -419,27 +419,27 @@ export const PlanejamentoProducao = () => {
         </div>
       </Card>
 
-      <div className="flex items-center justify-between gap-3">
-        <div className="inline-flex rounded-lg border p-1">
-          <Button
-            type="button"
-            size="sm"
-            variant={visaoPlanejamento === 'matriz' ? 'default' : 'ghost'}
-            onClick={() => setVisaoPlanejamento('matriz')}
-          >
-            Matriz
-          </Button>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="inline-flex w-fit rounded-lg border p-1">
           <Button
             type="button"
             size="sm"
             variant={visaoPlanejamento === 'detalhado' ? 'default' : 'ghost'}
             onClick={() => setVisaoPlanejamento('detalhado')}
           >
-            Detalhado
+            Peças e parametrização
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={visaoPlanejamento === 'matriz' ? 'default' : 'ghost'}
+            onClick={() => setVisaoPlanejamento('matriz')}
+          >
+            Matriz de cidades
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Matriz para edição rápida; Detalhado para parametrização individual da peça.
+          Use Peças e parametrização como visão principal. A Matriz serve apenas para editar rapidamente as quantidades por cidade.
         </p>
       </div>
 
@@ -461,6 +461,13 @@ export const PlanejamentoProducao = () => {
       )}
 
       {visaoPlanejamento === 'detalhado' && (
+      <div className="space-y-3">
+        <Card className="border-dashed p-3">
+          <p className="text-sm font-medium">Parametrização individual da peça</p>
+          <p className="text-xs text-muted-foreground">
+            É aqui que você define, peça por peça, se ela usa acervo, produção nova, transformação ou composição e quais itens existentes participam dela.
+          </p>
+        </Card>
       <Card className="overflow-hidden">
         <div className="overflow-auto">
           <table className="w-full min-w-[1250px] text-sm">
@@ -472,7 +479,7 @@ export const PlanejamentoProducao = () => {
                 <th className="p-3 text-right">Existente</th>
                 <th className="p-3 text-right">Disponível</th>
                 <th className="p-3 text-right">Produzir / transformar</th>
-                <th className="p-3">Parametrização</th>
+                <th className="p-3">Configuração da peça</th>
               </tr>
             </thead>
             <tbody>
@@ -517,7 +524,7 @@ export const PlanejamentoProducao = () => {
                     <td className="p-3">
                       <Button variant="outline" size="sm" onClick={() => setItemConfiguracao(linha)}>
                         <Settings2 className="mr-2 h-4 w-4" />
-                        Parametrizar{linha.componentesConfigurados > 0 ? ` (${linha.componentesConfigurados})` : ''}
+                        Parametrizar item{linha.componentesConfigurados > 0 ? ` (${linha.componentesConfigurados})` : ''}
                       </Button>
                     </td>
                   </tr>
@@ -527,6 +534,7 @@ export const PlanejamentoProducao = () => {
           </table>
         </div>
       </Card>
+      </div>
       )}
 
       <PlanejamentoComposicaoDialog
