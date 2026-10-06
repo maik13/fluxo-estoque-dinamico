@@ -20,7 +20,7 @@ import { isAcertoDeEstoque } from '@/utils/movimentacoes';
 import React from 'react';
 
 export const VisaoProjetos = () => {
-  const { movimentacoes, carregarHistoricoCompleto } = useEstoqueContext();
+  const { movimentacoes, carregarHistoricoCompleto, itens } = useEstoqueContext();
 
   useEffect(() => {
     void carregarHistoricoCompleto();
@@ -40,7 +40,7 @@ export const VisaoProjetos = () => {
   const [filtroPendentesStatus, setFiltroPendentesStatus] = useState('ativos');
   const [filtroDataPendentesInicio, setFiltroDataPendentesInicio] = useState<Date | undefined>(undefined);
   const [filtroDataPendentesFim, setFiltroDataPendentesFim] = useState<Date | undefined>(undefined);
-  const [tipoAgrupamentoProjetos, setTipoAgrupamentoProjetos] = useState<'projeto' | 'grupo'>('projeto');
+  const [tipoAgrupamentoProjetos, setTipoAgrupamentoProjetos] = useState<'projeto' | 'grupo' | 'valor'>('projeto');
   
   const [selectedItensIds, setSelectedItensIds] = useState<string[]>([]);
   const [dialogoEncerrarOpen, setDialogoEncerrarOpen] = useState(false);
@@ -137,12 +137,17 @@ export const VisaoProjetos = () => {
     }
   };
 
+  // A visão Por Valor usa a mesma consolidação oficial Por Projeto.
+  // Ela muda apenas a apresentação financeira, sem criar um segundo motor de movimentações.
+  const agrupamentoConsolidacao: 'projeto' | 'grupo' =
+    tipoAgrupamentoProjetos === 'grupo' ? 'grupo' : 'projeto';
+
   // Hook de consolidação para a visão de projetos
   const { itensAgrupados: todosItensAgrupados } = useConsolidacao(
     movimentacoes,
     locaisConfig,
     gruposProjeto,
-    tipoAgrupamentoProjetos,
+    agrupamentoConsolidacao,
     {
       dataInicio: filtroDataPendentesInicio,
       dataFim: filtroDataPendentesFim,
@@ -178,25 +183,117 @@ export const VisaoProjetos = () => {
     });
   }, [todosItensAgrupados, filtroPendentesTexto, filtroPendentesStatus]);
 
+  const resumoValor = useMemo(() => {
+    const itensAtuaisMap = new Map(itens.map((item) => [item.id, item]));
+
+    return todosItensAgrupados
+      .filter((item) => item.localUtilizacaoId !== 'sem-local')
+      .filter((item) => item.classificacao !== 'Ferramenta')
+      .filter((item) => {
+        if (!filtroPendentesTexto) return true;
+        const termo = filtroPendentesTexto.toLowerCase();
+        const nomeMatch = item.itemSnapshot?.nome?.toLowerCase().includes(termo);
+        const codigoMatch = item.itemSnapshot?.codigoBarras?.toString().includes(termo);
+        return Boolean(nomeMatch || codigoMatch);
+      })
+      .map((item) => {
+        const quantidadeConsumida = Math.max(0, item.totalSaida - item.totalDevolvido);
+        const itemAtual = itensAtuaisMap.get(item.itemId);
+        const valorAtual = itemAtual?.valor;
+        const valorSnapshot = item.itemSnapshot?.valor;
+
+        const temValorAtual =
+          valorAtual !== undefined &&
+          valorAtual !== null &&
+          Number.isFinite(Number(valorAtual));
+
+        const temValorSnapshot =
+          valorSnapshot !== undefined &&
+          valorSnapshot !== null &&
+          Number.isFinite(Number(valorSnapshot));
+
+        const valorUnitario = temValorAtual
+          ? Number(valorAtual)
+          : temValorSnapshot
+            ? Number(valorSnapshot)
+            : null;
+
+        const origemValor = temValorAtual
+          ? 'Cadastro atual'
+          : temValorSnapshot
+            ? 'Snapshot histórico'
+            : 'Sem valor cadastrado';
+
+        return {
+          ...item,
+          quantidadeConsumida,
+          valorUnitario,
+          valorTotal: valorUnitario === null ? null : quantidadeConsumida * valorUnitario,
+          origemValor,
+        };
+      })
+      .filter((item) => item.quantidadeConsumida > 0)
+      .sort((a, b) => {
+        const projeto = a.localUtilizacaoNome.localeCompare(b.localUtilizacaoNome, 'pt-BR');
+        if (projeto !== 0) return projeto;
+        return (b.valorTotal ?? -1) - (a.valorTotal ?? -1);
+      });
+  }, [todosItensAgrupados, itens, filtroPendentesTexto]);
+
+  const totalValorConsumido = useMemo(
+    () => resumoValor.reduce((total, item) => total + (item.valorTotal ?? 0), 0),
+    [resumoValor],
+  );
+
+  const itensSemValor = useMemo(
+    () => resumoValor.filter((item) => item.valorUnitario === null).length,
+    [resumoValor],
+  );
+
+  const formatarMoeda = (valor: number) =>
+    valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
   const exportarPendentesParaExcel = () => {
-    const dados = pendentesFiltrados.map(item => ({
-      'Grupo': item.projetoGrupoNome,
-      'Item': item.itemSnapshot?.nome || 'Não identificado',
-      'Código': item.itemSnapshot?.codigoBarras || '-',
-      'Categoria': item.classificacao || '-',
-      'Projeto/Local': item.localUtilizacaoNome,
-      'Status': item.statusItem.toUpperCase(),
-      'Saída': item.totalSaida,
-      'Devolvido': item.totalDevolvido,
-      'Saldo': item.pendente,
-      'Última Saída': item.ultimaSaida ? format(new Date(item.ultimaSaida), 'dd/MM/yyyy HH:mm') : '-',
-      'Responsável': item.destinatario || item.solicitanteNome || '-'
-    }));
+    const porValor = tipoAgrupamentoProjetos === 'valor';
+
+    const dados = porValor
+      ? resumoValor.map(item => ({
+          'Grupo': item.projetoGrupoNome === '-' ? 'Sem Grupo' : item.projetoGrupoNome,
+          'Projeto/Local': item.localUtilizacaoNome,
+          'Item': item.itemSnapshot?.nome || 'Não identificado',
+          'Código': item.itemSnapshot?.codigoBarras || '-',
+          'Categoria': item.classificacao || '-',
+          'Saída': item.totalSaida,
+          'Devolvido': item.totalDevolvido,
+          'Quantidade Consumida': item.quantidadeConsumida,
+          'Unidade': item.itemSnapshot?.unidade || '-',
+          'Valor Unitário': item.valorUnitario ?? '',
+          'Valor Consumido': item.valorTotal ?? '',
+          'Base do Valor': item.origemValor,
+        }))
+      : pendentesFiltrados.map(item => ({
+          'Grupo': item.projetoGrupoNome,
+          'Item': item.itemSnapshot?.nome || 'Não identificado',
+          'Código': item.itemSnapshot?.codigoBarras || '-',
+          'Categoria': item.classificacao || '-',
+          'Projeto/Local': item.localUtilizacaoNome,
+          'Status': item.statusItem.toUpperCase(),
+          'Saída': item.totalSaida,
+          'Devolvido': item.totalDevolvido,
+          'Saldo': item.pendente,
+          'Última Saída': item.ultimaSaida ? format(new Date(item.ultimaSaida), 'dd/MM/yyyy HH:mm') : '-',
+          'Responsável': item.destinatario || item.solicitanteNome || '-'
+        }));
 
     const ws = XLSX.utils.json_to_sheet(dados);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Resumo Projetos");
-    XLSX.writeFile(wb, `resumo_projetos_${format(new Date(), 'dd-MM-yyyy')}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, porValor ? "Resumo por Valor" : "Resumo Projetos");
+    XLSX.writeFile(
+      wb,
+      porValor
+        ? `resumo_consumo_valor_${format(new Date(), 'dd-MM-yyyy')}.xlsx`
+        : `resumo_projetos_${format(new Date(), 'dd-MM-yyyy')}.xlsx`
+    );
   };
 
   const imprimirPendentes = () => {
@@ -228,16 +325,29 @@ export const VisaoProjetos = () => {
                   >
                     Por Grupo
                   </Button>
+                  <Button
+                    variant={tipoAgrupamentoProjetos === 'valor' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    className="h-7 text-xs px-3"
+                    onClick={() => {
+                      setTipoAgrupamentoProjetos('valor');
+                      setSelectedItensIds([]);
+                    }}
+                  >
+                    Por Valor
+                  </Button>
                 </div>
               </div>
               <CardDescription>
-                {tipoAgrupamentoProjetos === 'projeto' 
-                  ? "Rastreamento de itens alocados por local de utilização individual" 
-                  : "Visão consolidada de itens por Grupos de Projeto"}
+                {tipoAgrupamentoProjetos === 'projeto'
+                  ? "Rastreamento de itens alocados por local de utilização individual"
+                  : tipoAgrupamentoProjetos === 'grupo'
+                    ? "Visão consolidada de itens por Grupos de Projeto"
+                    : "Resumo do consumo líquido e dos valores dos itens por Projeto/Local"}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              {selectedItensIds.length > 0 ? (
+              {tipoAgrupamentoProjetos !== 'valor' && (selectedItensIds.length > 0 ? (
                 <Button 
                   onClick={handleEncerrarSelecionados}
                   variant="default"
@@ -257,7 +367,7 @@ export const VisaoProjetos = () => {
                   <CheckCircle2 className="h-4 w-4" />
                   <span className="hidden sm:inline">Encerrar Pendências</span>
                 </Button>
-              )}
+              ))}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -413,93 +523,59 @@ export const VisaoProjetos = () => {
           </div>
 
           <p className="text-sm text-muted-foreground my-4">
-            Mostrando {pendentesFiltrados.length} resumo(s) por {tipoAgrupamentoProjetos === 'projeto' ? 'projeto/local' : 'grupo'}
+            {tipoAgrupamentoProjetos === 'valor'
+              ? `Mostrando ${resumoValor.length} item(ns) com consumo no período/filtros selecionados`
+              : `Mostrando ${pendentesFiltrados.length} resumo(s) por ${tipoAgrupamentoProjetos === 'projeto' ? 'projeto/local' : 'grupo'}`}
           </p>
 
-          <div className="w-full overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[40px]">
-                    <Checkbox 
-                      checked={selectedItensIds.length > 0 && selectedItensIds.length === pendentesFiltrados.length}
-                      onCheckedChange={handleToggleAll}
-                      aria-label="Selecionar todos"
-                    />
-                  </TableHead>
-                  {tipoAgrupamentoProjetos === 'grupo' && <TableHead>Grupo</TableHead>}
-                  <TableHead>Item</TableHead>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  {tipoAgrupamentoProjetos === 'projeto' && (
-                    <>
+          {tipoAgrupamentoProjetos === 'valor' ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="rounded-md border bg-muted/20 p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor consumido apurado</p>
+                  <p className="text-lg font-bold text-warning">{formatarMoeda(totalValorConsumido)}</p>
+                </div>
+                <div className="rounded-md border bg-muted/20 p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Itens com consumo</p>
+                  <p className="text-lg font-bold">{resumoValor.length}</p>
+                </div>
+                <div className="rounded-md border bg-muted/20 p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Itens sem valor cadastrado</p>
+                  <p className="text-lg font-bold">{itensSemValor}</p>
+                </div>
+              </div>
+
+              <div className="w-full overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
                       <TableHead>Projeto/Local</TableHead>
                       <TableHead>Grupo</TableHead>
-                    </>
-                  )}
-                  <TableHead>Status</TableHead>
-                  <TableHead>{tipoAgrupamentoProjetos === 'grupo' ? 'Total Saída' : 'Saída'}</TableHead>
-                  <TableHead>{tipoAgrupamentoProjetos === 'grupo' ? 'Total Devolvido' : 'Devolvido'}</TableHead>
-                  <TableHead>Saldo</TableHead>
-                  {tipoAgrupamentoProjetos === 'projeto' && (
-                    <>
-                      <TableHead>Última Saída</TableHead>
-                      <TableHead>Responsável</TableHead>
-                    </>
-                  )}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pendentesFiltrados.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                      <div className="flex flex-col items-center gap-2">
-                        <Package className="h-12 w-12 text-muted-foreground" />
-                        <p>Nenhum registro encontrado</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  pendentesFiltrados.map((item) => (
-                    <React.Fragment key={item.key}>
-                      <TableRow 
-                        className={`cursor-pointer transition-colors hover:bg-muted/50 ${selectedItensIds.includes(item.key) ? 'bg-muted/50' : ''} ${expandedRow === item.key ? 'bg-muted/80 border-b-0' : ''}`}
-                        onDoubleClick={() => setExpandedRow(expandedRow === item.key ? null : item.key)}
-                      >
-                        <TableCell>
-                        <Checkbox 
-                          checked={selectedItensIds.includes(item.key)}
-                          onCheckedChange={() => handleToggleSelection(item.key)}
-                          aria-label={`Selecionar ${item.itemSnapshot?.nome}`}
-                        />
-                      </TableCell>
-                      {tipoAgrupamentoProjetos === 'grupo' && (
-                        <TableCell>
-                          <Badge variant={item.localUtilizacaoNome === 'Sem Grupo' ? 'outline' : 'default'} className={item.localUtilizacaoNome === 'Sem Grupo' ? '' : 'bg-blue-500 hover:bg-blue-600'}>
-                            📦 {item.localUtilizacaoNome}
-                          </Badge>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead className="text-right">Saída</TableHead>
+                      <TableHead className="text-right">Devolvido</TableHead>
+                      <TableHead className="text-right">Consumido</TableHead>
+                      <TableHead>Unidade</TableHead>
+                      <TableHead className="text-right">Valor Unit.</TableHead>
+                      <TableHead className="text-right">Valor Consumido</TableHead>
+                      <TableHead>Base do Valor</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {resumoValor.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                          <div className="flex flex-col items-center gap-2">
+                            <Package className="h-12 w-12 text-muted-foreground" />
+                            <p>Nenhum consumo encontrado para os filtros selecionados</p>
+                          </div>
                         </TableCell>
-                      )}
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-xs">{item.itemSnapshot?.nome || 'Item não identificado'}</p>
-                          {item.itemSnapshot?.marca && (
-                            <p className="text-[10px] text-muted-foreground">{item.itemSnapshot.marca}</p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-[10px]">
-                        {item.itemSnapshot?.codigoBarras || '-'}
-                      </TableCell>
-                      <TableCell>
-                        {item.classificacao !== '-' ? (
-                          <Badge variant="outline" className="text-[10px] h-4 bg-muted/50 border-primary/20 text-primary">
-                            {item.classificacao}
-                          </Badge>
-                        ) : '-'}
-                      </TableCell>
-                      {tipoAgrupamentoProjetos === 'projeto' && (
-                        <>
+                      </TableRow>
+                    ) : (
+                      resumoValor.map((item) => (
+                        <TableRow key={`valor-${item.key}`}>
                           <TableCell>
                             <Badge variant="secondary" className="bg-muted text-foreground border-none text-[10px]">
                               {item.localUtilizacaoNome}
@@ -510,60 +586,201 @@ export const VisaoProjetos = () => {
                               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">
                                 📦 {item.projetoGrupoNome}
                               </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Sem Grupo</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <p className="font-medium text-xs">{item.itemSnapshot?.nome || 'Item não identificado'}</p>
+                          </TableCell>
+                          <TableCell className="font-mono text-[10px]">
+                            {item.itemSnapshot?.codigoBarras || '-'}
+                          </TableCell>
+                          <TableCell>
+                            {item.classificacao !== '-' ? (
+                              <Badge variant="outline" className="text-[10px] h-4 bg-muted/50 border-primary/20 text-primary">
+                                {item.classificacao}
+                              </Badge>
                             ) : '-'}
                           </TableCell>
-                        </>
-                      )}
-                      <TableCell>
-                        <Badge 
-                          className={cn(
-                            "text-[10px] h-4",
-                            item.statusItem === 'pendente' && "bg-red-500/10 text-red-500 border-red-500/20",
-                            item.statusItem === 'parcial' && "bg-amber-500/10 text-amber-500 border-amber-500/20",
-                            item.statusItem === 'devolvido' && "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-                            item.statusItem === 'consumido' && "bg-blue-500/10 text-blue-500 border-blue-500/20"
-                          )}
-                        >
-                          {item.statusItem === 'pendente' ? '🔴 Pendente' : 
-                           item.statusItem === 'parcial' ? '🟡 Parcial' : 
-                           item.statusItem === 'consumido' ? '🔵 Consumido' : '🟢 Devolvido'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-warning font-mono font-bold text-xs text-right">
-                        {item.totalSaida.toLocaleString('pt-BR')}
-                      </TableCell>
-                      <TableCell className="text-info font-mono font-bold text-xs text-right">
-                        {item.totalDevolvido.toLocaleString('pt-BR')}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant={item.pendente > 0 ? "destructive" : "outline"} className="font-mono font-bold text-xs">
-                          {item.statusItem === 'consumido' && item.pendenteOriginal ? item.pendenteOriginal.toLocaleString('pt-BR') : item.pendente.toLocaleString('pt-BR')} {item.itemSnapshot?.unidade || ''}
-                        </Badge>
-                      </TableCell>
-                      {tipoAgrupamentoProjetos === 'projeto' && (
-                        <>
-                          <TableCell className="text-[10px]">
-                            {item.ultimaSaida ? format(new Date(item.ultimaSaida), 'dd/MM/yyyy HH:mm') : '-'}
+                          <TableCell className="text-right font-mono text-xs">
+                            {item.totalSaida.toLocaleString('pt-BR')}
                           </TableCell>
-                          <TableCell className="text-[10px]">
-                            {item.destinatario || item.solicitanteNome || '-'}
+                          <TableCell className="text-right font-mono text-xs">
+                            {item.totalDevolvido.toLocaleString('pt-BR')}
                           </TableCell>
-                        </>
-                      )}
-                    </TableRow>
-                    {expandedRow === item.key && (
-                      <TableRow className="bg-muted/20 hover:bg-muted/20">
-                        <TableCell colSpan={tipoAgrupamentoProjetos === 'projeto' ? 12 : 10} className="p-0 border-b">
-                          <DetalhesMovimentacoesProjeto movimentacoes={getMovimentacoesItem(item)} />
-                        </TableCell>
-                      </TableRow>
+                          <TableCell className="text-right font-mono font-bold text-xs">
+                            {item.quantidadeConsumida.toLocaleString('pt-BR')}
+                          </TableCell>
+                          <TableCell className="text-xs">{item.itemSnapshot?.unidade || '-'}</TableCell>
+                          <TableCell className="text-right font-mono text-xs">
+                            {item.valorUnitario === null ? '-' : formatarMoeda(item.valorUnitario)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-bold text-warning text-xs">
+                            {item.valorTotal === null ? '-' : formatarMoeda(item.valorTotal)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={item.origemValor === 'Cadastro atual' ? 'secondary' : 'outline'} className="text-[10px]">
+                              {item.origemValor}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
                     )}
-                  </React.Fragment>
-                ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          ) : (
+            <div className="w-full overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[40px]">
+                      <Checkbox 
+                        checked={selectedItensIds.length > 0 && selectedItensIds.length === pendentesFiltrados.length}
+                        onCheckedChange={handleToggleAll}
+                        aria-label="Selecionar todos"
+                      />
+                    </TableHead>
+                    {tipoAgrupamentoProjetos === 'grupo' && <TableHead>Grupo</TableHead>}
+                    <TableHead>Item</TableHead>
+                    <TableHead>Código</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    {tipoAgrupamentoProjetos === 'projeto' && (
+                      <>
+                        <TableHead>Projeto/Local</TableHead>
+                        <TableHead>Grupo</TableHead>
+                      </>
+                    )}
+                    <TableHead>Status</TableHead>
+                    <TableHead>{tipoAgrupamentoProjetos === 'grupo' ? 'Total Saída' : 'Saída'}</TableHead>
+                    <TableHead>{tipoAgrupamentoProjetos === 'grupo' ? 'Total Devolvido' : 'Devolvido'}</TableHead>
+                    <TableHead>Saldo</TableHead>
+                    {tipoAgrupamentoProjetos === 'projeto' && (
+                      <>
+                        <TableHead>Última Saída</TableHead>
+                        <TableHead>Responsável</TableHead>
+                      </>
+                    )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendentesFiltrados.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                        <div className="flex flex-col items-center gap-2">
+                          <Package className="h-12 w-12 text-muted-foreground" />
+                          <p>Nenhum registro encontrado</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    pendentesFiltrados.map((item) => (
+                      <React.Fragment key={item.key}>
+                        <TableRow 
+                          className={`cursor-pointer transition-colors hover:bg-muted/50 ${selectedItensIds.includes(item.key) ? 'bg-muted/50' : ''} ${expandedRow === item.key ? 'bg-muted/80 border-b-0' : ''}`}
+                          onDoubleClick={() => setExpandedRow(expandedRow === item.key ? null : item.key)}
+                        >
+                          <TableCell>
+                          <Checkbox 
+                            checked={selectedItensIds.includes(item.key)}
+                            onCheckedChange={() => handleToggleSelection(item.key)}
+                            aria-label={`Selecionar ${item.itemSnapshot?.nome}`}
+                          />
+                        </TableCell>
+                        {tipoAgrupamentoProjetos === 'grupo' && (
+                          <TableCell>
+                            <Badge variant={item.localUtilizacaoNome === 'Sem Grupo' ? 'outline' : 'default'} className={item.localUtilizacaoNome === 'Sem Grupo' ? '' : 'bg-blue-500 hover:bg-blue-600'}>
+                              📦 {item.localUtilizacaoNome}
+                            </Badge>
+                          </TableCell>
+                        )}
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-xs">{item.itemSnapshot?.nome || 'Item não identificado'}</p>
+                            {item.itemSnapshot?.marca && (
+                              <p className="text-[10px] text-muted-foreground">{item.itemSnapshot.marca}</p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-[10px]">
+                          {item.itemSnapshot?.codigoBarras || '-'}
+                        </TableCell>
+                        <TableCell>
+                          {item.classificacao !== '-' ? (
+                            <Badge variant="outline" className="text-[10px] h-4 bg-muted/50 border-primary/20 text-primary">
+                              {item.classificacao}
+                            </Badge>
+                          ) : '-'}
+                        </TableCell>
+                        {tipoAgrupamentoProjetos === 'projeto' && (
+                          <>
+                            <TableCell>
+                              <Badge variant="secondary" className="bg-muted text-foreground border-none text-[10px]">
+                                {item.localUtilizacaoNome}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {item.projetoGrupoNome !== '-' ? (
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">
+                                  📦 {item.projetoGrupoNome}
+                                </Badge>
+                              ) : '-'}
+                            </TableCell>
+                          </>
+                        )}
+                        <TableCell>
+                          <Badge 
+                            className={cn(
+                              "text-[10px] h-4",
+                              item.statusItem === 'pendente' && "bg-red-500/10 text-red-500 border-red-500/20",
+                              item.statusItem === 'parcial' && "bg-amber-500/10 text-amber-500 border-amber-500/20",
+                              item.statusItem === 'devolvido' && "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+                              item.statusItem === 'consumido' && "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                            )}
+                          >
+                            {item.statusItem === 'pendente' ? '🔴 Pendente' : 
+                             item.statusItem === 'parcial' ? '🟡 Parcial' : 
+                             item.statusItem === 'consumido' ? '🔵 Consumido' : '🟢 Devolvido'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-warning font-mono font-bold text-xs text-right">
+                          {item.totalSaida.toLocaleString('pt-BR')}
+                        </TableCell>
+                        <TableCell className="text-info font-mono font-bold text-xs text-right">
+                          {item.totalDevolvido.toLocaleString('pt-BR')}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant={item.pendente > 0 ? "destructive" : "outline"} className="font-mono font-bold text-xs">
+                            {item.statusItem === 'consumido' && item.pendenteOriginal ? item.pendenteOriginal.toLocaleString('pt-BR') : item.pendente.toLocaleString('pt-BR')} {item.itemSnapshot?.unidade || ''}
+                          </Badge>
+                        </TableCell>
+                        {tipoAgrupamentoProjetos === 'projeto' && (
+                          <>
+                            <TableCell className="text-[10px]">
+                              {item.ultimaSaida ? format(new Date(item.ultimaSaida), 'dd/MM/yyyy HH:mm') : '-'}
+                            </TableCell>
+                            <TableCell className="text-[10px]">
+                              {item.destinatario || item.solicitanteNome || '-'}
+                            </TableCell>
+                          </>
+                        )}
+                      </TableRow>
+                      {expandedRow === item.key && (
+                        <TableRow className="bg-muted/20 hover:bg-muted/20">
+                          <TableCell colSpan={tipoAgrupamentoProjetos === 'projeto' ? 12 : 10} className="p-0 border-b">
+                            <DetalhesMovimentacoesProjeto movimentacoes={getMovimentacoesItem(item)} />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
+                  ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
