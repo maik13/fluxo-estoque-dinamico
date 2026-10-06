@@ -336,7 +336,11 @@ export const PlanejamentoProducao = () => {
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{projeto.nome}</p>
                 <p className="text-xs text-muted-foreground">
-                  {projeto.ativoCalculo ? 'Selecionada' : 'Não selecionada'}
+                  {projeto.ativoCalculo
+                    ? 'Confirmada'
+                    : dados.itens.some((item) => numero(item.demandas?.[projeto.chave]) > 0)
+                      ? 'Potencial'
+                      : 'Fora'}
                 </p>
               </div>
             </label>
@@ -415,6 +419,48 @@ export const PlanejamentoProducao = () => {
         </div>
       </Card>
 
+      <div className="flex items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border p-1">
+          <Button
+            type="button"
+            size="sm"
+            variant={visaoPlanejamento === 'matriz' ? 'default' : 'ghost'}
+            onClick={() => setVisaoPlanejamento('matriz')}
+          >
+            Matriz
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={visaoPlanejamento === 'detalhado' ? 'default' : 'ghost'}
+            onClick={() => setVisaoPlanejamento('detalhado')}
+          >
+            Detalhado
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Matriz para edição rápida; Detalhado para parametrização individual da peça.
+        </p>
+      </div>
+
+      {visaoPlanejamento === 'matriz' && (
+        <PlanejamentoMatriz
+          projetos={dados.projetos}
+          itens={linhasFiltradas}
+          podeConfigurar={podeConfigurar}
+          salvandoId={salvandoId}
+          onAlternarProjeto={(projeto, ativo) => {
+            const original = dados.projetos.find((item) => item.id === projeto.id);
+            if (original) void alternarProjeto(original, ativo);
+          }}
+          onSalvarQuantidade={(item, projetoId, valor) => {
+            const original = dados.itens.find((registro) => registro.id === item.id);
+            if (original) void salvarQuantidadeProjeto(original, projetoId, valor, 'matriz');
+          }}
+        />
+      )}
+
+      {visaoPlanejamento === 'detalhado' && (
       <Card className="overflow-hidden">
         <div className="overflow-auto">
           <table className="w-full min-w-[1250px] text-sm">
@@ -481,6 +527,7 @@ export const PlanejamentoProducao = () => {
           </table>
         </div>
       </Card>
+      )}
 
       <PlanejamentoComposicaoDialog
         item={itemConfiguracao}
