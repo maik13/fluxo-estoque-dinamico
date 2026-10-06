@@ -96,43 +96,35 @@ export const VisaoProjetos = () => {
     }
   };
 
-  // Projetos/locais e grupos que realmente aparecem nas movimentações.
+  // Projetos/locais e grupos vêm da configuração oficial do banco.
+  // As movimentações alimentam a consolidação, mas não podem limitar as opções de filtro:
+  // grupos/locais novos ou ainda sem movimentação também precisam permanecer visíveis.
   const locaisPendentes = useMemo(() => {
-    const mapa = new Map<string, { id: string; nome: string; groupId: string }>();
-
-    movimentacoes.forEach((mov) => {
-      if (!mov.localUtilizacaoId) return;
-      const localConfig = locaisConfig.find((local) => local.id === mov.localUtilizacaoId);
-      mapa.set(mov.localUtilizacaoId, {
-        id: mov.localUtilizacaoId,
-        nome: mov.localUtilizacaoNome || localConfig?.nome || 'Projeto/local sem nome',
-        groupId: localConfig?.group_id || 'sem-grupo',
-      });
-    });
-
-    return [...mapa.values()]
-      .filter((local) => filtroPendentesGrupoId === 'todos' || local.groupId === filtroPendentesGrupoId)
-      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  }, [movimentacoes, locaisConfig, filtroPendentesGrupoId]);
-
-  const gruposPendentes = useMemo(() => {
-    const ids = new Set<string>();
-
-    movimentacoes.forEach((mov) => {
-      if (!mov.localUtilizacaoId) return;
-      const local = locaisConfig.find((config) => config.id === mov.localUtilizacaoId);
-      ids.add(local?.group_id || 'sem-grupo');
-    });
-
-    return [...ids]
-      .map((id) => ({
-        id,
-        nome: id === 'sem-grupo'
-          ? 'Sem Grupo'
-          : gruposProjeto.find((grupo) => grupo.id === id)?.nome || 'Grupo não identificado',
+    return locaisConfig
+      .filter((local) => {
+        const groupId = local.group_id || 'sem-grupo';
+        return filtroPendentesGrupoId === 'todos' || groupId === filtroPendentesGrupoId;
+      })
+      .map((local) => ({
+        id: local.id,
+        nome: local.nome,
+        groupId: local.group_id || 'sem-grupo',
       }))
       .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  }, [movimentacoes, locaisConfig, gruposProjeto]);
+  }, [locaisConfig, filtroPendentesGrupoId]);
+
+  const gruposPendentes = useMemo(() => {
+    const grupos = gruposProjeto.map((grupo) => ({
+      id: grupo.id,
+      nome: grupo.nome,
+    }));
+
+    if (locaisConfig.some((local) => !local.group_id)) {
+      grupos.push({ id: 'sem-grupo', nome: 'Sem Grupo' });
+    }
+
+    return grupos.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  }, [gruposProjeto, locaisConfig]);
 
   const selecionarGrupo = (grupoId: string) => {
     setFiltroPendentesGrupoId(grupoId);
