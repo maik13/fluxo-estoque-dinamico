@@ -128,6 +128,7 @@ export const Financeiro = () => {
   const [necessidades, setNecessidades] = useState<Registro[]>([]);
   const [lancamentos, setLancamentos] = useState<Registro[]>([]);
   const [buscaFluxo, setBuscaFluxo] = useState('');
+  const [filtroSituacaoFluxo, setFiltroSituacaoFluxo] = useState('todos');
 
   const lancamentosFluxo = useMemo(() => {
     const termo = buscaFluxo.trim().toLowerCase();
@@ -141,6 +142,27 @@ export const Financeiro = () => {
       campos.some((campo) => l[campo] != null && String(l[campo]).toLowerCase().includes(termo)),
     );
   }, [lancamentos, buscaFluxo]);
+  const resumoFluxo = useMemo(() => {
+    const valor = (lancamento: Registro) => Number(lancamento.valor_realizado ?? lancamento.valor_previsto ?? 0) || 0;
+    const grupos: Record<string, Registro[]> = {
+      todos: lancamentos,
+      previstos: lancamentos.filter((l) => !['pago', 'conciliado', 'cancelado', 'programado'].includes(l.status)),
+      programados: lancamentos.filter((l) => l.status === 'programado'),
+      pagos: lancamentos.filter((l) => ['pago', 'conciliado'].includes(l.status)),
+    };
+    return Object.fromEntries(Object.entries(grupos).map(([chave, itens]) => [
+      chave,
+      { quantidade: itens.length, valor: itens.reduce((soma, item) => soma + valor(item), 0) },
+    ])) as Record<string, { quantidade: number; valor: number }>;
+  }, [lancamentos]);
+  const lancamentosFluxoVisiveis = useMemo(() => {
+    if (filtroSituacaoFluxo === 'previstos') {
+      return lancamentosFluxo.filter((l) => !['pago', 'conciliado', 'cancelado', 'programado'].includes(l.status));
+    }
+    if (filtroSituacaoFluxo === 'programados') return lancamentosFluxo.filter((l) => l.status === 'programado');
+    if (filtroSituacaoFluxo === 'pagos') return lancamentosFluxo.filter((l) => ['pago', 'conciliado'].includes(l.status));
+    return lancamentosFluxo;
+  }, [lancamentosFluxo, filtroSituacaoFluxo]);
   const [rcs, setRcs] = useState<Registro[]>([]);
   const [pcs, setPcs] = useState<Registro[]>([]);
   const [programacoes, setProgramacoes] = useState<Registro[]>([]);
@@ -658,17 +680,36 @@ export const Financeiro = () => {
         {(podeGerenciar || podeAprovar) && <TabsContent value="fluxo" className="mt-5">
           <Card><CardHeader><CardTitle>Fluxo de Caixa</CardTitle><CardDescription>Visão sistêmica equivalente ao núcleo da Página54: previsto e realizado separados, com origem rastreável.</CardDescription></CardHeader>
             <CardContent className="overflow-x-auto">
-              <div className="relative mb-3 max-w-xl">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={buscaFluxo}
-                  onChange={(e) => setBuscaFluxo(e.target.value)}
-                  placeholder="Buscar por descrição, observação, nº, linha Página54, categoria, valor ou ID..."
-                  className="pl-9"
-                />
+              <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <Card className="border-amber-500/30 bg-amber-500/5"><CardHeader className="p-4"><CardDescription>A pagar / previstos</CardDescription><CardTitle className="text-xl">{moeda(resumoFluxo.previstos.valor)}</CardTitle><CardDescription>{resumoFluxo.previstos.quantidade} lançamento(s)</CardDescription></CardHeader></Card>
+                <Card className="border-blue-500/30 bg-blue-500/5"><CardHeader className="p-4"><CardDescription>Programados</CardDescription><CardTitle className="text-xl">{moeda(resumoFluxo.programados.valor)}</CardTitle><CardDescription>{resumoFluxo.programados.quantidade} lançamento(s)</CardDescription></CardHeader></Card>
+                <Card className="border-emerald-500/30 bg-emerald-500/5"><CardHeader className="p-4"><CardDescription>Pagos / conciliados</CardDescription><CardTitle className="text-xl">{moeda(resumoFluxo.pagos.valor)}</CardTitle><CardDescription>{resumoFluxo.pagos.quantidade} lançamento(s)</CardDescription></CardHeader></Card>
+                <Card><CardHeader className="p-4"><CardDescription>Total no fluxo</CardDescription><CardTitle className="text-xl">{moeda(resumoFluxo.todos.valor)}</CardTitle><CardDescription>{resumoFluxo.todos.quantidade} lançamento(s)</CardDescription></CardHeader></Card>
+              </div>
+              <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="relative w-full max-w-xl">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={buscaFluxo}
+                    onChange={(e) => setBuscaFluxo(e.target.value)}
+                    placeholder="Buscar por descrição, observação, nº, linha Página54, categoria, valor ou ID..."
+                    className="pl-9"
+                  />
+                </div>
+                <div className="w-full lg:w-64">
+                  <Select value={filtroSituacaoFluxo} onValueChange={setFiltroSituacaoFluxo}>
+                    <SelectTrigger aria-label="Filtrar situação do fluxo de caixa"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos os lançamentos</SelectItem>
+                      <SelectItem value="previstos">A pagar / previstos</SelectItem>
+                      <SelectItem value="programados">Programados</SelectItem>
+                      <SelectItem value="pagos">Pagos / conciliados</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <Table><TableHeader><TableRow><TableHead>Situação</TableHead><TableHead>Data prevista</TableHead><TableHead>Data realizada</TableHead><TableHead>Descrição</TableHead><TableHead>Categoria</TableHead><TableHead>Subcategoria</TableHead><TableHead>Projeto / Centro</TableHead><TableHead className="text-right">Débito</TableHead><TableHead className="text-right">Crédito</TableHead>{podeAprovar && <TableHead>Última ação</TableHead>}{podeGerenciar && <TableHead></TableHead>}</TableRow></TableHeader>
-              <TableBody>{lancamentosFluxo.length===0?<TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">{buscaFluxo.trim() ? 'Nenhum lançamento encontrado para a busca.' : 'Nenhum lançamento.'}</TableCell></TableRow>:lancamentosFluxo.map((l: Registro) => {
+              <TableBody>{lancamentosFluxoVisiveis.length===0?<TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">{buscaFluxo.trim() ? 'Nenhum lançamento encontrado para a busca.' : 'Nenhum lançamento nesta situação.'}</TableCell></TableRow>:lancamentosFluxoVisiveis.map((l: Registro) => {
                 const corP54 = corHexValida(l.sinalizacao_cor) ? (l.sinalizacao_cor as string).trim() : null;
                 return (
                 <TableRow
