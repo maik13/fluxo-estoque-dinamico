@@ -31,6 +31,8 @@ type ItemPlanejamento = {
   qtdEstoqueAtual: number;
   qtdReservada: number;
   qtdDisponivelAtual: number;
+  qtdDemandaConfirmada?: number;
+  qtdDemandaPotencial?: number;
   statusPlanilha: string | null;
   demandas: Record<string, number>;
   acervoNome: string | null;
@@ -116,17 +118,56 @@ export const PlanejamentoProducao = () => {
   const linhas = useMemo(
     () => dados.itens.map((item) => {
       const projetoSelecionado = dados.projetos.find((projeto) => projeto.id === cidadeSelecionadaId);
-      const necessidade = projetoSelecionado
+      const quantidadeCidade = projetoSelecionado
         ? numero(item.demandas?.[projetoSelecionado.chave])
+        : 0;
+
+      const demandaConfirmada = item.qtdDemandaConfirmada != null
+        ? numero(item.qtdDemandaConfirmada)
         : projetosAtivos.reduce(
             (soma, projeto) => soma + numero(item.demandas?.[projeto.chave]),
             0,
           );
+
+      const demandaPotencial = item.qtdDemandaPotencial != null
+        ? numero(item.qtdDemandaPotencial)
+        : dados.projetos.reduce(
+            (soma, projeto) => soma + numero(item.demandas?.[projeto.chave]),
+            0,
+          );
+
       const estoque = numero(item.qtdEstoqueAtual);
       const reservado = numero(item.qtdReservada);
       const disponivel = numero(item.qtdDisponivelAtual);
-      const deficit = Math.max(0, necessidade - disponivel);
-      return { ...item, necessidade, estoque, reservado, disponivel, deficit };
+      const faltaFisica = Math.max(0, demandaConfirmada - estoque);
+
+      let acaoLabel = 'Atender';
+      let acaoQuantidade = demandaConfirmada;
+
+      if (item.estrategiaAtendimento === 'acervo') {
+        acaoLabel = 'Remanejar';
+      } else if (item.estrategiaAtendimento === 'composicao') {
+        acaoLabel = 'Compor';
+      } else if (item.estrategiaAtendimento === 'transformacao') {
+        acaoLabel = 'Transformar';
+      } else if (item.estrategiaAtendimento === 'producao_nova') {
+        acaoLabel = 'Produzir';
+        acaoQuantidade = Math.max(0, demandaConfirmada - estoque);
+      }
+
+      return {
+        ...item,
+        necessidade: quantidadeCidade,
+        quantidadeCidade,
+        demandaConfirmada,
+        demandaPotencial,
+        estoque,
+        reservado,
+        disponivel,
+        faltaFisica,
+        acaoLabel,
+        acaoQuantidade,
+      };
     }),
     [dados.itens, projetosAtivos, dados.projetos, cidadeSelecionadaId],
   );
@@ -148,9 +189,9 @@ export const PlanejamentoProducao = () => {
   }, [buscaPeca, linhas]);
 
   const resumo = useMemo(() => ({
-    pecas: linhas.filter((linha) => linha.necessidade > 0).length,
-    unidades: linhas.reduce((soma, linha) => soma + linha.necessidade, 0),
-    produzir: linhas.reduce((soma, linha) => soma + linha.deficit, 0),
+    pecas: linhas.filter((linha) => linha.quantidadeCidade > 0).length,
+    unidades: linhas.reduce((soma, linha) => soma + linha.quantidadeCidade, 0),
+    acao: linhas.reduce((soma, linha) => soma + linha.acaoQuantidade, 0),
   }), [linhas]);
 
   const alternarProjeto = async (projeto: ProjetoPlanejamento, ativo: boolean) => {
@@ -395,7 +436,7 @@ export const PlanejamentoProducao = () => {
       <div className="grid gap-3 sm:grid-cols-3">
         <Card className="p-4"><p className="text-xs text-muted-foreground">Peças da cidade</p><p className="text-2xl font-bold">{resumo.pecas}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Unidades planejadas</p><p className="text-2xl font-bold">{resumo.unidades}</p></Card>
-        <Card className="p-4"><p className="text-xs text-muted-foreground">Produzir / transformar</p><p className="text-2xl font-bold">{resumo.produzir}</p></Card>
+        <Card className="p-4"><p className="text-xs text-muted-foreground">Ações confirmadas</p><p className="text-2xl font-bold">{resumo.acao}</p></Card>
       </div>
 
       <Card className="p-4">
@@ -475,10 +516,10 @@ export const PlanejamentoProducao = () => {
               <tr>
                 <th className="p-3">Peça</th>
                 <th className="p-3">Cidades da peça</th>
-                <th className="p-3 text-right">Qtd. cidade</th>
+                <th className="p-3 text-right">Total confirmado</th>
                 <th className="p-3 text-right">Existente</th>
                 <th className="p-3 text-right">Disponível</th>
-                <th className="p-3 text-right">Produzir / transformar</th>
+                <th className="p-3">Ação operacional</th>
                 <th className="p-3">Configuração da peça</th>
               </tr>
             </thead>
@@ -499,8 +540,12 @@ export const PlanejamentoProducao = () => {
                         {dados.projetos
                           .filter((projeto) => numero(linha.demandas?.[projeto.chave]) > 0)
                           .map((projeto) => (
-                            <span key={projeto.id} className="rounded-md border bg-muted/40 px-2 py-1 text-xs">
-                              {projeto.nome}: {numero(linha.demandas?.[projeto.chave])}
+                            <span
+                              key={projeto.id}
+                              className={`rounded-md border px-2 py-1 text-xs ${projeto.ativoCalculo ? 'bg-background font-medium' : 'bg-muted/40 text-muted-foreground'}`}
+                              title={projeto.ativoCalculo ? 'Cidade confirmada' : 'Cidade potencial'}
+                            >
+                              {projeto.nome}: {numero(linha.demandas?.[projeto.chave])}{projeto.ativoCalculo ? '' : ' · pot.'}
                             </span>
                           ))}
                         {!dados.projetos.some((projeto) => numero(linha.demandas?.[projeto.chave]) > 0) && (
@@ -508,19 +553,22 @@ export const PlanejamentoProducao = () => {
                         )}
                       </div>
                     </td>
-                    <td className="p-3">
-                      <Input
-                        key={`${cidadeSelecionadaId}-${linha.id}-${linha.necessidade}`}
-                        defaultValue={linha.necessidade}
-                        inputMode="decimal"
-                        disabled={!cidadeSelecionadaId || !podeConfigurar || salvandoId === `demanda-${linha.id}`}
-                        onBlur={(event) => void salvarQuantidadeProjeto(linha, cidadeSelecionadaId, event.target.value, 'detalhe')}
-                        className="ml-auto w-24 text-right"
-                      />
+                    <td className="p-3 text-right">
+                      <div className="font-semibold">{linha.demandaConfirmada}</div>
+                      {linha.demandaPotencial > linha.demandaConfirmada && (
+                        <div className="text-xs text-muted-foreground">
+                          {linha.demandaPotencial} com potenciais
+                        </div>
+                      )}
                     </td>
                     <td className="p-3 text-right">{linha.estoque}</td>
                     <td className="p-3 text-right font-medium">{linha.disponivel}</td>
-                    <td className={`p-3 text-right font-bold ${linha.deficit > 0 ? 'text-destructive' : ''}`}>{linha.deficit}</td>
+                    <td className="p-3">
+                      <div className="font-semibold">{linha.acaoLabel}: {linha.acaoQuantidade}</div>
+                      {linha.faltaFisica > 0 && (
+                        <div className="text-xs text-destructive">Faltam {linha.faltaFisica} no estoque-base</div>
+                      )}
+                    </td>
                     <td className="p-3">
                       <Button variant="outline" size="sm" onClick={() => setItemConfiguracao(linha)}>
                         <Settings2 className="mr-2 h-4 w-4" />
