@@ -33,7 +33,8 @@ export const VisaoProjetos = () => {
     categoriasSubcategorias 
   } = useConfiguracoes();
 
-  const [filtroPendentesDestino, setFiltroPendentesDestino] = useState('todos');
+  const [filtroPendentesProjetoId, setFiltroPendentesProjetoId] = useState('todos');
+  const [filtroPendentesGrupoId, setFiltroPendentesGrupoId] = useState('todos');
   const [filtroPendentesTexto, setFiltroPendentesTexto] = useState('');
   const [filtroPendentesCategoria, setFiltroPendentesCategoria] = useState('todos');
   const [filtroPendentesStatus, setFiltroPendentesStatus] = useState('ativos');
@@ -95,15 +96,54 @@ export const VisaoProjetos = () => {
     }
   };
 
-  // Obter locais de utilização únicos para filtro
+  // Projetos/locais e grupos que realmente aparecem nas movimentações.
   const locaisPendentes = useMemo(() => {
-    const locais = new Set(
-      movimentacoes
-        .map(mov => mov.localUtilizacaoNome)
-        .filter(Boolean)
-    );
-    return Array.from(locais).sort();
-  }, [movimentacoes]);
+    const mapa = new Map<string, { id: string; nome: string; groupId: string }>();
+
+    movimentacoes.forEach((mov) => {
+      if (!mov.localUtilizacaoId) return;
+      const localConfig = locaisConfig.find((local) => local.id === mov.localUtilizacaoId);
+      mapa.set(mov.localUtilizacaoId, {
+        id: mov.localUtilizacaoId,
+        nome: mov.localUtilizacaoNome || localConfig?.nome || 'Projeto/local sem nome',
+        groupId: localConfig?.group_id || 'sem-grupo',
+      });
+    });
+
+    return [...mapa.values()]
+      .filter((local) => filtroPendentesGrupoId === 'todos' || local.groupId === filtroPendentesGrupoId)
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  }, [movimentacoes, locaisConfig, filtroPendentesGrupoId]);
+
+  const gruposPendentes = useMemo(() => {
+    const ids = new Set<string>();
+
+    movimentacoes.forEach((mov) => {
+      if (!mov.localUtilizacaoId) return;
+      const local = locaisConfig.find((config) => config.id === mov.localUtilizacaoId);
+      ids.add(local?.group_id || 'sem-grupo');
+    });
+
+    return [...ids]
+      .map((id) => ({
+        id,
+        nome: id === 'sem-grupo'
+          ? 'Sem Grupo'
+          : gruposProjeto.find((grupo) => grupo.id === id)?.nome || 'Grupo não identificado',
+      }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  }, [movimentacoes, locaisConfig, gruposProjeto]);
+
+  const selecionarGrupo = (grupoId: string) => {
+    setFiltroPendentesGrupoId(grupoId);
+
+    if (filtroPendentesProjetoId === 'todos') return;
+    const localAtual = locaisConfig.find((local) => local.id === filtroPendentesProjetoId);
+    const grupoAtual = localAtual?.group_id || 'sem-grupo';
+    if (grupoId !== 'todos' && grupoAtual !== grupoId) {
+      setFiltroPendentesProjetoId('todos');
+    }
+  };
 
   // Hook de consolidação para a visão de projetos
   const { itensAgrupados: todosItensAgrupados } = useConsolidacao(
@@ -115,6 +155,8 @@ export const VisaoProjetos = () => {
       dataInicio: filtroDataPendentesInicio,
       dataFim: filtroDataPendentesFim,
       categoria: filtroPendentesCategoria,
+      localId: filtroPendentesProjetoId,
+      grupoId: filtroPendentesGrupoId,
     },
     categorias,
     subcategorias,
@@ -140,14 +182,9 @@ export const VisaoProjetos = () => {
         if (filtroPendentesStatus === 'devolvido' && item.statusItem !== 'devolvido') return false;
       }
 
-      // Filtro de Destino/Projeto
-      if (filtroPendentesDestino !== 'todos' && item.localUtilizacaoNome !== filtroPendentesDestino) {
-        return false;
-      }
-
       return true;
     });
-  }, [todosItensAgrupados, filtroPendentesTexto, filtroPendentesStatus, filtroPendentesDestino]);
+  }, [todosItensAgrupados, filtroPendentesTexto, filtroPendentesStatus]);
 
   const exportarPendentesParaExcel = () => {
     const dados = pendentesFiltrados.map(item => ({
@@ -319,17 +356,34 @@ export const VisaoProjetos = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-              <div className="space-y-1.5 md:col-span-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="pendentes-local" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Projeto / Local</Label>
-                <Select value={filtroPendentesDestino} onValueChange={setFiltroPendentesDestino}>
+                <Select value={filtroPendentesProjetoId} onValueChange={setFiltroPendentesProjetoId}>
                   <SelectTrigger id="pendentes-local">
                     <SelectValue placeholder="Todos os projetos/locais" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todos os projetos/locais</SelectItem>
-                    {locaisPendentes.map(local => (
-                      <SelectItem key={local} value={local!}>
-                        {local}
+                    {locaisPendentes.map((local) => (
+                      <SelectItem key={local.id} value={local.id}>
+                        {local.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="pendentes-grupo" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Grupo</Label>
+                <Select value={filtroPendentesGrupoId} onValueChange={selecionarGrupo}>
+                  <SelectTrigger id="pendentes-grupo">
+                    <SelectValue placeholder="Todos os grupos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os grupos</SelectItem>
+                    {gruposPendentes.map((grupo) => (
+                      <SelectItem key={grupo.id} value={grupo.id}>
+                        {grupo.nome}
                       </SelectItem>
                     ))}
                   </SelectContent>
