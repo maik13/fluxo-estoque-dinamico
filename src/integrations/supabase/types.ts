@@ -617,6 +617,42 @@ export type Database = {
         }
         Relationships: []
       }
+      catalogo_2025_movements_backup_20261003: {
+        Row: {
+          backup_criado_em: string | null
+          data_hora: string | null
+          item_id: string | null
+          item_snapshot: Json | null
+          movement_id: string | null
+          quantidade: number | null
+          quantidade_anterior: number | null
+          quantidade_atual: number | null
+          tipo: string | null
+        }
+        Insert: {
+          backup_criado_em?: string | null
+          data_hora?: string | null
+          item_id?: string | null
+          item_snapshot?: Json | null
+          movement_id?: string | null
+          quantidade?: number | null
+          quantidade_anterior?: number | null
+          quantidade_atual?: number | null
+          tipo?: string | null
+        }
+        Update: {
+          backup_criado_em?: string | null
+          data_hora?: string | null
+          item_id?: string | null
+          item_snapshot?: Json | null
+          movement_id?: string | null
+          quantidade?: number | null
+          quantidade_anterior?: number | null
+          quantidade_atual?: number | null
+          tipo?: string | null
+        }
+        Relationships: []
+      }
       categoria_subcategoria: {
         Row: {
           categoria_id: string
@@ -1381,6 +1417,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "financeiro_necessidades_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "financeiro_necessidades_ordem_producao_id_fkey"
             columns: ["ordem_producao_id"]
             isOneToOne: false
@@ -1806,6 +1849,69 @@ export type Database = {
         }
         Relationships: []
       }
+      inventario_conciliacao_20261003: {
+        Row: {
+          ano_origem: string | null
+          categoria_planilha: string | null
+          classificacao: string
+          codigo_sistema: string | null
+          created_at: string
+          especificacoes_dimensoes: string | null
+          fonte_linha: number
+          item_id: string | null
+          nome_planilha: string
+          nome_sistema: string | null
+          observacoes: string | null
+          revisado: boolean
+          tec_codigo: string
+        }
+        Insert: {
+          ano_origem?: string | null
+          categoria_planilha?: string | null
+          classificacao: string
+          codigo_sistema?: string | null
+          created_at?: string
+          especificacoes_dimensoes?: string | null
+          fonte_linha: number
+          item_id?: string | null
+          nome_planilha: string
+          nome_sistema?: string | null
+          observacoes?: string | null
+          revisado?: boolean
+          tec_codigo: string
+        }
+        Update: {
+          ano_origem?: string | null
+          categoria_planilha?: string | null
+          classificacao?: string
+          codigo_sistema?: string | null
+          created_at?: string
+          especificacoes_dimensoes?: string | null
+          fonte_linha?: number
+          item_id?: string | null
+          nome_planilha?: string
+          nome_sistema?: string | null
+          observacoes?: string | null
+          revisado?: boolean
+          tec_codigo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventario_conciliacao_20261003_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_conciliacao_20261003_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_movement_repair_audit_20260922: {
         Row: {
           estoque_id: string | null
@@ -1849,6 +1955,13 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movement_repair_audit_20260922_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
             referencedColumns: ["id"]
           },
           {
@@ -1903,6 +2016,13 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movement_repair_audit_20260930_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
             referencedColumns: ["id"]
           },
           {
@@ -2000,6 +2120,13 @@ export type Database = {
             referencedRelation: "items"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "inventory_product_count_repair_audit_20260923_v2_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: true
+            referencedRelation: "items_catalogo_oficial_v"
+            referencedColumns: ["id"]
+          },
         ]
       }
       inventory_tool_unit_repair_audit_20260923: {
@@ -2042,14 +2169,21 @@ export type Database = {
         Row: {
           ativo: boolean
           caixa_organizador: string | null
+          catalogo_ano: number | null
+          catalogo_codigo_original: number | null
+          catalogo_data_corte: string | null
+          catalogo_nome_original: string | null
+          catalogo_origem: string | null
           categoria_id: string | null
           codigo_antigo: string | null
           codigo_barras: number
           condicao: string | null
           created_at: string
           especificacao: string | null
+          especificacoes_dimensoes: string | null
           foto_url: string | null
           id: string
+          identidade_catalogo_travada: boolean
           imobilizado: boolean
           localizacao: string | null
           marca: string | null
@@ -2066,14 +2200,21 @@ export type Database = {
         Insert: {
           ativo?: boolean
           caixa_organizador?: string | null
+          catalogo_ano?: number | null
+          catalogo_codigo_original?: number | null
+          catalogo_data_corte?: string | null
+          catalogo_nome_original?: string | null
+          catalogo_origem?: string | null
           categoria_id?: string | null
           codigo_antigo?: string | null
           codigo_barras: number
           condicao?: string | null
           created_at?: string
           especificacao?: string | null
+          especificacoes_dimensoes?: string | null
           foto_url?: string | null
           id?: string
+          identidade_catalogo_travada?: boolean
           imobilizado?: boolean
           localizacao?: string | null
           marca?: string | null
@@ -2090,14 +2231,21 @@ export type Database = {
         Update: {
           ativo?: boolean
           caixa_organizador?: string | null
+          catalogo_ano?: number | null
+          catalogo_codigo_original?: number | null
+          catalogo_data_corte?: string | null
+          catalogo_nome_original?: string | null
+          catalogo_origem?: string | null
           categoria_id?: string | null
           codigo_antigo?: string | null
           codigo_barras?: number
           condicao?: string | null
           created_at?: string
           especificacao?: string | null
+          especificacoes_dimensoes?: string | null
           foto_url?: string | null
           id?: string
+          identidade_catalogo_travada?: boolean
           imobilizado?: boolean
           localizacao?: string | null
           marca?: string | null
@@ -2237,6 +2385,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "movements_local_utilizacao_id_fkey"
             columns: ["local_utilizacao_id"]
             isOneToOne: false
@@ -2299,6 +2454,13 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_compra_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
             referencedColumns: ["id"]
           },
           {
@@ -2486,6 +2648,15 @@ export type Database = {
           pode_ver_bi_producao: boolean
           pode_ver_relatorios: boolean
           pode_ver_relatorios_financeiro: boolean
+          ponto_aprovar: boolean
+          ponto_gerenciar: boolean
+          ponto_registrar: boolean
+          ponto_visualizar: boolean
+          rh_acessar: boolean
+          rh_colaboradores_gerenciar: boolean
+          rh_colaboradores_visualizar: boolean
+          rh_feriados_gerenciar: boolean
+          rh_jornadas_gerenciar: boolean
           tipo_usuario: string
           updated_at: string
         }
@@ -2519,6 +2690,15 @@ export type Database = {
           pode_ver_bi_producao?: boolean
           pode_ver_relatorios?: boolean
           pode_ver_relatorios_financeiro?: boolean
+          ponto_aprovar?: boolean
+          ponto_gerenciar?: boolean
+          ponto_registrar?: boolean
+          ponto_visualizar?: boolean
+          rh_acessar?: boolean
+          rh_colaboradores_gerenciar?: boolean
+          rh_colaboradores_visualizar?: boolean
+          rh_feriados_gerenciar?: boolean
+          rh_jornadas_gerenciar?: boolean
           tipo_usuario: string
           updated_at?: string
         }
@@ -2552,6 +2732,15 @@ export type Database = {
           pode_ver_bi_producao?: boolean
           pode_ver_relatorios?: boolean
           pode_ver_relatorios_financeiro?: boolean
+          ponto_aprovar?: boolean
+          ponto_gerenciar?: boolean
+          ponto_registrar?: boolean
+          ponto_visualizar?: boolean
+          rh_acessar?: boolean
+          rh_colaboradores_gerenciar?: boolean
+          rh_colaboradores_visualizar?: boolean
+          rh_feriados_gerenciar?: boolean
+          rh_jornadas_gerenciar?: boolean
           tipo_usuario?: string
           updated_at?: string
         }
@@ -3277,6 +3466,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "producao_etapa_materiais_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "producao_etapa_materiais_processo_id_fkey"
             columns: ["processo_id"]
             isOneToOne: false
@@ -3502,6 +3698,13 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_materiais_projeto_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
             referencedColumns: ["id"]
           },
           {
@@ -3915,6 +4118,13 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_ordem_materiais_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
             referencedColumns: ["id"]
           },
           {
@@ -4459,6 +4669,67 @@ export type Database = {
           },
         ]
       }
+      producao_planejamento_composicoes: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          criado_por_id: string | null
+          id: string
+          item_origem_id: string
+          observacoes: string | null
+          planejamento_item_id: string
+          quantidade_por_unidade: number
+          tipo_relacao: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          criado_por_id?: string | null
+          id?: string
+          item_origem_id: string
+          observacoes?: string | null
+          planejamento_item_id: string
+          quantidade_por_unidade: number
+          tipo_relacao?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          criado_por_id?: string | null
+          id?: string
+          item_origem_id?: string
+          observacoes?: string | null
+          planejamento_item_id?: string
+          quantidade_por_unidade?: number
+          tipo_relacao?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_planejamento_composicoes_item_origem_id_fkey"
+            columns: ["item_origem_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_planejamento_composicoes_item_origem_id_fkey"
+            columns: ["item_origem_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_planejamento_composicoes_planejamento_item_id_fkey"
+            columns: ["planejamento_item_id"]
+            isOneToOne: false
+            referencedRelation: "producao_planejamento_itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       producao_planejamento_divergencias: {
         Row: {
           created_at: string
@@ -4562,6 +4833,7 @@ export type Database = {
           codigo_producao: string
           created_at: string
           demandas: Json
+          estrategia_atendimento: string
           fonte: string
           fonte_linha: number
           id: string
@@ -4577,6 +4849,7 @@ export type Database = {
           codigo_producao: string
           created_at?: string
           demandas?: Json
+          estrategia_atendimento?: string
           fonte: string
           fonte_linha: number
           id?: string
@@ -4592,6 +4865,7 @@ export type Database = {
           codigo_producao?: string
           created_at?: string
           demandas?: Json
+          estrategia_atendimento?: string
           fonte?: string
           fonte_linha?: number
           id?: string
@@ -6085,6 +6359,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "solicitacao_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "solicitacao_itens_solicitacao_id_fkey"
             columns: ["solicitacao_id"]
             isOneToOne: false
@@ -6133,6 +6414,13 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacao_material_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
             referencedColumns: ["id"]
           },
           {
@@ -6469,6 +6757,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "transferencia_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "transferencia_itens_transferencia_id_fkey"
             columns: ["transferencia_id"]
             isOneToOne: false
@@ -6709,6 +7004,120 @@ export type Database = {
         }
         Relationships: []
       }
+      items_catalogo_oficial_v: {
+        Row: {
+          ativo: boolean | null
+          caixa_organizador: string | null
+          catalogo_ano: number | null
+          catalogo_codigo_original: number | null
+          catalogo_data_corte: string | null
+          catalogo_nome_original: string | null
+          catalogo_origem: string | null
+          categoria_id: string | null
+          codigo_antigo: string | null
+          codigo_barras: number | null
+          codigo_catalogo: number | null
+          condicao: string | null
+          created_at: string | null
+          especificacao: string | null
+          foto_url: string | null
+          id: string | null
+          identidade_catalogo_travada: boolean | null
+          imobilizado: boolean | null
+          localizacao: string | null
+          marca: string | null
+          ncm: string | null
+          nome: string | null
+          nome_catalogo: string | null
+          origem: string | null
+          quantidade_minima: number | null
+          subcategoria_id: string | null
+          tipo_item: string | null
+          unidade: string | null
+          updated_at: string | null
+          valor: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          caixa_organizador?: string | null
+          catalogo_ano?: number | null
+          catalogo_codigo_original?: number | null
+          catalogo_data_corte?: string | null
+          catalogo_nome_original?: string | null
+          catalogo_origem?: string | null
+          categoria_id?: string | null
+          codigo_antigo?: string | null
+          codigo_barras?: number | null
+          codigo_catalogo?: never
+          condicao?: string | null
+          created_at?: string | null
+          especificacao?: string | null
+          foto_url?: string | null
+          id?: string | null
+          identidade_catalogo_travada?: boolean | null
+          imobilizado?: boolean | null
+          localizacao?: string | null
+          marca?: string | null
+          ncm?: string | null
+          nome?: string | null
+          nome_catalogo?: never
+          origem?: string | null
+          quantidade_minima?: number | null
+          subcategoria_id?: string | null
+          tipo_item?: string | null
+          unidade?: string | null
+          updated_at?: string | null
+          valor?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          caixa_organizador?: string | null
+          catalogo_ano?: number | null
+          catalogo_codigo_original?: number | null
+          catalogo_data_corte?: string | null
+          catalogo_nome_original?: string | null
+          catalogo_origem?: string | null
+          categoria_id?: string | null
+          codigo_antigo?: string | null
+          codigo_barras?: number | null
+          codigo_catalogo?: never
+          condicao?: string | null
+          created_at?: string | null
+          especificacao?: string | null
+          foto_url?: string | null
+          id?: string | null
+          identidade_catalogo_travada?: boolean | null
+          imobilizado?: boolean | null
+          localizacao?: string | null
+          marca?: string | null
+          ncm?: string | null
+          nome?: string | null
+          nome_catalogo?: never
+          origem?: string | null
+          quantidade_minima?: number | null
+          subcategoria_id?: string | null
+          tipo_item?: string | null
+          unidade?: string | null
+          updated_at?: string | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "items_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "items_subcategoria_id_fkey"
+            columns: ["subcategoria_id"]
+            isOneToOne: false
+            referencedRelation: "subcategorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rh_colaboradores_operacionais_v: {
         Row: {
           ativo: boolean | null
@@ -6800,6 +7209,18 @@ export type Database = {
       atualizar_status_ordem_producao: {
         Args: { p_ordem_id: string }
         Returns: undefined
+      }
+      buscar_itens_composicao_planejamento_v1: {
+        Args: { p_busca?: string; p_limite?: number }
+        Returns: {
+          catalogo_ano: number
+          catalogo_nome_original: string
+          codigo_barras: number
+          especificacoes_dimensoes: string
+          id: string
+          nome: string
+          unidade: string
+        }[]
       }
       can_create_items: { Args: never; Returns: boolean }
       can_manage_inventory: { Args: never; Returns: boolean }
@@ -7377,6 +7798,20 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_gestor_or_admin: { Args: never; Returns: boolean }
+      listar_composicao_planejamento_v1: {
+        Args: { p_planejamento_item_id: string }
+        Returns: {
+          catalogo_ano: number
+          codigo_barras: number
+          especificacoes_dimensoes: string
+          id: string
+          item_origem_id: string
+          nome: string
+          observacoes: string
+          quantidade_por_unidade: number
+          tipo_relacao: string
+        }[]
+      }
       listar_consumo_tinta_por_projeto_v1: {
         Args: never
         Returns: {
@@ -7949,6 +8384,10 @@ export type Database = {
           file_path: string
         }[]
       }
+      remover_componente_planejamento_v1: {
+        Args: { p_composicao_id: string }
+        Returns: undefined
+      }
       resolver_divergencia_planejamento_v1: {
         Args: { p_acao: string; p_divergencia_id: string }
         Returns: undefined
@@ -8039,6 +8478,15 @@ export type Database = {
         Returns: string
       }
       rh_get_meu_ponto_snapshot: { Args: { p_mes: string }; Returns: Json }
+      rh_listar_usuarios_vinculaveis: {
+        Args: never
+        Returns: {
+          colaborador_id: string
+          email: string
+          nome: string
+          user_id: string
+        }[]
+      }
       rh_meu_ponto_disponivel: { Args: never; Returns: boolean }
       rh_registrar_meu_ponto_agora: { Args: never; Returns: Json }
       rh_remover_feriado: { Args: { p_id: string }; Returns: string }
@@ -8103,6 +8551,19 @@ export type Database = {
         }
         Returns: undefined
       }
+      rh_vincular_usuario_existente: {
+        Args: { p_colaborador_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      salvar_componente_planejamento_v1: {
+        Args: {
+          p_item_origem_id: string
+          p_observacoes?: string
+          p_planejamento_item_id: string
+          p_quantidade_por_unidade: number
+        }
+        Returns: string
+      }
       salvar_configuracao_cronograma_producao: {
         Args: {
           p_equipe_disponivel: number
@@ -8126,6 +8587,18 @@ export type Database = {
           p_tarefa_id: string
           p_termino?: string
         }
+        Returns: undefined
+      }
+      salvar_demanda_planejamento_cidade_v1: {
+        Args: {
+          p_planejamento_item_id: string
+          p_planejamento_projeto_id: string
+          p_quantidade: number
+        }
+        Returns: undefined
+      }
+      salvar_estrategia_planejamento_item_v1: {
+        Args: { p_estrategia: string; p_planejamento_item_id: string }
         Returns: undefined
       }
       salvar_horarios_membros_apontamento: {
