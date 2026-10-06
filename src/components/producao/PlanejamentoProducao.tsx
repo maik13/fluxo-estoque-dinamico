@@ -10,6 +10,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PlanejamentoComposicaoDialog, type EstrategiaAtendimento } from './PlanejamentoComposicaoDialog';
+import { PlanejamentoMatriz } from './PlanejamentoMatriz';
 
 type ProjetoPlanejamento = {
   id: string;
@@ -71,6 +72,7 @@ export const PlanejamentoProducao = () => {
   const [buscaPeca, setBuscaPeca] = useState('');
   const [cidadeSelecionadaId, setCidadeSelecionadaId] = useState('');
   const [itemConfiguracao, setItemConfiguracao] = useState<ItemPlanejamento | null>(null);
+  const [visaoPlanejamento, setVisaoPlanejamento] = useState<'matriz' | 'detalhado'>('matriz');
 
   const [novaCidade, setNovaCidade] = useState('');
   const [novaPecaNome, setNovaPecaNome] = useState('');
@@ -173,8 +175,13 @@ export const PlanejamentoProducao = () => {
     }
   };
 
-  const salvarQuantidadeCidade = async (item: ItemPlanejamento, valor: string) => {
-    const projeto = dados.projetos.find((cidade) => cidade.id === cidadeSelecionadaId);
+  const salvarQuantidadeProjeto = async (
+    item: ItemPlanejamento,
+    projetoId: string,
+    valor: string,
+    origem: 'matriz' | 'detalhe' = 'detalhe',
+  ) => {
+    const projeto = dados.projetos.find((cidade) => cidade.id === projetoId);
     if (!projeto || !podeConfigurar) return;
     const quantidade = Number(valor.replace(',', '.'));
     if (!Number.isFinite(quantidade) || quantidade < 0) {
@@ -183,7 +190,11 @@ export const PlanejamentoProducao = () => {
     }
     if (quantidade === numero(item.demandas?.[projeto.chave])) return;
 
-    setSalvandoId(`demanda-${item.id}`);
+    const saveKey = origem === 'matriz'
+      ? `matriz-${item.id}-${projeto.id}`
+      : `demanda-${item.id}`;
+
+    setSalvandoId(saveKey);
     try {
       const { error } = await (supabase.rpc as any)('salvar_demanda_planejamento_cidade_v1', {
         p_planejamento_projeto_id: projeto.id,
@@ -191,9 +202,13 @@ export const PlanejamentoProducao = () => {
         p_quantidade: quantidade,
       });
       if (error) throw error;
-      toast.success(quantidade > 0
-        ? `${item.nome}: ${quantidade} un. em ${projeto.nome}. Projeto sincronizado automaticamente.`
-        : `${item.nome} retirada do planejamento de ${projeto.nome}.`);
+      toast.success(
+        projeto.ativoCalculo
+          ? `${item.nome}: ${quantidade} un. confirmada(s) em ${projeto.nome}.`
+          : quantidade > 0
+            ? `${item.nome}: ${quantidade} un. registrada(s) como cenário potencial em ${projeto.nome}.`
+            : `${item.nome} retirada de ${projeto.nome}.`,
+      );
       await carregar();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível salvar a peça na cidade.');
@@ -446,7 +461,7 @@ export const PlanejamentoProducao = () => {
                         defaultValue={linha.necessidade}
                         inputMode="decimal"
                         disabled={!cidadeSelecionadaId || !podeConfigurar || salvandoId === `demanda-${linha.id}`}
-                        onBlur={(event) => void salvarQuantidadeCidade(linha, event.target.value)}
+                        onBlur={(event) => void salvarQuantidadeProjeto(linha, cidadeSelecionadaId, event.target.value, 'detalhe')}
                         className="ml-auto w-24 text-right"
                       />
                     </td>
