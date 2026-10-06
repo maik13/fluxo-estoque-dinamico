@@ -98,7 +98,10 @@ export default function MeuPonto() {
     }
 
     setSnapshot(null);
-    setErrorMessage(lastError?.message || "Não foi possível carregar seu cadastro de ponto.");
+    const message = lastError?.message || "Não foi possível carregar seu cadastro de ponto.";
+    setErrorMessage(/não vinculado|não está vinculado/i.test(message)
+      ? "Sua permissão para registrar ponto está ativa, mas falta vincular este login a um colaborador ativo com controle de ponto habilitado. Solicite ao responsável pelo RH que conclua esse vínculo."
+      : message);
     setLoading(false);
   }, [selectedMonth]);
 
@@ -200,7 +203,7 @@ export default function MeuPonto() {
               <Button
                 size="lg"
                 onClick={handleRegisterNow}
-                disabled={saving || loading}
+                disabled={saving || loading || !snapshot?.colaborador}
                 className="min-w-56"
               >
                 {saving ? (

@@ -49,7 +49,6 @@ const Index = () => {
   const [tabAtiva, setTabAtiva] = useState('visao-geral');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [tabPonto, setTabPonto] = useState('espelho');
-  const [meuPontoDisponivel, setMeuPontoDisponivel] = useState(false);
   const { session, loading, signOut } = useAuth();
   const {
     isGestor,
@@ -79,31 +78,6 @@ const Index = () => {
     if (!loading && !session) navigate('/auth');
   }, [loading, session, navigate]);
 
-  useEffect(() => {
-    let cancelado = false;
-
-    const verificarMeuPonto = async () => {
-      if (!session?.user?.id || loadingPermissoes) {
-        if (!cancelado) setMeuPontoDisponivel(false);
-        return;
-      }
-
-      const { data, error } = await (supabase as any).rpc('rh_meu_ponto_disponivel');
-      if (!cancelado) {
-        setMeuPontoDisponivel(!error && data === true);
-      }
-    };
-
-    void verificarMeuPonto();
-    const timer = window.setInterval(() => void verificarMeuPonto(), 30_000);
-    const onFocus = () => void verificarMeuPonto();
-    window.addEventListener('focus', onFocus);
-    return () => {
-      cancelado = true;
-      window.clearInterval(timer);
-      window.removeEventListener('focus', onFocus);
-    };
-  }, [session?.user?.id, loadingPermissoes]);
 
   useEffect(() => {
     void carregarLogo();
@@ -205,7 +179,7 @@ const Index = () => {
           const showFinanceiro = canAccessFinanceiro();
           const showAcompanhamentoPedido = hasPermission('acompanhamento.acessar');
           const showPlanejamento2 = hasPermission('planejamento2.acessar');
-          const showMeuPonto = meuPontoDisponivel;
+          const showMeuPonto = hasPermission('ponto.registrar');
           const showControlePonto = isAdmin() || hasPermission('ponto.visualizar') || hasPermission('ponto.gerenciar') || hasPermission('ponto.aprovar');
           const showRHInformacoes = isAdmin() || hasPermission('rh.acessar') || hasPermission('rh.colaboradores.visualizar') || hasPermission('rh.colaboradores.gerenciar') || hasPermission('rh.jornadas.gerenciar') || hasPermission('rh.feriados.gerenciar');
           const somenteBIProducao = podeVerBIProducao && !podeVerGerencialAlmoxarifado;
@@ -292,12 +266,12 @@ const Index = () => {
     <Tabs value={tabPonto} onValueChange={setTabPonto}>
       <TabsList className="h-auto flex-wrap">
         <TabsTrigger value="espelho">Espelho de Ponto</TabsTrigger>
-        {meuPontoDisponivel && <TabsTrigger value="meu-ponto">Meu Ponto</TabsTrigger>}
+        {showMeuPonto && <TabsTrigger value="meu-ponto">Meu Ponto</TabsTrigger>}
         {(isAdmin() || hasPermission('ponto.aprovar')) && <TabsTrigger value="aprovacoes">Aprovações</TabsTrigger>}
         {(isAdmin() || hasPermission('ponto.gerenciar')) && <TabsTrigger value="registros">Registros</TabsTrigger>}
       </TabsList>
       <TabsContent value="espelho" className="mt-6"><ControlePontoEspelho /></TabsContent>
-      {meuPontoDisponivel && <TabsContent value="meu-ponto" className="mt-6"><MeuPonto /></TabsContent>}
+      {showMeuPonto && <TabsContent value="meu-ponto" className="mt-6"><MeuPonto /></TabsContent>}
       {(isAdmin() || hasPermission('ponto.aprovar')) && <TabsContent value="aprovacoes" className="mt-6"><AprovacoesPontoTab /></TabsContent>}
       {(isAdmin() || hasPermission('ponto.gerenciar')) && <TabsContent value="registros" className="mt-6"><RegistrosPontoTab /></TabsContent>}
     </Tabs>
