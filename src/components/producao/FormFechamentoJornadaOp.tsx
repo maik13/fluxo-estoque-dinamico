@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { formatarNumeroOrdemProducao, ordemProducaoEDePintura } from '@/hooks/useOrdensProducao';
 import { calcularDuracaoProducao } from '@/hooks/useProducao';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
+import { CameraCaptureDialog } from './CameraCaptureDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { descartarJornadaOp } from '@/services/producao/descartarJornadaOp';
 import {
@@ -101,6 +102,7 @@ export const FormFechamentoJornadaOp = ({
   const [horariosMembros, setHorariosMembros] = useState<Record<string, HorarioPersonalizado>>({});
   const [membroHorarioAberto, setMembroHorarioAberto] = useState<string | null>(null);
   const [fotos, setFotos] = useState<File[]>([]);
+  const [cameraAberta, setCameraAberta] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [descartando, setDescartando] = useState(false);
   const [contextoPronto, setContextoPronto] = useState(false);
@@ -395,6 +397,24 @@ export const FormFechamentoJornadaOp = ({
         ...atuais,
         ...validas.filter((arquivo) => !chaves.has(`${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`)),
       ];
+    });
+  };
+
+  const adicionarFotoCapturada = (arquivo: File) => {
+    if (!TIPOS_PERMITIDOS.includes(arquivo.type)) {
+      toast.error('A câmera gerou um formato de imagem não permitido.');
+      return;
+    }
+    if (arquivo.size <= 0 || arquivo.size > TAMANHO_MAXIMO) {
+      toast.error('A foto capturada deve possuir até 10 MB.');
+      return;
+    }
+    setFotos((atuais) => {
+      const chave = `${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`;
+      if (atuais.some((foto) => `${foto.name}-${foto.size}-${foto.lastModified}` === chave)) {
+        return atuais;
+      }
+      return [...atuais, arquivo];
     });
   };
 
@@ -827,10 +847,33 @@ export const FormFechamentoJornadaOp = ({
             <Label>Evidências fotográficas</Label>
             <p className="text-xs text-muted-foreground">JPEG, PNG ou WebP, até 10 MB por foto.</p>
           </div>
-          <input ref={inputFotosRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={(e) => selecionarFotos(e.target.files)} />
-          <Button type="button" variant="outline" onClick={() => inputFotosRef.current?.click()} disabled={!podeApontar}>
-            <Camera className="mr-2 h-4 w-4" /> Adicionar fotos
-          </Button>
+          <input
+            ref={inputFotosRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            className="hidden"
+            onChange={(event) => selecionarFotos(event.target.files)}
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              onClick={() => setCameraAberta(true)}
+              disabled={!podeApontar}
+            >
+              <Camera className="mr-2 h-4 w-4" />
+              Tirar foto
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => inputFotosRef.current?.click()}
+              disabled={!podeApontar}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Galeria
+            </Button>
+          </div>
         </div>
         {fotos.length === 0 ? (
           <div className="flex items-center gap-2 rounded-md bg-muted/20 p-3 text-sm text-muted-foreground"><Upload className="h-4 w-4" /> Nenhuma foto selecionada.</div>
@@ -852,6 +895,12 @@ export const FormFechamentoJornadaOp = ({
           <Textarea value={justificativaConclusao} onChange={(e) => setJustificativaConclusao(e.target.value)} rows={2} placeholder="Preencha somente se a OP for concluída com produção parcial." />
         </div>
       )}
+
+      <CameraCaptureDialog
+        open={cameraAberta}
+        onOpenChange={setCameraAberta}
+        onCapture={adicionarFotoCapturada}
+      />
 
       <div className="space-y-2">
         <Label>Observações</Label>
