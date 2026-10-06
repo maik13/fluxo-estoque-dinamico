@@ -184,7 +184,7 @@ export const PlanejamentoComposicaoDialog = ({ item, onClose, onSaved }: Props) 
               <div className="space-y-4 rounded-lg border p-4">
                 <div>
                   <p className="font-medium">{estrategia === 'transformacao' ? 'Item que será transformado' : 'Itens que compõem esta peça'}</p>
-                  <p className="text-xs text-muted-foreground">Busque no cadastro oficial do almoxarifado. O histórico 2025 não é renomeado.</p>
+                  <p className="text-xs text-muted-foreground">Busque no cadastro oficial do almoxarifado. Esta parametrização define a composição da peça; ela não define a quantidade destinada a cada cidade.</p>
                 </div>
 
                 <div className="space-y-2">
@@ -206,7 +206,7 @@ export const PlanejamentoComposicaoDialog = ({ item, onClose, onSaved }: Props) 
 
                 <div className="flex items-end gap-2">
                   <div className="w-40 space-y-2">
-                    <Label>Qtd. por peça</Label>
+                    <Label>Qtd. do item de origem por 1 peça final</Label>
                     <Input value={quantidade} onChange={(e) => setQuantidade(e.target.value)} inputMode="decimal" />
                   </div>
                   <Button onClick={() => void adicionar()} disabled={!origemId || salvando}><Plus className="mr-2 h-4 w-4" />Adicionar</Button>
