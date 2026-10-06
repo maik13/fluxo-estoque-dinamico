@@ -423,21 +423,23 @@ export const VisaoProjetos = () => {
                 </div>
               </div>
               
-              <div className="space-y-1.5">
-                <Label htmlFor="pendentes-status" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</Label>
-                <Select value={filtroPendentesStatus} onValueChange={setFiltroPendentesStatus}>
-                  <SelectTrigger id="pendentes-status">
-                    <SelectValue placeholder="Selecione o status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ativos">Somente em Campo</SelectItem>
-                    <SelectItem value="pendente">Pendente</SelectItem>
-                    <SelectItem value="parcial">Parcial</SelectItem>
-                    <SelectItem value="devolvido">Devolvido</SelectItem>
-                    <SelectItem value="todos">Todos</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {tipoAgrupamentoProjetos !== 'valor' && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="pendentes-status" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</Label>
+                  <Select value={filtroPendentesStatus} onValueChange={setFiltroPendentesStatus}>
+                    <SelectTrigger id="pendentes-status">
+                      <SelectValue placeholder="Selecione o status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ativos">Somente em Campo</SelectItem>
+                      <SelectItem value="pendente">Pendente</SelectItem>
+                      <SelectItem value="parcial">Parcial</SelectItem>
+                      <SelectItem value="devolvido">Devolvido</SelectItem>
+                      <SelectItem value="todos">Todos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label htmlFor="pendentes-tipo" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Filtrar por Categoria</Label>
