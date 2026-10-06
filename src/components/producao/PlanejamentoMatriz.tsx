@@ -141,6 +141,41 @@ export const PlanejamentoMatriz = ({
               );
             })}
           </tbody>
+          <tfoot className="border-t-2 bg-muted/40">
+            <tr>
+              <td className="sticky left-0 z-[5] bg-muted/40 p-3 font-semibold">Total por cidade</td>
+              {projetos.map((projeto) => {
+                const totalCidade = itens.reduce(
+                  (soma, item) => soma + numero(item.demandas?.[projeto.chave]),
+                  0,
+                );
+                return (
+                  <td key={projeto.id} className="p-3 text-center font-semibold">
+                    {totalCidade}
+                  </td>
+                );
+              })}
+              <td className="p-3 text-right font-bold">
+                {itens.reduce(
+                  (total, item) => total + projetos
+                    .filter((projeto) => projeto.ativoCalculo)
+                    .reduce((soma, projeto) => soma + numero(item.demandas?.[projeto.chave]), 0),
+                  0,
+                )}
+              </td>
+              <td className="p-3 text-right font-bold">
+                {itens.reduce(
+                  (total, item) => total + projetos
+                    .reduce((soma, projeto) => soma + numero(item.demandas?.[projeto.chave]), 0),
+                  0,
+                )}
+              </td>
+              <td className="p-3 text-right font-bold">
+                {itens.reduce((total, item) => total + numero(item.qtdEstoqueAtual), 0)}
+              </td>
+              <td className="p-3 text-right text-muted-foreground">—</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </Card>
