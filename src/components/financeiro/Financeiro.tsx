@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
 import { FinanceiroRelatorios } from './FinanceiroRelatorios';
+import { IndicadorPagina54, temOrigemPagina54 } from './IndicadorPagina54';
 
 type Registro = Record<string, any>;
 
@@ -621,8 +622,8 @@ export const Financeiro = () => {
 
         {(podeGerenciar || podeAprovar) && <TabsContent value="visao" className="mt-5 space-y-5">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Card><CardHeader className="pb-2"><CardDescription>Saldo bancário</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><Landmark className="h-5 w-5"/>{moeda(indicadores.saldoBancario)}</CardTitle><CardDescription>{indicadores.ultimoDia ? `posição de ${indicadores.ultimoDia}` : 'posição ainda não informada'}</CardDescription></CardHeader></Card>
-            <Card><CardHeader className="pb-2"><CardDescription>Saldo financeiro gerencial</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><WalletCards className="h-5 w-5"/>{moeda(indicadores.saldoGerencial)}</CardTitle></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription className="flex flex-wrap items-center gap-2">Saldo bancário{ultimoSaldoDia && <IndicadorPagina54 forcarExibicao dados={{ planilha_linha: ultimoSaldoDia.linha }} />}</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><Landmark className="h-5 w-5"/>{moeda(indicadores.saldoBancario)}</CardTitle><CardDescription>{indicadores.ultimoDia ? `posição de ${indicadores.ultimoDia}` : 'posição ainda não informada'}</CardDescription></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription className="flex flex-wrap items-center gap-2">Saldo financeiro gerencial{ultimoSaldoRealizado && <IndicadorPagina54 forcarExibicao dados={{ planilha_linha: ultimoSaldoRealizado.linha }} />}</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><WalletCards className="h-5 w-5"/>{moeda(indicadores.saldoGerencial)}</CardTitle></CardHeader></Card>
             <Card><CardHeader className="pb-2"><CardDescription>Saídas previstas</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><TrendingDown className="h-5 w-5"/>{moeda(indicadores.saidasPrevistas)}</CardTitle></CardHeader></Card>
             <Card><CardHeader className="pb-2"><CardDescription>Aguardando vencimento</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><FileClock className="h-5 w-5"/>{indicadores.aguardandoVencimento}</CardTitle></CardHeader></Card>
           </div>
@@ -679,9 +680,12 @@ export const Financeiro = () => {
                   <TableCell>{dataPt(l.data_prevista)}</TableCell>
                   <TableCell>{dataPt(l.data_realizada)}</TableCell>
                   <TableCell className="min-w-[280px]">
-                    <div className="font-medium">{l.descricao}</div>
+                    <div className="flex flex-wrap items-center gap-2 font-medium">
+                      <span>{l.descricao}</span>
+                      <IndicadorPagina54 dados={l} />
+                    </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-                      {l.origem_tipo === 'pagina54' && <span>Página54 · linha {l.planilha_linha ?? '—'}</span>}
+                      {temOrigemPagina54(l) && l.planilha_linha != null && <span>Linha Página54 {l.planilha_linha}</span>}
                       {l.pagina54_integracao_id && <span className="max-w-[180px] truncate font-mono">ID {l.pagina54_integracao_id}</span>}
                       {l.pagina54_sync_status && <span>Sync: {l.pagina54_sync_status}</span>}
                       {l.pagina54_sync_erro && <span className="text-red-600">Erro: {l.pagina54_sync_erro}</span>}
@@ -899,7 +903,7 @@ export const Financeiro = () => {
               </div>
               <div className="overflow-x-auto rounded-md border">
                 <Table><TableHeader><TableRow><TableHead>Categoria</TableHead><TableHead>Origem</TableHead><TableHead>Status</TableHead><TableHead>Observação</TableHead><TableHead></TableHead></TableRow></TableHeader>
-                <TableBody>{categorias.map(c=><TableRow key={c.id}><TableCell className="font-medium">{c.nome}</TableCell><TableCell>{c.origem_planilha?'Planilha histórica':'Sistema'}</TableCell><TableCell>{c.ativo?'Ativa':'Inativa'}</TableCell><TableCell>{c.observacao||'—'}</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" onClick={()=>void alternarAtivo('financeiro_categorias',c)}>{c.ativo?'Inativar':'Ativar'}</Button></TableCell></TableRow>)}</TableBody></Table>
+                <TableBody>{categorias.map(c=><TableRow key={c.id}><TableCell className="font-medium">{c.nome}</TableCell><TableCell>{c.origem_planilha?<IndicadorPagina54 dados={c}/>:<span>Sistema</span>}</TableCell><TableCell>{c.ativo?'Ativa':'Inativa'}</TableCell><TableCell>{c.observacao||'—'}</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" onClick={()=>void alternarAtivo('financeiro_categorias',c)}>{c.ativo?'Inativar':'Ativar'}</Button></TableCell></TableRow>)}</TableBody></Table>
               </div>
             </div>
           </details>
@@ -932,7 +936,7 @@ export const Financeiro = () => {
               </div>
               <div className="overflow-x-auto rounded-md border">
                 <Table><TableHeader><TableRow><TableHead>Subcategoria</TableHead><TableHead>Origem</TableHead><TableHead>Status</TableHead><TableHead>Revisão</TableHead><TableHead>Relacionada a</TableHead><TableHead></TableHead></TableRow></TableHeader>
-                <TableBody>{subcategorias.map(s=>{const rels=categoriaSubcategorias.filter(r=>r.subcategoria_id===s.id).map(r=>categorias.find(c=>c.id===r.categoria_id)?.nome).filter(Boolean);return <TableRow key={s.id}><TableCell className="font-medium">{s.nome}</TableCell><TableCell>{s.origem_planilha?'Planilha histórica':'Sistema'}</TableCell><TableCell>{s.ativo?'Ativa':'Inativa'}</TableCell><TableCell>{s.revisao_pendente?<Badge variant="outline">Revisar</Badge>:'—'}</TableCell><TableCell>{rels.length?rels.join(', '):'Sem vínculo específico'}</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" onClick={()=>void alternarAtivo('financeiro_subcategorias',s)}>{s.ativo?'Inativar':'Ativar'}</Button></TableCell></TableRow>})}</TableBody></Table>
+                <TableBody>{subcategorias.map(s=>{const rels=categoriaSubcategorias.filter(r=>r.subcategoria_id===s.id).map(r=>categorias.find(c=>c.id===r.categoria_id)?.nome).filter(Boolean);return <TableRow key={s.id}><TableCell className="font-medium">{s.nome}</TableCell><TableCell>{s.origem_planilha?<IndicadorPagina54 dados={s}/>:<span>Sistema</span>}</TableCell><TableCell>{s.ativo?'Ativa':'Inativa'}</TableCell><TableCell>{s.revisao_pendente?<Badge variant="outline">Revisar</Badge>:'—'}</TableCell><TableCell>{rels.length?rels.join(', '):'Sem vínculo específico'}</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" onClick={()=>void alternarAtivo('financeiro_subcategorias',s)}>{s.ativo?'Inativar':'Ativar'}</Button></TableCell></TableRow>})}</TableBody></Table>
               </div>
             </div>
           </details>
