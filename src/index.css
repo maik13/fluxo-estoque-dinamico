@@ -233,3 +233,255 @@
     box-shadow: none !important;
   }
 }
+
+
+/* ─── Relatório profissional — Gestão > Projetos > Por Valor ───────── */
+.projetos-print-only {
+  display: none;
+}
+
+@page projetos-valor {
+  size: A4 landscape;
+  margin: 10mm 10mm 14mm;
+}
+
+@media print {
+  body.imprimir-projetos {
+    background: #fff !important;
+    color: #111827 !important;
+  }
+
+  body.imprimir-projetos * {
+    visibility: hidden !important;
+  }
+
+  body.imprimir-projetos [data-projetos-print-ativa],
+  body.imprimir-projetos [data-projetos-print-ativa] * {
+    visibility: visible !important;
+  }
+
+  body.imprimir-projetos [data-projetos-print-ativa] {
+    page: projetos-valor;
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #111827 !important;
+  }
+
+  body.imprimir-projetos [data-projetos-print-ativa] > div {
+    padding: 0 !important;
+  }
+
+  body.imprimir-projetos .projetos-screen-only {
+    display: none !important;
+  }
+
+  body.imprimir-projetos .projetos-print-only {
+    display: block !important;
+  }
+
+  body.imprimir-projetos .projetos-print-header {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 24px !important;
+    padding: 0 0 10px !important;
+    margin: 0 0 10px !important;
+    border-bottom: 2px solid #1f2937 !important;
+  }
+
+  body.imprimir-projetos .projetos-print-brand {
+    margin-bottom: 3px !important;
+    font-size: 8pt !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.18em !important;
+    color: #6b7280 !important;
+  }
+
+  body.imprimir-projetos .projetos-print-header h1 {
+    margin: 0 !important;
+    font-size: 18pt !important;
+    line-height: 1.15 !important;
+    font-weight: 800 !important;
+    color: #111827 !important;
+  }
+
+  body.imprimir-projetos .projetos-print-header p {
+    margin: 3px 0 0 !important;
+    font-size: 8pt !important;
+    color: #6b7280 !important;
+  }
+
+  body.imprimir-projetos .projetos-print-emissao {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    min-width: 125px !important;
+    font-size: 7.5pt !important;
+    line-height: 1.4 !important;
+    color: #4b5563 !important;
+  }
+
+  body.imprimir-projetos .projetos-print-emissao strong {
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    font-size: 6.5pt !important;
+    color: #6b7280 !important;
+  }
+
+  body.imprimir-projetos .projetos-print-contexto {
+    display: grid !important;
+    grid-template-columns: 2fr 1.15fr 1fr 1.15fr !important;
+    gap: 7px !important;
+    margin-bottom: 10px !important;
+  }
+
+  body.imprimir-projetos .projetos-print-contexto > div {
+    min-width: 0 !important;
+    padding: 6px 8px !important;
+    border: 1px solid #d1d5db !important;
+    background: #f9fafb !important;
+  }
+
+  body.imprimir-projetos .projetos-print-contexto span,
+  body.imprimir-projetos .projetos-print-contexto strong {
+    display: block !important;
+  }
+
+  body.imprimir-projetos .projetos-print-contexto span {
+    margin-bottom: 2px !important;
+    font-size: 6pt !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+    color: #6b7280 !important;
+  }
+
+  body.imprimir-projetos .projetos-print-contexto strong {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 7.5pt !important;
+    color: #111827 !important;
+  }
+
+  body.imprimir-projetos .projetos-valor-kpis {
+    display: grid !important;
+    grid-template-columns: 1.45fr repeat(4, 1fr) !important;
+    gap: 6px !important;
+    margin: 0 0 8px !important;
+  }
+
+  body.imprimir-projetos .projetos-valor-kpis > div {
+    padding: 6px 8px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    break-inside: avoid !important;
+  }
+
+  body.imprimir-projetos .projetos-valor-kpis p:first-child {
+    margin: 0 0 3px !important;
+    font-size: 6pt !important;
+    line-height: 1.2 !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    color: #6b7280 !important;
+  }
+
+  body.imprimir-projetos .projetos-valor-kpis p:last-child {
+    margin: 0 !important;
+    font-size: 11pt !important;
+    line-height: 1.15 !important;
+    font-weight: 800 !important;
+    color: #111827 !important;
+  }
+
+  body.imprimir-projetos .projetos-print-criterio {
+    margin: 0 0 8px !important;
+    padding: 5px 7px !important;
+    border-left: 3px solid #6b7280 !important;
+    background: #f9fafb !important;
+    font-size: 6.7pt !important;
+    line-height: 1.35 !important;
+    color: #4b5563 !important;
+  }
+
+  body.imprimir-projetos .projetos-valor-tabela {
+    overflow: visible !important;
+  }
+
+  body.imprimir-projetos .projetos-valor-tabela table {
+    width: 100% !important;
+    table-layout: auto !important;
+    border-collapse: collapse !important;
+    color: #111827 !important;
+  }
+
+  body.imprimir-projetos .projetos-valor-tabela thead {
+    display: table-header-group !important;
+  }
+
+  body.imprimir-projetos .projetos-valor-tabela tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  body.imprimir-projetos .projetos-valor-tabela th {
+    padding: 4px 4px !important;
+    border: 1px solid #c7cdd4 !important;
+    background: #e9edf1 !important;
+    font-size: 6.2pt !important;
+    line-height: 1.2 !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.025em !important;
+    text-transform: uppercase !important;
+    color: #1f2937 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.imprimir-projetos .projetos-valor-tabela td {
+    padding: 3.5px 4px !important;
+    border: 1px solid #d9dde2 !important;
+    font-size: 6.7pt !important;
+    line-height: 1.25 !important;
+    vertical-align: top !important;
+    color: #111827 !important;
+    background: #fff !important;
+  }
+
+  body.imprimir-projetos .projetos-valor-tabela .text-right {
+    text-align: right !important;
+  }
+
+  body.imprimir-projetos .projetos-valor-tabela [class*="Badge"],
+  body.imprimir-projetos .projetos-valor-tabela [data-slot="badge"] {
+    border: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    color: #111827 !important;
+  }
+
+  body.imprimir-projetos .projetos-print-footer {
+    display: flex !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    margin-top: 8px !important;
+    padding-top: 5px !important;
+    border-top: 1px solid #d1d5db !important;
+    font-size: 6pt !important;
+    color: #6b7280 !important;
+  }
+
+  body.imprimir-projetos .projetos-print-page::after {
+    content: "Página " counter(page) !important;
+  }
+}
