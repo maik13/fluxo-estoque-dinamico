@@ -57,6 +57,11 @@ type PlanejamentoPayload = {
   fonte: Fonte;
 };
 
+type TemporadaGrupo = {
+  id: string;
+  nome: string;
+};
+
 const numero = (valor: unknown) => Number(valor || 0);
 
 const formatarDataHora = (valor: string | null | undefined) => {
@@ -77,6 +82,8 @@ export const PlanejamentoProducao = () => {
   const [visaoPlanejamento, setVisaoPlanejamento] = useState<'matriz' | 'detalhado'>('detalhado');
 
   const [novaCidade, setNovaCidade] = useState('');
+  const [novaCidadeGrupoId, setNovaCidadeGrupoId] = useState('');
+  const [temporadasGrupos, setTemporadasGrupos] = useState<TemporadaGrupo[]>([]);
   const [novaPecaNome, setNovaPecaNome] = useState('');
   const [novaPecaCodigo, setNovaPecaCodigo] = useState('');
   const [novaPecaQuantidade, setNovaPecaQuantidade] = useState('0');
@@ -84,10 +91,15 @@ export const PlanejamentoProducao = () => {
   const carregar = useCallback(async () => {
     setLoading(true);
     try {
-      const planejamentoResult = await (supabase.rpc as any)('listar_planejamento_producao_v2');
+      const [planejamentoResult, gruposResult] = await Promise.all([
+        (supabase.rpc as any)('listar_planejamento_producao_v2'),
+        supabase.from('project_groups').select('id,nome').eq('ativo', true).order('nome'),
+      ]);
       if (planejamentoResult.error) throw planejamentoResult.error;
+      if (gruposResult.error) throw gruposResult.error;
       const payload = (planejamentoResult.data ?? { projetos: [], itens: [], fonte: null }) as PlanejamentoPayload;
       setDados(payload);
+      setTemporadasGrupos((gruposResult.data ?? []) as TemporadaGrupo[]);
       setCidadeSelecionadaId((atual) => {
         if (atual && payload.projetos.some((projeto) => projeto.id === atual)) return atual;
         return payload.projetos.find((projeto) => projeto.ativoCalculo)?.id ?? '';
@@ -263,14 +275,19 @@ export const PlanejamentoProducao = () => {
       toast.error('Informe o nome da cidade/projeto.');
       return;
     }
+    if (!novaCidadeGrupoId) {
+      toast.error('Selecione a Temporada / Grupo da nova cidade.');
+      return;
+    }
     setSalvandoId('nova-cidade');
     try {
       const { error } = await (supabase.rpc as any)('criar_cidade_planejamento_v1', {
         p_nome: novaCidade.trim(),
+        p_project_group_id: novaCidadeGrupoId,
       });
       if (error) throw error;
       setNovaCidade('');
-      toast.success('Cidade cadastrada no Planejamento e vinculada ao Grupo de Projeto oficial.');
+      toast.success('Cidade cadastrada no Planejamento e vinculada à Temporada / Grupo selecionada.');
       await carregar();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível cadastrar a cidade.');
@@ -390,17 +407,37 @@ export const PlanejamentoProducao = () => {
       </Card>
 
       {podeConfigurar && (
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Input
-            value={novaCidade}
-            onChange={(e) => setNovaCidade(e.target.value)}
-            placeholder="Nova cidade/projeto"
-            className="max-w-md"
-          />
-          <Button onClick={() => void cadastrarCidade()} disabled={salvandoId === 'nova-cidade'}>
-            <Plus className="mr-2 h-4 w-4" />Cadastrar cidade
-          </Button>
-        </div>
+        <Card className="p-4">
+          <div className="mb-3">
+            <p className="font-medium">Cadastrar nova cidade / projeto</p>
+            <p className="text-xs text-muted-foreground">
+              A cidade não cria mais um Grupo automaticamente. Selecione explicitamente a Temporada / Grupo à qual ela pertence.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-[1fr_320px_auto] md:items-end">
+            <div className="space-y-1.5">
+              <Label>Nova cidade / projeto</Label>
+              <Input
+                value={novaCidade}
+                onChange={(e) => setNovaCidade(e.target.value)}
+                placeholder="Ex.: Londrina"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Temporada / Grupo</Label>
+              <SearchableSelect
+                value={novaCidadeGrupoId}
+                onValueChange={setNovaCidadeGrupoId}
+                placeholder="Selecione a temporada..."
+                searchPlaceholder="Buscar temporada..."
+                options={temporadasGrupos.map((grupo) => ({ value: grupo.id, label: grupo.nome }))}
+              />
+            </div>
+            <Button onClick={() => void cadastrarCidade()} disabled={salvandoId === 'nova-cidade'}>
+              <Plus className="mr-2 h-4 w-4" />Cadastrar cidade
+            </Button>
+          </div>
+        </Card>
       )}
 
       {podeConfigurar && cidadeSelecionadaId && (
@@ -595,7 +632,7 @@ export const PlanejamentoProducao = () => {
         <div className="flex gap-2">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            Planejamento, Projetos, Gerencial e Produção usam agora a mesma estrutura oficial de Grupo do Projeto e Local de Utilização. Ativar cidade ou cadastrar peça é aditivo; nenhum histórico, Etapa, OP ou apontamento existente é apagado.
+            Planejamento, Projetos, Gerencial e Produção usam a mesma Temporada / Grupo e os mesmos Locais de Utilização. Cidades não criam mais grupos automaticamente; a Temporada / Grupo é escolhida pelo usuário. Nenhum histórico, Etapa, OP ou apontamento existente é apagado.
           </p>
         </div>
       </Card>
