@@ -851,7 +851,6 @@ const cadastrarItem = async (dadosItem: Omit<Item, 'id'> & { codigoBarras?: numb
       quantidade_atual: movimentacao.quantidadeAtual,
       user_id: movimentacao.userId ?? null,
       observacoes: movimentacao.observacoes ?? null,
-      data_hora: movimentacao.dataHora,
       item_snapshot: JSON.parse(JSON.stringify(movimentacao.itemSnapshot)),
       estoque_id: estoqueAtivoInfo?.id ?? null,
     }).select('*').maybeSingle();
@@ -942,7 +941,6 @@ const registrarEntrada = async (
       quantidade_atual: movimento.quantidadeAtual,
       user_id: movimento.userId ?? null,
       observacoes: movimento.observacoes ?? null,
-      data_hora: movimento.dataHora,
       item_snapshot: JSON.parse(JSON.stringify(movimento.itemSnapshot)),
       estoque_id: estoqueAtivoInfo?.id ?? null,
       tipo_operacao_id: tipoOperacaoId ?? null,
@@ -1055,7 +1053,6 @@ const registrarSaida = async (
       quantidade_atual: movimento.quantidadeAtual,
       user_id: movimento.userId ?? null,
       observacoes: movimento.observacoes ?? null,
-      data_hora: movimento.dataHora,
       item_snapshot: JSON.parse(JSON.stringify(movimento.itemSnapshot)),
       estoque_id: estoqueAtivoInfo?.id ?? null,
       tipo_operacao_id: tipoOperacaoId ?? null,
