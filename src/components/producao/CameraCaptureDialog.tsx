@@ -36,19 +36,26 @@ const erroCamera = (error: unknown) => {
 export const CameraCaptureDialog = ({ open, onOpenChange, onCapture }: Props) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const tentativaConexaoRef = useRef(0);
   const [conectando, setConectando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [cameraPronta, setCameraPronta] = useState(false);
 
-  const desligarCamera = () => {
+  const pararStreamAtual = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setCameraPronta(false);
   };
 
+  const desligarCamera = () => {
+    tentativaConexaoRef.current += 1;
+    pararStreamAtual();
+  };
+
   const conectarCamera = async () => {
-    desligarCamera();
+    pararStreamAtual();
+    const tentativaAtual = ++tentativaConexaoRef.current;
     setErro(null);
     setConectando(true);
 
@@ -79,6 +86,11 @@ export const CameraCaptureDialog = ({ open, onOpenChange, onCapture }: Props) =>
         }
       }
 
+      if (tentativaAtual !== tentativaConexaoRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
       streamRef.current = stream;
       if (!videoRef.current) {
         desligarCamera();
@@ -89,6 +101,7 @@ export const CameraCaptureDialog = ({ open, onOpenChange, onCapture }: Props) =>
       await videoRef.current.play();
       setCameraPronta(true);
     } catch (error) {
+      if (tentativaAtual !== tentativaConexaoRef.current) return;
       setErro(
         error instanceof Error && error.message === 'CAMERA_API_INDISPONIVEL'
           ? 'Este navegador não disponibiliza acesso direto à câmera. Use um navegador atualizado e conexão HTTPS.'
@@ -96,7 +109,9 @@ export const CameraCaptureDialog = ({ open, onOpenChange, onCapture }: Props) =>
       );
       setCameraPronta(false);
     } finally {
-      setConectando(false);
+      if (tentativaAtual === tentativaConexaoRef.current) {
+        setConectando(false);
+      }
     }
   };
 
