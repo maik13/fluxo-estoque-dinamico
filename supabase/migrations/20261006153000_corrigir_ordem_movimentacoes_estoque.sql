@@ -256,6 +256,24 @@ BEGIN
   v_def:=replace(v_def,'ORDER BY m.item_id, m.data_hora DESC, m.id DESC','ORDER BY m.item_id, m.created_at DESC, m.id DESC');
   EXECUTE v_def;
 
+  SELECT pg_get_functiondef('public.listar_movimentacoes_paginadas_v2(uuid,boolean,integer,integer,text,text,uuid,text,uuid,text,text,text[],timestamp with time zone,timestamp with time zone)'::regprocedure) INTO v_def;
+  v_def:=replace(v_def,
+    'SELECT m.id, m.data_hora',
+    'SELECT m.id, m.created_at AS data_hora');
+  v_def:=replace(v_def,
+    'm.data_hora >= p_data_inicio',
+    'm.created_at >= p_data_inicio');
+  v_def:=replace(v_def,
+    'm.data_hora <= p_data_fim',
+    'm.created_at <= p_data_fim');
+  v_def:=replace(v_def,
+    'm.id, m.item_id, m.tipo, m.quantidade, m.quantidade_anterior, m.quantidade_atual,\n    m.user_id, m.observacoes, m.data_hora, m.local_utilizacao_id,',
+    'm.id, m.item_id, m.tipo, m.quantidade, m.quantidade_anterior, m.quantidade_atual,\n    m.user_id, m.observacoes, m.created_at AS data_hora, m.local_utilizacao_id,');
+  v_def:=replace(v_def,
+    'WHERE m.data_hora >= date_trunc',
+    'WHERE m.created_at >= date_trunc');
+  EXECUTE v_def;
+
   SELECT pg_get_functiondef('public.consultar_ferramenta_producao_v1(text)'::regprocedure) INTO v_def;
   v_def:=replace(v_def,
     'select m.id,m.tipo,m.quantidade,m.data_hora,m.observacoes,m.solicitacao_id,',
