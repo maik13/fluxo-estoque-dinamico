@@ -434,7 +434,22 @@ export const useEstoque = () => {
         from += pageSize;
       }
 
-      setMovimentacoes(rows.map((row) => mapearMovimentacao(row)));
+      const movimentacoesRecentes = rows.map((row) => mapearMovimentacao(row));
+
+      // Se uma tela analítica já carregou o histórico completo, nunca reduzir
+      // novamente o estado global para a janela de 7 dias. Isso fazia a aba
+      // Gestão > Projetos parecer perder movimentos após um refresh/recarga.
+      if (historicoCarregadoRef.current) {
+        setMovimentacoes((atuais) => {
+          const porId = new Map(atuais.map((mov) => [mov.id, mov]));
+          movimentacoesRecentes.forEach((mov) => porId.set(mov.id, mov));
+          return Array.from(porId.values()).sort(
+            (a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime(),
+          );
+        });
+      } else {
+        setMovimentacoes(movimentacoesRecentes);
+      }
     } catch (error) {
       console.error('Erro ao carregar movimentações recentes:', error);
     }
