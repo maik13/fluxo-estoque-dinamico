@@ -473,6 +473,18 @@ export const VisaoProjetos = () => {
               <div><span>Período</span><strong>{periodoSelecionado}</strong></div>
               <div><span>Categoria</span><strong>{filtroPendentesCategoria === 'todos' ? 'Todas as categorias' : filtroPendentesCategoria}</strong></div>
             </div>
+
+            <div className="projetos-print-fechamento">
+              <div>
+                <span>Conciliação do movimento</span>
+                <strong>
+                  {controleValor.itensComSaida} itens com saída = {controleValor.itensComConsumoLiquido} com consumo líquido + {controleValor.totalmenteDevolvidos} totalmente devolvidos
+                </strong>
+              </div>
+              <p>
+                A relação detalhada apresenta apenas itens com consumo líquido positivo; devoluções integrais permanecem demonstradas no fechamento.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-4 projetos-screen-only">
@@ -592,17 +604,26 @@ export const VisaoProjetos = () => {
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground my-4 projetos-screen-only">
-            {tipoAgrupamentoProjetos === 'valor'
-              ? `Mostrando ${resumoValor.length} item(ns) com consumo no período/filtros selecionados`
-              : `Mostrando ${pendentesFiltrados.length} resumo(s) por ${tipoAgrupamentoProjetos === 'projeto' ? 'projeto/local' : 'grupo'}`}
-          </p>
+          {tipoAgrupamentoProjetos === 'valor' ? (
+            <div className="projetos-screen-only my-4 rounded-md border border-border bg-muted/20 px-4 py-3">
+              <p className="text-sm font-semibold text-foreground">
+                Fechamento do filtro: {controleValor.itensComSaida} itens com saída = {controleValor.itensComConsumoLiquido} com consumo líquido + {controleValor.totalmenteDevolvidos} totalmente devolvidos.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                A tabela abaixo apresenta somente os {controleValor.itensComConsumoLiquido} itens que tiveram consumo líquido. Os {controleValor.totalmenteDevolvidos} itens integralmente devolvidos permanecem contabilizados no fechamento acima.
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground my-4 projetos-screen-only">
+              Mostrando {pendentesFiltrados.length} resumo(s) por {tipoAgrupamentoProjetos === 'projeto' ? 'projeto/local' : 'grupo'}
+            </p>
+          )}
 
           {tipoAgrupamentoProjetos === 'valor' ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3 projetos-valor-kpis">
-                <div className="rounded-md border bg-muted/20 p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor consumido apurado</p>
+                <div className="rounded-md border bg-muted/20 p-3 projetos-kpi-principal">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor total consumido</p>
                   <p className="text-lg font-bold text-warning">{formatarMoeda(totalValorConsumido)}</p>
                 </div>
                 <div className="rounded-md border bg-muted/20 p-3">
@@ -624,9 +645,9 @@ export const VisaoProjetos = () => {
               </div>
 
               <div className="projetos-print-only projetos-print-criterio">
-                <strong>Critério do relatório:</strong> consumo líquido = saída − devoluções identificadas.
-                Ferramentas não compõem consumo. O valor unitário usa o cadastro atual do item e,
-                quando indisponível, o snapshot histórico da movimentação.
+                <strong>Critério de apuração:</strong> consumo líquido = quantidade de saída − quantidade devolvida.
+                Ferramentas não compõem o consumo financeiro. O valor unitário utiliza o cadastro atual do item e,
+                quando indisponível, o snapshot histórico da movimentação. Valores devem ser interpretados como apuração gerencial do almoxarifado.
               </div>
 
               <div className="w-full overflow-x-auto projetos-valor-tabela">
