@@ -136,7 +136,11 @@ export const useConsolidacao = (
       return '-';
     };
 
-    // 1. Filtros de base (Data e Classificação)
+    // 1. Mapas de lookup usados pelos filtros e pelo agrupamento.
+    const locaisMapLookup = new Map(locaisConfig.map(l => [l.id, l]));
+    const gruposMapLookup = new Map(gruposProjeto.map(g => [g.id, g]));
+
+    // 2. Filtros de base (Data, Categoria, Projeto/Local e Grupo)
     const movsFiltradas = movimentacoes.filter(mov => {
       // Filtro de Data (se fornecido)
       if (filtros?.dataInicio || filtros?.dataFim) {
@@ -145,23 +149,33 @@ export const useConsolidacao = (
         if (filtros.dataFim && dataMov > filtros.dataFim) return false;
       }
       
-      // Filtro de Classificação (usando a taxonomia real)
-      if (filtros?.categoria && filtros.tipoItem !== 'todos') {
+      // Filtro de Categoria.
+      if (filtros?.categoria && filtros.categoria !== 'todos') {
+        const itemClass = resolveClassificacao(mov.itemSnapshot);
+        if (itemClass !== filtros.categoria) return false;
+      }
+
+      // Compatibilidade com chamadas antigas que ainda usem tipoItem.
+      if (filtros?.tipoItem && filtros.tipoItem !== 'todos') {
         const itemClass = resolveClassificacao(mov.itemSnapshot);
         if (itemClass !== filtros.tipoItem) return false;
       }
 
-      // Filtro de Projeto/Local específico
+      // Filtro de Projeto/Local específico.
       if (filtros?.localId && filtros.localId !== 'todos') {
         if (mov.localUtilizacaoId !== filtros.localId) return false;
       }
 
+      // Filtro de Grupo específico, independente do modo de agrupamento.
+      if (filtros?.grupoId && filtros.grupoId !== 'todos') {
+        const local = mov.localUtilizacaoId
+          ? locaisMapLookup.get(mov.localUtilizacaoId)
+          : null;
+        if ((local?.group_id ?? 'sem-grupo') !== filtros.grupoId) return false;
+      }
+
       return true;
     });
-
-    // 2. Mapas de lookup para performance O(1)
-    const locaisMapLookup = new Map(locaisConfig.map(l => [l.id, l]));
-    const gruposMapLookup = new Map(gruposProjeto.map(g => [g.id, g]));
 
     const getGroupingData = (localId: string | null, localNome: string | null) => {
       if (tipoAgrupamento === 'projeto') {
@@ -190,9 +204,6 @@ export const useConsolidacao = (
         const itemId = mov.itemId || 'sem-item';
         const { id: groupingId, name: groupingName } = getGroupingData(mov.localUtilizacaoId || null, mov.localUtilizacaoNome || null);
         
-        // Filtro de Grupo específico (se fornecido)
-        if (filtros?.grupoId && filtros.grupoId !== 'todos' && groupingId !== filtros.grupoId) return;
-
         const key = `${itemId}_${groupingId}`;
         const existing = itensMap.get(key);
 
