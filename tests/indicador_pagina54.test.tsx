@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { temOrigemPagina54 } from './IndicadorPagina54';
+import { temOrigemPagina54 } from '../src/components/financeiro/IndicadorPagina54';
 
 describe('temOrigemPagina54', () => {
   it.each([
