@@ -17,6 +17,7 @@ import {
 } from '@/hooks/useOrdensProducao';
 import { calcularDuracaoProducao } from '@/hooks/useProducao';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
+import { CameraCaptureDialog } from './CameraCaptureDialog';
 import {
   finalizarJornadaOp,
   obterJornadaOpAberta,
@@ -104,6 +105,7 @@ export const FormApontamentoProducaoV2 = ({
   const [horariosMembros, setHorariosMembros] = useState<Record<string, HorarioPersonalizado>>({});
   const [membroHorarioAberto, setMembroHorarioAberto] = useState<string | null>(null);
   const [fotos, setFotos] = useState<File[]>([]);
+  const [cameraAberta, setCameraAberta] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [contextoPronto, setContextoPronto] = useState(false);
   const [motivoRegularizacao, setMotivoRegularizacao] = useState('');
@@ -504,6 +506,24 @@ export const FormApontamentoProducaoV2 = ({
             !chaves.has(`${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`),
         ),
       ];
+    });
+  };
+
+  const adicionarFotoCapturada = (arquivo: File) => {
+    if (!TIPOS_PERMITIDOS.includes(arquivo.type)) {
+      toast.error('A câmera gerou um formato de imagem não permitido.');
+      return;
+    }
+    if (arquivo.size <= 0 || arquivo.size > TAMANHO_MAXIMO) {
+      toast.error('A foto capturada deve possuir até 10 MB.');
+      return;
+    }
+    setFotos((atuais) => {
+      const chave = `${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`;
+      if (atuais.some((foto) => `${foto.name}-${foto.size}-${foto.lastModified}` === chave)) {
+        return atuais;
+      }
+      return [...atuais, arquivo];
     });
   };
 
@@ -1404,15 +1424,25 @@ export const FormApontamentoProducaoV2 = ({
             className="hidden"
             onChange={(event) => selecionarFotos(event.target.files)}
           />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => inputFotosRef.current?.click()}
-            disabled={!podeApontar}
-          >
-            <Camera className="mr-2 h-4 w-4" />
-            Adicionar fotos
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              onClick={() => setCameraAberta(true)}
+              disabled={!podeApontar}
+            >
+              <Camera className="mr-2 h-4 w-4" />
+              Tirar foto
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => inputFotosRef.current?.click()}
+              disabled={!podeApontar}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Galeria
+            </Button>
+          </div>
         </div>
 
         {fotos.length === 0 ? (
@@ -1467,6 +1497,12 @@ export const FormApontamentoProducaoV2 = ({
           />
         </div>
       )}
+
+      <CameraCaptureDialog
+        open={cameraAberta}
+        onOpenChange={setCameraAberta}
+        onCapture={adicionarFotoCapturada}
+      />
 
       <div className="space-y-2">
         <Label>Observações</Label>
