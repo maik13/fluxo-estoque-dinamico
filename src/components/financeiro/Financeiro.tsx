@@ -148,7 +148,8 @@ export const Financeiro = () => {
       todos: lancamentos,
       previstos: lancamentos.filter((l) => !['pago', 'conciliado', 'cancelado', 'programado'].includes(l.status)),
       programados: lancamentos.filter((l) => l.status === 'programado'),
-      pagos: lancamentos.filter((l) => ['pago', 'conciliado'].includes(l.status)),
+      pagos: lancamentos.filter((l) => l.status === 'pago'),
+      conciliados: lancamentos.filter((l) => l.status === 'conciliado'),
     };
     return Object.fromEntries(Object.entries(grupos).map(([chave, itens]) => [
       chave,
@@ -160,9 +161,14 @@ export const Financeiro = () => {
       return lancamentosFluxo.filter((l) => !['pago', 'conciliado', 'cancelado', 'programado'].includes(l.status));
     }
     if (filtroSituacaoFluxo === 'programados') return lancamentosFluxo.filter((l) => l.status === 'programado');
-    if (filtroSituacaoFluxo === 'pagos') return lancamentosFluxo.filter((l) => ['pago', 'conciliado'].includes(l.status));
+    if (filtroSituacaoFluxo === 'pagos') return lancamentosFluxo.filter((l) => l.status === 'pago');
+    if (filtroSituacaoFluxo === 'conciliados') return lancamentosFluxo.filter((l) => l.status === 'conciliado');
     return lancamentosFluxo;
   }, [lancamentosFluxo, filtroSituacaoFluxo]);
+  const pagamentosRealizados = useMemo(
+    () => lancamentos.filter((l) => ['pago', 'conciliado'].includes(l.status)),
+    [lancamentos],
+  );
   const [rcs, setRcs] = useState<Registro[]>([]);
   const [pcs, setPcs] = useState<Registro[]>([]);
   const [programacoes, setProgramacoes] = useState<Registro[]>([]);
@@ -680,10 +686,11 @@ export const Financeiro = () => {
         {(podeGerenciar || podeAprovar) && <TabsContent value="fluxo" className="mt-5">
           <Card><CardHeader><CardTitle>Fluxo de Caixa</CardTitle><CardDescription>Visão sistêmica equivalente ao núcleo da Página54: previsto e realizado separados, com origem rastreável.</CardDescription></CardHeader>
             <CardContent className="overflow-x-auto">
-              <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 <Card className="border-amber-500/30 bg-amber-500/5"><CardHeader className="p-4"><CardDescription>A pagar / previstos</CardDescription><CardTitle className="text-xl">{moeda(resumoFluxo.previstos.valor)}</CardTitle><CardDescription>{resumoFluxo.previstos.quantidade} lançamento(s)</CardDescription></CardHeader></Card>
                 <Card className="border-blue-500/30 bg-blue-500/5"><CardHeader className="p-4"><CardDescription>Programados</CardDescription><CardTitle className="text-xl">{moeda(resumoFluxo.programados.valor)}</CardTitle><CardDescription>{resumoFluxo.programados.quantidade} lançamento(s)</CardDescription></CardHeader></Card>
-                <Card className="border-emerald-500/30 bg-emerald-500/5"><CardHeader className="p-4"><CardDescription>Pagos / conciliados</CardDescription><CardTitle className="text-xl">{moeda(resumoFluxo.pagos.valor)}</CardTitle><CardDescription>{resumoFluxo.pagos.quantidade} lançamento(s)</CardDescription></CardHeader></Card>
+                <Card className="border-violet-500/30 bg-violet-500/5"><CardHeader className="p-4"><CardDescription>Pagos · a conciliar</CardDescription><CardTitle className="text-xl">{moeda(resumoFluxo.pagos.valor)}</CardTitle><CardDescription>{resumoFluxo.pagos.quantidade} lançamento(s)</CardDescription></CardHeader></Card>
+                <Card className="border-emerald-500/30 bg-emerald-500/5"><CardHeader className="p-4"><CardDescription>Conciliados</CardDescription><CardTitle className="text-xl">{moeda(resumoFluxo.conciliados.valor)}</CardTitle><CardDescription>{resumoFluxo.conciliados.quantidade} lançamento(s)</CardDescription></CardHeader></Card>
                 <Card><CardHeader className="p-4"><CardDescription>Total no fluxo</CardDescription><CardTitle className="text-xl">{moeda(resumoFluxo.todos.valor)}</CardTitle><CardDescription>{resumoFluxo.todos.quantidade} lançamento(s)</CardDescription></CardHeader></Card>
               </div>
               <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -703,7 +710,8 @@ export const Financeiro = () => {
                       <SelectItem value="todos">Todos os lançamentos</SelectItem>
                       <SelectItem value="previstos">A pagar / previstos</SelectItem>
                       <SelectItem value="programados">Programados</SelectItem>
-                      <SelectItem value="pagos">Pagos / conciliados</SelectItem>
+                      <SelectItem value="pagos">Pagos · a conciliar</SelectItem>
+                      <SelectItem value="conciliados">Conciliados</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -834,7 +842,7 @@ export const Financeiro = () => {
           <TableBody>{pcs.length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Nenhum PC formal criado.</TableCell></TableRow>:pcs.map(pc=><TableRow key={pc.id}><TableCell className="font-medium">PC-{String(pc.numero).padStart(4,'0')}</TableCell><TableCell>{pc.fornecedor}</TableCell><TableCell className="min-w-[220px]">{pc.descricao}</TableCell><TableCell><BadgeStatus status={pc.status}/></TableCell><TableCell className="text-right">{moeda(pc.valor_itens)}</TableCell><TableCell className="text-right">{moeda(pc.frete_custos_adicionais)}</TableCell><TableCell className="text-right">{moeda(pc.valor_total)}</TableCell><TableCell>{pc.aprovacao_mauro_em?dataPt(pc.aprovacao_mauro_em):canApproveFinanceiro()?'Pendente':'—'}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
         </TabsContent>}
 
-        {podeProgramar && <TabsContent value="programacao" className="mt-5">
+        {podeProgramar && <TabsContent value="programacao" className="mt-5 space-y-5">
           <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>Programação Bancária</CardTitle><CardDescription>Fila formal Kátia → Guto. Programação bancária não substitui o planejamento.</CardDescription></div>
           {(canManageFinanceiro()||canProgramFinanceiro())&&<Dialog open={dialogProgramacao} onOpenChange={setDialogProgramacao}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova programação</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Programação bancária</DialogTitle></DialogHeader>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -852,9 +860,11 @@ export const Financeiro = () => {
             <DialogFooter><Button variant="outline" onClick={()=>setDialogProgramacao(false)}>Cancelar</Button><Button onClick={()=>void salvarProgramacao()}>Registrar</Button></DialogFooter>
           </DialogContent></Dialog>}</CardHeader>
           <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Status</TableHead><TableHead>Beneficiário</TableHead><TableHead>Vencimento</TableHead><TableHead>Programar em</TableHead><TableHead>Banco</TableHead><TableHead>Projeto</TableHead><TableHead className="text-right">Valor</TableHead>{podeAprovar && <TableHead>Registrado por</TableHead>}</TableRow></TableHeader><TableBody>{programacoes.length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Nenhuma programação.</TableCell></TableRow>:programacoes.map(p=><TableRow key={p.id}><TableCell><BadgeStatus status={p.status}/></TableCell><TableCell>{p.beneficiario}</TableCell><TableCell>{dataPt(p.vencimento)}</TableCell><TableCell>{dataPt(p.data_programada)}</TableCell><TableCell>{p.banco_conta||'—'}</TableCell><TableCell>{p.projeto_centro_custo||'—'}</TableCell><TableCell className="text-right">{moeda(p.valor)}</TableCell>{podeAprovar && <TableCell><div className="text-xs"><div className="font-medium">{p.registrado_por_nome||'—'}</div><div className="text-muted-foreground">{p.programado_por_guto_em?new Date(p.programado_por_guto_em).toLocaleString('pt-BR'):'—'}</div></div></TableCell>}</TableRow>)}</TableBody></Table></CardContent></Card>
+          <Card><CardHeader><CardTitle>Histórico de pagamentos realizados</CardTitle><CardDescription>Pagamentos já concluídos aparecem aqui como histórico da programação; não voltam para a fila bancária.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Status</TableHead><TableHead>Data realizada</TableHead><TableHead>Descrição</TableHead><TableHead>Projeto / centro</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader><TableBody>{pagamentosRealizados.length===0?<TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Nenhum pagamento realizado.</TableCell></TableRow>:pagamentosRealizados.map(l=><TableRow key={l.id}><TableCell><BadgeStatus status={l.status}/></TableCell><TableCell>{dataPt(l.data_realizada)}</TableCell><TableCell className="min-w-[280px]"><div className="font-medium">{l.descricao}</div>{l.origem_tipo==='pagina54'&&<div className="text-xs text-muted-foreground">Página54 · linha {l.planilha_linha??'—'}</div>}</TableCell><TableCell>{l.projeto_centro_custo||'—'}</TableCell><TableCell className="text-right">{moeda(l.valor_realizado??l.valor_previsto)}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
         </TabsContent>}
 
-        {podeConciliar && <TabsContent value="conciliacao" className="mt-5">
+        {podeConciliar && <TabsContent value="conciliacao" className="mt-5 space-y-5">
+          <Card><CardHeader><CardTitle>Pagamentos no fluxo para conciliação</CardTitle><CardDescription>“Pago” significa que o desembolso foi realizado e ainda precisa de conferência bancária. “Conciliado” é o pagamento já confirmado.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Situação</TableHead><TableHead>Data realizada</TableHead><TableHead>Descrição</TableHead><TableHead>Categoria</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader><TableBody>{pagamentosRealizados.length===0?<TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Nenhum pagamento no fluxo para conciliar.</TableCell></TableRow>:pagamentosRealizados.map(l=><TableRow key={l.id}><TableCell><BadgeStatus status={l.status}/>{l.status==='pago'&&<div className="mt-1 text-xs text-amber-700">Aguardando conciliação</div>}</TableCell><TableCell>{dataPt(l.data_realizada)}</TableCell><TableCell className="min-w-[280px]"><div className="font-medium">{l.descricao}</div>{l.origem_tipo==='pagina54'&&<div className="text-xs text-muted-foreground">Página54 · linha {l.planilha_linha??'—'}</div>}</TableCell><TableCell>{l.categoria||'—'}</TableCell><TableCell className="text-right">{moeda(l.valor_realizado??l.valor_previsto)}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
           <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>Conciliação Bancária e Desvios</CardTitle><CardDescription>Anexo E. Registra o que aconteceu no banco, se estava previsto e qual tratamento a divergência recebeu.</CardDescription></div>
           {canConciliarFinanceiro()&&<Dialog open={dialogConciliacao} onOpenChange={setDialogConciliacao}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Registrar movimentação</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Movimentação / divergência</DialogTitle></DialogHeader>
             {conciliacaoForm.previsto === 'nao' && (
