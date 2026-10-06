@@ -730,20 +730,9 @@ export const useEstoque = () => {
       const ultimaServidor = ultimasMovimentacoesEstoque.get(itemId);
       const ultimaHistorico = ultimasMovimentacoesDoHistorico.get(itemId);
 
-      let ultima = ultimaServidor ?? ultimaHistorico ?? null;
-
-      if (ultimaServidor && ultimaHistorico) {
-        const dataServidor = new Date(ultimaServidor.dataHora).getTime();
-        const dataHistorico = new Date(ultimaHistorico.dataHora).getTime();
-
-        if (
-          dataHistorico > dataServidor ||
-          (dataHistorico === dataServidor &&
-            ultimaHistorico.id > ultimaServidor.id)
-        ) {
-          ultima = ultimaHistorico;
-        }
-      }
+      // O saldo devolvido pelo servidor é a fonte canônica da posição atual.
+      // O histórico local só é usado como fallback quando não há posição calculada no servidor.
+      const ultima = ultimaServidor ?? ultimaHistorico ?? null;
 
       if (ultima) {
         return {
