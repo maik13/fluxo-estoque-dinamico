@@ -708,9 +708,11 @@ export const ProcessosProducaoHierarquico = ({
               <div className="grid gap-3 xl:grid-cols-2">
                 {opsEtapa.map((op) => {
                   const processo = processos.find((p) => p.id === op.processo_id);
-                  const projeto = grupoSelecionado.projetos.find((r) =>
-                    pertenceAoProjeto(processo as ProducaoProcesso, r.projeto)
-                  )?.projeto;
+                  const projeto = processo
+                    ? grupoSelecionado.projetos.find((r) =>
+                        pertenceAoProjeto(processo, r.projeto)
+                      )?.projeto
+                    : null;
                   const progresso = op.status === 'cancelada' ? 0 : clampPercent(percentualExecucaoOp(op));
                   return (
                     <button
