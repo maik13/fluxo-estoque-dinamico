@@ -223,6 +223,8 @@ export const ProcessosProducaoHierarquico = ({
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
   const [projetoSelecionadoId, setProjetoSelecionadoId] = useState<string | null>(null);
   const [processoSelecionadoId, setProcessoSelecionadoId] = useState<string | null>(null);
+  const [grupoSelecionadoId, setGrupoSelecionadoId] = useState<string | null>(null);
+  const [etapaGrupoSelecionada, setEtapaGrupoSelecionada] = useState<string | null>(null);
   const [processoParaFinalizar, setProcessoParaFinalizar] = useState<ProducaoProcesso | null>(null);
   const [processoParaExcluir, setProcessoParaExcluir] = useState<ProducaoProcesso | null>(null);
   const [resumoExclusao, setResumoExclusao] = useState<ResumoExclusaoProcessoProducao | null>(null);
@@ -374,6 +376,115 @@ export const ProcessosProducaoHierarquico = ({
     [ordensPorProcesso, processos, projetos],
   );
 
+  const gruposProducao = useMemo(() => {
+    const mapa = new Map<string, {
+      id: string;
+      nome: string;
+      cidade: string | null;
+      projetos: typeof resumosProjetos;
+      etapas: ProducaoProcesso[];
+      ops: ProducaoOrdemProducao[];
+      percentual: number;
+      status: string;
+    }>();
+
+    resumosProjetos.forEach((resumo) => {
+      const chave = resumo.projeto.group_id
+        ?? (resumo.projeto.cidade ? `cidade:${resumo.projeto.cidade.trim().toLocaleLowerCase('pt-BR')}` : `projeto:${resumo.projeto.id}`);
+      const nome = resumo.projeto.grupo_nome?.trim()
+        || resumo.projeto.cidade?.trim()
+        || resumo.projeto.nome;
+
+      const atual = mapa.get(chave) ?? {
+        id: chave,
+        nome,
+        cidade: resumo.projeto.cidade,
+        projetos: [],
+        etapas: [],
+        ops: [],
+        percentual: 0,
+        status: 'Planejado',
+      };
+
+      atual.projetos.push(resumo);
+      atual.etapas.push(...resumo.etapas);
+      atual.ops.push(...resumo.ops);
+      mapa.set(chave, atual);
+    });
+
+    return [...mapa.values()]
+      .map((grupo) => {
+        const opsValidas = grupo.ops.filter((op) => op.status !== 'cancelada');
+        const percentual = progressoPonderadoOps(opsValidas);
+        const concluido = grupo.etapas.length > 0 && grupo.etapas
+          .filter((etapa) => etapa.status !== 'cancelado')
+          .every((etapa) => etapa.status === 'finalizado');
+        const iniciado = grupo.etapas.some((etapa) =>
+          ['em_andamento', 'pausado', 'bloqueado', 'finalizado'].includes(etapa.status),
+        );
+        return {
+          ...grupo,
+          percentual: concluido ? 100 : percentual,
+          status: concluido ? 'Concluído' : iniciado ? 'Em andamento' : 'Planejado',
+        };
+      })
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  }, [resumosProjetos]);
+
+  const gruposFiltrados = useMemo(() => {
+    const termo = busca.trim().toLocaleLowerCase('pt-BR');
+    return gruposProducao.filter((grupo) => {
+      if (!mostrarConcluidos && grupo.status === 'Concluído') return false;
+      if (!termo) return true;
+      return [grupo.nome, grupo.cidade, ...grupo.projetos.flatMap((resumo) => [
+        resumo.projeto.nome,
+        resumo.projeto.cliente,
+      ])]
+        .filter(Boolean)
+        .some((valor) => String(valor).toLocaleLowerCase('pt-BR').includes(termo));
+    });
+  }, [busca, gruposProducao, mostrarConcluidos]);
+
+  const grupoSelecionado = gruposProducao.find((grupo) => grupo.id === grupoSelecionadoId) ?? null;
+
+  const etapasDoGrupo = useMemo(() => {
+    if (!grupoSelecionado) return [];
+    const mapa = new Map<string, {
+      chave: string;
+      nome: string;
+      processos: ProducaoProcesso[];
+      ops: ProducaoOrdemProducao[];
+      percentual: number;
+    }>();
+
+    grupoSelecionado.etapas.forEach((processo) => {
+      const chave = processo.nome.trim().toLocaleLowerCase('pt-BR');
+      const atual = mapa.get(chave) ?? {
+        chave,
+        nome: processo.nome.trim(),
+        processos: [],
+        ops: [],
+        percentual: 0,
+      };
+      atual.processos.push(processo);
+      atual.ops.push(...(ordensPorProcesso[processo.id] ?? []));
+      mapa.set(chave, atual);
+    });
+
+    return [...mapa.values()]
+      .map((etapa) => ({
+        ...etapa,
+        percentual: progressoPonderadoOps(etapa.ops),
+      }))
+      .sort((a, b) => {
+        const sa = Math.min(...a.processos.map((p) => Number(p.sequencia || 9999)));
+        const sb = Math.min(...b.processos.map((p) => Number(p.sequencia || 9999)));
+        return sa - sb || a.nome.localeCompare(b.nome, 'pt-BR');
+      });
+  }, [grupoSelecionado, ordensPorProcesso]);
+
+  const etapaGrupoAtual = etapasDoGrupo.find((etapa) => etapa.chave === etapaGrupoSelecionada) ?? null;
+
   const projetosFiltrados = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase('pt-BR');
     return resumosProjetos.filter((resumo) => {
@@ -403,6 +514,8 @@ export const ProcessosProducaoHierarquico = ({
   const voltarProjetos = () => {
     setProcessoSelecionadoId(null);
     setProjetoSelecionadoId(null);
+    setEtapaGrupoSelecionada(null);
+    setGrupoSelecionadoId(null);
   };
 
   const voltarEtapas = () => setProcessoSelecionadoId(null);
@@ -544,6 +657,231 @@ export const ProcessosProducaoHierarquico = ({
       setExcluindo(false);
     }
   };
+
+  if (!projetoSelecionadoId) {
+    if (grupoSelecionado && etapaGrupoAtual) {
+      const opsEtapa = [...etapaGrupoAtual.ops].sort((a, b) => a.numero - b.numero);
+      return (
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <Button variant="ghost" size="sm" onClick={() => {
+              setEtapaGrupoSelecionada(null);
+              setGrupoSelecionadoId(null);
+            }}>
+              Projetos
+            </Button>
+            <ChevronRight className="h-4 w-4" />
+            <Button variant="ghost" size="sm" onClick={() => setEtapaGrupoSelecionada(null)}>
+              {grupoSelecionado.nome}
+            </Button>
+            <ChevronRight className="h-4 w-4" />
+            <span className="font-medium text-foreground">{etapaGrupoAtual.nome}</span>
+          </div>
+
+          <div className="rounded-xl border bg-card p-5 shadow-sm">
+            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {grupoSelecionado.nome}
+                </p>
+                <h3 className="mt-1 text-xl font-semibold">{etapaGrupoAtual.nome}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {etapaGrupoAtual.processos.length} peça(s)/processo(s) · {opsEtapa.length} OP(s)
+                </p>
+              </div>
+              <div className="min-w-40">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Progresso</span><strong>{etapaGrupoAtual.percentual}%</strong>
+                </div>
+                <BarraProgresso valor={etapaGrupoAtual.percentual} />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="mb-3 text-base font-semibold">Ordens de Produção</h4>
+            {opsEtapa.length === 0 ? (
+              <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                Nenhuma OP emitida para {etapaGrupoAtual.nome}.
+              </div>
+            ) : (
+              <div className="grid gap-3 xl:grid-cols-2">
+                {opsEtapa.map((op) => {
+                  const processo = processos.find((p) => p.id === op.processo_id);
+                  const projeto = grupoSelecionado.projetos.find((r) =>
+                    pertenceAoProjeto(processo as ProducaoProcesso, r.projeto)
+                  )?.projeto;
+                  const progresso = op.status === 'cancelada' ? 0 : clampPercent(percentualExecucaoOp(op));
+                  return (
+                    <button
+                      key={op.id}
+                      type="button"
+                      onClick={() => {
+                        if (projeto) setProjetoSelecionadoId(projeto.id);
+                        setProcessoSelecionadoId(op.processo_id);
+                      }}
+                      className="rounded-xl border bg-card p-4 text-left shadow-sm transition hover:border-primary/50 hover:bg-muted/20"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold">{formatarIdentificacaoOrdemProducao(op)}</p>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">
+                            {projeto?.nome ?? op.projeto_nome}
+                          </p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{statusOpLabel[op.status] ?? op.status}</span>
+                        <span>{op.quantidade_realizada} de {op.quantidade_planejada}</span>
+                      </div>
+                      <div className="mt-2 space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span>Progresso</span><span>{progresso}%</span>
+                        </div>
+                        <BarraProgresso valor={progresso} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    if (grupoSelecionado) {
+      return (
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Button variant="ghost" size="sm" onClick={() => setGrupoSelecionadoId(null)}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Voltar aos projetos
+            </Button>
+          </div>
+
+          <div className="rounded-xl border bg-card p-5 shadow-sm">
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Projeto</p>
+                <h3 className="mt-1 text-xl font-semibold">{grupoSelecionado.nome}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {grupoSelecionado.projetos.length} peça(s) · {grupoSelecionado.ops.length} OP(s)
+                </p>
+              </div>
+              <div className="min-w-40 text-right">
+                <p className="text-xs text-muted-foreground">Progresso global</p>
+                <p className="text-2xl font-bold">{grupoSelecionado.percentual}%</p>
+              </div>
+            </div>
+            <div className="mt-4"><BarraProgresso valor={grupoSelecionado.percentual} /></div>
+          </div>
+
+          <div>
+            <h4 className="mb-3 text-base font-semibold">Etapas do projeto</h4>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {etapasDoGrupo.map((etapa) => {
+                const opsValidas = etapa.ops.filter((op) => op.status !== 'cancelada');
+                const concluidas = opsValidas.filter((op) => op.status === 'concluida').length;
+                return (
+                  <button
+                    key={etapa.chave}
+                    type="button"
+                    onClick={() => setEtapaGrupoSelecionada(etapa.chave)}
+                    className="rounded-xl border bg-card p-4 text-left shadow-sm transition hover:border-primary/50 hover:bg-muted/20"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground">{etapa.processos.length} peça(s)</p>
+                        <h5 className="mt-1 font-semibold">{etapa.nome}</h5>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="mt-3 text-xs text-muted-foreground">
+                      {opsValidas.length} OP(s) · {concluidas} concluída(s)
+                    </div>
+                    <div className="mt-3 space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span>Progresso</span><span>{etapa.percentual}%</span>
+                      </div>
+                      <BarraProgresso valor={etapa.percentual} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-5">
+        <div>
+          <h3 className="text-lg font-medium">Etapas de Produção</h3>
+          <p className="text-sm text-muted-foreground">
+            Selecione o projeto. Dentro dele você verá as etapas e, em seguida, as OPs.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={busca}
+              onChange={(event) => setBusca(event.target.value)}
+              placeholder="Buscar projeto, peça, cliente ou cidade..."
+              className="pl-8"
+            />
+          </div>
+          <Button variant="outline" onClick={() => setMostrarConcluidos((valor) => !valor)}>
+            {mostrarConcluidos ? 'Ocultar concluídos' : 'Mostrar concluídos'}
+          </Button>
+        </div>
+
+        {loadingProjetos || loadingProcessos ? (
+          <div className="rounded-xl border p-10 text-center text-muted-foreground">
+            <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin" />
+            Carregando projetos...
+          </div>
+        ) : gruposFiltrados.length === 0 ? (
+          <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">
+            <FolderKanban className="mx-auto mb-3 h-9 w-9 opacity-50" />
+            Nenhum projeto encontrado.
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {gruposFiltrados.map((grupo) => (
+              <button
+                key={grupo.id}
+                type="button"
+                onClick={() => setGrupoSelecionadoId(grupo.id)}
+                className="group rounded-2xl border bg-card p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Projeto</p>
+                    <h4 className="mt-1 truncate text-lg font-semibold">{grupo.nome}</h4>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {grupo.projetos.length} peça(s) · {grupo.etapas.length} processo(s) · {grupo.ops.length} OP(s)
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+                </div>
+                <div className="mt-4 flex items-center justify-between gap-3 text-xs">
+                  <span className={`rounded-full border px-2.5 py-1 ${statusProjetoClassName(grupo.status)}`}>
+                    {grupo.status}
+                  </span>
+                  <strong>{grupo.percentual}%</strong>
+                </div>
+                <div className="mt-2"><BarraProgresso valor={grupo.percentual} /></div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (processoSelecionado && resumoProjetoSelecionado) {
     const ordensDaEtapa = ordensPorProcesso[processoSelecionado.id] ?? [];
