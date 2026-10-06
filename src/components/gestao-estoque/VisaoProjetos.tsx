@@ -250,6 +250,46 @@ export const VisaoProjetos = () => {
     [resumoValor],
   );
 
+  const controleValor = useMemo(() => {
+    const termo = filtroPendentesTexto.trim().toLowerCase();
+    const linhasNoEscopo = todosItensAgrupados.filter((item) => {
+      if (!termo) return true;
+      const nomeMatch = item.itemSnapshot?.nome?.toLowerCase().includes(termo);
+      const codigoMatch = item.itemSnapshot?.codigoBarras?.toString().includes(termo);
+      return Boolean(nomeMatch || codigoMatch);
+    });
+
+    const ferramentas = linhasNoEscopo.filter((item) => item.classificacao === 'Ferramenta');
+    const consumiveis = linhasNoEscopo.filter((item) => item.classificacao !== 'Ferramenta');
+    const consumiveisComSaida = consumiveis.filter((item) => item.totalSaida > 0);
+    const totalmenteDevolvidos = consumiveisComSaida.filter(
+      (item) => Math.max(0, item.totalSaida - item.totalDevolvido) === 0,
+    );
+
+    return {
+      itensComSaida: consumiveisComSaida.length,
+      itensComConsumoLiquido: resumoValor.length,
+      totalmenteDevolvidos: totalmenteDevolvidos.length,
+      ferramentasExcluidas: ferramentas.length,
+    };
+  }, [todosItensAgrupados, filtroPendentesTexto, resumoValor]);
+
+  const projetoSelecionadoNome =
+    filtroPendentesProjetoId === 'todos'
+      ? 'Todos os projetos/locais'
+      : locaisConfig.find((local) => local.id === filtroPendentesProjetoId)?.nome || 'Projeto/local selecionado';
+
+  const grupoSelecionadoNome =
+    filtroPendentesGrupoId === 'todos'
+      ? 'Todos os grupos'
+      : filtroPendentesGrupoId === 'sem-grupo'
+        ? 'Sem Grupo'
+        : gruposProjeto.find((grupo) => grupo.id === filtroPendentesGrupoId)?.nome || 'Grupo selecionado';
+
+  const periodoSelecionado = filtroDataPendentesInicio || filtroDataPendentesFim
+    ? `${filtroDataPendentesInicio ? format(filtroDataPendentesInicio, 'dd/MM/yyyy') : 'Início'} a ${filtroDataPendentesFim ? format(filtroDataPendentesFim, 'dd/MM/yyyy') : 'Hoje'}`
+    : 'Histórico completo';
+
   const formatarMoeda = (valor: number) =>
     valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -297,13 +337,20 @@ export const VisaoProjetos = () => {
   };
 
   const imprimirPendentes = () => {
+    document.body.classList.add('imprimir-projetos');
+    const limparModoImpressao = () => {
+      document.body.classList.remove('imprimir-projetos');
+      window.removeEventListener('afterprint', limparModoImpressao);
+    };
+
+    window.addEventListener('afterprint', limparModoImpressao);
     window.print();
   };
 
   return (
     <div className="space-y-6">
-      <Card className="border-warning/20">
-        <CardHeader className="pb-2">
+      <Card className="border-warning/20" data-projetos-print-ativa>
+        <CardHeader className="pb-2 projetos-screen-only">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -407,7 +454,28 @@ export const VisaoProjetos = () => {
           </div>
         </CardHeader>
         <CardContent className="pt-6">
-          <div className="space-y-4">
+          <div className="projetos-print-only">
+            <div className="projetos-print-header">
+              <div>
+                <div className="projetos-print-brand">TUDUBAMBUSA</div>
+                <h1>Relatório de Consumo por Valor</h1>
+                <p>Gestão de Almoxarifado · Resumo por Projeto</p>
+              </div>
+              <div className="projetos-print-emissao">
+                <strong>Emissão</strong>
+                <span>{format(new Date(), 'dd/MM/yyyy HH:mm')}</span>
+              </div>
+            </div>
+
+            <div className="projetos-print-contexto">
+              <div><span>Projeto / Local</span><strong>{projetoSelecionadoNome}</strong></div>
+              <div><span>Grupo</span><strong>{grupoSelecionadoNome}</strong></div>
+              <div><span>Período</span><strong>{periodoSelecionado}</strong></div>
+              <div><span>Categoria</span><strong>{filtroPendentesCategoria === 'todos' ? 'Todas as categorias' : filtroPendentesCategoria}</strong></div>
+            </div>
+          </div>
+
+          <div className="space-y-4 projetos-screen-only">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-1.5 md:col-span-2">
                 <Label htmlFor="pendentes-busca" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Busca</Label>
@@ -524,7 +592,7 @@ export const VisaoProjetos = () => {
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground my-4">
+          <p className="text-sm text-muted-foreground my-4 projetos-screen-only">
             {tipoAgrupamentoProjetos === 'valor'
               ? `Mostrando ${resumoValor.length} item(ns) com consumo no período/filtros selecionados`
               : `Mostrando ${pendentesFiltrados.length} resumo(s) por ${tipoAgrupamentoProjetos === 'projeto' ? 'projeto/local' : 'grupo'}`}
@@ -532,22 +600,36 @@ export const VisaoProjetos = () => {
 
           {tipoAgrupamentoProjetos === 'valor' ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 projetos-valor-kpis">
                 <div className="rounded-md border bg-muted/20 p-3">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor consumido apurado</p>
                   <p className="text-lg font-bold text-warning">{formatarMoeda(totalValorConsumido)}</p>
                 </div>
                 <div className="rounded-md border bg-muted/20 p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Itens com consumo</p>
-                  <p className="text-lg font-bold">{resumoValor.length}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Itens com saída</p>
+                  <p className="text-lg font-bold">{controleValor.itensComSaida}</p>
                 </div>
                 <div className="rounded-md border bg-muted/20 p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Itens sem valor cadastrado</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Consumo líquido</p>
+                  <p className="text-lg font-bold">{controleValor.itensComConsumoLiquido}</p>
+                </div>
+                <div className="rounded-md border bg-muted/20 p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">100% devolvidos</p>
+                  <p className="text-lg font-bold">{controleValor.totalmenteDevolvidos}</p>
+                </div>
+                <div className="rounded-md border bg-muted/20 p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Sem valor</p>
                   <p className="text-lg font-bold">{itensSemValor}</p>
                 </div>
               </div>
 
-              <div className="w-full overflow-x-auto">
+              <div className="projetos-print-only projetos-print-criterio">
+                <strong>Critério do relatório:</strong> consumo líquido = saída − devoluções identificadas.
+                Ferramentas não compõem consumo. O valor unitário usa o cadastro atual do item e,
+                quando indisponível, o snapshot histórico da movimentação.
+              </div>
+
+              <div className="w-full overflow-x-auto projetos-valor-tabela">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -631,6 +713,11 @@ export const VisaoProjetos = () => {
                     )}
                   </TableBody>
                 </Table>
+              </div>
+
+              <div className="projetos-print-only projetos-print-footer">
+                <span>Relatório gerado pelo Fluxo de Estoque Dinâmico · Tudubambusa</span>
+                <span className="projetos-print-page"></span>
               </div>
             </div>
           ) : (
