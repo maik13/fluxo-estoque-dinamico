@@ -55,6 +55,9 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
       if (existingError || !existing) return json(404, { error: "Colaborador não encontrado" });
       if (existing.user_id) return json(400, { error: "Este colaborador já possui acesso vinculado" });
+      if (createLogin && String(existing.email || "").trim().toLowerCase() !== email) {
+        return json(400, { error: "Salve primeiro o e-mail do colaborador no RH antes de criar o login com esse e-mail." });
+      }
     }
 
     if (createLogin) {
@@ -86,7 +89,6 @@ Deno.serve(async (req: Request) => {
       const now = new Date().toISOString();
       const permissions = [
         { user_id: userId, permissao: "ponto_registrar", efeito: "permitir", criado_por: authData.user.id, atualizado_por: authData.user.id, created_at: now, updated_at: now },
-        { user_id: userId, permissao: "ponto_visualizar", efeito: "permitir", criado_por: authData.user.id, atualizado_por: authData.user.id, created_at: now, updated_at: now },
       ];
       const { error: permissionInsertError } = await admin.from("usuario_permissoes_individuais").upsert(permissions, {
         onConflict: "user_id,permissao",
@@ -116,7 +118,7 @@ Deno.serve(async (req: Request) => {
       jornada_id: body.jornada_id || null,
       ativo: body.ativo !== undefined ? Boolean(body.ativo) : true,
       user_id: userId,
-      controla_ponto: Boolean(body.controla_ponto),
+      controla_ponto: createLogin || Boolean(body.controla_ponto),
       tipo_contrato: type,
       valor_contrato: type === "clt" || body.valor_contrato === null || body.valor_contrato === undefined || body.valor_contrato === "" ? null : Number(body.valor_contrato),
       hora_extra_gera_valor: type !== "horista",
@@ -125,8 +127,19 @@ Deno.serve(async (req: Request) => {
       origem_sistema: "fluxo_estoque_dinamico",
     };
 
+    // O gatilho de profiles já cria ou vincula o cadastro RH.
+    let targetColaboradorId = existingColaboradorId;
+    if (userId) {
+      const { data: linked, error: linkedError } = await admin
+        .from("rh_colaboradores").select("id").eq("user_id", userId).single();
+      if (linkedError || !linked || (targetColaboradorId && linked.id !== targetColaboradorId)) {
+        await admin.auth.admin.deleteUser(userId);
+        return json(400, { error: linkedError?.message || "O vínculo automático não corresponde ao colaborador selecionado." });
+      }
+      targetColaboradorId = linked.id;
+    }
     let colaborador: any = null;
-    if (existingColaboradorId) {
+    if (targetColaboradorId) {
       const { data: updated, error: updateError } = await admin
         .from("rh_colaboradores")
         .update({
@@ -134,7 +147,7 @@ Deno.serve(async (req: Request) => {
           user_id: userId,
           rh_cadastrado: true,
         })
-        .eq("id", existingColaboradorId)
+        .eq("id", targetColaboradorId)
         .select("*")
         .single();
       if (updateError) {
