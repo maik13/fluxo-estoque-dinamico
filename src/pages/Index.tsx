@@ -37,6 +37,11 @@ const Planejamento2Integrado = lazy(() =>
     default: module.Planejamento2Integrado,
   })),
 );
+const ImagensOPIntegrado = lazy(() =>
+  import('@/components/integracoes/ImagensOPIntegrado').then((module) => ({
+    default: module.ImagensOPIntegrado,
+  })),
+);
 
 const ModuloIntegradoFallback = () => (
   <div className="flex min-h-[260px] items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -179,6 +184,7 @@ const Index = () => {
           const showFinanceiro = canAccessFinanceiro();
           const showAcompanhamentoPedido = hasPermission('acompanhamento.acessar');
           const showPlanejamento2 = hasPermission('planejamento2.acessar');
+          const showImagensOP = hasPermission('imagensop.acessar');
           const showMeuPonto = hasPermission('ponto.registrar');
           const showControlePonto = isAdmin() || hasPermission('ponto.visualizar') || hasPermission('ponto.gerenciar') || hasPermission('ponto.aprovar');
           const showRHInformacoes = isAdmin() || hasPermission('rh.acessar') || hasPermission('rh.colaboradores.visualizar') || hasPermission('rh.colaboradores.gerenciar') || hasPermission('rh.jornadas.gerenciar') || hasPermission('rh.feriados.gerenciar');
@@ -198,6 +204,7 @@ const Index = () => {
                 showFinanceiro={showFinanceiro}
                 showAcompanhamentoPedido={showAcompanhamentoPedido}
                 showPlanejamento2={showPlanejamento2}
+                showImagensOP={showImagensOP}
                 showMeuPonto={showMeuPonto}
                 showControlePonto={showControlePonto}
                 showRHInformacoes={showRHInformacoes}
@@ -256,6 +263,13 @@ const Index = () => {
                       <TabsContent value="planejamento-2" className="mt-0 space-y-6">
                         <Suspense fallback={<ModuloIntegradoFallback />}>
                           <Planejamento2Integrado />
+                        </Suspense>
+                      </TabsContent>
+                    )}
+                    {showImagensOP && (
+                      <TabsContent value="imagens-op" className="mt-0 space-y-6">
+                        <Suspense fallback={<ModuloIntegradoFallback />}>
+                          <ImagensOPIntegrado />
                         </Suspense>
                       </TabsContent>
                     )}
