@@ -28,11 +28,62 @@ export const VisaoProjetos = () => {
   }, []);
   const { 
     locaisUtilizacao: locaisConfig, 
-    gruposProjeto, 
     categorias, 
     subcategorias, 
     categoriasSubcategorias 
   } = useConfiguracoes();
+
+  const [gruposAlmoxarifado, setGruposAlmoxarifado] = useState<Array<{ id: string; nome: string }>>([]);
+  const [grupoAlmoxPorLocal, setGrupoAlmoxPorLocal] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    let ativo = true;
+
+    const carregarGruposAlmoxarifado = async () => {
+      const [gruposResult, vinculosResult] = await Promise.all([
+        (supabase.from as any)('almoxarifado_grupos')
+          .select('id,nome')
+          .eq('ativo', true)
+          .order('nome'),
+        (supabase.from as any)('almoxarifado_grupo_locais')
+          .select('grupo_id,local_utilizacao_id'),
+      ]);
+
+      if (!ativo) return;
+
+      if (gruposResult.error || vinculosResult.error) {
+        console.error(
+          'Erro ao carregar grupos exclusivos do Almoxarifado:',
+          gruposResult.error || vinculosResult.error,
+        );
+        setGruposAlmoxarifado([]);
+        setGrupoAlmoxPorLocal(new Map());
+        return;
+      }
+
+      setGruposAlmoxarifado((gruposResult.data ?? []) as Array<{ id: string; nome: string }>);
+      setGrupoAlmoxPorLocal(
+        new Map(
+          ((vinculosResult.data ?? []) as Array<{ grupo_id: string; local_utilizacao_id: string }>)
+            .map((vinculo) => [vinculo.local_utilizacao_id, vinculo.grupo_id]),
+        ),
+      );
+    };
+
+    void carregarGruposAlmoxarifado();
+
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  const locaisAlmoxarifado = useMemo(
+    () => locaisConfig.map((local) => ({
+      ...local,
+      group_id: grupoAlmoxPorLocal.get(local.id) ?? null,
+    })),
+    [locaisConfig, grupoAlmoxPorLocal],
+  );
 
   const [filtroPendentesProjetoId, setFiltroPendentesProjetoId] = useState('todos');
   const [filtroPendentesGrupoId, setFiltroPendentesGrupoId] = useState('todos');
