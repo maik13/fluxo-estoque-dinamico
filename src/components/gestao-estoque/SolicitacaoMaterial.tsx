@@ -134,6 +134,7 @@ export const SolicitacaoMaterial = () => {
         .select('*')
         .order('created_at', { ascending: false });
       if (estoqueInfo?.id) query = query.eq('estoque_id', estoqueInfo.id);
+      if (!canManageStock() && user?.id) query = query.eq('solicitante_id', user.id);
       
       const { data, error } = await query;
       if (error) throw error;
@@ -786,7 +787,9 @@ export const SolicitacaoMaterial = () => {
             <ClipboardList className="h-8 w-8 text-white" />
           </div>
           <CardTitle className="text-amber-400">Solicitação de Material</CardTitle>
-          <CardDescription className="text-amber-500/70">Solicite materiais para aprovação do almoxarife</CardDescription>
+          <CardDescription className="text-amber-500/70">
+            Solicite itens do estoque ou itens não cadastrados. O Almoxarifado define retirada ou PN.
+          </CardDescription>
           {pendentesCount > 0 && canManageStock() && (
             <Badge className="absolute top-2 right-2 bg-red-500 text-white border-none animate-pulse shadow-lg shadow-red-500/20">
               {pendentesCount}
