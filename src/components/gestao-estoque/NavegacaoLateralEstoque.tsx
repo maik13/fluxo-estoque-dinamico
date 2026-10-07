@@ -16,7 +16,6 @@ import {
   ChevronDown,
   ClipboardCheck,
   GanttChartSquare,
-  Image as ImageIcon,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -41,7 +40,6 @@ type NavegacaoLateralEstoqueProps = {
   showFinanceiro: boolean;
   showAcompanhamentoPedido: boolean;
   showPlanejamento2: boolean;
-  showImagensOP: boolean;
   showMeuPonto: boolean;
   showControlePonto: boolean;
   showRHInformacoes: boolean;
@@ -76,7 +74,6 @@ export const NavegacaoLateralEstoque = ({
   showFinanceiro,
   showAcompanhamentoPedido,
   showPlanejamento2,
-  showImagensOP,
   showMeuPonto,
   showControlePonto,
   showRHInformacoes,
@@ -160,12 +157,6 @@ export const NavegacaoLateralEstoque = ({
           visible: showPlanejamento2,
         },
         {
-          value: 'imagens-op',
-          label: 'Imagens OP',
-          icon: ImageIcon,
-          visible: showImagensOP,
-        },
-        {
           value: 'financeiro',
           label: 'Financeiro',
           icon: WalletCards,
@@ -242,7 +233,6 @@ export const NavegacaoLateralEstoque = ({
     showFinanceiro,
     showAcompanhamentoPedido,
     showPlanejamento2,
-    showImagensOP,
     showMeuPonto,
     showControlePonto,
     showRHInformacoes,
