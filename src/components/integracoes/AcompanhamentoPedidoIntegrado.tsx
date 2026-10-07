@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, FolderKanban, LayoutGrid, List, Loader2, RefreshCw } from "lucide-react";
+import { Archive, ArrowLeft, ArrowRight, FolderKanban, Loader2, RefreshCw, RotateCcw } from "lucide-react";
 import { appControleSupabase } from "@/integrations/appcontrole/client";
 import { supabase } from "@/integrations/supabase/client";
 import { AppControleSessionGate } from "@/components/integracoes/AppControleSessionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,17 +56,19 @@ function calculateOpProduction(op: any, logs: any[]) {
 }
 
 type Project = { id: string; name: string };
+type ArchivedProject = { app_project_setting_id: string; archived_at: string | null };
 
 async function loadOverview() {
-  const [projectsResult, opsResult, actualsResult, targetsResult, logsResult] = await Promise.all([
+  const [projectsResult, opsResult, actualsResult, targetsResult, logsResult, archivedResult] = await Promise.all([
     readAll(() => ac.from("settings").select("id, valor, ordem").eq("tipo", "projeto").eq("ativo", true).order("ordem").order("id")),
     readAll(() => ac.from("ordens_producao").select("id, project_setting_id, projeto, codigo_op, quantidade_planejada, status_op").order("id")),
     readAll(() => ac.from("project_production_actuals").select("project_setting_id, processo, quantidade_produzida, ciclos, perdas").order("project_setting_id").order("processo")),
     readAll(() => ac.from("project_production_targets").select("id, project_setting_id, projeto").eq("ativo", true).order("id")),
     readAll(() => ac.from("production_logs").select("id, project_setting_id, ordem_producao_id, codigo_op, atividade, total, qtd_produzida").order("id")),
+    fluxo.from("acompanhamento_pedido_arquivamentos").select("app_project_setting_id, archived_at, unarchived_at"),
   ]);
 
-  for (const result of [projectsResult, opsResult, actualsResult, targetsResult, logsResult]) {
+  for (const result of [projectsResult, opsResult, actualsResult, targetsResult, logsResult, archivedResult]) {
     if (result.error) throw result.error;
   }
 
@@ -96,7 +99,10 @@ async function loadOverview() {
     };
   });
 
-  return rows;
+  return {
+    rows,
+    archived: (archivedResult.data || []).filter((row: any) => !row.unarchived_at) as ArchivedProject[],
+  };
 }
 
 async function loadProjectDetail(project: Project) {
@@ -178,13 +184,9 @@ async function loadProjectDetail(project: Project) {
 
 function Inner() {
   const [selectedId, setSelectedId] = useState("");
-  const [view, setView] = useState<"cards" | "lista">(() => {
-    try { return localStorage.getItem("acompanhamento-pedido-visualizacao") === "lista" ? "lista" : "cards"; }
-    catch { return "cards"; }
-  });
-  useEffect(() => {
-    try { localStorage.setItem("acompanhamento-pedido-visualizacao", view); } catch { /* Storage unavailable. */ }
-  }, [view]);
+  const [mostrarArquivados, setMostrarArquivados] = useState(false);
+  const { isAdmin } = usePermissions();
+  const administrador = isAdmin();
   const overview = useQuery({
     queryKey: ["integracao-appcontrole-acompanhamento-overview"],
     queryFn: loadOverview,
@@ -193,7 +195,7 @@ function Inner() {
   });
 
   const selectedProject = useMemo(
-    () => overview.data?.find((project: any) => project.id === selectedId) || null,
+    () => overview.data?.rows.find((project: any) => project.id === selectedId) || null,
     [overview.data, selectedId],
   );
 
@@ -205,6 +207,38 @@ function Inner() {
     refetchInterval: 20_000,
   });
 
+  const alterarArquivamento = async (project: Project, arquivar: boolean) => {
+    try {
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!auth.user) throw new Error('Sessão do Fluxo de Estoque não encontrada.');
+
+      if (arquivar) {
+        const { error } = await fluxo.from('acompanhamento_pedido_arquivamentos').upsert({
+          app_project_setting_id: project.id,
+          project_name_snapshot: project.name,
+          archived_at: new Date().toISOString(),
+          archived_by: auth.user.id,
+          unarchived_at: null,
+          unarchived_by: null,
+        }, { onConflict: 'app_project_setting_id' });
+        if (error) throw error;
+        toast.success('Acompanhamento arquivado no Fluxo de Estoque.');
+      } else {
+        const { error } = await fluxo.from('acompanhamento_pedido_arquivamentos').update({
+          unarchived_at: new Date().toISOString(),
+          unarchived_by: auth.user.id,
+        }).eq('app_project_setting_id', project.id);
+        if (error) throw error;
+        toast.success('Acompanhamento restaurado.');
+      }
+      await overview.refetch();
+    } catch (error: any) {
+      console.error('Erro ao alterar arquivamento do acompanhamento:', error);
+      toast.error(error?.message || 'Não foi possível alterar o arquivamento.');
+    }
+  };
+
   if (overview.isLoading) {
     return <div className="flex min-h-64 items-center justify-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Carregando pedidos...</div>;
   }
@@ -214,72 +248,67 @@ function Inner() {
   }
 
   if (!selectedProject) {
+    const arquivados = new Set((overview.data?.archived || []).map((item) => item.app_project_setting_id));
+    const projetosVisiveis = (overview.data?.rows || []).filter((project: any) =>
+      mostrarArquivados ? arquivados.has(project.id) : !arquivados.has(project.id),
+    );
+
     return (
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-          <h2 className="text-xl font-semibold">Acompanhamento do Pedido</h2>
-          <p className="text-sm text-muted-foreground">Projetos do App Controle apresentados nativamente dentro do Fluxo de Estoque.</p>
+            <h2 className="text-xl font-semibold">Acompanhamento do Pedido</h2>
+            <p className="text-sm text-muted-foreground">Acompanhamentos do App Controle apresentados no Fluxo de Estoque.</p>
           </div>
-          <div className="flex gap-1 rounded-lg border p-1" role="group" aria-label="Visualização dos pedidos">
-            <Button size="sm" variant={view === "cards" ? "default" : "ghost"} aria-pressed={view === "cards"} onClick={() => setView("cards")}><LayoutGrid className="mr-2 h-4 w-4" />Cards</Button>
-            <Button size="sm" variant={view === "lista" ? "default" : "ghost"} aria-pressed={view === "lista"} onClick={() => setView("lista")}><List className="mr-2 h-4 w-4" />Lista</Button>
+          <div className="flex flex-wrap gap-2">
+            {administrador && <Button size="sm" variant="outline" onClick={() => setMostrarArquivados((atual) => !atual)}>
+              {mostrarArquivados ? <RotateCcw className="mr-2 h-4 w-4" /> : <Archive className="mr-2 h-4 w-4" />}
+              {mostrarArquivados ? 'Ver ativos' : 'Ver arquivados'}
+            </Button>}
+            <Button variant="outline" size="sm" onClick={() => void overview.refetch()}><RefreshCw className="mr-2 h-4 w-4" />Atualizar</Button>
           </div>
         </div>
-        {view === "lista" ? (
-          <div className="space-y-2">
-            {(overview.data || []).map((project: any) => (
-              <button key={project.id} type="button" onClick={() => setSelectedId(project.id)} className="flex w-full flex-wrap items-center gap-4 rounded-lg border bg-card p-4 text-left hover:border-primary/60">
-                <FolderKanban className="h-8 w-8 shrink-0 text-primary" />
-                <div className="min-w-0 flex-1"><div className="font-semibold">{project.name}</div><div className="text-xs text-muted-foreground">{project.opCount} OPs · {project.produzido.toLocaleString("pt-BR")} produzido · {project.targetCount} metas</div></div>
-                <div className="w-full sm:w-64"><ProgressIndicator value={project.progress} /></div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              </button>
-            ))}
-          </div>
-        ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {(overview.data || []).map((project: any) => (
-            <button
-              key={project.id}
-              type="button"
-              onClick={() => setSelectedId(project.id)}
-              className="group rounded-xl border bg-card p-4 text-left transition hover:border-primary/60 hover:bg-primary/[0.03]"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-start gap-3">
-                  <div className="rounded-lg bg-primary/10 p-2 text-primary"><FolderKanban className="h-4 w-4" /></div>
-                  <div className="min-w-0">
-                    <div className="truncate font-semibold">{project.name}</div>
-                    <Badge className="mt-1" variant={project.produzido > 0 ? "default" : "secondary"}>
-                      {project.opCount === 0 ? "Sem OP" : project.produzido > 0 ? "Em produção" : "OP criada"}
-                    </Badge>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-0.5" />
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-                <div><div className="text-muted-foreground">OPs</div><div className="font-semibold">{project.opCount}</div></div>
-                <div><div className="text-muted-foreground">Produzido</div><div className="font-semibold">{project.produzido.toLocaleString("pt-BR")}</div></div>
-                <div><div className="text-muted-foreground">Metas</div><div className="font-semibold">{project.targetCount}</div></div>
-              </div>
-              <div className="mt-4"><ProgressIndicator value={project.progress} /></div>
-            </button>
-          ))}
+        <div className="overflow-hidden rounded-lg border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30">
+                <TableHead>Projeto</TableHead>
+                <TableHead className="w-[180px]">Situação</TableHead>
+                <TableHead className="w-[100px] text-right">OPs</TableHead>
+                <TableHead className="w-[150px] text-right">Produzido</TableHead>
+                <TableHead className="w-[180px]">Progresso</TableHead>
+                <TableHead className="w-[250px] text-right">Ação</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {projetosVisiveis.map((project: any) => {
+                const arquivado = arquivados.has(project.id);
+                const situacao = project.opCount === 0 ? 'Sem OP' : project.produzido > 0 ? 'Em produção' : 'OP criada';
+                return <TableRow key={project.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setSelectedId(project.id)}>
+                  <TableCell><div className="flex items-center gap-3"><div className="rounded-md bg-primary/10 p-2 text-primary"><FolderKanban className="h-4 w-4" /></div><div className="min-w-0"><div className="truncate font-semibold">{project.name}</div><div className="text-xs text-muted-foreground">Projeto do App Controle</div></div></div></TableCell>
+                  <TableCell><Badge variant={arquivado ? 'secondary' : project.produzido > 0 ? 'default' : 'outline'}>{arquivado ? 'Arquivado' : situacao}</Badge></TableCell>
+                  <TableCell className="text-right font-medium">{project.opCount}</TableCell>
+                  <TableCell className="text-right font-medium">{project.produzido.toLocaleString('pt-BR')}</TableCell>
+                  <TableCell><ProgressIndicator value={project.progress} /></TableCell>
+                  <TableCell className="text-right"><div className="flex justify-end gap-2"><Button size="sm" onClick={(event) => { event.stopPropagation(); setSelectedId(project.id); }}>Abrir<ArrowRight className="ml-2 h-4 w-4" /></Button>{administrador && <Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); void alterarArquivamento(project, !arquivado); }}>{arquivado ? <RotateCcw className="mr-2 h-4 w-4" /> : <Archive className="mr-2 h-4 w-4" />}{arquivado ? 'Restaurar' : 'Arquivar'}</Button>}</div></TableCell>
+                </TableRow>;
+              })}
+              {!projetosVisiveis.length && <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">{mostrarArquivados ? 'Nenhum acompanhamento arquivado.' : 'Nenhum pedido ativo encontrado.'}</TableCell></TableRow>}
+            </TableBody>
+          </Table>
         </div>
-        )}
-        {!(overview.data || []).length && <p className="py-8 text-center text-muted-foreground">Nenhum pedido encontrado.</p>}
       </div>
     );
   }
 
+  const selectedArchived = (overview.data?.archived || []).some((item) => item.app_project_setting_id === selectedProject.id);
   const totalApp = (detail.data?.ops || []).reduce((sum: number, op: any) => sum + n(op.produzido), 0);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button variant="ghost" size="sm" onClick={() => setSelectedId("")}><ArrowLeft className="mr-2 h-4 w-4" />Voltar aos pedidos</Button>
-        <Button variant="outline" size="sm" onClick={() => void Promise.all([overview.refetch(), detail.refetch()])}><RefreshCw className="mr-2 h-4 w-4" />Atualizar</Button>
+        <div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => void Promise.all([overview.refetch(), detail.refetch()])}><RefreshCw className="mr-2 h-4 w-4" />Atualizar</Button>{administrador && <Button variant="outline" size="sm" onClick={() => void alterarArquivamento(selectedProject, !selectedArchived)}>{selectedArchived ? <RotateCcw className="mr-2 h-4 w-4" /> : <Archive className="mr-2 h-4 w-4" />}{selectedArchived ? 'Restaurar' : 'Arquivar'}</Button>}</div>
       </div>
 
       <Card>
