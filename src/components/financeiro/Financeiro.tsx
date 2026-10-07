@@ -633,6 +633,17 @@ export const Financeiro = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {podeGerenciar && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setAbaFinanceiro('pn');
+                setDialogPn(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />Nova PN
+            </Button>
+          )}
           <Button variant="outline" onClick={() => void carregar()} disabled={loading}>
             <RefreshCcw className="mr-2 h-4 w-4" />Atualizar
           </Button>
