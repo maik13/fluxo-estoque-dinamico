@@ -44,6 +44,7 @@ import {
 import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
 import { useProducao } from '@/hooks/useProducao';
 import { useProducaoGerencial } from '@/hooks/useProducaoGerencial';
+import { usePermissions } from '@/hooks/usePermissions';
 import { CalendarioFotosProducao } from './CalendarioFotosProducao';
 import {
   exportarBIProducaoExcel,
@@ -86,6 +87,8 @@ const statusClasse: Record<ProducaoStatus, string> = {
 export const PainelProducaoGerencial = ({
   locais,
 }: PainelProducaoGerencialProps) => {
+  const { hasPermission } = usePermissions();
+  const podeVerImagensOP = hasPermission('imagensop.acessar');
   const {
     loading,
     error,
@@ -488,12 +491,12 @@ export const PainelProducaoGerencial = ({
                 descricao: 'Resumo, locais, projetos, tarefas e membros.',
                 icon: Factory,
               },
-              {
+              ...(podeVerImagensOP ? [{
                 id: 'imagens' as const,
                 titulo: 'Imagens',
-                descricao: 'Fotos vinculadas aos apontamentos.',
+                descricao: 'Imagens OP do App Controle.',
                 icon: FileDown,
-              },
+              }] : []),
               {
                 id: 'materiais' as const,
                 titulo: 'Materiais vinculados',
@@ -618,7 +621,9 @@ export const PainelProducaoGerencial = ({
             </>
           )}
 
-          {subAbaBI === 'imagens' && <CalendarioFotosProducao filtros={filtros} />}
+          {podeVerImagensOP && subAbaBI === 'imagens' && (
+            <CalendarioFotosProducao filtros={filtros} />
+          )}
 
           {subAbaBI === 'producao' && (
             <>
