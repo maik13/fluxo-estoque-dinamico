@@ -89,7 +89,8 @@ export const NavegacaoLateralEstoque = ({
     () => new Set([
       'Painel',
       'Almoxarifado',
-      ...(showFinanceiro ? ['Gestão'] : []),
+      ...(showFinanceiro || showAcompanhamentoPedido || showGerencial || showProjetos ? ['Gestão'] : []),
+      ...(showProducao || showPlanejamento2 || showImagensOP ? ['Produção'] : []),
     ]),
   );
 
@@ -142,16 +143,28 @@ export const NavegacaoLateralEstoque = ({
           visible: showProjetos,
         },
         {
-          value: 'producao',
-          label: 'Produção',
-          icon: Factory,
-          visible: showProducao,
-        },
-        {
           value: 'acompanhamento-pedido',
           label: 'Acompanhamento do Pedido',
           icon: ClipboardCheck,
           visible: showAcompanhamentoPedido,
+        },
+        {
+          value: 'financeiro',
+          label: 'Financeiro',
+          icon: WalletCards,
+          visible: showFinanceiro,
+        },
+      ],
+    },
+    {
+      label: 'Produção',
+      collapsible: true,
+      items: [
+        {
+          value: 'producao',
+          label: 'Produção',
+          icon: Factory,
+          visible: showProducao,
         },
         {
           value: 'planejamento-2',
@@ -164,12 +177,6 @@ export const NavegacaoLateralEstoque = ({
           label: 'Imagens OP',
           icon: ImageIcon,
           visible: showImagensOP,
-        },
-        {
-          value: 'financeiro',
-          label: 'Financeiro',
-          icon: WalletCards,
-          visible: showFinanceiro,
         },
       ],
     },
