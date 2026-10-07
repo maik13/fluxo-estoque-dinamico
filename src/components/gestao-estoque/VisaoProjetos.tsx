@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { DialogoEncerrarItens } from './DialogoEncerrarItens';
 import { DetalhesMovimentacoesProjeto } from './DetalhesMovimentacoesProjeto';
 import { isAcertoDeEstoque } from '@/utils/movimentacoes';
+import { supabase } from '@/integrations/supabase/client';
 import React from 'react';
 
 export const VisaoProjetos = () => {
