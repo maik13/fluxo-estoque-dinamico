@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, ArrowLeft, ArrowRight, FolderKanban, Loader2, RefreshCw, RotateCcw } from "lucide-react";
 import { appControleSupabase } from "@/integrations/appcontrole/client";
 import { supabase } from "@/integrations/supabase/client";
@@ -183,6 +183,7 @@ async function loadProjectDetail(project: Project) {
 }
 
 function Inner() {
+  const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState("");
   const [mostrarArquivados, setMostrarArquivados] = useState(false);
   const { isAdmin } = usePermissions();
@@ -232,7 +233,20 @@ function Inner() {
         if (error) throw error;
         toast.success('Acompanhamento restaurado.');
       }
-      await overview.refetch();
+      // Não refaz toda a leitura do App Controle para uma alteração local de arquivamento.
+      // Isso mantém o botão responsivo mesmo quando há muitas OPs e apontamentos.
+      queryClient.setQueryData(["integracao-appcontrole-acompanhamento-overview"], (atual: any) => {
+        if (!atual) return atual;
+        const anteriores = (atual.archived || []).filter(
+          (item: ArchivedProject) => item.app_project_setting_id !== project.id,
+        );
+        return {
+          ...atual,
+          archived: arquivar
+            ? [...anteriores, { app_project_setting_id: project.id, archived_at: new Date().toISOString() }]
+            : anteriores,
+        };
+      });
     } catch (error: any) {
       console.error('Erro ao alterar arquivamento do acompanhamento:', error);
       toast.error(error?.message || 'Não foi possível alterar o arquivamento.');
