@@ -21,6 +21,7 @@ import { DevolverMaterial } from './DevolverMaterial';
 import { RegistrarEntrada } from './RegistrarEntrada';
 import { Transferencia } from './Transferencia';
 import { SolicitacaoMaterial } from './SolicitacaoMaterial';
+import { PedidoCompra } from './PedidoCompra';
 import { Badge } from '@/components/ui/badge';
 
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
@@ -832,6 +833,9 @@ export const MenuPrincipal = ({
 
         {/* Solicitação de Material */}
         {canSolicitacaoMaterial() && <SolicitacaoMaterial />}
+
+        {/* Consulta operacional: a formalização continua no Financeiro, a partir da PN. */}
+        {canManageStock() && <PedidoCompra somenteConsulta />}
 
         {/* BOTÃO SAÍDA */}
         {canRegistrarSaida() && <Dialog open={dialogoSaida} onOpenChange={(aberto) => {
