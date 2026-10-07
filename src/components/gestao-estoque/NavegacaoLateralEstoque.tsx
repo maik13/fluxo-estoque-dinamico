@@ -83,7 +83,11 @@ export const NavegacaoLateralEstoque = ({
 }: NavegacaoLateralEstoqueProps) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openSections, setOpenSections] = useState<Set<string>>(
-    () => new Set(['Painel', 'Almoxarifado']),
+    () => new Set([
+      'Painel',
+      'Almoxarifado',
+      ...(showFinanceiro ? ['Gestão'] : []),
+    ]),
   );
 
   const sections: NavSection[] = [
