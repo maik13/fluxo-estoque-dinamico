@@ -48,8 +48,8 @@ export const MenuPrincipal = ({
     canDevolverMaterial, 
     canRegistrarEntrada, 
     canTransferir, 
-    canRegistrarSaida, 
-    canSolicitacaoMaterial
+    canRegistrarSaida,
+    userProfile
   } = usePermissions();
   
   // Estados para controlar os diálogos
@@ -831,8 +831,9 @@ export const MenuPrincipal = ({
         {/* Registrar Entrada */}
         {canRegistrarEntrada() && <RegistrarEntrada />}
 
-        {/* Solicitação de Material */}
-        {canSolicitacaoMaterial() && <SolicitacaoMaterial />}
+        {/* Solicitação de Material: disponível para todo usuário ativo.
+            Aprovação, retirada e PN permanecem restritas ao Almoxarifado. */}
+        {userProfile?.ativo && <SolicitacaoMaterial />}
 
         {/* Fila operacional: a formalização em RC continua no Financeiro, a partir da PN. */}
         {canManageStock() && <PrevisoesNecessidadeAlmoxarifado />}
