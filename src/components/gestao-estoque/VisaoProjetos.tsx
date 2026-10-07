@@ -108,7 +108,7 @@ export const VisaoProjetos = () => {
       const mLocalId = m.localUtilizacaoId || 'sem-local';
       
       if (tipoAgrupamentoProjetos === 'grupo') {
-        const local = locaisConfig.find(l => l.id === mLocalId);
+        const local = locaisAlmoxarifado.find(l => l.id === mLocalId);
         const grupoId = local?.group_id || 'sem-grupo';
         return grupoId === item.localUtilizacaoId;
       } else {
@@ -152,7 +152,7 @@ export const VisaoProjetos = () => {
   // As movimentações alimentam a consolidação, mas não podem limitar as opções de filtro:
   // grupos/locais novos ou ainda sem movimentação também precisam permanecer visíveis.
   const locaisPendentes = useMemo(() => {
-    return locaisConfig
+    return locaisAlmoxarifado
       .filter((local) => {
         const groupId = local.group_id || 'sem-grupo';
         return filtroPendentesGrupoId === 'todos' || groupId === filtroPendentesGrupoId;
@@ -163,26 +163,26 @@ export const VisaoProjetos = () => {
         groupId: local.group_id || 'sem-grupo',
       }))
       .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  }, [locaisConfig, filtroPendentesGrupoId]);
+  }, [locaisAlmoxarifado, filtroPendentesGrupoId]);
 
   const gruposPendentes = useMemo(() => {
-    const grupos = gruposProjeto.map((grupo) => ({
+    const grupos = gruposAlmoxarifado.map((grupo) => ({
       id: grupo.id,
       nome: grupo.nome,
     }));
 
-    if (locaisConfig.some((local) => !local.group_id)) {
+    if (locaisAlmoxarifado.some((local) => !local.group_id)) {
       grupos.push({ id: 'sem-grupo', nome: 'Sem Grupo' });
     }
 
     return grupos.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  }, [gruposProjeto, locaisConfig]);
+  }, [gruposAlmoxarifado, locaisAlmoxarifado]);
 
   const selecionarGrupo = (grupoId: string) => {
     setFiltroPendentesGrupoId(grupoId);
 
     if (filtroPendentesProjetoId === 'todos') return;
-    const localAtual = locaisConfig.find((local) => local.id === filtroPendentesProjetoId);
+    const localAtual = locaisAlmoxarifado.find((local) => local.id === filtroPendentesProjetoId);
     const grupoAtual = localAtual?.group_id || 'sem-grupo';
     if (grupoId !== 'todos' && grupoAtual !== grupoId) {
       setFiltroPendentesProjetoId('todos');
@@ -197,8 +197,8 @@ export const VisaoProjetos = () => {
   // Hook de consolidação para a visão de projetos
   const { itensAgrupados: todosItensAgrupados } = useConsolidacao(
     movimentacoes,
-    locaisConfig,
-    gruposProjeto,
+    locaisAlmoxarifado,
+    gruposAlmoxarifado,
     agrupamentoConsolidacao,
     {
       dataInicio: filtroDataPendentesInicio,
@@ -329,14 +329,14 @@ export const VisaoProjetos = () => {
   const projetoSelecionadoNome =
     filtroPendentesProjetoId === 'todos'
       ? 'Todos os projetos/locais'
-      : locaisConfig.find((local) => local.id === filtroPendentesProjetoId)?.nome || 'Projeto/local selecionado';
+      : locaisAlmoxarifado.find((local) => local.id === filtroPendentesProjetoId)?.nome || 'Projeto/local selecionado';
 
   const grupoSelecionadoNome =
     filtroPendentesGrupoId === 'todos'
       ? 'Todos os grupos'
       : filtroPendentesGrupoId === 'sem-grupo'
         ? 'Sem Grupo'
-        : gruposProjeto.find((grupo) => grupo.id === filtroPendentesGrupoId)?.nome || 'Grupo selecionado';
+        : gruposAlmoxarifado.find((grupo) => grupo.id === filtroPendentesGrupoId)?.nome || 'Grupo selecionado';
 
   const periodoSelecionado = filtroDataPendentesInicio || filtroDataPendentesFim
     ? `${filtroDataPendentesInicio ? format(filtroDataPendentesInicio, 'dd/MM/yyyy') : 'Início'} a ${filtroDataPendentesFim ? format(filtroDataPendentesFim, 'dd/MM/yyyy') : 'Hoje'}`
