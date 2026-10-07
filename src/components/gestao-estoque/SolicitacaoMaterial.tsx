@@ -259,7 +259,7 @@ export const SolicitacaoMaterial = () => {
     setQuantidadeItem('');
     setUnidadeCustom('un');
     setObsItem('');
-    toast.success('Item avulso adicionado ao Requisição de Compra (RC)');
+    toast.success('Item avulso adicionado; será encaminhado para PN após a aprovação.');
   };
 
   const removerItem = (index: number) => {
@@ -277,88 +277,6 @@ export const SolicitacaoMaterial = () => {
     setLocalOrigemId('');
     setLocalOrigemNome('');
     setPopoverAberto(false);
-  };
-
-  const abrirPedidoCompra = (pedidoId: string, pedidoNumero: number) => {
-    if (typeof window === 'undefined') return;
-
-    const payload = { pedidoId, pedidoNumero, timestamp: Date.now() };
-    sessionStorage.setItem('pedido_compra_redirect', JSON.stringify(payload));
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('pedido-compra:abrir', { detail: payload }));
-    }, 500);
-  };
-
-  const criarPedidoCompraAutomatico = async (
-    solicitacao: SolicitacaoMaterialCompleta,
-    itensParaCompra: SolicitacaoMaterialCompleta['itens'],
-    contextoErro: 'criacao' | 'aprovacao'
-  ): Promise<{ id: string; numero: number; jaExistia: boolean } | null> => {
-    if (!user || !userProfile || itensParaCompra.length === 0) return null;
-
-    try {
-      const { data: pedidoExistente, error: pedidoExistenteError } = await supabase
-        .from('pedidos_compra')
-        .select('id, numero')
-        .eq('solicitacao_material_id', solicitacao.id)
-        .maybeSingle();
-
-      if (pedidoExistenteError) throw pedidoExistenteError;
-
-      if (pedidoExistente) {
-        return {
-          id: pedidoExistente.id,
-          numero: pedidoExistente.numero,
-          jaExistia: true,
-        };
-      }
-
-      const estoqueInfo = obterEstoqueAtivoInfo();
-      const { data: pedidoData, error: pedidoError } = await supabase
-        .from('pedidos_compra')
-        .insert({
-          criado_por_id: user.id,
-          criado_por_nome: userProfile.nome,
-          observacoes: `Gerado automaticamente a partir da Solicitação de Material #${solicitacao.numero}`,
-          estoque_id: estoqueInfo?.id || null,
-          status: 'aberto',
-          solicitacao_material_id: solicitacao.id,
-          solicitacao_material_numero: solicitacao.numero
-        })
-        .select()
-        .single();
-
-      if (pedidoError) throw pedidoError;
-
-      const itensInsert = itensParaCompra.map(item => ({
-        pedido_id: pedidoData.id,
-        item_id: item.item_id || null,
-        nome_item: item.nome_item,
-        quantidade: item.quantidade,
-        item_snapshot: item.item_snapshot || { nome: item.nome_item, unidade: item.unidade },
-        status: 'pendente'
-      }));
-
-      const { error: itensError } = await supabase
-        .from('pedido_compra_itens')
-        .insert(itensInsert);
-
-      if (itensError) throw itensError;
-
-      return {
-        id: pedidoData.id,
-        numero: pedidoData.numero,
-        jaExistia: false,
-      };
-    } catch (error) {
-      console.error('Erro ao criar requisição de compra (RC) automático:', error);
-      toast.error(
-        contextoErro === 'criacao'
-          ? 'Solicitação criada, mas houve erro ao encaminhar o item para o Requisição de Compra (RC)'
-          : 'Solicitação aprovada, mas houve erro ao gerar o Requisição de Compra (RC) automático'
-      );
-      return null;
-    }
   };
 
   const criarSolicitacao = async () => {
@@ -438,28 +356,10 @@ export const SolicitacaoMaterial = () => {
         })),
       };
 
-      const itensParaCompra = obterItensParaPedidoCompra(solicitacaoCriada.itens);
-      const podeGerarPedidoAutomatico = canManageStock() && itensParaCompra.length > 0;
-
-      let pedidoCriado: { id: string; numero: number; jaExistia: boolean } | null = null;
-      if (podeGerarPedidoAutomatico) {
-        pedidoCriado = await criarPedidoCompraAutomatico(solicitacaoCriada, itensParaCompra, 'criacao');
-      }
-
-      if (pedidoCriado) {
-        toast.success(
-          pedidoCriado.jaExistia
-            ? `Solicitação #${solData.numero} vinculada ao Requisição de Compra (RC) #${pedidoCriado.numero}.`
-            : `Solicitação #${solData.numero} criada e enviada ao Requisição de Compra (RC) #${pedidoCriado.numero}.`,
-          { duration: 6000 }
-        );
-        setDialogoListar(false);
-        abrirPedidoCompra(pedidoCriado.id, pedidoCriado.numero);
-      } else {
-        toast.success(`Solicitação #${solData.numero} criada com sucesso!`);
-        if (itensParaCompra.length > 0 && !canManageStock()) {
-          toast.info('Itens avulsos ou sem saldo serão enviados ao Requisição de Compra (RC) na aprovação.');
-        }
+      const itensParaPn = obterItensParaPedidoCompra(solicitacaoCriada.itens);
+      toast.success(`Solicitação #${solData.numero} criada com sucesso!`);
+      if (itensParaPn.length > 0) {
+        toast.info('Itens avulsos ou sem saldo serão encaminhados para PN após a aprovação do Almoxarifado.');
       }
 
       setDialogoCriar(false);
@@ -482,33 +382,18 @@ export const SolicitacaoMaterial = () => {
     try {
       const solicitacao = solicitacoes.find(s => s.id === id);
 
-      const { error } = await supabase
-        .from('solicitacoes_material')
-        .update({
-          status: 'aprovada',
-          aprovado_por_id: user.id,
-          aprovado_por_nome: userProfile.nome,
-          data_aprovacao: new Date().toISOString()
-        })
-        .eq('id', id);
+      const itensParaPn = solicitacao ? obterItensParaPedidoCompra(solicitacao.itens) : [];
+      const { data: pns, error } = await (supabase as any).rpc('aprovar_solicitacao_material_com_pns', {
+        p_solicitacao_material_id: id,
+        p_itens_ids: itensParaPn.map((item) => item.id),
+      });
       if (error) throw error;
 
-      let pedidoCriado: { id: string; numero: number; jaExistia: boolean } | null = null;
-      if (solicitacao) {
-        const itensParaCompra = obterItensParaPedidoCompra(
-          solicitacao.itens
-        );
-        if (itensParaCompra.length > 0) {
-          pedidoCriado = await criarPedidoCompraAutomatico(solicitacao, itensParaCompra, 'aprovacao');
-        }
-      }
-
+      const novasPns = (pns || []).filter((pn: { ja_existia: boolean }) => !pn.ja_existia).length;
       toast.success(
-        pedidoCriado
-          ? pedidoCriado.jaExistia
-            ? `Solicitação aprovada! Requisição de Compra (RC) #${pedidoCriado.numero} já estava vinculado.`
-            : `Solicitação aprovada! Requisição de Compra (RC) #${pedidoCriado.numero} gerado automaticamente.`
-          : 'Solicitação aprovada!'
+        novasPns > 0
+          ? `Solicitação aprovada! ${novasPns} PN(s) enviada(s) ao Financeiro para formalização posterior em RC.`
+          : 'Solicitação aprovada! Nenhuma PN adicional foi necessária.'
       );
 
       carregarSolicitacoes();
@@ -1141,7 +1026,7 @@ export const SolicitacaoMaterial = () => {
                         <TableCell>{item.unidade}</TableCell>
                         <TableCell>
                           <Badge variant={vaiParaCompra ? 'secondary' : 'default'}>
-                            {vaiParaCompra ? 'Requisição de Compra (RC)' : 'Estoque'}
+                            {vaiParaCompra ? 'Previsão de Necessidade (PN)' : 'Estoque'}
                           </Badge>
                         </TableCell>
                         <TableCell>{item.observacoes || '-'}</TableCell>
@@ -1374,7 +1259,7 @@ export const SolicitacaoMaterial = () => {
                           <TableCell>{item.unidade}</TableCell>
                           <TableCell>
                             <Badge variant={vaiParaCompra ? 'secondary' : 'default'} className="text-xs">
-                              {vaiParaCompra ? 'Requisição de Compra (RC)' : 'Estoque'}
+                              {vaiParaCompra ? 'Previsão de Necessidade (PN)' : 'Estoque'}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">{item.observacoes || '-'}</TableCell>

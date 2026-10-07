@@ -20,7 +20,6 @@ import { SolicitarMaterial } from './SolicitarMaterial';
 import { DevolverMaterial } from './DevolverMaterial';
 import { RegistrarEntrada } from './RegistrarEntrada';
 import { Transferencia } from './Transferencia';
-import { PedidoCompra } from './PedidoCompra';
 import { SolicitacaoMaterial } from './SolicitacaoMaterial';
 import { Badge } from '@/components/ui/badge';
 
@@ -49,7 +48,6 @@ export const MenuPrincipal = ({
     canRegistrarEntrada, 
     canTransferir, 
     canRegistrarSaida, 
-    canPedidoCompra, 
     canSolicitacaoMaterial
   } = usePermissions();
   
@@ -831,9 +829,6 @@ export const MenuPrincipal = ({
 
         {/* Registrar Entrada */}
         {canRegistrarEntrada() && <RegistrarEntrada />}
-
-        {/* Pedido de Compra */}
-        {canPedidoCompra() && canManageStock() && <PedidoCompra />}
 
         {/* Solicitação de Material */}
         {canSolicitacaoMaterial() && <SolicitacaoMaterial />}

@@ -400,6 +400,22 @@ export const Financeiro = () => {
     }
   };
 
+  const formalizarRcDaPn = async (pn: Registro) => {
+    try {
+      const { data, error } = await (supabase as any).rpc('financeiro_criar_rc_da_pn', {
+        p_necessidade_id: pn.id,
+      });
+      if (error) throw error;
+      const rc = Array.isArray(data) ? data[0] : data;
+      toast.success(rc?.ja_existia ? `RC #${rc.numero} já está vinculada a esta PN.` : `RC #${rc?.numero ?? ''} formalizada a partir da PN.`);
+      setAbaFinanceiro('rc');
+      await carregar();
+    } catch (error) {
+      console.error(error);
+      toast.error('Não foi possível formalizar a RC a partir desta PN.');
+    }
+  };
+
   const abrirRc = (rc: Registro) => {
     setSelecionado(rc);
     setRcForm({ ...rc });
@@ -757,7 +773,7 @@ export const Financeiro = () => {
         </TabsContent>}
 
         {podeGerenciar && <TabsContent value="pn" className="mt-5">
-          <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>PN — Previsão de Necessidade</CardTitle><CardDescription>Anexo A do procedimento. PN automática de RC ou manual para serviços, viagens, impostos e demais necessidades fora do estoque.</CardDescription></div>
+          <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>PN — Previsão de Necessidade</CardTitle><CardDescription>Anexo A do procedimento. A Solicitação de Material com falta de estoque gera PN; depois da conferência, a PN é formalizada em RC.</CardDescription></div>
           {podeGerenciar&&<Dialog open={dialogPn} onOpenChange={setDialogPn}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova PN</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Formulário PN</DialogTitle></DialogHeader>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Solicitante / área"><Input value={pnForm.area} onChange={(e)=>setPnForm({...pnForm,area:e.target.value})}/></Field>
@@ -783,8 +799,8 @@ export const Financeiro = () => {
                 {mostrarPnCanceladas ? 'Ocultar canceladas' : 'Mostrar canceladas (histórico)'}
               </Button>
             </div>
-            <Table><TableHeader><TableRow><TableHead>PN</TableHead><TableHead>Status</TableHead><TableHead>Origem</TableHead><TableHead>Área</TableHead><TableHead>Descrição</TableHead><TableHead>Projeto / Centro</TableHead><TableHead>Data necessária</TableHead><TableHead className="text-right">Valor estimado</TableHead></TableRow></TableHeader>
-          <TableBody>{necessidadesVisiveis.length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Nenhuma PN.</TableCell></TableRow>:necessidadesVisiveis.map(n=><TableRow key={n.id}><TableCell className="font-medium">PN-{String(n.numero).padStart(4,'0')}</TableCell><TableCell><BadgeStatus status={n.status}/></TableCell><TableCell>{n.origem_tipo==='rc'?'RC':n.origem_tipo}</TableCell><TableCell>{n.area_solicitante||n.solicitante_nome||'—'}</TableCell><TableCell className="min-w-[260px]">{n.descricao}</TableCell><TableCell>{n.projeto_centro_custo||'—'}</TableCell><TableCell>{dataPt(n.data_necessidade)}</TableCell><TableCell className="text-right">{moeda(n.valor_estimado)}{n.estimativa_incompleta&&<span className="ml-1 text-xs text-amber-600">parcial</span>}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+            <Table><TableHeader><TableRow><TableHead>PN</TableHead><TableHead>Status</TableHead><TableHead>Origem</TableHead><TableHead>Área</TableHead><TableHead>Descrição</TableHead><TableHead>Projeto / Centro</TableHead><TableHead>Data necessária</TableHead><TableHead className="text-right">Valor estimado</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableBody>{necessidadesVisiveis.length===0?<TableRow><TableCell colSpan={9} className="py-8 text-center text-muted-foreground">Nenhuma PN.</TableCell></TableRow>:necessidadesVisiveis.map(n=><TableRow key={n.id}><TableCell className="font-medium">PN-{String(n.numero).padStart(4,'0')}</TableCell><TableCell><BadgeStatus status={n.status}/></TableCell><TableCell>{n.origem_tipo==='solicitacao_material'?'Almoxarifado':n.origem_tipo==='rc'?'RC':n.origem_tipo}</TableCell><TableCell>{n.area_solicitante||n.solicitante_nome||'—'}</TableCell><TableCell className="min-w-[260px]">{n.descricao}</TableCell><TableCell>{n.projeto_centro_custo||'—'}</TableCell><TableCell>{dataPt(n.data_necessidade)}</TableCell><TableCell className="text-right">{moeda(n.valor_estimado)}{n.estimativa_incompleta&&<span className="ml-1 text-xs text-amber-600">parcial</span>}</TableCell><TableCell className="text-right">{n.origem_tipo==='solicitacao_material' && !n.requisicao_compra_id && n.status!=='cancelado' && <Button size="sm" variant="outline" onClick={()=>void formalizarRcDaPn(n)}>Formalizar RC</Button>}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
         </TabsContent>}
 
         {(podeGerenciar || podeAprovar) && <TabsContent value="rc" className="mt-5">
