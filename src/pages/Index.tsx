@@ -85,6 +85,12 @@ const Index = () => {
     if (!loading && !session) navigate('/auth');
   }, [loading, session, navigate]);
 
+  useEffect(() => {
+    const abrirMensagens = () => setTabAtiva('mensagens');
+    window.addEventListener('abrir-mensagens', abrirMensagens);
+    return () => window.removeEventListener('abrir-mensagens', abrirMensagens);
+  }, []);
+
 
   useEffect(() => {
     void carregarLogo();
