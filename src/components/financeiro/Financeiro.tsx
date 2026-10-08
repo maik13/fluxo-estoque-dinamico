@@ -217,12 +217,13 @@ export const Financeiro = () => {
   const [subcategoriaForm, setSubcategoriaForm] = useState({ nome: '', categoriaId: '', observacao: '' });
 
   const [conciliacaoForm, setConciliacaoForm] = useState({
-    data: new Date().toISOString().slice(0, 10), contaId: '', historico: '', previsto: 'sim',
+    lancamentoId: '', data: new Date().toISOString().slice(0, 10), contaId: '', historico: '', previsto: 'sim',
     valor: '', valorPrevisto: '', dataPrevista: '', tipo: 'saida', tratamento: 'em_apuracao',
     observacao: '', responsavel: '', prazo: '',
   });
 
   const [mostrarPnCanceladas, setMostrarPnCanceladas] = useState(false);
+  const [horizonteDetalhado, setHorizonteDetalhado] = useState<'14' | '13s' | '6m' | null>(null);
   const necessidadesVisiveis = useMemo(
     () => necessidades.filter((n) => mostrarPnCanceladas || n.status !== 'cancelado'),
     [necessidades, mostrarPnCanceladas],
@@ -429,6 +430,26 @@ export const Financeiro = () => {
     };
   }, [lancamentos]);
 
+  const detalhesProjecao = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const limite14 = new Date(hoje); limite14.setDate(limite14.getDate() + 14);
+    const limite13s = new Date(hoje); limite13s.setDate(limite13s.getDate() + 91);
+    const limite6m = new Date(hoje); limite6m.setMonth(limite6m.getMonth() + 6);
+    const validos = lancamentos
+      .filter((l) => l.data_prevista && !['cancelado', 'pago', 'conciliado'].includes(l.status))
+      .sort((a, b) => String(a.data_prevista).localeCompare(String(b.data_prevista)));
+    const criar = (titulo: string, limite: Date) => ({
+      titulo,
+      itens: validos.filter((l) => new Date(`${l.data_prevista}T00:00:00`) <= limite),
+    });
+    return {
+      '14': criar('Próximos 14 dias', limite14),
+      '13s': criar('Próximas 13 semanas', limite13s),
+      '6m': criar('Próximos 6 meses', limite6m),
+    };
+  }, [lancamentos]);
+
   const criarPn = async () => {
     if (!pnForm.descricao.trim()) return toast.error('Informe a descrição.');
     const valor = pnForm.valor ? Number(pnForm.valor.replace(/\./g, '').replace(',', '.')) : null;
@@ -596,6 +617,22 @@ export const Financeiro = () => {
     }
   };
 
+  const confirmarProgramacaoNoBanco = async (programacao: Registro) => {
+    if (!programacao.lancamento_id) return toast.error('Esta programação não possui lançamento financeiro vinculado.');
+    try {
+      const { error } = await (supabase as any)
+        .from('financeiro_programacoes')
+        .update({ status: 'programado', updated_at: new Date().toISOString() })
+        .eq('id', programacao.id);
+      if (error) throw error;
+      toast.success('Agendamento bancário confirmado.');
+      await carregar();
+    } catch (error) {
+      console.error(error);
+      toast.error('Não foi possível confirmar o agendamento bancário.');
+    }
+  };
+
   const criarCategoria = async () => {
     const nome = categoriaForm.nome.trim().toUpperCase();
     if (!nome) return toast.error('Informe o nome da categoria.');
@@ -663,6 +700,7 @@ export const Financeiro = () => {
     if (!conciliacaoForm.contaId || !conciliacaoForm.historico || !conciliacaoForm.valor) return toast.error('Informe conta, histórico e valor.');
     try {
       const { error } = await (supabase as any).from('financeiro_conciliacoes').insert({
+        lancamento_id: conciliacaoForm.lancamentoId || null,
         data: conciliacaoForm.data,
         conta_bancaria_id: conciliacaoForm.contaId,
         historico_beneficiario: conciliacaoForm.historico,
@@ -678,12 +716,34 @@ export const Financeiro = () => {
       });
       if (error) throw error;
       setDialogConciliacao(false);
-      toast.success('Movimentação registrada para conciliação.');
+      toast.success(conciliacaoForm.lancamentoId && conciliacaoForm.tratamento === 'conciliado'
+        ? 'Pagamento conciliado e confirmado no fluxo.'
+        : 'Movimentação registrada para conciliação.');
       await carregar();
     } catch (error) {
       console.error(error);
       toast.error('Erro ao registrar conciliação.');
     }
+  };
+
+  const abrirConfirmacaoDeConciliacao = (lancamento: Registro) => {
+    const valor = Number(lancamento.valor_realizado ?? lancamento.valor_previsto ?? 0);
+    setConciliacaoForm({
+      lancamentoId: lancamento.id,
+      data: lancamento.data_realizada || new Date().toISOString().slice(0, 10),
+      contaId: '',
+      historico: lancamento.descricao || '',
+      previsto: 'sim',
+      valor: String(valor),
+      valorPrevisto: String(Number(lancamento.valor_previsto ?? valor)),
+      dataPrevista: lancamento.data_prevista || '',
+      tipo: lancamento.tipo || 'saida',
+      tratamento: 'conciliado',
+      observacao: '',
+      responsavel: '',
+      prazo: '',
+    });
+    setDialogConciliacao(true);
   };
 
   return (
@@ -982,12 +1042,12 @@ export const Financeiro = () => {
             </div>
             <DialogFooter><Button variant="outline" onClick={()=>setDialogProgramacao(false)}>Cancelar</Button><Button onClick={()=>void salvarProgramacao()}>Registrar</Button></DialogFooter>
           </DialogContent></Dialog>}</CardHeader>
-          <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Status</TableHead><TableHead>Beneficiário</TableHead><TableHead>Vencimento</TableHead><TableHead>Programar em</TableHead><TableHead>Banco</TableHead><TableHead>Projeto</TableHead><TableHead className="text-right">Valor</TableHead>{podeAprovar && <TableHead>Registrado por</TableHead>}</TableRow></TableHeader><TableBody>{programacoes.length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Nenhuma programação.</TableCell></TableRow>:programacoes.map(p=><TableRow key={p.id}><TableCell><BadgeStatus status={p.status}/></TableCell><TableCell>{p.beneficiario}</TableCell><TableCell>{dataPt(p.vencimento)}</TableCell><TableCell>{dataPt(p.data_programada)}</TableCell><TableCell>{p.banco_conta||'—'}</TableCell><TableCell>{p.projeto_centro_custo||'—'}</TableCell><TableCell className="text-right">{moeda(p.valor)}</TableCell>{podeAprovar && <TableCell><div className="text-xs"><div className="font-medium">{p.registrado_por_nome||'—'}</div><div className="text-muted-foreground">{p.programado_por_guto_em?new Date(p.programado_por_guto_em).toLocaleString('pt-BR'):'—'}</div></div></TableCell>}</TableRow>)}</TableBody></Table></CardContent></Card>
+          <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Status</TableHead><TableHead>Beneficiário</TableHead><TableHead>Vencimento</TableHead><TableHead>Programar em</TableHead><TableHead>Banco</TableHead><TableHead>Projeto</TableHead><TableHead className="text-right">Valor</TableHead>{podeAprovar && <TableHead>Registrado por</TableHead>}{canProgramFinanceiro() && <TableHead className="text-right">Confirmação</TableHead>}</TableRow></TableHeader><TableBody>{programacoes.length===0?<TableRow><TableCell colSpan={9} className="py-8 text-center text-muted-foreground">Nenhuma programação.</TableCell></TableRow>:programacoes.map(p=><TableRow key={p.id}><TableCell><BadgeStatus status={p.status}/></TableCell><TableCell>{p.beneficiario}</TableCell><TableCell>{dataPt(p.vencimento)}</TableCell><TableCell>{dataPt(p.data_programada)}</TableCell><TableCell>{p.banco_conta||'—'}</TableCell><TableCell>{p.projeto_centro_custo||'—'}</TableCell><TableCell className="text-right">{moeda(p.valor)}</TableCell>{podeAprovar && <TableCell><div className="text-xs"><div className="font-medium">{p.registrado_por_nome||'—'}</div><div className="text-muted-foreground">{p.programado_por_guto_em?new Date(p.programado_por_guto_em).toLocaleString('pt-BR'):'—'}</div></div></TableCell>}{canProgramFinanceiro() && <TableCell className="text-right">{p.status === 'aguardando_programacao' ? <Button size="sm" variant="outline" onClick={()=>void confirmarProgramacaoNoBanco(p)}>Confirmar no banco</Button> : p.status === 'programado' ? <Badge variant="outline">Confirmado</Badge> : '—'}</TableCell>}</TableRow>)}</TableBody></Table></CardContent></Card>
           <Card><CardHeader><CardTitle>Histórico de pagamentos realizados</CardTitle><CardDescription>Pagamentos já concluídos aparecem aqui como histórico da programação; não voltam para a fila bancária.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Status</TableHead><TableHead>Data realizada</TableHead><TableHead>Descrição</TableHead><TableHead>Projeto / centro</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader><TableBody>{pagamentosRealizados.length===0?<TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Nenhum pagamento realizado.</TableCell></TableRow>:pagamentosRealizados.map(l=><TableRow key={l.id}><TableCell><BadgeStatus status={l.status}/></TableCell><TableCell>{dataPt(l.data_realizada)}</TableCell><TableCell className="min-w-[280px]"><div className="font-medium">{l.descricao}</div>{l.origem_tipo==='pagina54'&&<div className="text-xs text-muted-foreground">Página54 · linha {l.planilha_linha??'—'}</div>}</TableCell><TableCell>{l.projeto_centro_custo||'—'}</TableCell><TableCell className="text-right">{moeda(l.valor_realizado??l.valor_previsto)}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
         </TabsContent>}
 
         {podeConciliar && <TabsContent value="conciliacao" className="mt-5 space-y-5">
-          <Card><CardHeader><CardTitle>Pagamentos no fluxo para conciliação</CardTitle><CardDescription>“Pago” significa que o desembolso foi realizado e ainda precisa de conferência bancária. “Conciliado” é o pagamento já confirmado.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Situação</TableHead><TableHead>Data realizada</TableHead><TableHead>Descrição</TableHead><TableHead>Categoria</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader><TableBody>{pagamentosRealizados.length===0?<TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Nenhum pagamento no fluxo para conciliar.</TableCell></TableRow>:pagamentosRealizados.map(l=><TableRow key={l.id}><TableCell><BadgeStatus status={l.status}/>{l.status==='pago'&&<div className="mt-1 text-xs text-amber-700">Aguardando conciliação</div>}</TableCell><TableCell>{dataPt(l.data_realizada)}</TableCell><TableCell className="min-w-[280px]"><div className="font-medium">{l.descricao}</div>{l.origem_tipo==='pagina54'&&<div className="text-xs text-muted-foreground">Página54 · linha {l.planilha_linha??'—'}</div>}</TableCell><TableCell>{l.categoria||'—'}</TableCell><TableCell className="text-right">{moeda(l.valor_realizado??l.valor_previsto)}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+          <Card><CardHeader><CardTitle>Pagamentos no fluxo para conciliação</CardTitle><CardDescription>“Pago” significa que o desembolso foi realizado e ainda precisa de conferência bancária. A confirmação só é registrada após escolher a conta e validar o movimento no banco.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Situação</TableHead><TableHead>Data realizada</TableHead><TableHead>Descrição</TableHead><TableHead>Categoria</TableHead><TableHead className="text-right">Valor</TableHead>{canConciliarFinanceiro() && <TableHead className="text-right">Conferência</TableHead>}</TableRow></TableHeader><TableBody>{pagamentosRealizados.length===0?<TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Nenhum pagamento no fluxo para conciliar.</TableCell></TableRow>:pagamentosRealizados.map(l=><TableRow key={l.id}><TableCell><BadgeStatus status={l.status}/>{l.status==='pago'&&<div className="mt-1 text-xs text-amber-700">Aguardando conciliação</div>}</TableCell><TableCell>{dataPt(l.data_realizada)}</TableCell><TableCell className="min-w-[280px]"><div className="font-medium">{l.descricao}</div>{l.origem_tipo==='pagina54'&&<div className="text-xs text-muted-foreground">Página54 · linha {l.planilha_linha??'—'}</div>}</TableCell><TableCell>{l.categoria||'—'}</TableCell><TableCell className="text-right">{moeda(l.valor_realizado??l.valor_previsto)}</TableCell>{canConciliarFinanceiro() && <TableCell className="text-right">{l.status==='pago' ? <Button size="sm" variant="outline" onClick={()=>abrirConfirmacaoDeConciliacao(l)}>Confirmar no banco</Button> : <Badge variant="outline">Conciliado</Badge>}</TableCell>}</TableRow>)}</TableBody></Table></CardContent></Card>
           <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>Conciliação Bancária e Desvios</CardTitle><CardDescription>Anexo E. Registra o que aconteceu no banco, se estava previsto e qual tratamento a divergência recebeu.</CardDescription></div>
           {canConciliarFinanceiro()&&<Dialog open={dialogConciliacao} onOpenChange={setDialogConciliacao}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Registrar movimentação</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Movimentação / divergência</DialogTitle></DialogHeader>
             {conciliacaoForm.previsto === 'nao' && (
@@ -1017,10 +1077,16 @@ export const Financeiro = () => {
 
         {podeGerenciar && <TabsContent value="projecoes" className="mt-5 space-y-5">
           <div className="grid gap-4 md:grid-cols-3">
-            <Card><CardHeader><CardDescription>Próximos 14 dias</CardDescription><CardTitle>{moeda(projecoes.entradas14 - projecoes.saidas14)}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Entradas {moeda(projecoes.entradas14)} · Saídas {moeda(projecoes.saidas14)}</CardContent></Card>
-            <Card><CardHeader><CardDescription>13 semanas</CardDescription><CardTitle>{moeda(projecoes.entradas13s - projecoes.saidas13s)}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Entradas {moeda(projecoes.entradas13s)} · Saídas {moeda(projecoes.saidas13s)}</CardContent></Card>
-            <Card><CardHeader><CardDescription>6 meses</CardDescription><CardTitle>{moeda(projecoes.entradas6m - projecoes.saidas6m)}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Entradas {moeda(projecoes.entradas6m)} · Saídas {moeda(projecoes.saidas6m)}</CardContent></Card>
+            <button type="button" className="text-left" onClick={()=>setHorizonteDetalhado('14')} aria-label="Abrir composição dos próximos 14 dias"><Card className="h-full transition-colors hover:bg-muted/50"><CardHeader><CardDescription>Próximos 14 dias</CardDescription><CardTitle>{moeda(projecoes.entradas14 - projecoes.saidas14)}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Entradas {moeda(projecoes.entradas14)} · Saídas {moeda(projecoes.saidas14)}<div className="mt-1 text-xs">Clique para conferir a composição</div></CardContent></Card></button>
+            <button type="button" className="text-left" onClick={()=>setHorizonteDetalhado('13s')} aria-label="Abrir composição das próximas 13 semanas"><Card className="h-full transition-colors hover:bg-muted/50"><CardHeader><CardDescription>13 semanas</CardDescription><CardTitle>{moeda(projecoes.entradas13s - projecoes.saidas13s)}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Entradas {moeda(projecoes.entradas13s)} · Saídas {moeda(projecoes.saidas13s)}<div className="mt-1 text-xs">Clique para conferir a composição</div></CardContent></Card></button>
+            <button type="button" className="text-left" onClick={()=>setHorizonteDetalhado('6m')} aria-label="Abrir composição dos próximos 6 meses"><Card className="h-full transition-colors hover:bg-muted/50"><CardHeader><CardDescription>6 meses</CardDescription><CardTitle>{moeda(projecoes.entradas6m - projecoes.saidas6m)}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Entradas {moeda(projecoes.entradas6m)} · Saídas {moeda(projecoes.saidas6m)}<div className="mt-1 text-xs">Clique para conferir a composição</div></CardContent></Card></button>
           </div>
+          <Dialog open={horizonteDetalhado !== null} onOpenChange={(aberto)=>!aberto && setHorizonteDetalhado(null)}>
+            <DialogContent className="max-h-[85vh] max-w-5xl overflow-y-auto"><DialogHeader><DialogTitle>{horizonteDetalhado ? detalhesProjecao[horizonteDetalhado].titulo : 'Composição da projeção'}</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground">Somente lançamentos ainda não pagos ou conciliados, com vencimento dentro deste horizonte. A situação da planilha é exibida para conferência.</p>
+              <Table><TableHeader><TableRow><TableHead>Vencimento</TableHead><TableHead>Descrição</TableHead><TableHead>Situação da planilha</TableHead><TableHead>Status no sistema</TableHead><TableHead>Tipo</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader><TableBody>{horizonteDetalhado && detalhesProjecao[horizonteDetalhado].itens.map((l)=><TableRow key={l.id}><TableCell>{dataPt(l.data_prevista)}</TableCell><TableCell>{l.descricao}</TableCell><TableCell>{l.situacao_original || '—'}</TableCell><TableCell><BadgeStatus status={l.status}/></TableCell><TableCell>{l.tipo === 'saida' ? 'Saída' : 'Entrada'}</TableCell><TableCell className="text-right">{moeda(l.valor_previsto)}</TableCell></TableRow>)}</TableBody></Table>
+            </DialogContent>
+          </Dialog>
           <Card><CardHeader><CardTitle>Horizontes do procedimento</CardTitle><CardDescription>Os valores acima são calculados diretamente dos lançamentos previstos atuais. O horizonte anual será acrescentado quando houver base suficiente de compromissos e recebimentos futuros.</CardDescription></CardHeader>
             <CardContent><div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-lg border p-4"><CalendarRange className="mb-2 h-5 w-5"/><p className="font-medium">14 dias</p><p className="text-sm text-muted-foreground">Pressão imediata de caixa e decisões urgentes.</p></div>
