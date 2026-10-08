@@ -661,6 +661,9 @@ export const ProcessosProducaoHierarquico = ({
   if (!projetoSelecionadoId) {
     if (grupoSelecionado && etapaGrupoAtual) {
       const opsEtapa = [...etapaGrupoAtual.ops].sort((a, b) => a.numero - b.numero);
+      const processosAbertosDaEtapa = etapaGrupoAtual.processos.filter((processo) =>
+        ['planejado', 'em_andamento', 'pausado', 'bloqueado'].includes(processo.status),
+      );
       return (
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -696,6 +699,17 @@ export const ProcessosProducaoHierarquico = ({
                 <BarraProgresso valor={etapaGrupoAtual.percentual} />
               </div>
             </div>
+            {processosAbertosDaEtapa.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2 border-t pt-4" aria-label="Ações desta etapa">
+                <FormOrdemProducao
+                  processo={processosAbertosDaEtapa[0]}
+                  processosDisponiveis={processosAbertosDaEtapa}
+                  ordens={ordens}
+                  tarefas={tarefas}
+                  onEmitir={criarOrdem}
+                />
+              </div>
+            )}
           </div>
 
           <div>

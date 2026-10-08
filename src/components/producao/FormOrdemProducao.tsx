@@ -46,6 +46,7 @@ type ParametroPadrao = {
 
 interface Props {
   processo: ProducaoProcesso;
+  processosDisponiveis?: ProducaoProcesso[];
   ordens: ProducaoOrdemProducao[];
   tarefas: ProducaoTarefa[];
   onEmitir: (dados: NovaOrdemProducao) => Promise<unknown>;
@@ -58,7 +59,24 @@ const formatarQuantidade = (value: number) =>
     maximumFractionDigits: 4,
   }).format(value);
 
-export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props) => {
+export const FormOrdemProducao = ({
+  processo,
+  processosDisponiveis,
+  ordens,
+  tarefas,
+  onEmitir,
+}: Props) => {
+  const processosDaEtapa = useMemo(() => {
+    const candidatos = processosDisponiveis?.length ? processosDisponiveis : [processo];
+    return candidatos.some((item) => item.id === processo.id)
+      ? candidatos
+      : [processo, ...candidatos];
+  }, [processo, processosDisponiveis]);
+  const [processoId, setProcessoId] = useState(processo.id);
+  const processoAtual = useMemo(
+    () => processosDaEtapa.find((item) => item.id === processoId) ?? processo,
+    [processo, processoId, processosDaEtapa],
+  );
   const [aberto, setAberto] = useState(false);
   const [quantidade, setQuantidade] = useState('');
   const [tarefaId, setTarefaId] = useState('');
@@ -68,15 +86,15 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
   const [localTipo, setLocalTipo] =
     useState<ProducaoLocalTipo>('Fábrica');
   const [responsavel, setResponsavel] = useState(
-    processo.responsavel_nome_snapshot ?? '',
+    processoAtual.responsavel_nome_snapshot ?? '',
   );
   const [equipe, setEquipe] = useState(
-    processo.pessoas_necessarias == null
+    processoAtual.pessoas_necessarias == null
       ? ''
-      : String(processo.pessoas_necessarias),
+      : String(processoAtual.pessoas_necessarias),
   );
   const [prioridade, setPrioridade] =
-    useState<ProducaoPrioridade>(processo.prioridade);
+    useState<ProducaoPrioridade>(processoAtual.prioridade);
   const [descricao, setDescricao] = useState('');
   const [instrucoes, setInstrucoes] = useState('');
   const [salvando, setSalvando] = useState(false);
@@ -112,8 +130,8 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
   };
 
   const ordensDaEtapa = useMemo(
-    () => ordens.filter((ordem) => ordem.processo_id === processo.id),
-    [ordens, processo.id],
+    () => ordens.filter((ordem) => ordem.processo_id === processoAtual.id),
+    [ordens, processoAtual.id],
   );
 
   const resumo = useMemo(() => {
@@ -137,7 +155,7 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
       (soma, ordem) => soma + Number(ordem.quantidade_realizada || 0),
       0,
     );
-    const meta = Number(processo.quantidade_planejada || 0);
+    const meta = Number(processoAtual.quantidade_planejada || 0);
 
     return {
       abertas: abertas.length,
@@ -148,7 +166,7 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
       saldoMeta: meta > 0 ? Math.max(meta - confirmado, 0) : null,
       excedenteMeta: meta > 0 ? Math.max(confirmado - meta, 0) : 0,
     };
-  }, [ordensDaEtapa, processo.quantidade_planejada]);
+  }, [ordensDaEtapa, processoAtual.quantidade_planejada]);
 
   const abrir = (open: boolean) => {
     setAberto(open);
@@ -159,6 +177,10 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
     setInicio('');
     setFim('');
     setParametroPadraoId('');
+    setProcessoId(processo.id);
+    setResponsavel(processo.responsavel_nome_snapshot ?? '');
+    setEquipe(processo.pessoas_necessarias == null ? '' : String(processo.pessoas_necessarias));
+    setPrioridade(processo.prioridade);
   };
 
   const emitir = async (event: FormEvent) => {
@@ -195,7 +217,7 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
     setSalvando(true);
     try {
       await onEmitir({
-        processo_id: processo.id,
+        processo_id: processoAtual.id,
         tarefa_id: tarefaId,
         quantidade_planejada: quantidadeNormalizada,
         duracao_estimada_horas: duracaoNormalizada,
@@ -228,7 +250,7 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
     }
   };
 
-  const unidade = processo.unidade_medida ?? '';
+  const unidade = processoAtual.unidade_medida ?? '';
 
   return (
     <Dialog open={aberto} onOpenChange={abrir}>
@@ -247,7 +269,7 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
         <DialogHeader>
           <DialogTitle>Emitir nova Ordem de Produção</DialogTitle>
           <DialogDescription>
-            A OP será criada dentro da Etapa {processo.codigo} · {processo.nome}.
+            A OP será criada dentro da Etapa {processoAtual.codigo} · {processoAtual.nome}.
             Enquanto a Etapa não estiver finalizada ou cancelada, você poderá
             emitir quantas OPs forem necessárias.
           </DialogDescription>
@@ -255,12 +277,41 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
 
         <form onSubmit={emitir} className="space-y-5">
           <div className="space-y-4 rounded-lg border bg-muted/20 p-4 text-sm">
+            {processosDaEtapa.length > 1 && (
+              <div className="space-y-2">
+                <Label>Peça desta etapa</Label>
+                <Select
+                  value={processoId}
+                  onValueChange={(id) => {
+                    const selecionado = processosDaEtapa.find((item) => item.id === id);
+                    if (!selecionado) return;
+                    setProcessoId(id);
+                    setResponsavel(selecionado.responsavel_nome_snapshot ?? '');
+                    setEquipe(
+                      selecionado.pessoas_necessarias == null
+                        ? ''
+                        : String(selecionado.pessoas_necessarias),
+                    );
+                    setPrioridade(selecionado.prioridade);
+                  }}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {processosDaEtapa.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.projeto?.nome ?? item.codigo} · {item.codigo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div>
               <p>
-                <strong>Projeto:</strong> {processo.projeto?.nome ?? '—'}
+                <strong>Projeto:</strong> {processoAtual.projeto?.nome ?? '—'}
               </p>
               <p>
-                <strong>Etapa:</strong> {processo.codigo} · {processo.nome}
+                <strong>Etapa:</strong> {processoAtual.codigo} · {processoAtual.nome}
               </p>
             </div>
 
@@ -268,9 +319,9 @@ export const FormOrdemProducao = ({ processo, ordens, tarefas, onEmitir }: Props
               <div className="rounded-md border bg-background/40 p-3">
                 <p className="text-xs text-muted-foreground">Meta da Etapa</p>
                 <p className="font-semibold">
-                  {processo.quantidade_planejada == null
+                  {processoAtual.quantidade_planejada == null
                     ? 'Não informada'
-                    : `${formatarQuantidade(Number(processo.quantidade_planejada))} ${unidade}`}
+                    : `${formatarQuantidade(Number(processoAtual.quantidade_planejada))} ${unidade}`}
                 </p>
               </div>
               <div className="rounded-md border bg-background/40 p-3">
