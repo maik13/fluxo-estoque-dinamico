@@ -670,6 +670,53 @@ export const ProcessosProducaoHierarquico = ({
       const processosAbertosDaEtapa = etapaGrupoAtual.processos.filter((processo) =>
         ['planejado', 'em_andamento', 'pausado', 'bloqueado'].includes(processo.status),
       );
+      const selecionarProcessoDaEtapa = (
+        candidatos: ProducaoProcesso[],
+        acao: string,
+      ) => {
+        if (candidatos.length === 0) return null;
+        if (candidatos.length === 1) return candidatos[0];
+
+        const codigo = window
+          .prompt(
+            `${acao}: informe o código da peça/processo desejado.\n\n${candidatos
+              .map((processo) => `${processo.codigo} · ${processo.projeto?.nome ?? processo.nome}`)
+              .join('\n')}`,
+          )
+          ?.trim()
+          .toLocaleLowerCase('pt-BR');
+        if (!codigo) return null;
+
+        const processo = candidatos.find(
+          (item) => item.codigo.toLocaleLowerCase('pt-BR') === codigo,
+        );
+        if (!processo) toast.error('Código de etapa não encontrado nesta etapa do projeto.');
+        return processo ?? null;
+      };
+
+      const pausarEtapaDoGrupo = () => {
+        const processo = selecionarProcessoDaEtapa(
+          processosAbertosDaEtapa.filter((item) => item.status === 'em_andamento'),
+          'Pausar etapa',
+        );
+        if (processo) void executarEtapa(processo, 'pausar');
+      };
+
+      const finalizarEtapaDoGrupo = () => {
+        const processo = selecionarProcessoDaEtapa(
+          processosAbertosDaEtapa,
+          'Finalizar etapa',
+        );
+        if (processo) setProcessoParaFinalizar(processo);
+      };
+
+      const excluirEtapaDoGrupo = () => {
+        const processo = selecionarProcessoDaEtapa(
+          etapaGrupoAtual.processos,
+          'Excluir etapa',
+        );
+        if (processo) void abrirExclusao(processo);
+      };
 
       if (ordemSelecionada) {
         const processoDaOp = processos.find(
@@ -763,6 +810,18 @@ export const ProcessosProducaoHierarquico = ({
                   >
                     <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar OP
                   </Button>
+                  {['rascunho', 'liberada', 'em_execucao'].includes(ordemSelecionada.status) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                      onClick={() => void executarOp(ordemSelecionada, 'cancelar')}
+                      disabled={executandoId === ordemSelecionada.id || Boolean(jornadaDaOp)}
+                      title={jornadaDaOp ? 'Encerre o apontamento em andamento antes de excluir a OP' : 'Excluir OP'}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" /> Excluir OP
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -834,24 +893,49 @@ export const ProcessosProducaoHierarquico = ({
                   {etapaGrupoAtual.processos.length} peça(s)/processo(s) · {opsEtapa.length} OP(s)
                 </p>
               </div>
-              <div className="min-w-40">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Progresso</span><strong>{etapaGrupoAtual.percentual}%</strong>
+              <div className="flex flex-wrap items-start justify-end gap-2">
+                {processosAbertosDaEtapa.length > 0 && (
+                  <FormOrdemProducao
+                    processo={processosAbertosDaEtapa[0]}
+                    processosDisponiveis={processosAbertosDaEtapa}
+                    ordens={ordens}
+                    tarefas={tarefas}
+                    onEmitir={criarOrdem}
+                  />
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={pausarEtapaDoGrupo}
+                  disabled={!processosAbertosDaEtapa.some((processo) => processo.status === 'em_andamento')}
+                >
+                  <Pause className="mr-2 h-4 w-4" /> Pausar etapa
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={finalizarEtapaDoGrupo}
+                  disabled={processosAbertosDaEtapa.length === 0}
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar etapa
+                </Button>
+                {isAdmin() && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                    onClick={excluirEtapaDoGrupo}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> Excluir etapa
+                  </Button>
+                )}
+                <div className="min-w-40">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Progresso</span><strong>{etapaGrupoAtual.percentual}%</strong>
+                  </div>
+                  <BarraProgresso valor={etapaGrupoAtual.percentual} />
                 </div>
-                <BarraProgresso valor={etapaGrupoAtual.percentual} />
               </div>
             </div>
-            {processosAbertosDaEtapa.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2 border-t pt-4" aria-label="Ações desta etapa">
-                <FormOrdemProducao
-                  processo={processosAbertosDaEtapa[0]}
-                  processosDisponiveis={processosAbertosDaEtapa}
-                  ordens={ordens}
-                  tarefas={tarefas}
-                  onEmitir={criarOrdem}
-                />
-              </div>
-            )}
           </div>
 
           <div>
@@ -904,6 +988,24 @@ export const ProcessosProducaoHierarquico = ({
               </div>
             )}
           </div>
+
+          <ModalFinalizarProcesso
+            processo={processoParaFinalizar}
+            onClose={() => setProcessoParaFinalizar(null)}
+            onConfirm={finalizarEtapa}
+            obterResumo={obterResumoFinalizacao}
+          />
+          <ModalExcluirProcesso
+            processo={processoParaExcluir}
+            resumo={resumoExclusao}
+            carregandoResumo={carregandoResumoExclusao}
+            excluindo={excluindo}
+            onClose={() => {
+              setProcessoParaExcluir(null);
+              setResumoExclusao(null);
+            }}
+            onConfirm={confirmarExclusao}
+          />
         </div>
       );
     }
