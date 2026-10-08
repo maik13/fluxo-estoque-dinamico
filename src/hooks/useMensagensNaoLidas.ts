@@ -124,6 +124,7 @@ export function useMensagensNaoLidas() {
 
   useEffect(() => {
     void carregarNaoLidas();
+    void (supabase as any).rpc('marcar_mensagens_entregues_v1');
     if (!userId) return;
 
     const handleNewMessage = async (payload: any) => {
