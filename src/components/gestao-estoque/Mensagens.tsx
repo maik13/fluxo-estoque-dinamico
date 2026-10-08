@@ -901,6 +901,19 @@ export function Mensagens() {
     setIsComposingNewThread(false);
   }, [threads]);
 
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('tab') !== 'mensagens') return;
+    if (url.searchParams.get('thread')) return;
+    if (selectedThreadId || threads.length === 0) return;
+
+    const unreadThread = threads.find((thread) => (unreadByThread[thread.id] || 0) > 0);
+    if (!unreadThread) return;
+
+    setSelectedThreadId(unreadThread.id);
+    setIsComposingNewThread(false);
+  }, [threads, unreadByThread, selectedThreadId]);
+
   const filteredMessageRecipients = recipientSearchTerm.trim().length < 2
     ? []
     : messageRecipients
