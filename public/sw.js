@@ -1,68 +1,75 @@
-// public/sw.js
-
-self.addEventListener('install', () => {
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
-});
+// Service Worker do mensageiro
 
 self.addEventListener('push', function(event) {
   if (!event.data) return;
 
-  let data = {};
-  try {
-    data = event.data.json();
-  } catch (_) {
-    data = { body: event.data.text() };
-  }
+  event.waitUntil((async () => {
+    let data = {};
+    try {
+      data = event.data.json();
+    } catch {
+      data = { body: event.data.text() };
+    }
 
-  const title = data.title || 'Nova mensagem';
-  const options = {
-    body: data.body || 'Você recebeu uma nova mensagem.',
-    icon: data.icon || '/vite.svg',
-    badge: data.badge || '/vite.svg',
-    tag: data.tag || ('mensagem-' + (data.threadId || 'nova')),
-    renotify: true,
-    data: {
-      url: !data.url || data.url === '/' ? '/?tab=mensagens' : data.url,
-      threadId: data.threadId || null,
-    },
-  };
+    const threadId = data.threadId || null;
+    const targetPath = data.url || (threadId
+      ? '/?tab=mensagens&thread=' + encodeURIComponent(threadId)
+      : '/?tab=mensagens');
 
-  event.waitUntil(self.registration.showNotification(title, options));
-});
-
-self.addEventListener('notificationclick', function(event) {
-  event.notification.close();
-
-  const data = event.notification.data || {};
-  const targetUrl = new URL(data.url || '/?tab=mensagens', self.location.origin).href;
-  const threadId = data.threadId || new URL(targetUrl).searchParams.get('thread');
-
-  event.waitUntil((async function() {
     const windowClients = await clients.matchAll({
       type: 'window',
       includeUncontrolled: true,
     });
 
-    const sameOriginClient = windowClients.find((client) => {
-      try {
-        return new URL(client.url).origin === self.location.origin;
-      } catch (_) {
-        return false;
-      }
+    // Se o sistema já está efetivamente visível, o aviso interno assume.
+    const appVisible = windowClients.some((client) => client.visibilityState === 'visible');
+    if (appVisible) {
+      return;
+    }
+
+    const title = data.title || 'Nova mensagem';
+    const options = {
+      body: data.body || 'Você recebeu uma nova mensagem.',
+      icon: '/favicon.ico',
+      badge: '/favicon.ico',
+      tag: threadId ? 'mensagem-' + threadId : 'mensagem-nova',
+      renotify: true,
+      data: {
+        url: targetPath,
+        threadId,
+      },
+    };
+
+    await self.registration.showNotification(title, options);
+  })());
+});
+
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+
+  event.waitUntil((async () => {
+    const data = event.notification.data || {};
+    const threadId = data.threadId || null;
+    const targetPath = data.url || (threadId
+      ? '/?tab=mensagens&thread=' + encodeURIComponent(threadId)
+      : '/?tab=mensagens');
+    const targetUrl = new URL(targetPath, self.location.origin).href;
+
+    const windowClients = await clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true,
     });
 
-    if (sameOriginClient) {
-      sameOriginClient.postMessage({
+    for (const client of windowClients) {
+      if (!client.url.startsWith(self.location.origin)) continue;
+
+      client.postMessage({
         type: 'OPEN_MESSAGES',
         threadId,
       });
 
-      if ('focus' in sameOriginClient) {
-        await sameOriginClient.focus();
+      if ('focus' in client) {
+        await client.focus();
       }
       return;
     }
