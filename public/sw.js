@@ -12,18 +12,20 @@ self.addEventListener('push', function(event) {
     }
 
     const threadId = data.threadId || null;
-    const targetPath = data.url || (threadId
-      ? '/?tab=mensagens&thread=' + encodeURIComponent(threadId)
-      : '/?tab=mensagens');
+    const targetPath = data.url && data.url !== '/'
+      ? data.url
+      : (threadId
+        ? '/?tab=mensagens&thread=' + encodeURIComponent(threadId)
+        : '/?tab=mensagens');
 
     const windowClients = await clients.matchAll({
       type: 'window',
       includeUncontrolled: true,
     });
 
-    // Se o sistema já está efetivamente visível, o aviso interno assume.
-    const appVisible = windowClients.some((client) => client.visibilityState === 'visible');
-    if (appVisible) {
+    // Só suprime a notificação do sistema quando a própria janela do Fluxo está em foco.
+    const appFocused = windowClients.some((client) => client.focused === true);
+    if (appFocused) {
       return;
     }
 
@@ -50,9 +52,11 @@ self.addEventListener('notificationclick', function(event) {
   event.waitUntil((async () => {
     const data = event.notification.data || {};
     const threadId = data.threadId || null;
-    const targetPath = data.url || (threadId
-      ? '/?tab=mensagens&thread=' + encodeURIComponent(threadId)
-      : '/?tab=mensagens');
+    const targetPath = data.url && data.url !== '/'
+      ? data.url
+      : (threadId
+        ? '/?tab=mensagens&thread=' + encodeURIComponent(threadId)
+        : '/?tab=mensagens');
     const targetUrl = new URL(targetPath, self.location.origin).href;
 
     const windowClients = await clients.matchAll({
