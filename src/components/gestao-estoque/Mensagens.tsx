@@ -835,18 +835,10 @@ export function Mensagens() {
 
       if (isAudio) {
         parts.push(
-          <div key={match.index} className="my-2 min-w-[240px]">
-            <audio controls preload="metadata" className="w-full">
+          <div key={match.index} className="my-1 min-w-[250px] max-w-[360px]">
+            <audio controls preload="metadata" className="h-10 w-full">
               <source src={url} />
             </audio>
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1 block text-xs underline"
-            >
-              {nome}
-            </a>
           </div>
         );
       } else {
@@ -1295,7 +1287,7 @@ export function Mensagens() {
                 </Button>
                 <Button
                   onClick={handleSendReply}
-                  disabled={!selectedThread || isSendingMessage || isUploadingFile || (!replyText.trim() && !replyText.includes('[Anexo:'))}
+                  disabled={!selectedThread || isSendingMessage || isUploadingFile || (!replyText.trim() && !pendingAudioUrl && !replyText.includes('[Anexo:'))}
                   className="h-10 gap-2 px-6 rounded-xl shadow-md hover:shadow-lg transition-all"
                 >
                   {isSendingMessage ? (
