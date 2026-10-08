@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,6 +32,8 @@ export function useMensagensNaoLidas() {
   const { user } = useAuth();
   const userId = user?.id;
   const [naoLidas, setNaoLidas] = useState(0);
+  const mensagensConhecidasRef = useRef<Set<string>>(new Set());
+  const inicializadoRef = useRef(false);
 
   const carregarNaoLidas = useCallback(async () => {
     if (!userId) {
@@ -47,6 +49,78 @@ export function useMensagensNaoLidas() {
 
     setNaoLidas(Number(data || 0));
   }, [userId]);
+
+
+  const notificarMensagem = useCallback(async (message: any) => {
+    if (!message?.id || mensagensConhecidasRef.current.has(message.id)) return;
+    mensagensConhecidasRef.current.add(message.id);
+
+    let senderName = 'Usuário';
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('nome,email')
+      .eq('user_id', message.sender_id)
+      .maybeSingle();
+
+    if (profile) senderName = profile.nome || profile.email || senderName;
+
+    const texto = String(message.message || '');
+    const resumo = texto.includes('[Áudio:')
+      ? 'Mensagem de áudio'
+      : texto.includes('[Anexo:')
+        ? 'Novo arquivo recebido'
+        : texto.slice(0, 140);
+
+    tocarSomMensagem();
+
+    toast.info(`Nova mensagem de ${senderName}`, {
+      description: resumo,
+      duration: 7000,
+      action: {
+        label: 'Abrir',
+        onClick: () => window.dispatchEvent(new CustomEvent('abrir-mensagens')),
+      },
+    });
+
+    if (
+      typeof window !== 'undefined' &&
+      'Notification' in window &&
+      Notification.permission === 'granted' &&
+      document.visibilityState !== 'visible'
+    ) {
+      new Notification(`Nova mensagem de ${senderName}`, {
+        body: resumo,
+        tag: `mensagem-${message.thread_id}`,
+      });
+    }
+  }, []);
+
+  const verificarNovasMensagens = useCallback(async () => {
+    if (!userId) return;
+
+    const { data, error } = await (supabase as any).rpc('listar_mensagens_nao_lidas_detalhes_v1', {
+      p_limite: 50,
+    });
+
+    if (error) {
+      console.error('Erro ao verificar novas mensagens:', error);
+      return;
+    }
+
+    const mensagens = data || [];
+
+    if (!inicializadoRef.current) {
+      mensagens.forEach((message: any) => mensagensConhecidasRef.current.add(message.id));
+      inicializadoRef.current = true;
+      return;
+    }
+
+    for (const message of [...mensagens].reverse()) {
+      await notificarMensagem(message);
+    }
+
+    await carregarNaoLidas();
+  }, [userId, carregarNaoLidas, notificarMensagem]);
 
   useEffect(() => {
     void carregarNaoLidas();
@@ -68,40 +142,7 @@ export function useMensagensNaoLidas() {
       if (!participants.includes(userId)) return;
 
       await carregarNaoLidas();
-      tocarSomMensagem();
-
-      let senderName = 'Usuário';
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('nome,email')
-        .eq('user_id', message.sender_id)
-        .maybeSingle();
-
-      if (profile) senderName = profile.nome || profile.email || senderName;
-
-      const texto = String(message.message || '');
-      const resumo = texto.includes('[Áudio:')
-        ? 'Mensagem de áudio'
-        : texto.includes('[Anexo:')
-          ? 'Novo arquivo recebido'
-          : texto.slice(0, 140);
-
-      toast.info(`Nova mensagem de ${senderName}`, {
-        description: resumo,
-        duration: 7000,
-      });
-
-      if (
-        typeof window !== 'undefined' &&
-        'Notification' in window &&
-        Notification.permission === 'granted' &&
-        document.visibilityState !== 'visible'
-      ) {
-        new Notification(`Nova mensagem de ${senderName}`, {
-          body: resumo,
-          tag: `mensagem-${message.thread_id}`,
-        });
-      }
+      await notificarMensagem(message);
     };
 
     const channel = supabase
@@ -113,14 +154,23 @@ export function useMensagensNaoLidas() {
       )
       .subscribe();
 
-    const refresh = () => void carregarNaoLidas();
+    const refresh = () => {
+      void carregarNaoLidas();
+      void verificarNovasMensagens();
+    };
     window.addEventListener('mensagens-nao-lidas-alteradas', refresh);
+
+    void verificarNovasMensagens();
+    const fallback = window.setInterval(() => {
+      void verificarNovasMensagens();
+    }, 4000);
 
     return () => {
       supabase.removeChannel(channel);
       window.removeEventListener('mensagens-nao-lidas-alteradas', refresh);
+      window.clearInterval(fallback);
     };
-  }, [userId, carregarNaoLidas]);
+  }, [userId, carregarNaoLidas, verificarNovasMensagens, notificarMensagem]);
 
   return {
     naoLidas,
