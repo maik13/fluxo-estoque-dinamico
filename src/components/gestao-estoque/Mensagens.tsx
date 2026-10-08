@@ -1048,7 +1048,6 @@ export function Mensagens() {
             ref={fileInputRef}
             onChange={handleFileUpload}
             className="hidden"
-            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
           />
           {isComposingNewThread ? (
             <div className="space-y-4">
@@ -1134,6 +1133,17 @@ export function Mensagens() {
                     {isUploadingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
                   </Button>
                   <Button
+                    type="button"
+                    variant={isRecordingAudio ? "destructive" : "outline"}
+                    size="icon"
+                    onClick={isRecordingAudio ? pararGravacaoAudio : iniciarGravacaoAudio}
+                    disabled={isUploadingFile}
+                    className="h-10 w-10 rounded-xl"
+                    title={isRecordingAudio ? `Parar gravação (${recordingSeconds}s)` : "Gravar áudio"}
+                  >
+                    {isRecordingAudio ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  </Button>
+                  <Button
                     onClick={handleSendMessage}
                     disabled={isSendingMessage || isUploadingFile}
                     className="h-10 gap-2 px-6 rounded-xl shadow-md hover:shadow-lg transition-all"
@@ -1174,6 +1184,17 @@ export function Mensagens() {
                   title="Anexar arquivo"
                 >
                   {isUploadingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                </Button>
+                <Button
+                  type="button"
+                  variant={isRecordingAudio ? "destructive" : "outline"}
+                  size="icon"
+                  onClick={isRecordingAudio ? pararGravacaoAudio : iniciarGravacaoAudio}
+                  disabled={isUploadingFile || !selectedThread}
+                  className="h-10 w-10 rounded-xl"
+                  title={isRecordingAudio ? `Parar gravação (${recordingSeconds}s)` : "Gravar áudio"}
+                >
+                  {isRecordingAudio ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 </Button>
                 <Button
                   onClick={handleSendReply}
