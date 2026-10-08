@@ -587,17 +587,17 @@ export const useEstoque = () => {
         item_id: string;
         saldo_atual: number | string | null;
         ultima_movimentacao: Movimentacao | null;
-      }>((inicio, fim) =>
+      }>((inicio, limite) =>
         (supabase as any)
           .rpc(
-            'listar_saldos_estoque_v1',
+            'listar_saldos_estoque_paginados_v2',
             {
               p_estoque_id: estoqueId ?? null,
               p_incluir_sem_estoque: incluirSemEstoque,
+              p_inicio: inicio,
+              p_limite: limite,
             },
-          )
-          .order('item_id', { ascending: true })
-          .range(inicio, fim),
+          ),
       );
 
       const novoMapaSaldos = new Map<string, number>();

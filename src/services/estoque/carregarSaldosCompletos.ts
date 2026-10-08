@@ -6,7 +6,7 @@ export interface PaginaSaldos<T> {
 
 // Fetch every balance before publishing the inventory. A partial page is not zero stock.
 export async function carregarSaldosCompletos<T extends { item_id: string }>(
-  buscarPagina: (inicio: number, fim: number) => PromiseLike<PaginaSaldos<T>>,
+  buscarPagina: (inicio: number, limite: number) => PromiseLike<PaginaSaldos<T>>,
 ): Promise<T[]> {
   // A leitura do saldo é paginada porque a API limita o tamanho da resposta.
   // Uma movimentação pode ocorrer entre duas páginas; nesse caso recomeçamos
@@ -18,20 +18,12 @@ export async function carregarSaldosCompletos<T extends { item_id: string }>(
   for (let tentativa = 0; tentativa < maxTentativas; tentativa += 1) {
     const saldos: T[] = [];
     const ids = new Set<string>();
-    let totalEsperado: number | null = null;
     let leituraMudou = false;
 
     for (;;) {
       const inicio = saldos.length;
-      const { data, error, count } = await buscarPagina(inicio, inicio + tamanhoPagina - 1);
+      const { data, error } = await buscarPagina(inicio, tamanhoPagina);
       if (error) throw error;
-      if (count != null) {
-        if (totalEsperado != null && count !== totalEsperado) {
-          leituraMudou = true;
-          break;
-        }
-        totalEsperado = count;
-      }
       const pagina = data ?? [];
       for (const saldo of pagina) {
         if (ids.has(saldo.item_id)) {
@@ -43,12 +35,7 @@ export async function carregarSaldosCompletos<T extends { item_id: string }>(
       }
       if (leituraMudou) break;
 
-      if (totalEsperado != null) {
-        if (saldos.length === totalEsperado) return saldos;
-        if (saldos.length > totalEsperado || pagina.length === 0) {
-          throw new Error('Não foi possível carregar a posição completa do estoque.');
-        }
-      } else if (pagina.length < tamanhoPagina) {
+      if (pagina.length < tamanhoPagina) {
         return saldos;
       }
     }
