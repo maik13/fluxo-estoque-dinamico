@@ -6,14 +6,10 @@ import { useAuth } from '@/hooks/useAuth';
 const VAPID_PUBLIC_KEY = 'BAJaTusXeN97bOB7m38jSAAgu0kR-VMTk3xEU6Zw0MV6vL1NsQtoPCrbm7qz7hX8q0HTK8bt5QB00DLP5IJt-H4';
 
 const urlBase64ToUint8Array = (base64String: string) => {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; i += 1) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
+  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
 };
 
 const tocarSomMensagem = () => {
@@ -21,6 +17,7 @@ const tocarSomMensagem = () => {
   try {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContextClass) return;
+
     const context = new AudioContextClass();
     const oscillator = context.createOscillator();
     const gain = context.createGain();
@@ -47,45 +44,8 @@ export function useMensagensNaoLidas() {
   const [naoLidas, setNaoLidas] = useState(0);
   const mensagensConhecidasRef = useRef<Set<string>>(new Set());
   const inicializadoRef = useRef(false);
-
-
-  const ativarPush = useCallback(async () => {
-    if (
-      !userId ||
-      typeof window === 'undefined' ||
-      !('serviceWorker' in navigator) ||
-      !('PushManager' in window) ||
-      !('Notification' in window)
-    ) {
-      return false;
-    }
-
-    const registration = await navigator.serviceWorker.register('/sw.js');
-    await navigator.serviceWorker.ready;
-
-    let subscription = await registration.pushManager.getSubscription();
-    if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-      });
-    }
-
-    const { error } = await supabase
-      .from('push_subscriptions')
-      .upsert({
-        user_id: userId,
-        endpoint: subscription.endpoint,
-        subscription: JSON.parse(JSON.stringify(subscription)),
-      }, { onConflict: 'user_id,endpoint' });
-
-    if (error) {
-      console.error('Erro ao registrar push:', error);
-      return false;
-    }
-
-    return true;
-  }, [userId]);
+  const pushReadyRef = useRef(false);
+  const promptExibidoRef = useRef(false);
 
   const carregarNaoLidas = useCallback(async () => {
     if (!userId) {
@@ -102,6 +62,66 @@ export function useMensagensNaoLidas() {
     setNaoLidas(Number(data || 0));
   }, [userId]);
 
+  const garantirInscricaoPush = useCallback(async (solicitarPermissao = false) => {
+    if (!userId || typeof window === 'undefined') return false;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      return false;
+    }
+
+    let permission = Notification.permission;
+    if (permission === 'default' && solicitarPermissao) {
+      permission = await Notification.requestPermission();
+    }
+    if (permission !== 'granted') {
+      pushReadyRef.current = false;
+      return false;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+      }
+
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .upsert(
+          {
+            user_id: userId,
+            endpoint: subscription.endpoint,
+            subscription: JSON.parse(JSON.stringify(subscription)),
+          },
+          { onConflict: 'user_id,endpoint' },
+        );
+
+      if (error) throw error;
+
+      pushReadyRef.current = true;
+      return true;
+    } catch (error) {
+      pushReadyRef.current = false;
+      console.error('Erro ao registrar Push:', error);
+      return false;
+    }
+  }, [userId]);
+
+  const ativarNotificacoes = useCallback(async () => {
+    const enabled = await garantirInscricaoPush(true);
+    if (enabled) {
+      toast.success('Notificações do mensageiro ativadas.');
+    } else if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+      toast.error('As notificações estão bloqueadas no navegador. Libere-as nas permissões do site.');
+    } else {
+      toast.error('Não foi possível ativar as notificações neste navegador.');
+    }
+    return enabled;
+  }, [garantirInscricaoPush]);
 
   const notificarMensagem = useCallback(async (message: any) => {
     if (!message?.id || mensagensConhecidasRef.current.has(message.id)) return;
@@ -130,37 +150,29 @@ export function useMensagensNaoLidas() {
       duration: 7000,
       action: {
         label: 'Abrir',
-        onClick: () => window.dispatchEvent(new CustomEvent('abrir-mensagens', {
-          detail: { threadId: message.thread_id },
-        })),
+        onClick: () => window.dispatchEvent(
+          new CustomEvent('abrir-mensagens', { detail: { threadId: message.thread_id } }),
+        ),
       },
     });
 
     if (
-      typeof window !== 'undefined' &&
-      'Notification' in window &&
-      Notification.permission === 'granted' &&
       document.visibilityState !== 'visible'
+      && 'Notification' in window
+      && Notification.permission === 'granted'
+      && !pushReadyRef.current
     ) {
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager?.getSubscription();
-        if (!subscription) {
-          const notification = new Notification(`Nova mensagem de ${senderName}`, {
-            body: resumo,
-            tag: `mensagem-${message.thread_id}`,
-          });
-          notification.onclick = () => {
-            window.focus();
-            window.dispatchEvent(new CustomEvent('abrir-mensagens', {
-              detail: { threadId: message.thread_id },
-            }));
-            notification.close();
-          };
-        }
-      } catch (error) {
-        console.error('Erro ao exibir notificação do navegador:', error);
-      }
+      const notification = new Notification(`Nova mensagem de ${senderName}`, {
+        body: resumo,
+        tag: `mensagem-${message.thread_id}`,
+      });
+      notification.onclick = () => {
+        window.focus();
+        window.dispatchEvent(
+          new CustomEvent('abrir-mensagens', { detail: { threadId: message.thread_id } }),
+        );
+        notification.close();
+      };
     }
   }, []);
 
@@ -195,60 +207,33 @@ export function useMensagensNaoLidas() {
     await carregarNaoLidas();
   }, [userId, carregarNaoLidas, notificarMensagem]);
 
-
   useEffect(() => {
-    if (!userId || typeof window === 'undefined' || !('Notification' in window)) return;
+    if (!userId) {
+      pushReadyRef.current = false;
+      promptExibidoRef.current = false;
+      return;
+    }
 
-    let cancelado = false;
-
-    const prepararNotificacoes = async () => {
-      if ('serviceWorker' in navigator) {
-        try {
-          await navigator.serviceWorker.register('/sw.js');
-        } catch (error) {
-          console.error('Erro ao registrar service worker:', error);
-        }
-      }
-
-      if (Notification.permission === 'granted') {
-        await ativarPush();
-        return;
-      }
-
-      if (
-        Notification.permission === 'default' &&
-        !sessionStorage.getItem('mensagens-notificacao-sugerida')
-      ) {
-        sessionStorage.setItem('mensagens-notificacao-sugerida', '1');
-
-        toast.info('Ativar notificações de mensagens?', {
-          description: 'Receba avisos do Windows/Chrome mesmo quando estiver em outra aba.',
+    if (
+      'Notification' in window
+      && Notification.permission === 'default'
+      && !promptExibidoRef.current
+    ) {
+      promptExibidoRef.current = true;
+      window.setTimeout(() => {
+        toast.info('Ativar notificações do mensageiro?', {
+          description: 'Receba avisos no computador mesmo quando estiver usando outra aba.',
           duration: 12000,
           action: {
             label: 'Ativar',
-            onClick: async () => {
-              const permission = await Notification.requestPermission();
-              if (permission !== 'granted') {
-                toast.error('As notificações não foram autorizadas.');
-                return;
-              }
-
-              const ok = await ativarPush();
-              if (!cancelado && ok) {
-                toast.success('Notificações de mensagens ativadas.');
-              }
-            },
+            onClick: () => void ativarNotificacoes(),
           },
         });
-      }
-    };
-
-    void prepararNotificacoes();
-
-    return () => {
-      cancelado = true;
-    };
-  }, [userId, ativarPush]);
+      }, 1500);
+    } else if ('Notification' in window && Notification.permission === 'granted') {
+      void garantirInscricaoPush(false);
+    }
+  }, [userId, ativarNotificacoes, garantirInscricaoPush]);
 
   useEffect(() => {
     void carregarNaoLidas();
@@ -305,5 +290,6 @@ export function useMensagensNaoLidas() {
   return {
     naoLidas,
     recarregar: carregarNaoLidas,
+    ativarNotificacoes,
   };
 }
