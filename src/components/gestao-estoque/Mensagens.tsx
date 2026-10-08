@@ -746,12 +746,7 @@ export function Mensagens() {
         .from('product-photos')
         .getPublicUrl(`anexos/${fileName}`);
 
-      const attachmentText = `\n[Áudio: mensagem de voz](${publicUrl})`;
-      if (isComposingNewThread) {
-        setMessageText(prev => prev + attachmentText);
-      } else {
-        setReplyText(prev => prev + attachmentText);
-      }
+      setPendingAudioUrl(publicUrl);
       toast.success('Áudio pronto para enviar');
     } catch (error) {
       console.error('Erro ao enviar áudio:', error);
