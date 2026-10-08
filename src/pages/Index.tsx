@@ -86,9 +86,36 @@ const Index = () => {
   }, [loading, session, navigate]);
 
   useEffect(() => {
-    const abrirMensagens = () => setTabAtiva('mensagens');
-    window.addEventListener('abrir-mensagens', abrirMensagens);
-    return () => window.removeEventListener('abrir-mensagens', abrirMensagens);
+    const abrirMensagens = (event?: Event) => {
+      const customEvent = event as CustomEvent<{ threadId?: string }>;
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'mensagens');
+      if (customEvent?.detail?.threadId) {
+        url.searchParams.set('thread', customEvent.detail.threadId);
+      }
+      window.history.replaceState({}, '', url);
+      setTabAtiva('mensagens');
+    };
+
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('tab') === 'mensagens') {
+      setTabAtiva('mensagens');
+    }
+
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      if (event.data?.type !== 'OPEN_MESSAGES') return;
+      abrirMensagens(new CustomEvent('abrir-mensagens', {
+        detail: { threadId: event.data?.threadId },
+      }));
+    };
+
+    window.addEventListener('abrir-mensagens', abrirMensagens as EventListener);
+    navigator.serviceWorker?.addEventListener('message', handleServiceWorkerMessage);
+
+    return () => {
+      window.removeEventListener('abrir-mensagens', abrirMensagens as EventListener);
+      navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage);
+    };
   }, []);
 
 
