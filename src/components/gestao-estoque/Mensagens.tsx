@@ -512,6 +512,15 @@ export function Mensagens() {
   };
 
   useEffect(() => {
+    const url = new URL(window.location.href);
+    const threadFromNotification = url.searchParams.get('thread');
+    if (threadFromNotification) {
+      setSelectedThreadId(threadFromNotification);
+      setIsComposingNewThread(false);
+    }
+  }, []);
+
+  useEffect(() => {
     fetchThreadMessages();
     if (selectedThreadId) {
       void markThreadAsRead(selectedThreadId);
