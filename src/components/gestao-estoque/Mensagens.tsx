@@ -72,6 +72,7 @@ export function Mensagens() {
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [isLoadingThreads, setIsLoadingThreads] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [unreadByThread, setUnreadByThread] = useState<Record<string, number>>({});
 
   const playIncomingMessageSound = () => {
     if (typeof window === "undefined") return;
@@ -280,6 +281,39 @@ export function Mensagens() {
     }
   };
 
+
+  const fetchUnreadByThread = async () => {
+    if (!userId) return;
+    const { data, error } = await (supabase as any).rpc('listar_mensagens_nao_lidas_por_thread_v1');
+    if (error) {
+      console.error('Erro ao carregar mensagens não lidas:', error);
+      return;
+    }
+    const next: Record<string, number> = {};
+    (data || []).forEach((row: any) => {
+      next[row.thread_id] = Number(row.quantidade || 0);
+    });
+    setUnreadByThread(next);
+  };
+
+  const markThreadAsRead = async (threadId: string) => {
+    if (!userId) return;
+    const { error } = await (supabase as any).rpc('marcar_thread_como_lida_v1', {
+      p_thread_id: threadId,
+    });
+    if (error) {
+      console.error('Erro ao marcar conversa como lida:', error);
+      return;
+    }
+    setUnreadByThread((current) => {
+      if (!current[threadId]) return current;
+      const next = { ...current };
+      delete next[threadId];
+      return next;
+    });
+    window.dispatchEvent(new CustomEvent('mensagens-nao-lidas-alteradas'));
+  };
+
   const selectedThreadIdRef = useRef(selectedThreadId);
   useEffect(() => {
     selectedThreadIdRef.current = selectedThreadId;
@@ -294,6 +328,7 @@ export function Mensagens() {
 
   useEffect(() => {
     fetchThreads();
+    fetchUnreadByThread();
 
     const handleNewMessage = async (payload: any) => {
       try {
@@ -304,6 +339,12 @@ export function Mensagens() {
 
         if (payload.new.thread_id === selectedThreadIdRef.current) {
           await fetchThreadMessages(payload.new.thread_id, true);
+          if (payload.new.sender_id !== userId) {
+            await markThreadAsRead(payload.new.thread_id);
+          }
+        } else if (payload.new.sender_id !== userId) {
+          await fetchUnreadByThread();
+          window.dispatchEvent(new CustomEvent('mensagens-nao-lidas-alteradas'));
         }
         await fetchThreads();
       } catch (error) {
@@ -450,6 +491,9 @@ export function Mensagens() {
 
   useEffect(() => {
     fetchThreadMessages();
+    if (selectedThreadId) {
+      void markThreadAsRead(selectedThreadId);
+    }
   }, [selectedThreadId]);
 
   useEffect(() => {
@@ -916,14 +960,24 @@ export function Mensagens() {
                       <span className="truncate text-sm font-semibold text-foreground">
                         {thread.display_name || (canChooseMessageRecipient ? thread.viewer_name : "Gestão")}
                       </span>
-                      <span className="shrink-0 text-[10px] text-muted-foreground font-medium">
-                        {new Date(thread.updated_at).toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {(unreadByThread[thread.id] || 0) > 0 && (
+                          <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
+                            {unreadByThread[thread.id] > 99 ? '99+' : unreadByThread[thread.id]}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-muted-foreground font-medium">
+                          {new Date(thread.updated_at).toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
                     </div>
-                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                    <p className={cn(
+                      "mt-1 truncate text-xs",
+                      (unreadByThread[thread.id] || 0) > 0 ? "font-semibold text-foreground" : "text-muted-foreground"
+                    )}>
                       {thread.last_message || "Conversa iniciada"}
                     </p>
                   </div>
