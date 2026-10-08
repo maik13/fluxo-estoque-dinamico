@@ -747,8 +747,8 @@ export function Mensagens() {
   }, [isRecordingAudio]);
 
   const formatMessageContent = (text: string) => {
-    const linkRegex = /\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g;
-    const parts = [];
+    const linkRegex = /\[(Anexo|Áudio):\s*(.*?)\]\((https?:\/\/[^\s)]+)\)/g;
+    const parts: React.ReactNode[] = [];
     let lastIndex = 0;
     let match;
 
@@ -756,18 +756,43 @@ export function Mensagens() {
       if (match.index > lastIndex) {
         parts.push(text.substring(lastIndex, match.index));
       }
-      parts.push(
-        <a 
-          key={match.index} 
-          href={match[2]} 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="font-bold underline hover:opacity-80 transition-opacity"
-          style={{ color: 'inherit' }}
-        >
-          📎 {match[1]}
-        </a>
-      );
+
+      const tipo = match[1];
+      const nome = match[2];
+      const url = match[3];
+      const isAudio = tipo === 'Áudio' || /\.(webm|mp3|wav|ogg|m4a|aac)(\?|$)/i.test(nome);
+
+      if (isAudio) {
+        parts.push(
+          <div key={match.index} className="my-2 min-w-[240px]">
+            <audio controls preload="metadata" className="w-full">
+              <source src={url} />
+            </audio>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 block text-xs underline"
+            >
+              {nome}
+            </a>
+          </div>
+        );
+      } else {
+        parts.push(
+          <a
+            key={match.index}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-bold underline hover:opacity-80 transition-opacity"
+            style={{ color: 'inherit' }}
+          >
+            📎 {nome}
+          </a>
+        );
+      }
+
       lastIndex = linkRegex.lastIndex;
     }
 
