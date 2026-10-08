@@ -47,6 +47,7 @@ type NavegacaoLateralEstoqueProps = {
   showRHInformacoes: boolean;
   showConfiguracoes: boolean;
   solicitacoesPendentesCount: number;
+  mensagensNaoLidasCount: number;
   somenteBIProducao: boolean;
 };
 
