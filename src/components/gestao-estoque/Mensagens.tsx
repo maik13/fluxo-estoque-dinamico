@@ -242,13 +242,13 @@ export function Mensagens() {
     }
   };
 
-  const fetchThreadMessages = async (threadId = selectedThreadId) => {
+  const fetchThreadMessages = async (threadId = selectedThreadId, silent = false) => {
     if (!threadId) {
       setMessages([]);
       return;
     }
 
-    setIsLoadingMessages(true);
+    if (!silent) setIsLoadingMessages(true);
     try {
       const { data, error } = await (supabase as any)
         .from("viewer_thread_messages")
@@ -272,7 +272,7 @@ export function Mensagens() {
       console.error("Erro ao carregar mensagens:", error);
       toast.error("Erro ao carregar mensagens da conversa");
     } finally {
-      setIsLoadingMessages(false);
+      if (!silent) setIsLoadingMessages(false);
     }
   };
 
@@ -299,7 +299,7 @@ export function Mensagens() {
         }
 
         if (payload.new.thread_id === selectedThreadIdRef.current) {
-          await fetchThreadMessages(payload.new.thread_id);
+          await fetchThreadMessages(payload.new.thread_id, true);
         }
         await fetchThreads();
       } catch (error) {
