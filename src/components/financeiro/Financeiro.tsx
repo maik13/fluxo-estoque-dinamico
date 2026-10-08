@@ -301,6 +301,23 @@ export const Financeiro = () => {
     return Number.isFinite(numero) ? numero : 0;
   };
 
+  const ultimaPosicaoBancaria = useMemo(() => {
+    const datas = posicoes
+      .map((posicao) => String(posicao.data || '').slice(0, 10))
+      .filter(Boolean)
+      .sort();
+    const data = datas.at(-1);
+
+    if (!data) return null;
+
+    return {
+      data,
+      saldo: posicoes
+        .filter((posicao) => String(posicao.data || '').slice(0, 10) === data)
+        .reduce((total, posicao) => total + Number(posicao.saldo_final_bancario || 0), 0),
+    };
+  }, [posicoes]);
+
   const subcategoriasPermitidas = (categoriaNome?: string | null) => {
     const ativas = subcategorias.filter((s) => s.ativo);
     if (!categoriaNome) return ativas;
@@ -340,11 +357,20 @@ export const Financeiro = () => {
     const saidasPrevistas = lancamentos
       .filter((l) => l.tipo === 'saida' && !['cancelado', 'pago', 'conciliado'].includes(l.status))
       .reduce((soma, l) => soma + Number(l.valor_previsto || 0), 0);
-    const saldoBancario = moedaOriginalParaNumero(ultimoSaldoDia?.saldo_dia_original);
+    /*
+     * A coluna "Saldo do Dia" da Página54 é o consolidado oficial da base.
+     * As posições por banco servem para detalhamento e conferência; quando
+     * houver divergência entre a soma das contas e o consolidado, o cartão
+     * precisa reproduzir o valor oficial informado pela planilha.
+     */
+    const possuiSaldoDiaOriginal = Boolean(ultimoSaldoDia?.data_posicao_original);
+    const saldoBancario = possuiSaldoDiaOriginal
+      ? moedaOriginalParaNumero(ultimoSaldoDia?.saldo_dia_original)
+      : (ultimaPosicaoBancaria?.saldo ?? 0);
     const saldoGerencial = moedaOriginalParaNumero(ultimoSaldoRealizado?.saldo_original);
-    const ultimoDia = ultimoSaldoDia?.data_posicao_original || null;
+    const ultimoDia = ultimoSaldoDia?.data_posicao_original || ultimaPosicaoBancaria?.data || null;
     return { abertas: abertas.length, semValor: semValor.length, aguardandoVencimento, saidasPrevistas, saldoBancario, saldoGerencial, ultimoDia };
-  }, [necessidades, lancamentos, ultimoSaldoDia, ultimoSaldoRealizado]);
+  }, [necessidades, lancamentos, ultimoSaldoDia, ultimoSaldoRealizado, ultimaPosicaoBancaria]);
 
   const projecoes = useMemo(() => {
     const hoje = new Date();
