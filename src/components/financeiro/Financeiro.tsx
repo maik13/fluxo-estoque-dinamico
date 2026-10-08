@@ -181,6 +181,7 @@ export const Financeiro = () => {
   const [ultimoSaldoDia, setUltimoSaldoDia] = useState<Registro | null>(null);
   const [ultimoSaldoRealizado, setUltimoSaldoRealizado] = useState<Registro | null>(null);
   const [auditoria, setAuditoria] = useState<Registro[]>([]);
+  const [importacoesPagina54, setImportacoesPagina54] = useState<Registro[]>([]);
 
   const [dialogPn, setDialogPn] = useState(false);
   const [dialogRc, setDialogRc] = useState(false);
@@ -245,6 +246,7 @@ export const Financeiro = () => {
         (supabase as any).from('financeiro_importacao_pagina54').select('linha,data_posicao_original,saldo_dia_original').not('data_posicao_original','is',null).order('linha',{ascending:false}).limit(1).maybeSingle(),
         (supabase as any).from('financeiro_importacao_pagina54').select('linha,data_realizada_original,saldo_original').not('data_realizada_original','is',null).order('linha',{ascending:false}).limit(1).maybeSingle(),
         (supabase as any).from('financeiro_auditoria').select('*').order('created_at',{ascending:false}).limit(500),
+        (supabase as any).from('financeiro_importacao_pagina54').select('linha,integracao_id,descricao,situacao,debito_original,credito_original,origem_alteracao,ultima_atualizacao_planilha,sync_status,sync_erro,revisao_pendente').eq('spreadsheet_id','1rbdYW0eFmVZr4BQ2l_Q3KFIRheaxQY8XR2HvGstLgPA').eq('aba','Página54').not('integracao_id','is',null).order('linha',{ascending:true}).limit(1500),
       ]);
 
       consultas.forEach((q: any) => { if (q.error) throw q.error; });
@@ -262,6 +264,7 @@ export const Financeiro = () => {
       setUltimoSaldoDia(consultas[11].data ?? null);
       setUltimoSaldoRealizado(consultas[12].data ?? null);
       setAuditoria(consultas[13].data ?? []);
+      setImportacoesPagina54(consultas[14].data ?? []);
     } catch (error) {
       console.error('Erro ao carregar Financeiro:', error);
       toast.error('Não foi possível carregar todos os dados do Financeiro.');
@@ -300,6 +303,40 @@ export const Financeiro = () => {
     const numero = Number(texto);
     return Number.isFinite(numero) ? numero : 0;
   };
+
+  const validacaoPagina54 = useMemo(() => {
+    const porIdPlanilha = new Map(
+      importacoesPagina54
+        .filter((linha) => linha.integracao_id)
+        .map((linha) => [linha.integracao_id, linha]),
+    );
+    const lancamentosV2 = lancamentos.filter((lancamento) => lancamento.origem_tipo === 'pagina54');
+    const porIdSistema = new Map(
+      lancamentosV2
+        .filter((lancamento) => lancamento.pagina54_integracao_id)
+        .map((lancamento) => [lancamento.pagina54_integracao_id, lancamento]),
+    );
+    const semNoSistema = [...porIdPlanilha.values()].filter((linha) => !porIdSistema.has(linha.integracao_id));
+    const semNaPlanilha = lancamentosV2.filter((lancamento) => !porIdPlanilha.has(lancamento.pagina54_integracao_id));
+    const comFalha = [...porIdPlanilha.values()].filter((linha) => linha.sync_erro || linha.sync_status === 'erro');
+    const emRevisao = [...porIdPlanilha.values()].filter((linha) => linha.revisao_pendente);
+    const manuais = lancamentos.filter((lancamento) => lancamento.origem_tipo !== 'pagina54');
+
+    return {
+      totalPlanilha: porIdPlanilha.size,
+      vinculados: porIdSistema.size,
+      semNoSistema,
+      semNaPlanilha,
+      comFalha,
+      emRevisao,
+      manuais: manuais.length,
+      ultimaAtualizacao: [...porIdPlanilha.values()]
+        .map((linha) => linha.ultima_atualizacao_planilha)
+        .filter(Boolean)
+        .sort()
+        .at(-1) || null,
+    };
+  }, [importacoesPagina54, lancamentos]);
 
   const ultimaPosicaoBancaria = useMemo(() => {
     const datas = posicoes
@@ -733,6 +770,41 @@ export const Financeiro = () => {
               <TableBody>{posicoes.length===0?<TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Nenhuma posição diária registrada.</TableCell></TableRow>:posicoes.slice(0,30).map(p=><TableRow key={p.id}><TableCell>{dataPt(p.data)}</TableCell><TableCell>{contaNome(p.conta_bancaria_id)}</TableCell><TableCell className="text-right">{moeda(p.saldo_final_bancario)}</TableCell><TableCell className="text-right">{moeda(p.pagamentos_programados_nao_liquidados)}</TableCell><TableCell className="text-right">{moeda(p.saldo_financeiro_gerencial)}</TableCell><TableCell>{p.pendencias_proximo_dia||'—'}</TableCell></TableRow>)}</TableBody></Table>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Conferência da integração</CardTitle>
+              <CardDescription>
+                Comparação entre a Página54 da planilha piloto e o Fluxo de Caixa. A Geral V2 será identificada discretamente como “V2” nos lançamentos.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Linhas da Página54</div><div className="mt-1 text-xl font-semibold">{validacaoPagina54.totalPlanilha}</div></div>
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Vinculadas ao sistema</div><div className="mt-1 text-xl font-semibold">{validacaoPagina54.vinculados}</div></div>
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Pendentes no sistema</div><div className={`mt-1 text-xl font-semibold ${validacaoPagina54.semNoSistema.length ? 'text-amber-700' : 'text-emerald-700'}`}>{validacaoPagina54.semNoSistema.length}</div></div>
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Sem linha na Página54</div><div className={`mt-1 text-xl font-semibold ${validacaoPagina54.semNaPlanilha.length ? 'text-amber-700' : 'text-emerald-700'}`}>{validacaoPagina54.semNaPlanilha.length}</div></div>
+                <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">Lançamentos só do sistema</div><div className="mt-1 text-xl font-semibold">{validacaoPagina54.manuais}</div></div>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                <span>Última atualização recebida: {validacaoPagina54.ultimaAtualizacao ? new Date(validacaoPagina54.ultimaAtualizacao).toLocaleString('pt-BR') : 'ainda não recebida'}</span>
+                <span>Falhas de sincronização: {validacaoPagina54.comFalha.length}</span>
+                <span>Linhas para revisão: {validacaoPagina54.emRevisao.length}</span>
+              </div>
+              {(validacaoPagina54.semNoSistema.length || validacaoPagina54.semNaPlanilha.length || validacaoPagina54.comFalha.length) ? (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+                  Há itens para conferir. Use a lista abaixo como roteiro antes de considerar a integração validada.
+                  <ul className="mt-2 space-y-1 text-muted-foreground">
+                    {validacaoPagina54.semNoSistema.slice(0, 5).map((linha) => <li key={`planilha-${linha.integracao_id}`}>Página54, linha {linha.linha}: {linha.descricao || 'sem descrição'} — ainda não localizada no sistema.</li>)}
+                    {validacaoPagina54.semNaPlanilha.slice(0, 5).map((lancamento) => <li key={`sistema-${lancamento.id}`}>Sistema: {lancamento.descricao || 'sem descrição'} — sem linha correspondente na Página54.</li>)}
+                    {validacaoPagina54.comFalha.slice(0, 5).map((linha) => <li key={`falha-${linha.integracao_id}`}>Página54, linha {linha.linha}: {linha.sync_erro || 'falha de sincronização'}.</li>)}
+                  </ul>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/5 p-3 text-sm text-emerald-800"><CheckCircle2 className="h-4 w-4" />Nenhuma divergência de vínculo encontrada nesta conferência.</div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>}
 
 
@@ -783,9 +855,7 @@ export const Financeiro = () => {
                   <TableCell className="min-w-[280px]">
                     <div className="font-medium">{l.descricao}</div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-                      {l.origem_tipo === 'pagina54' && <span>Página54 · linha {l.planilha_linha ?? '—'}</span>}
-                      {l.pagina54_integracao_id && <span className="max-w-[180px] truncate font-mono">ID {l.pagina54_integracao_id}</span>}
-                      {l.pagina54_sync_status && <span>Sync: {l.pagina54_sync_status}</span>}
+                      {l.origem_tipo === 'pagina54' && <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-normal" title="Origem: Relatório Geral V.2">V2</Badge>}
                       {l.pagina54_sync_erro && <span className="text-red-600">Erro: {l.pagina54_sync_erro}</span>}
                       {corP54 && (
                         <span className="inline-flex items-center gap-1">
