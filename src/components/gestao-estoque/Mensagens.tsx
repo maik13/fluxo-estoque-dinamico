@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Loader2, MessageCircle, Send, Paperclip, Bell, BellRing, Mic, Square } from "lucide-react";
+import { Search, Loader2, MessageCircle, Send, Paperclip, Bell, BellRing, Mic, Square, Check, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRef } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -32,6 +32,8 @@ interface ViewerMessage {
   message: string;
   created_at: string;
   sender_name?: string;
+  delivered_at?: string | null;
+  read_at?: string | null;
 }
 
 interface MessageRecipient {
@@ -312,6 +314,29 @@ export function Mensagens() {
       return next;
     });
     window.dispatchEvent(new CustomEvent('mensagens-nao-lidas-alteradas'));
+  };
+
+
+  const fetchReceipts = async (threadId: string) => {
+    const { data, error } = await (supabase as any).rpc('listar_recibos_thread_v1', {
+      p_thread_id: threadId,
+    });
+    if (error) {
+      console.error('Erro ao carregar recibos:', error);
+      return;
+    }
+    const map = new Map<string, { delivered_at: string | null; read_at: string | null }>();
+    (data || []).forEach((row: any) => {
+      map.set(row.message_id, {
+        delivered_at: row.delivered_at || null,
+        read_at: row.read_at || null,
+      });
+    });
+    setMessages((current) => current.map((message) => ({
+      ...message,
+      delivered_at: map.get(message.id)?.delivered_at || null,
+      read_at: map.get(message.id)?.read_at || null,
+    })));
   };
 
   const selectedThreadIdRef = useRef(selectedThreadId);
