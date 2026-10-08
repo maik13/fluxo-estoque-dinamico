@@ -702,7 +702,7 @@ export const Financeiro = () => {
 
         {(podeGerenciar || podeAprovar) && <TabsContent value="visao" className="mt-5 space-y-5">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Card><CardHeader className="pb-2"><CardDescription>Saldo bancário</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><Landmark className="h-5 w-5"/>{moeda(indicadores.saldoBancario)}</CardTitle><CardDescription>{indicadores.ultimoDia ? `posição de ${indicadores.ultimoDia}` : 'posição ainda não informada'}</CardDescription></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription>Saldo bancário</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><Landmark className="h-5 w-5"/>{moeda(indicadores.saldoBancario)}</CardTitle><CardDescription>{indicadores.ultimoDia ? `posição de ${dataPt(indicadores.ultimoDia)}` : 'posição ainda não informada'}</CardDescription></CardHeader></Card>
             <Card><CardHeader className="pb-2"><CardDescription>Saldo financeiro gerencial</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><WalletCards className="h-5 w-5"/>{moeda(indicadores.saldoGerencial)}</CardTitle></CardHeader></Card>
             <Card><CardHeader className="pb-2"><CardDescription>Saídas previstas</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><TrendingDown className="h-5 w-5"/>{moeda(indicadores.saidasPrevistas)}</CardTitle></CardHeader></Card>
             <Card><CardHeader className="pb-2"><CardDescription>Aguardando vencimento</CardDescription><CardTitle className="flex items-center gap-2 text-2xl"><FileClock className="h-5 w-5"/>{indicadores.aguardandoVencimento}</CardTitle></CardHeader></Card>

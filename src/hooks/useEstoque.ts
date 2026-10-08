@@ -595,7 +595,6 @@ export const useEstoque = () => {
               p_estoque_id: estoqueId ?? null,
               p_incluir_sem_estoque: incluirSemEstoque,
             },
-            { count: 'exact' },
           )
           .order('item_id', { ascending: true })
           .range(inicio, fim),
