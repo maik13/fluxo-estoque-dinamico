@@ -560,8 +560,11 @@ export function Mensagens() {
 
   const handleSendMessage = async () => {
     const trimmedMessage = messageText.trim();
+    const payloadMessage = [trimmedMessage, pendingAudioUrl ? `[Áudio: mensagem de voz](${pendingAudioUrl})` : '']
+      .filter(Boolean)
+      .join('\n');
 
-    if (!trimmedMessage) {
+    if (!payloadMessage) {
       toast.error("Digite a mensagem antes de enviar");
       return;
     }
@@ -582,7 +585,7 @@ export function Mensagens() {
         if (existingThread) {
           const { error } = await (supabase as any).rpc("send_visualizador_thread_message", {
             p_thread_id: existingThread.id,
-            p_message: trimmedMessage,
+            p_message: payloadMessage,
           });
 
           if (error) throw error;
@@ -590,6 +593,7 @@ export function Mensagens() {
           notifyMessageRecipients(existingThread.id);
 
           setMessageText("");
+          setPendingAudioUrl(null);
           setSelectedRecipientId("");
           setRecipientSearchTerm("");
           setIsComposingNewThread(false);
@@ -601,7 +605,7 @@ export function Mensagens() {
         // Se não existe, cria uma nova
         const { data: threadId, error } = await (supabase as any).rpc("start_user_message_thread", {
           p_recipient_id: selectedRecipientId,
-          p_message: trimmedMessage,
+          p_message: payloadMessage,
           p_requested_date: messageDate || null,
         });
 
@@ -612,6 +616,7 @@ export function Mensagens() {
         }
 
         setMessageText("");
+        setPendingAudioUrl(null);
         setSelectedRecipientId("");
         setRecipientSearchTerm("");
         setIsComposingNewThread(false);
@@ -621,7 +626,7 @@ export function Mensagens() {
       }
 
       const { data: newThreadId, error } = await (supabase as any).rpc("send_visualizador_message", {
-        p_message: trimmedMessage,
+        p_message: payloadMessage,
         p_requested_date: messageDate || null,
       });
 
@@ -635,6 +640,7 @@ export function Mensagens() {
 
       toast.success("Mensagem enviada com sucesso.");
       setMessageText("");
+      setPendingAudioUrl(null);
       await fetchThreads();
       setIsComposingNewThread(false);
     } catch (error: any) {
