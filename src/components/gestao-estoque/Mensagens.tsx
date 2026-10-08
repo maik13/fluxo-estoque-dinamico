@@ -368,27 +368,16 @@ export function Mensagens() {
   useEffect(() => {
     const refreshWhenVisible = () => {
       if (document.visibilityState === "visible") {
-        refreshCurrentConversation().catch(console.error);
+        fetchThreads().catch(console.error);
+        if (selectedThreadIdRef.current) {
+          fetchThreadMessages(selectedThreadIdRef.current).catch(console.error);
+        }
       }
-    };
-
-    const refreshWhenFocused = () => {
-      refreshCurrentConversation().catch(console.error);
     };
 
     document.addEventListener("visibilitychange", refreshWhenVisible);
-    window.addEventListener("focus", refreshWhenFocused);
-
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
-        refreshCurrentConversation().catch(console.error);
-      }
-    }, 8000);
-
     return () => {
       document.removeEventListener("visibilitychange", refreshWhenVisible);
-      window.removeEventListener("focus", refreshWhenFocused);
-      window.clearInterval(interval);
     };
   }, [userId]);
 
