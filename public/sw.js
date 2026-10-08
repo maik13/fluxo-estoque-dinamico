@@ -18,7 +18,7 @@ self.addEventListener('push', function(event) {
     tag: data.tag || ('mensagem-' + (data.threadId || 'nova')),
     renotify: true,
     data: {
-      url: data.url || '/?tab=mensagens',
+      url: !data.url || data.url === '/' ? '/?tab=mensagens' : data.url,
       threadId: data.threadId || null,
     },
   };
