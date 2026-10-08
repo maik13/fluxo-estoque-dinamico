@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { FinanceiroRelatorios } from './FinanceiroRelatorios';
 
 type Registro = Record<string, any>;
+const ITENS_POR_PAGINA_FLUXO = 50;
 
 const moeda = (valor: any) => {
   const numero = Number(valor);
@@ -129,6 +130,7 @@ export const Financeiro = () => {
   const [lancamentos, setLancamentos] = useState<Registro[]>([]);
   const [buscaFluxo, setBuscaFluxo] = useState('');
   const [filtroSituacaoFluxo, setFiltroSituacaoFluxo] = useState('todos');
+  const [paginaFluxo, setPaginaFluxo] = useState(1);
 
   const lancamentosFluxo = useMemo(() => {
     const termo = buscaFluxo.trim().toLowerCase();
@@ -165,6 +167,12 @@ export const Financeiro = () => {
     if (filtroSituacaoFluxo === 'conciliados') return lancamentosFluxo.filter((l) => l.status === 'conciliado');
     return lancamentosFluxo;
   }, [lancamentosFluxo, filtroSituacaoFluxo]);
+  const totalPaginasFluxo = Math.max(1, Math.ceil(lancamentosFluxoVisiveis.length / ITENS_POR_PAGINA_FLUXO));
+  const paginaFluxoAtual = Math.min(paginaFluxo, totalPaginasFluxo);
+  const lancamentosFluxoPaginados = useMemo(() => {
+    const inicio = (paginaFluxoAtual - 1) * ITENS_POR_PAGINA_FLUXO;
+    return lancamentosFluxoVisiveis.slice(inicio, inicio + ITENS_POR_PAGINA_FLUXO);
+  }, [lancamentosFluxoVisiveis, paginaFluxoAtual]);
   const pagamentosRealizados = useMemo(
     () => lancamentos.filter((l) => ['pago', 'conciliado'].includes(l.status)),
     [lancamentos],
@@ -250,8 +258,6 @@ export const Financeiro = () => {
         (supabase as any).from('financeiro_categoria_subcategorias').select('*'),
         (supabase as any).from('financeiro_importacao_pagina54').select('linha,data_posicao_original,saldo_dia_original').not('data_posicao_original','is',null).order('linha',{ascending:false}).limit(1).maybeSingle(),
         (supabase as any).from('financeiro_importacao_pagina54').select('linha,data_realizada_original,saldo_original').not('data_realizada_original','is',null).order('linha',{ascending:false}).limit(1).maybeSingle(),
-        (supabase as any).from('financeiro_auditoria').select('*').order('created_at',{ascending:false}).limit(500),
-        (supabase as any).from('financeiro_importacao_pagina54').select('linha,integracao_id,descricao,situacao,debito_original,credito_original,origem_alteracao,ultima_atualizacao_planilha,sync_status,sync_erro,revisao_pendente').eq('spreadsheet_id','1rbdYW0eFmVZr4BQ2l_Q3KFIRheaxQY8XR2HvGstLgPA').eq('aba','Página54').not('integracao_id','is',null).order('linha',{ascending:true}).limit(1500),
       ]);
 
       consultas.forEach((q: any) => { if (q.error) throw q.error; });
@@ -268,14 +274,41 @@ export const Financeiro = () => {
       setCategoriaSubcategorias(consultas[10].data ?? []);
       setUltimoSaldoDia(consultas[11].data ?? null);
       setUltimoSaldoRealizado(consultas[12].data ?? null);
-      setAuditoria(consultas[13].data ?? []);
-      setImportacoesPagina54(consultas[14].data ?? []);
     } catch (error) {
       console.error('Erro ao carregar Financeiro:', error);
       toast.error('Não foi possível carregar todos os dados do Financeiro.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const carregarAuditoriaDoFluxo = async () => {
+    const { data, error } = await (supabase as any)
+      .from('financeiro_auditoria')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (error) {
+      console.error('Erro ao carregar auditoria do fluxo:', error);
+      return;
+    }
+    setAuditoria(data ?? []);
+  };
+
+  const carregarConferenciaPagina54 = async () => {
+    const { data, error } = await (supabase as any)
+      .from('financeiro_importacao_pagina54')
+      .select('linha,integracao_id,descricao,situacao,debito_original,credito_original,origem_alteracao,ultima_atualizacao_planilha,sync_status,sync_erro,revisao_pendente')
+      .eq('spreadsheet_id', '1rbdYW0eFmVZr4BQ2l_Q3KFIRheaxQY8XR2HvGstLgPA')
+      .eq('aba', 'Página54')
+      .not('integracao_id', 'is', null)
+      .order('linha', { ascending: true })
+      .limit(1500);
+    if (error) {
+      console.error('Erro ao carregar conferência da Página54:', error);
+      return;
+    }
+    setImportacoesPagina54(data ?? []);
   };
 
   useEffect(() => {
@@ -290,9 +323,16 @@ export const Financeiro = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'financeiro_lancamentos' }, atualizar)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_compra' }, atualizar)
       .subscribe();
-    const intervalo = setInterval(atualizar, 30000);
+    // Alterações relevantes chegam pelo Realtime; este ciclo é apenas uma
+    // conferência de segurança e não precisa recarregar a tela a cada 30s.
+    const intervalo = setInterval(atualizar, 120000);
     return () => { if (debounce) clearTimeout(debounce); clearInterval(intervalo); void supabase.removeChannel(canal); };
   }, []);
+
+  useEffect(() => {
+    if (abaFinanceiro === 'fluxo') void carregarAuditoriaDoFluxo();
+    if (abaFinanceiro === 'visao') void carregarConferenciaPagina54();
+  }, [abaFinanceiro]);
 
   useEffect(() => {
     if (abasPermitidas.length === 0) return;
@@ -300,6 +340,10 @@ export const Financeiro = () => {
       setAbaFinanceiro(abasPermitidas[0]);
     }
   }, [abasPermitidas, abaFinanceiro]);
+
+  useEffect(() => {
+    setPaginaFluxo(1);
+  }, [buscaFluxo, filtroSituacaoFluxo]);
 
   const contaNome = (id?: string | null) => contas.find((c) => c.id === id)?.nome || '—';
   const moedaOriginalParaNumero = (valor?: string | null) => {
@@ -906,7 +950,7 @@ export const Financeiro = () => {
                 </div>
               </div>
               <Table><TableHeader><TableRow><TableHead>Situação</TableHead><TableHead>Data prevista</TableHead><TableHead>Data realizada</TableHead><TableHead>Descrição</TableHead><TableHead>Categoria</TableHead><TableHead>Subcategoria</TableHead><TableHead>Projeto / Centro</TableHead><TableHead className="text-right">Débito</TableHead><TableHead className="text-right">Crédito</TableHead>{podeAprovar && <TableHead>Última ação</TableHead>}{podeGerenciar && <TableHead></TableHead>}</TableRow></TableHeader>
-              <TableBody>{lancamentosFluxoVisiveis.length===0?<TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">{buscaFluxo.trim() ? 'Nenhum lançamento encontrado para a busca.' : 'Nenhum lançamento nesta situação.'}</TableCell></TableRow>:lancamentosFluxoVisiveis.map((l: Registro) => {
+              <TableBody>{lancamentosFluxoVisiveis.length===0?<TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">{buscaFluxo.trim() ? 'Nenhum lançamento encontrado para a busca.' : 'Nenhum lançamento nesta situação.'}</TableCell></TableRow>:lancamentosFluxoPaginados.map((l: Registro) => {
                 const corP54 = corHexValida(l.sinalizacao_cor) ? (l.sinalizacao_cor as string).trim() : null;
                 return (
                 <TableRow
@@ -939,6 +983,7 @@ export const Financeiro = () => {
                 </TableRow>
                 );
               })}</TableBody></Table>
+              {lancamentosFluxoVisiveis.length > ITENS_POR_PAGINA_FLUXO && <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm sm:flex-row sm:items-center sm:justify-between"><span className="text-muted-foreground">Mostrando {(paginaFluxoAtual - 1) * ITENS_POR_PAGINA_FLUXO + 1}–{Math.min(paginaFluxoAtual * ITENS_POR_PAGINA_FLUXO, lancamentosFluxoVisiveis.length)} de {lancamentosFluxoVisiveis.length} lançamentos</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={paginaFluxoAtual === 1} onClick={()=>setPaginaFluxo((pagina)=>Math.max(1, pagina - 1))}>Anterior</Button><span className="flex items-center px-2 text-muted-foreground">Página {paginaFluxoAtual} de {totalPaginasFluxo}</span><Button variant="outline" size="sm" disabled={paginaFluxoAtual === totalPaginasFluxo} onClick={()=>setPaginaFluxo((pagina)=>Math.min(totalPaginasFluxo, pagina + 1))}>Próxima</Button></div></div>}
             </CardContent>
           </Card>
         </TabsContent>}
