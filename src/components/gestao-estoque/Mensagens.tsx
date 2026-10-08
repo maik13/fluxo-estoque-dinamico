@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useRef } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
+import { MessageReceiptStatus } from "@/components/gestao-estoque/MessageReceiptStatus";
 
 interface ViewerThread {
   id: string;
