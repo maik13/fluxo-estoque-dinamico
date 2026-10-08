@@ -26,6 +26,7 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { ItemFotoMiniatura } from './ItemFotoMiniatura';
 import { itemEhFerramentaUnitaria } from '@/utils/itemClassification';
+import { formatarErroSupabase } from '@/utils/supabaseError';
 
 interface ItemSolicitacaoMaterial {
   item_id?: string;
@@ -384,15 +385,36 @@ export const SolicitacaoMaterial = () => {
       const solicitacao = solicitacoes.find(s => s.id === id);
 
       const itensParaPn = solicitacao ? obterItensParaPedidoCompra(solicitacao.itens) : [];
-      const { data: pns, error } = await (supabase as any).rpc('aprovar_solicitacao_material_com_pns', {
-        p_solicitacao_material_id: id,
-        p_itens_ids: itensParaPn.map((item) => item.id),
-      });
-      if (error) throw error;
+      let pns: { ja_existia: boolean }[] = [];
 
-      const novasPns = (pns || []).filter((pn: { ja_existia: boolean }) => !pn.ja_existia).length;
+      if (itensParaPn.length > 0) {
+        const { data, error } = await (supabase as any).rpc('aprovar_solicitacao_material_com_pns', {
+          p_solicitacao_material_id: id,
+          p_itens_ids: itensParaPn.map((item) => item.id),
+        });
+        if (error) throw error;
+        pns = data || [];
+      } else {
+        // Solicitações atendidas pelo estoque não dependem do Financeiro.
+        // Elas precisam apenas ser aprovadas para habilitar a conversão em retirada.
+        const { error } = await supabase
+          .from('solicitacoes_material')
+          .update({
+            status: 'aprovada',
+            aprovado_por_id: user.id,
+            aprovado_por_nome: userProfile.nome,
+            data_aprovacao: new Date().toISOString(),
+          })
+          .eq('id', id)
+          .eq('status', 'pendente');
+        if (error) throw error;
+      }
+
+      const novasPns = pns.filter((pn) => !pn.ja_existia).length;
       toast.success(
-        novasPns > 0
+        itensParaPn.length === 0
+          ? 'Solicitação aprovada! Ela já pode ser convertida em retirada do estoque.'
+          : novasPns > 0
           ? `Solicitação aprovada! ${novasPns} PN(s) enviada(s) ao Financeiro para formalização posterior em RC.`
           : 'Solicitação aprovada! Nenhuma PN adicional foi necessária.'
       );
@@ -402,8 +424,12 @@ export const SolicitacaoMaterial = () => {
         setSolicitacaoSelecionada(prev => prev ? { ...prev, status: 'aprovada', aprovado_por_nome: userProfile.nome } : null);
       }
     } catch (error) {
+      const mensagem = formatarErroSupabase(
+        error,
+        'Não foi possível aprovar a solicitação.',
+      );
       console.error('Erro ao aprovar solicitação:', error);
-      toast.error('Erro ao aprovar solicitação');
+      toast.error(mensagem);
     }
   };
 
@@ -545,11 +571,13 @@ export const SolicitacaoMaterial = () => {
             : null
         );
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao confirmar retirada:', error);
       toast.error(
-        error?.message ||
-          'A retirada não foi realizada. Nenhum saldo ou registro foi alterado.'
+        formatarErroSupabase(
+          error,
+          'A retirada não foi realizada. Nenhum saldo ou registro foi alterado.',
+        ),
       );
     } finally {
       setEnviando(false);
