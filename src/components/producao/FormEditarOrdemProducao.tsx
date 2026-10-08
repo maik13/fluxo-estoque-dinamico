@@ -38,6 +38,7 @@ import type {
 interface Props {
   ordem: ProducaoOrdemProducao;
   onSuccess: () => Promise<void> | void;
+  triggerLabel?: string;
 }
 
 type EtapaDestino = {
@@ -54,7 +55,11 @@ const formatarQuantidade = (value: number) =>
     maximumFractionDigits: 4,
   }).format(value);
 
-export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
+export const FormEditarOrdemProducao = ({
+  ordem,
+  onSuccess,
+  triggerLabel,
+}: Props) => {
   const [aberto, setAberto] = useState(false);
   const [quantidade, setQuantidade] = useState('');
   const [duracaoHoras, setDuracaoHoras] = useState('');
@@ -275,13 +280,14 @@ export const FormEditarOrdemProducao = ({ ordem, onSuccess }: Props) => {
     <Dialog open={aberto} onOpenChange={alterarAbertura}>
       <DialogTrigger asChild>
         <Button
-          size="icon"
+          size={triggerLabel ? 'sm' : 'icon'}
           variant="outline"
-          className="h-9 w-9 shrink-0"
-          title={`Editar ${formatarNumeroOrdemProducao(ordem.numero)}`}
-          aria-label={`Editar ${formatarNumeroOrdemProducao(ordem.numero)}`}
+          className={triggerLabel ? 'shrink-0' : 'h-9 w-9 shrink-0'}
+          title={`${triggerLabel ?? 'Editar'} ${formatarNumeroOrdemProducao(ordem.numero)}`}
+          aria-label={`${triggerLabel ?? 'Editar'} ${formatarNumeroOrdemProducao(ordem.numero)}`}
         >
-          <Pencil className="h-4 w-4" />
+          <Pencil className={triggerLabel ? 'mr-2 h-4 w-4' : 'h-4 w-4'} />
+          {triggerLabel}
         </Button>
       </DialogTrigger>
 

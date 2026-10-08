@@ -223,6 +223,7 @@ export const ProcessosProducaoHierarquico = ({
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
   const [projetoSelecionadoId, setProjetoSelecionadoId] = useState<string | null>(null);
   const [processoSelecionadoId, setProcessoSelecionadoId] = useState<string | null>(null);
+  const [ordemSelecionadaId, setOrdemSelecionadaId] = useState<string | null>(null);
   const [grupoSelecionadoId, setGrupoSelecionadoId] = useState<string | null>(null);
   const [etapaGrupoSelecionada, setEtapaGrupoSelecionada] = useState<string | null>(null);
   const [processoParaFinalizar, setProcessoParaFinalizar] = useState<ProducaoProcesso | null>(null);
@@ -510,15 +511,20 @@ export const ProcessosProducaoHierarquico = ({
   const processoSelecionado = processos.find(
     (processo) => processo.id === processoSelecionadoId,
   );
+  const ordemSelecionada = ordens.find((ordem) => ordem.id === ordemSelecionadaId) ?? null;
 
   const voltarProjetos = () => {
+    setOrdemSelecionadaId(null);
     setProcessoSelecionadoId(null);
     setProjetoSelecionadoId(null);
     setEtapaGrupoSelecionada(null);
     setGrupoSelecionadoId(null);
   };
 
-  const voltarEtapas = () => setProcessoSelecionadoId(null);
+  const voltarEtapas = () => {
+    setOrdemSelecionadaId(null);
+    setProcessoSelecionadoId(null);
+  };
 
   const executarEtapa = async (
     processo: ProducaoProcesso,
@@ -664,6 +670,142 @@ export const ProcessosProducaoHierarquico = ({
       const processosAbertosDaEtapa = etapaGrupoAtual.processos.filter((processo) =>
         ['planejado', 'em_andamento', 'pausado', 'bloqueado'].includes(processo.status),
       );
+
+      if (ordemSelecionada) {
+        const processoDaOp = processos.find(
+          (processo) => processo.id === ordemSelecionada.processo_id,
+        );
+        const jornadaDaOp = jornadasPorOp[ordemSelecionada.id] ?? null;
+        const podePausarOp = Boolean(jornadaDaOp);
+        const podeFinalizarOp =
+          !jornadaDaOp && ['liberada', 'em_execucao'].includes(ordemSelecionada.status);
+        const progressoDaOp = clampPercent(percentualExecucaoOp(ordemSelecionada));
+
+        const pausarOp = () => {
+          if (!jornadaDaOp) return;
+          const contexto = contextoFechamentoJornada(
+            jornadaDaOp,
+            false,
+            ordemSelecionada.responsavel_id,
+            ordemSelecionada.responsavel_nome_snapshot,
+          );
+          onFecharJornada({
+            ...contexto,
+            tarefaId: contexto.tarefaId ?? ordemSelecionada.tarefa_id ?? null,
+          });
+        };
+
+        return (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <Button variant="ghost" size="sm" onClick={() => {
+                setOrdemSelecionadaId(null);
+                setEtapaGrupoSelecionada(null);
+                setGrupoSelecionadoId(null);
+              }}>
+                Projetos
+              </Button>
+              <ChevronRight className="h-4 w-4" />
+              <Button variant="ghost" size="sm" onClick={() => setOrdemSelecionadaId(null)}>
+                {etapaGrupoAtual.nome}
+              </Button>
+              <ChevronRight className="h-4 w-4" />
+              <span className="font-medium text-foreground">
+                {formatarIdentificacaoOrdemProducao(ordemSelecionada)}
+              </span>
+            </div>
+
+            <div className="rounded-xl border bg-card p-5 shadow-sm">
+              <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-xl font-semibold">
+                      {formatarIdentificacaoOrdemProducao(ordemSelecionada)}
+                    </h3>
+                    <span className="rounded-full border px-2.5 py-1 text-xs font-semibold">
+                      {statusOpLabel[ordemSelecionada.status] ?? ordemSelecionada.status}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {processoDaOp?.projeto?.nome ?? ordemSelecionada.projeto_nome} · {processoDaOp?.nome ?? ordemSelecionada.processo_nome}
+                  </p>
+                  <div className="max-w-xl space-y-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Progresso da OP</span>
+                      <span>{progressoDaOp}%</span>
+                    </div>
+                    <BarraProgresso valor={progressoDaOp} />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2" aria-label="Ações da OP">
+                  {canConfigurarProducao() && (
+                    <FormEditarOrdemProducao
+                      ordem={ordemSelecionada}
+                      onSuccess={recarregar}
+                      triggerLabel="Retificar OP"
+                    />
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={pausarOp}
+                    disabled={!podePausarOp || executandoId === ordemSelecionada.id}
+                    title={podePausarOp ? 'Pausar a OP e encerrar o apontamento em andamento' : 'Não há apontamento em andamento para pausar nesta OP'}
+                  >
+                    <Pause className="mr-2 h-4 w-4" /> Pausar OP
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => void executarOp(ordemSelecionada, 'concluir')}
+                    disabled={!podeFinalizarOp || executandoId === ordemSelecionada.id}
+                    title={podeFinalizarOp ? 'Finalizar OP' : 'Encerre o apontamento em andamento antes de finalizar a OP'}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar OP
+                  </Button>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Quantidade</p>
+                  <p className="font-semibold">{ordemSelecionada.quantidade_realizada} de {ordemSelecionada.quantidade_planejada} {ordemSelecionada.unidade_medida ?? ''}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Início previsto</p>
+                  <p className="font-semibold">{formatarData(ordemSelecionada.data_inicio_prevista)}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Término previsto</p>
+                  <p className="font-semibold">{formatarData(ordemSelecionada.data_fim_prevista)}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Responsável</p>
+                  <p className="font-semibold">{ordemSelecionada.responsavel_nome_snapshot ?? 'Não definido'}</p>
+                </div>
+              </div>
+
+              <MateriaisOrdemProducao
+                ordem={ordemSelecionada}
+                estoqueAtivoId={estoqueAtivoId}
+                estoqueAtivoNome={estoqueAtivoNome}
+              />
+            </div>
+
+            <ModalIniciarOpComEquipe
+              ordem={ordemParaIniciar}
+              membros={membros}
+              ocupacoes={ocupacoesMembros}
+              iniciando={Boolean(ordemParaIniciar && executandoId === ordemParaIniciar.id)}
+              onOpenChange={(open) => {
+                if (!open && !executandoId) setOrdemParaIniciar(null);
+              }}
+              onConfirmar={(membrosIds) => void confirmarInicioTrabalhoOp(membrosIds)}
+            />
+          </div>
+        );
+      }
+
       return (
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -733,8 +875,7 @@ export const ProcessosProducaoHierarquico = ({
                       key={op.id}
                       type="button"
                       onClick={() => {
-                        if (projeto) setProjetoSelecionadoId(projeto.id);
-                        setProcessoSelecionadoId(op.processo_id);
+                        setOrdemSelecionadaId(op.id);
                       }}
                       className="rounded-xl border bg-card p-4 text-left shadow-sm transition hover:border-primary/50 hover:bg-muted/20"
                     >
