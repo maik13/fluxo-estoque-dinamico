@@ -1106,6 +1106,11 @@ export function Mensagens() {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
+                          {isOwnMessage && (
+                            message.read_at ? <CheckCheck className="h-3.5 w-3.5 text-sky-300" /> :
+                            message.delivered_at ? <CheckCheck className="h-3.5 w-3.5" /> :
+                            <Check className="h-3.5 w-3.5" />
+                          )}
                         </div>
                       </div>
                     </div>
