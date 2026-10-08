@@ -109,6 +109,10 @@ export function useMensagensNaoLidas() {
 
     const mensagens = data || [];
 
+    if (mensagens.length > 0) {
+      await (supabase as any).rpc('marcar_mensagens_entregues_v1');
+    }
+
     if (!inicializadoRef.current) {
       mensagens.forEach((message: any) => mensagensConhecidasRef.current.add(message.id));
       inicializadoRef.current = true;
@@ -142,6 +146,7 @@ export function useMensagensNaoLidas() {
       const participants = [thread.viewer_id, thread.created_by, thread.recipient_id].filter(Boolean);
       if (!participants.includes(userId)) return;
 
+      await (supabase as any).rpc('marcar_mensagens_entregues_v1');
       await carregarNaoLidas();
       await notificarMensagem(message);
     };
