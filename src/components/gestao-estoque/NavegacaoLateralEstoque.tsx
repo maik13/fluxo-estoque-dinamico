@@ -83,6 +83,7 @@ export const NavegacaoLateralEstoque = ({
   showRHInformacoes,
   showConfiguracoes,
   solicitacoesPendentesCount,
+  mensagensNaoLidasCount,
   somenteBIProducao,
 }: NavegacaoLateralEstoqueProps) => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -221,7 +222,7 @@ export const NavegacaoLateralEstoque = ({
       label: 'Comunicação',
       collapsible: true,
       items: [
-        { value: 'mensagens', label: 'Mensagens', icon: MessageCircle },
+        { value: 'mensagens', label: 'Mensagens', icon: MessageCircle, badge: mensagensNaoLidasCount },
       ],
     },
   ];
