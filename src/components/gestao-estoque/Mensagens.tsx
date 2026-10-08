@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Loader2, MessageCircle, Send, Paperclip, Bell, BellRing } from "lucide-react";
+import { Search, Loader2, MessageCircle, Send, Paperclip, Bell, BellRing, Mic, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRef } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -62,6 +62,10 @@ export function Mensagens() {
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const [isRecordingAudio, setIsRecordingAudio] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
   
   const [threads, setThreads] = useState<ViewerThread[]>([]);
   const [messages, setMessages] = useState<ViewerMessage[]>([]);
