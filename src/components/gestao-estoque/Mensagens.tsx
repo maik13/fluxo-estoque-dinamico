@@ -887,6 +887,20 @@ export function Mensagens() {
     );
   });
 
+  useEffect(() => {
+    if (threads.length === 0) return;
+
+    const url = new URL(window.location.href);
+    const threadId = url.searchParams.get('thread');
+    if (!threadId) return;
+
+    const existe = threads.some((thread) => thread.id === threadId);
+    if (!existe) return;
+
+    setSelectedThreadId(threadId);
+    setIsComposingNewThread(false);
+  }, [threads]);
+
   const filteredMessageRecipients = recipientSearchTerm.trim().length < 2
     ? []
     : messageRecipients
