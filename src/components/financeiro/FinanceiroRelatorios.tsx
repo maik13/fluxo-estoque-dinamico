@@ -7,12 +7,14 @@ import autoTable from 'jspdf-autotable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type Registro = Record<string, any>;
+type CategoriaPontualidade = 'comparaveis' | 'antecipados' | 'noPrazo' | 'atrasados';
 
 interface Props {
   lancamentos: Registro[];
@@ -37,6 +39,23 @@ const valorLancamento = (l: Registro, realizado = false) => {
 };
 
 const dateKey = (valor?: string | null) => valor ? String(valor).slice(0, 10) : '';
+
+const classificarPontualidade = (lancamento: Registro): Exclude<CategoriaPontualidade, 'comparaveis'> | null => {
+  const prevista = dateKey(lancamento.data_prevista);
+  const realizada = dateKey(lancamento.data_realizada);
+  if (!prevista || !realizada) return null;
+  if (realizada < prevista) return 'antecipados';
+  if (realizada === prevista) return 'noPrazo';
+  return 'atrasados';
+};
+
+const diferencaDiasPontualidade = (lancamento: Registro) => {
+  const prevista = dateKey(lancamento.data_prevista);
+  const realizada = dateKey(lancamento.data_realizada);
+  if (!prevista || !realizada) return null;
+  const umDia = 24 * 60 * 60 * 1000;
+  return Math.round((new Date(`${realizada}T12:00:00`).getTime() - new Date(`${prevista}T12:00:00`).getTime()) / umDia);
+};
 
 const inicioSemana = (data: string) => {
   const d = new Date(`${data}T12:00:00`);
@@ -87,6 +106,7 @@ export const FinanceiroRelatorios = ({ lancamentos, posicoes, contas }: Props) =
   const [subcategoria, setSubcategoria] = useState('todos');
   const [projeto, setProjeto] = useState('todos');
   const [busca, setBusca] = useState('');
+  const [pontualidadeSelecionada, setPontualidadeSelecionada] = useState<CategoriaPontualidade | null>(null);
 
   const opcoes = useMemo(() => ({
     categorias: [...new Set(lancamentos.map(l => l.categoria).filter(Boolean))].sort(),
@@ -171,17 +191,33 @@ export const FinanceiroRelatorios = ({ lancamentos, posicoes, contas }: Props) =
   const maioresSaidas = useMemo(() => [...filtrados].filter(l=>l.tipo==='saida').sort((a,b)=>valorLancamento(b,Boolean(b.data_realizada))-valorLancamento(a,Boolean(a.data_realizada))).slice(0,15), [filtrados]);
   const maioresEntradas = useMemo(() => [...filtrados].filter(l=>l.tipo==='entrada').sort((a,b)=>valorLancamento(b,Boolean(b.data_realizada))-valorLancamento(a,Boolean(a.data_realizada))).slice(0,15), [filtrados]);
 
+  const comparaveisPontualidade = useMemo(() =>
+    realizados.filter(l => l.data_prevista && l.data_realizada),
+  [realizados]);
+
   const pontualidade = useMemo(() => {
-    const comparaveis = realizados.filter(l => l.data_prevista && l.data_realizada);
     const grupos = { antecipados: 0, noPrazo: 0, atrasados: 0 };
-    comparaveis.forEach(l => {
-      const p = dateKey(l.data_prevista), r = dateKey(l.data_realizada);
-      if (r < p) grupos.antecipados += 1;
-      else if (r === p) grupos.noPrazo += 1;
-      else grupos.atrasados += 1;
+    comparaveisPontualidade.forEach(l => {
+      const classificacao = classificarPontualidade(l);
+      if (classificacao) grupos[classificacao] += 1;
     });
-    return { ...grupos, total: comparaveis.length };
-  }, [realizados]);
+    return { ...grupos, total: comparaveisPontualidade.length };
+  }, [comparaveisPontualidade]);
+
+  const linhasPontualidade = useMemo(() => {
+    if (!pontualidadeSelecionada) return [];
+    const linhas = pontualidadeSelecionada === 'comparaveis'
+      ? comparaveisPontualidade
+      : comparaveisPontualidade.filter(l => classificarPontualidade(l) === pontualidadeSelecionada);
+    return [...linhas].sort((a, b) => dateKey(b.data_realizada).localeCompare(dateKey(a.data_realizada)));
+  }, [comparaveisPontualidade, pontualidadeSelecionada]);
+
+  const tituloPontualidade: Record<CategoriaPontualidade, string> = {
+    comparaveis: 'Lançamentos comparáveis',
+    antecipados: 'Pagamentos antecipados',
+    noPrazo: 'Pagamentos no prazo',
+    atrasados: 'Pagamentos atrasados',
+  };
 
   const liquidez = useMemo(() => {
     const datas = [...new Set(posicoes.map(p => dateKey(p.data)).filter(Boolean))].sort();
@@ -246,8 +282,19 @@ export const FinanceiroRelatorios = ({ lancamentos, posicoes, contas }: Props) =
     setCategoria('todos'); setSubcategoria('todos'); setProjeto('todos'); setBusca('');
   };
 
-  const Kpi = ({ titulo, valor, subtitulo }: { titulo: string; valor: string; subtitulo?: string }) => (
-    <Card>
+  const Kpi = ({ titulo, valor, subtitulo, onClick }: { titulo: string; valor: string; subtitulo?: string; onClick?: () => void }) => (
+    <Card
+      className={onClick ? 'cursor-pointer transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring' : undefined}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={onClick ? (evento) => {
+        if (evento.key === 'Enter' || evento.key === ' ') {
+          evento.preventDefault();
+          onClick();
+        }
+      } : undefined}
+    >
       <CardHeader className="pb-2">
         <CardDescription>{titulo}</CardDescription>
         <CardTitle className="text-2xl">{valor}</CardTitle>
@@ -312,7 +359,7 @@ export const FinanceiroRelatorios = ({ lancamentos, posicoes, contas }: Props) =
             <Card><CardHeader><CardTitle>Fluxo semanal</CardTitle></CardHeader><CardContent><TabelaFluxo dados={realizadoSemana}/></CardContent></Card>
             <Card><CardHeader><CardTitle>Fluxo mensal</CardTitle></CardHeader><CardContent><TabelaFluxo dados={realizadoMes}/></CardContent></Card>
           </div>
-          <Card><CardHeader><CardTitle>Pontualidade financeira</CardTitle><CardDescription>Compara Data Prevista com Data Realizada quando ambas estão disponíveis.</CardDescription></CardHeader><CardContent className="grid gap-4 sm:grid-cols-4"><Kpi titulo="Comparáveis" valor={String(pontualidade.total)}/><Kpi titulo="Antecipados" valor={String(pontualidade.antecipados)}/><Kpi titulo="No prazo" valor={String(pontualidade.noPrazo)}/><Kpi titulo="Atrasados" valor={String(pontualidade.atrasados)}/></CardContent></Card>
+          <Card><CardHeader><CardTitle>Pontualidade financeira</CardTitle><CardDescription>Compara Data Prevista com Data Realizada quando ambas estão disponíveis. Clique em um cartão para abrir os lançamentos que compõem o número.</CardDescription></CardHeader><CardContent className="grid gap-4 sm:grid-cols-4"><Kpi titulo="Comparáveis" valor={String(pontualidade.total)} subtitulo="Ver lançamentos" onClick={() => setPontualidadeSelecionada('comparaveis')}/><Kpi titulo="Antecipados" valor={String(pontualidade.antecipados)} subtitulo="Ver lançamentos" onClick={() => setPontualidadeSelecionada('antecipados')}/><Kpi titulo="No prazo" valor={String(pontualidade.noPrazo)} subtitulo="Ver lançamentos" onClick={() => setPontualidadeSelecionada('noPrazo')}/><Kpi titulo="Atrasados" valor={String(pontualidade.atrasados)} subtitulo="Ver lançamentos" onClick={() => setPontualidadeSelecionada('atrasados')}/></CardContent></Card>
         </TabsContent>
 
         <TabsContent value="projetado" className="mt-4 space-y-4">
@@ -357,6 +404,66 @@ export const FinanceiroRelatorios = ({ lancamentos, posicoes, contas }: Props) =
           <Card><CardHeader><CardTitle>Posição por banco / conta</CardTitle></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Conta</TableHead><TableHead>Banco</TableHead><TableHead>Tipo</TableHead><TableHead>Data</TableHead><TableHead className="text-right">Saldo</TableHead></TableRow></TableHeader><TableBody>{ultimaPosicaoPorConta.map(p=><TableRow key={p.conta}><TableCell>{p.conta}</TableCell><TableCell>{p.banco}</TableCell><TableCell>{p.tipo||'—'}</TableCell><TableCell>{dataPt(p.data)}</TableCell><TableCell className="text-right">{moeda(p.saldo)}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog
+        open={Boolean(pontualidadeSelecionada)}
+        onOpenChange={(aberto) => !aberto && setPontualidadeSelecionada(null)}
+      >
+        <DialogContent className="max-h-[85vh] max-w-6xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {pontualidadeSelecionada ? tituloPontualidade[pontualidadeSelecionada] : 'Pontualidade financeira'}
+            </DialogTitle>
+            <DialogDescription>
+              {linhasPontualidade.length} lançamento(s) dentro dos filtros atuais compõem este indicador.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-x-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Classificação</TableHead>
+                  <TableHead>Data prevista</TableHead>
+                  <TableHead>Data realizada</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead>Situação</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {linhasPontualidade.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                      Nenhum lançamento encontrado para este indicador.
+                    </TableCell>
+                  </TableRow>
+                ) : linhasPontualidade.map((l) => {
+                  const classificacao = classificarPontualidade(l);
+                  const diferenca = diferencaDiasPontualidade(l);
+                  const textoClassificacao = classificacao === 'antecipados'
+                    ? `Antecipado${diferenca != null ? ` · ${Math.abs(diferenca)} dia(s)` : ''}`
+                    : classificacao === 'atrasados'
+                      ? `Atrasado${diferenca != null ? ` · ${diferenca} dia(s)` : ''}`
+                      : 'No prazo';
+
+                  return (
+                    <TableRow key={l.id || `${l.descricao}-${l.data_realizada}`}>
+                      <TableCell>{textoClassificacao}</TableCell>
+                      <TableCell>{dataPt(l.data_prevista)}</TableCell>
+                      <TableCell>{dataPt(l.data_realizada)}</TableCell>
+                      <TableCell className="min-w-[260px]">{l.descricao || '—'}</TableCell>
+                      <TableCell>{l.categoria || '—'}</TableCell>
+                      <TableCell>{l.status || '—'}</TableCell>
+                      <TableCell className="text-right">{moeda(valorLancamento(l, true))}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Card className="border-dashed">
         <CardHeader>
