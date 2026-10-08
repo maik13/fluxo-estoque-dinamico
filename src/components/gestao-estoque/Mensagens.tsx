@@ -653,13 +653,16 @@ export function Mensagens() {
 
   const handleSendReply = async () => {
     const trimmedReply = replyText.trim();
+    const payloadReply = [trimmedReply, pendingAudioUrl ? `[Áudio: mensagem de voz](${pendingAudioUrl})` : '']
+      .filter(Boolean)
+      .join('\n');
 
     if (!selectedThreadId) {
       toast.error("Selecione uma conversa");
       return;
     }
 
-    if (!trimmedReply) {
+    if (!payloadReply) {
       toast.error("Digite uma resposta antes de enviar");
       return;
     }
@@ -668,7 +671,7 @@ export function Mensagens() {
     try {
       const { error } = await (supabase as any).rpc("send_visualizador_thread_message", {
         p_thread_id: selectedThreadId,
-        p_message: trimmedReply,
+        p_message: payloadReply,
       });
 
       if (error) throw error;
@@ -676,6 +679,7 @@ export function Mensagens() {
       notifyMessageRecipients(selectedThreadId);
 
       setReplyText("");
+      setPendingAudioUrl(null);
       await fetchThreads();
       await fetchThreadMessages();
     } catch (error: any) {
