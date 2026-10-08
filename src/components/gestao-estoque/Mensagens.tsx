@@ -1188,6 +1188,13 @@ export function Mensagens() {
                   </div>
                 )}
               </div>
+              {pendingAudioUrl && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-2">
+                  <audio controls preload="metadata" className="h-10 w-full">
+                    <source src={pendingAudioUrl} />
+                  </audio>
+                </div>
+              )}
               <div className="flex gap-3">
                 <Textarea
                   id="viewer-message"
@@ -1241,7 +1248,15 @@ export function Mensagens() {
               </div>
             </div>
           ) : (
-            <div className="flex gap-3">
+            <div className="space-y-2">
+              {pendingAudioUrl && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-2">
+                  <audio controls preload="metadata" className="h-10 w-full">
+                    <source src={pendingAudioUrl} />
+                  </audio>
+                </div>
+              )}
+              <div className="flex gap-3">
               <Textarea
                 value={replyText}
                 onChange={(event) => setReplyText(event.target.value)}
@@ -1291,6 +1306,7 @@ export function Mensagens() {
                   <span className="hidden sm:inline font-semibold">Responder</span>
                 </Button>
               </div>
+            </div>
             </div>
           )}
         </div>
