@@ -699,6 +699,46 @@ export const ProcessosProducaoHierarquico = ({
           </div>
 
           <div>
+            <h4 className="mb-1 text-base font-semibold">Etapas por peça</h4>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Escolha a etapa da peça desejada para emitir uma OP, conferir o PCP ou alterar o status da etapa.
+            </p>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {etapaGrupoAtual.processos.map((processo) => {
+                const projeto = grupoSelecionado.projetos.find((resumo) =>
+                  pertenceAoProjeto(processo, resumo.projeto),
+                )?.projeto;
+                const opsDoProcesso = ordensPorProcesso[processo.id] ?? [];
+                return (
+                  <button
+                    key={processo.id}
+                    type="button"
+                    onClick={() => {
+                      if (projeto) setProjetoSelecionadoId(projeto.id);
+                      setProcessoSelecionadoId(processo.id);
+                    }}
+                    className="rounded-xl border bg-card p-4 text-left shadow-sm transition hover:border-primary/50 hover:bg-muted/20"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Etapa {processo.codigo}
+                        </p>
+                        <h5 className="mt-1 truncate font-semibold">{projeto?.nome ?? processo.projeto?.nome ?? 'Peça não identificada'}</h5>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {opsDoProcesso.length} OP(s) nesta etapa
+                        </p>
+                      </div>
+                      <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+                    </div>
+                    <p className="mt-3 text-sm font-medium text-primary">Gerenciar esta etapa</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
             <h4 className="mb-3 text-base font-semibold">Ordens de Produção</h4>
             {opsEtapa.length === 0 ? (
               <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
@@ -908,10 +948,11 @@ export const ProcessosProducaoHierarquico = ({
 
         <div className="rounded-xl border bg-card p-5 shadow-sm">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded bg-muted px-2 py-1 text-xs font-semibold">
-                  {processoSelecionado.codigo}
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Detalhes da etapa</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded bg-muted px-2 py-1 text-xs font-semibold">
+                  Etapa {processoSelecionado.codigo}
                 </span>
                 <h3 className="text-xl font-semibold">{processoSelecionado.nome}</h3>
                 <span className="rounded-full border px-2.5 py-1 text-xs font-semibold">
@@ -930,7 +971,7 @@ export const ProcessosProducaoHierarquico = ({
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" aria-label="Ações da etapa">
               {etapaAberta && canConfigurarProducao() && (
                 <FormRetificarProcesso
                   processo={processoSelecionado}
