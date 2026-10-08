@@ -618,9 +618,8 @@ export function Mensagens() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validar tamanho (máx 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('O arquivo deve ter no máximo 10MB');
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('O arquivo deve ter no máximo 50MB');
       return;
     }
 
@@ -661,6 +660,91 @@ export function Mensagens() {
       }
     }
   };
+
+
+  const uploadAudioBlob = async (blob: Blob) => {
+    setIsUploadingFile(true);
+    try {
+      const fileName = `audio_${Date.now()}.webm`;
+      const { error: uploadError } = await supabase.storage
+        .from('product-photos')
+        .upload(`anexos/${fileName}`, blob, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: blob.type || 'audio/webm'
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('product-photos')
+        .getPublicUrl(`anexos/${fileName}`);
+
+      const attachmentText = `\n[Áudio: mensagem de voz](${publicUrl})`;
+      if (isComposingNewThread) {
+        setMessageText(prev => prev + attachmentText);
+      } else {
+        setReplyText(prev => prev + attachmentText);
+      }
+      toast.success('Áudio pronto para enviar');
+    } catch (error) {
+      console.error('Erro ao enviar áudio:', error);
+      toast.error('Erro ao enviar áudio');
+    } finally {
+      setIsUploadingFile(false);
+    }
+  };
+
+  const iniciarGravacaoAudio = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      toast.error('Este navegador não suporta gravação de áudio.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        const blob = new Blob(audioChunksRef.current, {
+          type: recorder.mimeType || 'audio/webm'
+        });
+        audioChunksRef.current = [];
+        setRecordingSeconds(0);
+        void uploadAudioBlob(blob);
+      };
+
+      recorder.start();
+      setRecordingSeconds(0);
+      setIsRecordingAudio(true);
+    } catch (error) {
+      console.error('Erro ao iniciar gravação:', error);
+      toast.error('Não foi possível acessar o microfone.');
+    }
+  };
+
+  const pararGravacaoAudio = () => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === 'inactive') return;
+    recorder.stop();
+    mediaRecorderRef.current = null;
+    setIsRecordingAudio(false);
+  };
+
+  useEffect(() => {
+    if (!isRecordingAudio) return;
+    const timer = window.setInterval(() => {
+      setRecordingSeconds(value => value + 1);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [isRecordingAudio]);
 
   const formatMessageContent = (text: string) => {
     const linkRegex = /\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g;
