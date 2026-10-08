@@ -60,6 +60,7 @@ interface SolicitacaoMaterialCompleta {
     unidade: string;
     item_snapshot?: any;
     observacoes?: string;
+    destino_atendimento?: 'estoque' | 'pn';
   }[];
 }
 
@@ -382,46 +383,43 @@ export const SolicitacaoMaterial = () => {
   const aprovarSolicitacao = async (id: string) => {
     if (!userProfile || !user) return;
     try {
-      const solicitacao = solicitacoes.find(s => s.id === id);
+      // A classificação é feita no banco, com o saldo bloqueado naquele instante.
+      // Não usamos o saldo carregado no navegador para decidir PN versus retirada.
+      const { data, error } = await (supabase as any).rpc('aprovar_solicitacao_material_v2', {
+        p_solicitacao_material_id: id,
+      });
+      if (error) throw error;
 
-      const itensParaPn = solicitacao ? obterItensParaPedidoCompra(solicitacao.itens) : [];
-      let pns: { ja_existia: boolean }[] = [];
+      const resultado = data as {
+        itensEstoque: number;
+        itensPn: number;
+        pnsCriadas: number;
+      };
+      const mensagens = ['Solicitação aprovada.'];
+      if (resultado.itensEstoque > 0) mensagens.push(`${resultado.itensEstoque} item(ns) disponível(is) para retirada.`);
+      if (resultado.itensPn > 0) mensagens.push(`${resultado.itensPn} item(ns) encaminhado(s) para PN.`);
+      if (resultado.pnsCriadas > 0) mensagens.push(`${resultado.pnsCriadas} PN(s) criada(s).`);
+      toast.success(mensagens.join(' '));
 
-      if (itensParaPn.length > 0) {
-        const { data, error } = await (supabase as any).rpc('aprovar_solicitacao_material_com_pns', {
-          p_solicitacao_material_id: id,
-          p_itens_ids: itensParaPn.map((item) => item.id),
-        });
-        if (error) throw error;
-        pns = data || [];
-      } else {
-        // Solicitações atendidas pelo estoque não dependem do Financeiro.
-        // Elas precisam apenas ser aprovadas para habilitar a conversão em retirada.
-        const { error } = await supabase
-          .from('solicitacoes_material')
-          .update({
-            status: 'aprovada',
-            aprovado_por_id: user.id,
-            aprovado_por_nome: userProfile.nome,
-            data_aprovacao: new Date().toISOString(),
-          })
-          .eq('id', id)
-          .eq('status', 'pendente');
-        if (error) throw error;
-      }
-
-      const novasPns = pns.filter((pn) => !pn.ja_existia).length;
-      toast.success(
-        itensParaPn.length === 0
-          ? 'Solicitação aprovada! Ela já pode ser convertida em retirada do estoque.'
-          : novasPns > 0
-          ? `Solicitação aprovada! ${novasPns} PN(s) enviada(s) ao Financeiro para formalização posterior em RC.`
-          : 'Solicitação aprovada! Nenhuma PN adicional foi necessária.'
+      const { data: itensClassificados } = await supabase
+        .from('solicitacao_material_itens')
+        .select('id, destino_atendimento')
+        .eq('solicitacao_material_id', id);
+      const destinoPorItem = new Map(
+        (itensClassificados || []).map((item) => [item.id, item.destino_atendimento])
       );
 
       carregarSolicitacoes();
       if (solicitacaoSelecionada?.id === id) {
-        setSolicitacaoSelecionada(prev => prev ? { ...prev, status: 'aprovada', aprovado_por_nome: userProfile.nome } : null);
+        setSolicitacaoSelecionada(prev => prev ? {
+          ...prev,
+          status: 'aprovada',
+          aprovado_por_nome: userProfile.nome,
+          itens: prev.itens.map((item) => ({
+            ...item,
+            destino_atendimento: destinoPorItem.get(item.id) as 'estoque' | 'pn' | undefined,
+          })),
+        } : null);
       }
     } catch (error) {
       const mensagem = formatarErroSupabase(
@@ -519,9 +517,9 @@ export const SolicitacaoMaterial = () => {
       return;
     }
 
-    const itensEstoqueOnly = sol.itens.filter((item) => item.item_id);
+    const itensEstoqueOnly = sol.itens.filter((item) => item.item_id && item.destino_atendimento === 'estoque');
     if (itensEstoqueOnly.length === 0) {
-      toast.error('Nenhum item desta solicitação existe no estoque para retirada');
+      toast.info('Esta solicitação foi encaminhada integralmente para PN; não há retirada de estoque a confirmar.');
       return;
     }
 
@@ -537,17 +535,20 @@ export const SolicitacaoMaterial = () => {
       if (error) throw error;
 
       const resultado = data as {
-        solicitacaoRetiradaId: string;
+        solicitacaoRetiradaId: string | null;
         numeroRetirada: number | null;
         itensProcessados: number;
         jaConvertida: boolean;
+        somentePn: boolean;
       };
 
-      if (resultado.jaConvertida) {
+      if (resultado.somentePn) {
+        toast.info('Esta solicitação foi encaminhada integralmente para PN; nenhum item foi baixado do estoque.');
+      } else if (resultado.jaConvertida && resultado.solicitacaoRetiradaId) {
         toast.info(
           `Esta Solicitação de Material já havia sido convertida na Retirada #${resultado.numeroRetirada || resultado.solicitacaoRetiradaId.slice(-8)}.`
         );
-      } else {
+      } else if (resultado.solicitacaoRetiradaId) {
         toast.success(
           `Retirada #${resultado.numeroRetirada || resultado.solicitacaoRetiradaId.slice(-8)} confirmada. ${resultado.itensProcessados} item(ns) baixado(s) do estoque.`
         );
@@ -555,7 +556,7 @@ export const SolicitacaoMaterial = () => {
 
       if (sol.itens.length > itensEstoqueOnly.length) {
         toast.info(
-          `${sol.itens.length - itensEstoqueOnly.length} item(ns) avulso(s) não foram incluídos na retirada porque não existem no cadastro do estoque.`
+          `${sol.itens.length - itensEstoqueOnly.length} item(ns) foram encaminhados para PN e não foram incluídos na retirada.`
         );
       }
 
@@ -565,8 +566,8 @@ export const SolicitacaoMaterial = () => {
           prev
             ? {
                 ...prev,
-                status: 'convertida',
-                solicitacao_retirada_id: resultado.solicitacaoRetiradaId,
+                status: resultado.somentePn ? prev.status : 'convertida',
+                solicitacao_retirada_id: resultado.solicitacaoRetiradaId || undefined,
               }
             : null
         );
@@ -999,11 +1000,14 @@ export const SolicitacaoMaterial = () => {
                 </TableHeader>
                 <TableBody>
                   {solicitacaoSelecionada.itens.map((item, i) => {
-                    const vaiParaCompra = itemVaiParaCompra({ ...item, isCustom: !item.item_id });
+                    const vaiParaCompra = solicitacaoSelecionada.status === 'pendente'
+                      ? itemVaiParaCompra({ ...item, isCustom: !item.item_id })
+                      : item.destino_atendimento === 'pn';
                     const foiEditado = quantidadesEditadas[item.id] !== undefined;
-                    // Pode editar se pode gerenciar estoque e a solicitação ainda não foi convertida
+                    // Após aprovada, a quantidade não pode mudar sem uma nova conferência
+                    // atômica de saldo e de encaminhamento para PN.
                     const podeEditar = canManageStock() &&
-                      (solicitacaoSelecionada.status === 'aprovada' || solicitacaoSelecionada.status === 'pendente') &&
+                      solicitacaoSelecionada.status === 'pendente' &&
                       !!item.item_id;
 
                     return (
