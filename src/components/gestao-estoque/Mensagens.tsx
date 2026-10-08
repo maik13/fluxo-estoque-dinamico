@@ -159,10 +159,10 @@ export function Mensagens() {
     return profileMap;
   };
 
-  const fetchThreads = async () => {
+  const fetchThreads = async (silent = false) => {
     if (!userId) return;
 
-    setIsLoadingThreads(true);
+    if (!silent) setIsLoadingThreads(true);
     try {
       const { data, error } = await (supabase as any)
         .from("viewer_message_threads")
@@ -243,7 +243,7 @@ export function Mensagens() {
         toast.error("Erro ao carregar conversas");
       }
     } finally {
-      setIsLoadingThreads(false);
+      if (!silent) setIsLoadingThreads(false);
     }
   };
 
@@ -332,11 +332,6 @@ export function Mensagens() {
 
     const handleNewMessage = async (payload: any) => {
       try {
-        if (payload.new.sender_id && payload.new.sender_id !== userId) {
-          playIncomingMessageSound();
-          toast.info("Nova mensagem recebida");
-        }
-
         if (payload.new.thread_id === selectedThreadIdRef.current) {
           await fetchThreadMessages(payload.new.thread_id, true);
           if (payload.new.sender_id !== userId) {
@@ -346,7 +341,7 @@ export function Mensagens() {
           await fetchUnreadByThread();
           window.dispatchEvent(new CustomEvent('mensagens-nao-lidas-alteradas'));
         }
-        await fetchThreads();
+        await fetchThreads(true);
       } catch (error) {
         console.error("Erro no processamento da mensagem realtime:", error);
       }
