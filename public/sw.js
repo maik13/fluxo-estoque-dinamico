@@ -1,38 +1,66 @@
 // public/sw.js
 
 self.addEventListener('push', function(event) {
-  if (event.data) {
-    const data = event.data.json();
-    const title = data.title || 'Nova Mensagem';
-    const options = {
-      body: data.body || 'Você tem uma nova mensagem no almoxarifado.',
-      icon: '/vite.svg', // Substitua pelo ícone real do seu app se tiver (ex: /icon.png)
-      badge: '/vite.svg',
-      data: {
-        url: data.url || '/'
-      }
-    };
+  if (!event.data) return;
 
-    event.waitUntil(self.registration.showNotification(title, options));
+  let data = {};
+  try {
+    data = event.data.json();
+  } catch (_) {
+    data = { body: event.data.text() };
   }
+
+  const title = data.title || 'Nova mensagem';
+  const options = {
+    body: data.body || 'Você recebeu uma nova mensagem.',
+    icon: data.icon || '/vite.svg',
+    badge: data.badge || '/vite.svg',
+    tag: data.tag || ('mensagem-' + (data.threadId || 'nova')),
+    renotify: true,
+    data: {
+      url: data.url || '/?tab=mensagens',
+      threadId: data.threadId || null,
+    },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  event.waitUntil(
-    clients.matchAll({ type: 'window' }).then(windowClients => {
-      // Check if there is already a window/tab open with the target URL
-      for (var i = 0; i < windowClients.length; i++) {
-        var client = windowClients[i];
-        // If so, just focus it.
-        if (client.url === event.notification.data.url && 'focus' in client) {
-          return client.focus();
-        }
+
+  const data = event.notification.data || {};
+  const targetUrl = new URL(data.url || '/?tab=mensagens', self.location.origin).href;
+  const threadId = data.threadId || new URL(targetUrl).searchParams.get('thread');
+
+  event.waitUntil((async function() {
+    const windowClients = await clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true,
+    });
+
+    const sameOriginClient = windowClients.find((client) => {
+      try {
+        return new URL(client.url).origin === self.location.origin;
+      } catch (_) {
+        return false;
       }
-      // If not, then open the target URL in a new window/tab.
-      if (clients.openWindow) {
-        return clients.openWindow(event.notification.data.url);
+    });
+
+    if (sameOriginClient) {
+      sameOriginClient.postMessage({
+        type: 'OPEN_MESSAGES',
+        threadId,
+      });
+
+      if ('focus' in sameOriginClient) {
+        await sameOriginClient.focus();
       }
-    })
-  );
+      return;
+    }
+
+    if (clients.openWindow) {
+      await clients.openWindow(targetUrl);
+    }
+  })());
 });
