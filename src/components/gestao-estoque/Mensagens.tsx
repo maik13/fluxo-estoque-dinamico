@@ -69,6 +69,7 @@ export function Mensagens() {
   const audioChunksRef = useRef<Blob[]>([]);
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
   
   const [threads, setThreads] = useState<ViewerThread[]>([]);
   const [messages, setMessages] = useState<ViewerMessage[]>([]);
