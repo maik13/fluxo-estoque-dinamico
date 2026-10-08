@@ -86,6 +86,16 @@ const Field = ({ label, children, className = '' }: { label: string; children: R
   </div>
 );
 
+const LegendaDoFluxoFinanceiro = ({ contexto }: { contexto?: ReactNode }) => (
+  <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+    <span className="font-semibold text-foreground">Legenda do fluxo: </span>
+    <span><strong className="text-foreground">PN</strong> = Previsão de Necessidade · </span>
+    <span><strong className="text-foreground">RC</strong> = Requisição de Compra · </span>
+    <span><strong className="text-foreground">PC</strong> = Pedido de Compra Formal.</span>
+    {contexto && <p className="mt-1">{contexto}</p>}
+  </div>
+);
+
 export const Financeiro = () => {
   const {
     canManageFinanceiro,
@@ -990,7 +1000,7 @@ export const Financeiro = () => {
 
         {podeGerenciar && <TabsContent value="pn" className="mt-5">
           <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>PN — Previsão de Necessidade</CardTitle><CardDescription>Anexo A do procedimento. A Solicitação de Material com falta de estoque gera PN; depois da conferência, a PN é formalizada em RC.</CardDescription></div>
-          {podeGerenciar&&<Dialog open={dialogPn} onOpenChange={setDialogPn}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova PN</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Formulário PN</DialogTitle></DialogHeader>
+          {podeGerenciar&&<Dialog open={dialogPn} onOpenChange={setDialogPn}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova PN</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Formulário PN — Previsão de Necessidade</DialogTitle></DialogHeader><LegendaDoFluxoFinanceiro contexto="A PN registra uma necessidade antes da compra; ela poderá ser formalizada em RC após a conferência." />
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Solicitante / área"><Input value={pnForm.area} onChange={(e)=>setPnForm({...pnForm,area:e.target.value})}/></Field>
               <Field label="Projeto / obra / centro de custo"><Input value={pnForm.projeto} onChange={(e)=>setPnForm({...pnForm,projeto:e.target.value})}/></Field>
@@ -1024,7 +1034,7 @@ export const Financeiro = () => {
           <CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>RC</TableHead><TableHead>PN</TableHead><TableHead>Status financeiro</TableHead><TableHead>Origem</TableHead><TableHead>Data necessária</TableHead><TableHead className="text-right">Cotado</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>{rcs.length===0?<TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhuma RC.</TableCell></TableRow>:rcs.map(r=><TableRow key={r.id}><TableCell className="font-medium">RC-{String(r.numero).padStart(4,'0')}</TableCell><TableCell>{r.pn_origem_id?'Vinculada':'—'}</TableCell><TableCell><BadgeStatus status={r.status_financeiro_rc}/></TableCell><TableCell>{r.solicitacao_material_numero? `Solicitação #${r.solicitacao_material_numero}`:'Manual'}</TableCell><TableCell>{dataPt(r.data_necessaria)}</TableCell><TableCell className="text-right">{moeda(r.valor_estimado_cotado)}</TableCell><TableCell><Button size="sm" variant="outline" onClick={()=>abrirRc(r)}>Abrir formulário</Button></TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
 
-          <Dialog open={dialogRc} onOpenChange={setDialogRc}><DialogContent className="sm:max-w-4xl"><DialogHeader><DialogTitle>Formulário RC {selecionado? `#${selecionado.numero}`:''}</DialogTitle></DialogHeader>
+          <Dialog open={dialogRc} onOpenChange={setDialogRc}><DialogContent className="sm:max-w-4xl"><DialogHeader><DialogTitle>Formulário RC — Requisição de Compra {selecionado? `#${selecionado.numero}`:''}</DialogTitle></DialogHeader><LegendaDoFluxoFinanceiro contexto="Nesta etapa são registradas cotação, condição de compra e impacto financeiro. OP, quando usada, significa Ordem de Produção." />
             <div className="grid max-h-[65vh] gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
               <Field label="PN de origem"><Input value={selecionado?.pn_origem_id?'PN vinculada automaticamente':'Sem PN vinculada'} disabled/></Field>
               <Field label="Projeto / OP / centro de custo"><Input value={rcForm.projeto_centro_custo||''} onChange={(e)=>setRcForm({...rcForm,projeto_centro_custo:e.target.value})}/></Field>
@@ -1055,7 +1065,7 @@ export const Financeiro = () => {
 
         {(podeGerenciar || podeAprovar) && <TabsContent value="pc" className="mt-5">
           <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>PC — Pedido de Compra Formal</CardTitle><CardDescription>Anexo C. Só deve representar compromisso efetivamente assumido com fornecedor após aprovação.</CardDescription></div>
-          {canManageFinanceiro()&&<Dialog open={dialogPc} onOpenChange={setDialogPc}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Novo PC</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Formulário PC</DialogTitle></DialogHeader>
+          {canManageFinanceiro()&&<Dialog open={dialogPc} onOpenChange={setDialogPc}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Novo PC</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Formulário PC — Pedido de Compra Formal</DialogTitle></DialogHeader><LegendaDoFluxoFinanceiro contexto="O PC representa o compromisso aprovado com o fornecedor. CNPJ é a identificação fiscal do fornecedor." />
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="RC de origem"><Select value={pcForm.rcId} onValueChange={(v)=>setPcForm({...pcForm,rcId:v})}><SelectTrigger><SelectValue placeholder="Selecione a RC"/></SelectTrigger><SelectContent>{rcs.filter(r=>r.status_financeiro_rc!=='convertida_em_pc').map(r=><SelectItem key={r.id} value={r.id}>RC-{String(r.numero).padStart(4,'0')}</SelectItem>)}</SelectContent></Select></Field>
               <Field label="Fornecedor"><Input value={pcForm.fornecedor} onChange={(e)=>setPcForm({...pcForm,fornecedor:e.target.value})}/></Field>
@@ -1076,7 +1086,7 @@ export const Financeiro = () => {
 
         {podeProgramar && <TabsContent value="programacao" className="mt-5 space-y-5">
           <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>Programação Bancária</CardTitle><CardDescription>Fila formal Kátia → Guto. Programação bancária não substitui o planejamento.</CardDescription></div>
-          {(canManageFinanceiro()||canProgramFinanceiro())&&<Dialog open={dialogProgramacao} onOpenChange={setDialogProgramacao}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova programação</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Programação bancária</DialogTitle></DialogHeader>
+          {(canManageFinanceiro()||canProgramFinanceiro())&&<Dialog open={dialogProgramacao} onOpenChange={setDialogProgramacao}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Nova programação</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Programação bancária</DialogTitle></DialogHeader><LegendaDoFluxoFinanceiro contexto="A programação registra a intenção de pagamento. Ela só fica confirmada depois da conferência no banco." />
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Lançamento"><Select value={programacaoForm.lancamentoId} onValueChange={(v)=>setProgramacaoForm({...programacaoForm,lancamentoId:v})}><SelectTrigger><SelectValue placeholder="Selecione o lançamento"/></SelectTrigger><SelectContent>{lancamentos.filter(l=>l.tipo==='saida'&&l.liberado_programacao_em&&!['cancelado','pago','conciliado'].includes(l.status)).map(l=><SelectItem key={l.id} value={l.id}>{l.descricao.slice(0,60)} · {moeda(l.valor_previsto)}</SelectItem>)}</SelectContent></Select></Field>
               <Field label="Beneficiário"><Input value={programacaoForm.beneficiario} onChange={(e)=>setProgramacaoForm({...programacaoForm,beneficiario:e.target.value})}/></Field>
@@ -1098,7 +1108,7 @@ export const Financeiro = () => {
         {podeConciliar && <TabsContent value="conciliacao" className="mt-5 space-y-5">
           <Card><CardHeader><CardTitle>Pagamentos no fluxo para conciliação</CardTitle><CardDescription>“Pago” significa que o desembolso foi realizado e ainda precisa de conferência bancária. A confirmação só é registrada após escolher a conta e validar o movimento no banco.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Situação</TableHead><TableHead>Data realizada</TableHead><TableHead>Descrição</TableHead><TableHead>Categoria</TableHead><TableHead className="text-right">Valor</TableHead>{canConciliarFinanceiro() && <TableHead className="text-right">Conferência</TableHead>}</TableRow></TableHeader><TableBody>{pagamentosRealizados.length===0?<TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Nenhum pagamento no fluxo para conciliar.</TableCell></TableRow>:pagamentosRealizados.map(l=><TableRow key={l.id}><TableCell><BadgeStatus status={l.status}/>{l.status==='pago'&&<div className="mt-1 text-xs text-amber-700">Aguardando conciliação</div>}</TableCell><TableCell>{dataPt(l.data_realizada)}</TableCell><TableCell className="min-w-[280px]"><div className="font-medium">{l.descricao}</div>{l.origem_tipo==='pagina54'&&<div className="text-xs text-muted-foreground">Página54 · linha {l.planilha_linha??'—'}</div>}</TableCell><TableCell>{l.categoria||'—'}</TableCell><TableCell className="text-right">{moeda(l.valor_realizado??l.valor_previsto)}</TableCell>{canConciliarFinanceiro() && <TableCell className="text-right">{l.status==='pago' ? <Button size="sm" variant="outline" onClick={()=>abrirConfirmacaoDeConciliacao(l)}>Confirmar no banco</Button> : <Badge variant="outline">Conciliado</Badge>}</TableCell>}</TableRow>)}</TableBody></Table></CardContent></Card>
           <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>Conciliação Bancária e Desvios</CardTitle><CardDescription>Anexo E. Registra o que aconteceu no banco, se estava previsto e qual tratamento a divergência recebeu.</CardDescription></div>
-          {canConciliarFinanceiro()&&<Dialog open={dialogConciliacao} onOpenChange={setDialogConciliacao}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Registrar movimentação</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Movimentação / divergência</DialogTitle></DialogHeader>
+          {canConciliarFinanceiro()&&<Dialog open={dialogConciliacao} onOpenChange={setDialogConciliacao}><DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4"/>Registrar movimentação</Button></DialogTrigger><DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>Movimentação / divergência</DialogTitle></DialogHeader><LegendaDoFluxoFinanceiro contexto="A conciliação confirma o que de fato apareceu no banco e encerra o pagamento no fluxo." />
             {conciliacaoForm.previsto === 'nao' && (
               <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
                 <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" />
