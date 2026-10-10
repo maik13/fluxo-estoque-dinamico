@@ -10,6 +10,7 @@ import {
   Package,
   Settings,
   WalletCards,
+  ReceiptText,
   UsersRound,
   UserRound,
   Clock3,
@@ -39,6 +40,7 @@ type NavegacaoLateralEstoqueProps = {
   showProjetos: boolean;
   showProducao: boolean;
   showFinanceiro: boolean;
+  showCotacoes: boolean;
   showAcompanhamentoPedido: boolean;
   showPlanejamento2: boolean;
   showImagensOP: boolean;
@@ -75,6 +77,7 @@ export const NavegacaoLateralEstoque = ({
   showProjetos,
   showProducao,
   showFinanceiro,
+  showCotacoes,
   showAcompanhamentoPedido,
   showPlanejamento2,
   showImagensOP,
@@ -91,7 +94,7 @@ export const NavegacaoLateralEstoque = ({
     () => new Set([
       'Painel',
       'Almoxarifado',
-      ...(showFinanceiro || showAcompanhamentoPedido || showGerencial || showProjetos ? ['Gestão'] : []),
+      ...(showFinanceiro || showCotacoes || showAcompanhamentoPedido || showGerencial || showProjetos ? ['Gestão'] : []),
       ...(showProducao || showPlanejamento2 || showImagensOP ? ['Produção'] : []),
     ]),
   );
@@ -149,6 +152,12 @@ export const NavegacaoLateralEstoque = ({
           label: 'Acompanhamento do Pedido',
           icon: ClipboardCheck,
           visible: showAcompanhamentoPedido,
+        },
+        {
+          value: 'cotacoes',
+          label: 'Cotações',
+          icon: ReceiptText,
+          visible: showCotacoes,
         },
         {
           value: 'financeiro',
@@ -249,6 +258,7 @@ export const NavegacaoLateralEstoque = ({
     showProjetos,
     showProducao,
     showFinanceiro,
+    showCotacoes,
     showAcompanhamentoPedido,
     showPlanejamento2,
     showImagensOP,
