@@ -35,6 +35,42 @@ export type Database = {
         }
         Relationships: []
       }
+      acompanhamento_pedido_arquivamentos: {
+        Row: {
+          app_project_setting_id: string
+          archived_at: string
+          archived_by: string
+          created_at: string
+          id: string
+          project_name_snapshot: string
+          unarchived_at: string | null
+          unarchived_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          app_project_setting_id: string
+          archived_at?: string
+          archived_by?: string
+          created_at?: string
+          id?: string
+          project_name_snapshot: string
+          unarchived_at?: string | null
+          unarchived_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          app_project_setting_id?: string
+          archived_at?: string
+          archived_by?: string
+          created_at?: string
+          id?: string
+          project_name_snapshot?: string
+          unarchived_at?: string | null
+          unarchived_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       action_logs: {
         Row: {
           action: string
@@ -62,6 +98,63 @@ export type Database = {
           entity_type?: string
           id?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      almoxarifado_grupo_locais: {
+        Row: {
+          created_at: string
+          grupo_id: string
+          local_utilizacao_id: string
+        }
+        Insert: {
+          created_at?: string
+          grupo_id: string
+          local_utilizacao_id: string
+        }
+        Update: {
+          created_at?: string
+          grupo_id?: string
+          local_utilizacao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "almoxarifado_grupo_locais_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "almoxarifado_grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "almoxarifado_grupo_locais_local_utilizacao_id_fkey"
+            columns: ["local_utilizacao_id"]
+            isOneToOne: true
+            referencedRelation: "locais_utilizacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      almoxarifado_grupos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -101,6 +194,927 @@ export type Database = {
           source_role?: string | null
           source_user_id?: string
           status?: string
+        }
+        Relationships: []
+      }
+      backup_fluxo_reset_20261006_1035_auditoria: {
+        Row: {
+          acao: string | null
+          created_at: string | null
+          detalhes: Json | null
+          entidade: string | null
+          entidade_id: string | null
+          id: string | null
+          lancamento_id: string | null
+          usuario_id: string | null
+          usuario_nome: string | null
+        }
+        Insert: {
+          acao?: string | null
+          created_at?: string | null
+          detalhes?: Json | null
+          entidade?: string | null
+          entidade_id?: string | null
+          id?: string | null
+          lancamento_id?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Update: {
+          acao?: string | null
+          created_at?: string | null
+          detalhes?: Json | null
+          entidade?: string | null
+          entidade_id?: string | null
+          id?: string | null
+          lancamento_id?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Relationships: []
+      }
+      backup_fluxo_reset_20261006_1035_conciliacoes: {
+        Row: {
+          conciliado_em: string | null
+          conciliado_por: string | null
+          conta_bancaria_id: string | null
+          created_at: string | null
+          data: string | null
+          data_prevista: string | null
+          estava_previsto: boolean | null
+          historico_beneficiario: string | null
+          id: string | null
+          lancamento_id: string | null
+          prazo_regularizacao: string | null
+          registrado_por_id: string | null
+          registrado_por_nome: string | null
+          responsavel_regularizacao: string | null
+          tipo: string | null
+          tratamento_observacao: string | null
+          tratamento_status: string | null
+          updated_at: string | null
+          valor: number | null
+          valor_previsto: number | null
+        }
+        Insert: {
+          conciliado_em?: string | null
+          conciliado_por?: string | null
+          conta_bancaria_id?: string | null
+          created_at?: string | null
+          data?: string | null
+          data_prevista?: string | null
+          estava_previsto?: boolean | null
+          historico_beneficiario?: string | null
+          id?: string | null
+          lancamento_id?: string | null
+          prazo_regularizacao?: string | null
+          registrado_por_id?: string | null
+          registrado_por_nome?: string | null
+          responsavel_regularizacao?: string | null
+          tipo?: string | null
+          tratamento_observacao?: string | null
+          tratamento_status?: string | null
+          updated_at?: string | null
+          valor?: number | null
+          valor_previsto?: number | null
+        }
+        Update: {
+          conciliado_em?: string | null
+          conciliado_por?: string | null
+          conta_bancaria_id?: string | null
+          created_at?: string | null
+          data?: string | null
+          data_prevista?: string | null
+          estava_previsto?: boolean | null
+          historico_beneficiario?: string | null
+          id?: string | null
+          lancamento_id?: string | null
+          prazo_regularizacao?: string | null
+          registrado_por_id?: string | null
+          registrado_por_nome?: string | null
+          responsavel_regularizacao?: string | null
+          tipo?: string | null
+          tratamento_observacao?: string | null
+          tratamento_status?: string | null
+          updated_at?: string | null
+          valor?: number | null
+          valor_previsto?: number | null
+        }
+        Relationships: []
+      }
+      backup_fluxo_reset_20261006_1035_financeiro_lancamentos: {
+        Row: {
+          categoria: string | null
+          created_at: string | null
+          credito_original: string | null
+          criado_por_id: string | null
+          data_prevista: string | null
+          data_realizada: string | null
+          debito_original: string | null
+          descricao: string | null
+          descricao_original: string | null
+          id: string | null
+          importacao_pagina54_id: string | null
+          liberado_programacao_em: string | null
+          liberado_programacao_por_id: string | null
+          liberado_programacao_por_nome: string | null
+          motivos_revisao: Json | null
+          necessidade_id: string | null
+          numero: number | null
+          observacoes: string | null
+          origem_id: string | null
+          origem_tipo: string | null
+          pagina54_autor_alteracao: string | null
+          pagina54_integracao_id: string | null
+          pagina54_precisa_exportar: boolean | null
+          pagina54_sync_em: string | null
+          pagina54_sync_erro: string | null
+          pagina54_sync_status: string | null
+          pagina54_ultima_atualizacao: string | null
+          pagina54_ultima_origem: string | null
+          parcela_numero: number | null
+          parcela_total: number | null
+          planilha_linha: number | null
+          producao_projeto_id: string | null
+          projeto_centro_custo: string | null
+          revisao_pendente: boolean | null
+          saldo_original: string | null
+          sinalizacao_cor: string | null
+          situacao_original: string | null
+          status: string | null
+          subcategoria: string | null
+          tipo: string | null
+          updated_at: string | null
+          valor_previsto: number | null
+          valor_realizado: number | null
+        }
+        Insert: {
+          categoria?: string | null
+          created_at?: string | null
+          credito_original?: string | null
+          criado_por_id?: string | null
+          data_prevista?: string | null
+          data_realizada?: string | null
+          debito_original?: string | null
+          descricao?: string | null
+          descricao_original?: string | null
+          id?: string | null
+          importacao_pagina54_id?: string | null
+          liberado_programacao_em?: string | null
+          liberado_programacao_por_id?: string | null
+          liberado_programacao_por_nome?: string | null
+          motivos_revisao?: Json | null
+          necessidade_id?: string | null
+          numero?: number | null
+          observacoes?: string | null
+          origem_id?: string | null
+          origem_tipo?: string | null
+          pagina54_autor_alteracao?: string | null
+          pagina54_integracao_id?: string | null
+          pagina54_precisa_exportar?: boolean | null
+          pagina54_sync_em?: string | null
+          pagina54_sync_erro?: string | null
+          pagina54_sync_status?: string | null
+          pagina54_ultima_atualizacao?: string | null
+          pagina54_ultima_origem?: string | null
+          parcela_numero?: number | null
+          parcela_total?: number | null
+          planilha_linha?: number | null
+          producao_projeto_id?: string | null
+          projeto_centro_custo?: string | null
+          revisao_pendente?: boolean | null
+          saldo_original?: string | null
+          sinalizacao_cor?: string | null
+          situacao_original?: string | null
+          status?: string | null
+          subcategoria?: string | null
+          tipo?: string | null
+          updated_at?: string | null
+          valor_previsto?: number | null
+          valor_realizado?: number | null
+        }
+        Update: {
+          categoria?: string | null
+          created_at?: string | null
+          credito_original?: string | null
+          criado_por_id?: string | null
+          data_prevista?: string | null
+          data_realizada?: string | null
+          debito_original?: string | null
+          descricao?: string | null
+          descricao_original?: string | null
+          id?: string | null
+          importacao_pagina54_id?: string | null
+          liberado_programacao_em?: string | null
+          liberado_programacao_por_id?: string | null
+          liberado_programacao_por_nome?: string | null
+          motivos_revisao?: Json | null
+          necessidade_id?: string | null
+          numero?: number | null
+          observacoes?: string | null
+          origem_id?: string | null
+          origem_tipo?: string | null
+          pagina54_autor_alteracao?: string | null
+          pagina54_integracao_id?: string | null
+          pagina54_precisa_exportar?: boolean | null
+          pagina54_sync_em?: string | null
+          pagina54_sync_erro?: string | null
+          pagina54_sync_status?: string | null
+          pagina54_ultima_atualizacao?: string | null
+          pagina54_ultima_origem?: string | null
+          parcela_numero?: number | null
+          parcela_total?: number | null
+          planilha_linha?: number | null
+          producao_projeto_id?: string | null
+          projeto_centro_custo?: string | null
+          revisao_pendente?: boolean | null
+          saldo_original?: string | null
+          sinalizacao_cor?: string | null
+          situacao_original?: string | null
+          status?: string | null
+          subcategoria?: string | null
+          tipo?: string | null
+          updated_at?: string | null
+          valor_previsto?: number | null
+          valor_realizado?: number | null
+        }
+        Relationships: []
+      }
+      backup_fluxo_reset_20261006_1035_importacao_pagina54: {
+        Row: {
+          aba: string | null
+          anotacao: string | null
+          autor_ultima_alteracao: string | null
+          bb_invest_original: string | null
+          bb_original: string | null
+          categoria_original: string | null
+          cores_originais: Json | null
+          credito_original: string | null
+          data_posicao_original: string | null
+          data_prevista_original: string | null
+          data_realizada_original: string | null
+          debito_original: string | null
+          descricao: string | null
+          id: string | null
+          importado_em: string | null
+          integracao_id: string | null
+          inter_invest_original: string | null
+          inter_original: string | null
+          linha: number | null
+          motivos_revisao: Json | null
+          origem_alteracao: string | null
+          resultado_original: string | null
+          revisao_pendente: boolean | null
+          saldo_dia_original: string | null
+          saldo_original: string | null
+          sicoob_invest_original: string | null
+          sicoob_original: string | null
+          sicredi_original: string | null
+          sinalizacao_cor: string | null
+          situacao: string | null
+          spreadsheet_id: string | null
+          spreadsheet_titulo: string | null
+          subcategoria_original: string | null
+          sync_em: string | null
+          sync_erro: string | null
+          sync_status: string | null
+          ultima_atualizacao_planilha: string | null
+          valor_a: string | null
+          valores_originais: Json | null
+        }
+        Insert: {
+          aba?: string | null
+          anotacao?: string | null
+          autor_ultima_alteracao?: string | null
+          bb_invest_original?: string | null
+          bb_original?: string | null
+          categoria_original?: string | null
+          cores_originais?: Json | null
+          credito_original?: string | null
+          data_posicao_original?: string | null
+          data_prevista_original?: string | null
+          data_realizada_original?: string | null
+          debito_original?: string | null
+          descricao?: string | null
+          id?: string | null
+          importado_em?: string | null
+          integracao_id?: string | null
+          inter_invest_original?: string | null
+          inter_original?: string | null
+          linha?: number | null
+          motivos_revisao?: Json | null
+          origem_alteracao?: string | null
+          resultado_original?: string | null
+          revisao_pendente?: boolean | null
+          saldo_dia_original?: string | null
+          saldo_original?: string | null
+          sicoob_invest_original?: string | null
+          sicoob_original?: string | null
+          sicredi_original?: string | null
+          sinalizacao_cor?: string | null
+          situacao?: string | null
+          spreadsheet_id?: string | null
+          spreadsheet_titulo?: string | null
+          subcategoria_original?: string | null
+          sync_em?: string | null
+          sync_erro?: string | null
+          sync_status?: string | null
+          ultima_atualizacao_planilha?: string | null
+          valor_a?: string | null
+          valores_originais?: Json | null
+        }
+        Update: {
+          aba?: string | null
+          anotacao?: string | null
+          autor_ultima_alteracao?: string | null
+          bb_invest_original?: string | null
+          bb_original?: string | null
+          categoria_original?: string | null
+          cores_originais?: Json | null
+          credito_original?: string | null
+          data_posicao_original?: string | null
+          data_prevista_original?: string | null
+          data_realizada_original?: string | null
+          debito_original?: string | null
+          descricao?: string | null
+          id?: string | null
+          importado_em?: string | null
+          integracao_id?: string | null
+          inter_invest_original?: string | null
+          inter_original?: string | null
+          linha?: number | null
+          motivos_revisao?: Json | null
+          origem_alteracao?: string | null
+          resultado_original?: string | null
+          revisao_pendente?: boolean | null
+          saldo_dia_original?: string | null
+          saldo_original?: string | null
+          sicoob_invest_original?: string | null
+          sicoob_original?: string | null
+          sicredi_original?: string | null
+          sinalizacao_cor?: string | null
+          situacao?: string | null
+          spreadsheet_id?: string | null
+          spreadsheet_titulo?: string | null
+          subcategoria_original?: string | null
+          sync_em?: string | null
+          sync_erro?: string | null
+          sync_status?: string | null
+          ultima_atualizacao_planilha?: string | null
+          valor_a?: string | null
+          valores_originais?: Json | null
+        }
+        Relationships: []
+      }
+      backup_fluxo_reset_20261006_1035_necessidade_historico: {
+        Row: {
+          alteracao: string | null
+          created_at: string | null
+          id: string | null
+          necessidade_id: string | null
+          responsavel_id: string | null
+          responsavel_nome: string | null
+          valor_previsto: number | null
+        }
+        Insert: {
+          alteracao?: string | null
+          created_at?: string | null
+          id?: string | null
+          necessidade_id?: string | null
+          responsavel_id?: string | null
+          responsavel_nome?: string | null
+          valor_previsto?: number | null
+        }
+        Update: {
+          alteracao?: string | null
+          created_at?: string | null
+          id?: string | null
+          necessidade_id?: string | null
+          responsavel_id?: string | null
+          responsavel_nome?: string | null
+          valor_previsto?: number | null
+        }
+        Relationships: []
+      }
+      backup_fluxo_reset_20261006_1035_necessidades: {
+        Row: {
+          area_solicitante: string | null
+          base_estimativa: string | null
+          categoria: string | null
+          created_at: string | null
+          criado_automaticamente: boolean | null
+          criado_por_id: string | null
+          criado_por_nome: string | null
+          data_identificacao: string | null
+          data_necessidade: string | null
+          data_prevista_desembolso: string | null
+          descricao: string | null
+          especificacao: string | null
+          estimativa_incompleta: boolean | null
+          id: string | null
+          item_id: string | null
+          justificativa: string | null
+          numero: number | null
+          ordem_producao_id: string | null
+          origem_modulo: string | null
+          origem_tipo: string | null
+          processo_id: string | null
+          producao_projeto_id: string | null
+          projeto_centro_custo: string | null
+          quantidade: number | null
+          registro_katia: string | null
+          registro_katia_em: string | null
+          requisicao_compra_id: string | null
+          solicitacao_material_id: string | null
+          solicitante_id: string | null
+          solicitante_nome: string | null
+          status: string | null
+          subcategoria: string | null
+          unidade: string | null
+          updated_at: string | null
+          updated_by: string | null
+          urgencia: string | null
+          valor_estimado: number | null
+        }
+        Insert: {
+          area_solicitante?: string | null
+          base_estimativa?: string | null
+          categoria?: string | null
+          created_at?: string | null
+          criado_automaticamente?: boolean | null
+          criado_por_id?: string | null
+          criado_por_nome?: string | null
+          data_identificacao?: string | null
+          data_necessidade?: string | null
+          data_prevista_desembolso?: string | null
+          descricao?: string | null
+          especificacao?: string | null
+          estimativa_incompleta?: boolean | null
+          id?: string | null
+          item_id?: string | null
+          justificativa?: string | null
+          numero?: number | null
+          ordem_producao_id?: string | null
+          origem_modulo?: string | null
+          origem_tipo?: string | null
+          processo_id?: string | null
+          producao_projeto_id?: string | null
+          projeto_centro_custo?: string | null
+          quantidade?: number | null
+          registro_katia?: string | null
+          registro_katia_em?: string | null
+          requisicao_compra_id?: string | null
+          solicitacao_material_id?: string | null
+          solicitante_id?: string | null
+          solicitante_nome?: string | null
+          status?: string | null
+          subcategoria?: string | null
+          unidade?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          urgencia?: string | null
+          valor_estimado?: number | null
+        }
+        Update: {
+          area_solicitante?: string | null
+          base_estimativa?: string | null
+          categoria?: string | null
+          created_at?: string | null
+          criado_automaticamente?: boolean | null
+          criado_por_id?: string | null
+          criado_por_nome?: string | null
+          data_identificacao?: string | null
+          data_necessidade?: string | null
+          data_prevista_desembolso?: string | null
+          descricao?: string | null
+          especificacao?: string | null
+          estimativa_incompleta?: boolean | null
+          id?: string | null
+          item_id?: string | null
+          justificativa?: string | null
+          numero?: number | null
+          ordem_producao_id?: string | null
+          origem_modulo?: string | null
+          origem_tipo?: string | null
+          processo_id?: string | null
+          producao_projeto_id?: string | null
+          projeto_centro_custo?: string | null
+          quantidade?: number | null
+          registro_katia?: string | null
+          registro_katia_em?: string | null
+          requisicao_compra_id?: string | null
+          solicitacao_material_id?: string | null
+          solicitante_id?: string | null
+          solicitante_nome?: string | null
+          status?: string | null
+          subcategoria?: string | null
+          unidade?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          urgencia?: string | null
+          valor_estimado?: number | null
+        }
+        Relationships: []
+      }
+      backup_fluxo_reset_20261006_1035_pc_parcelas: {
+        Row: {
+          conciliado: boolean | null
+          created_at: string | null
+          data_conciliado: string | null
+          data_pago: string | null
+          data_programada: string | null
+          id: string | null
+          lancamento_id: string | null
+          observacoes: string | null
+          pago: boolean | null
+          parcela_numero: number | null
+          pedido_compra_formal_id: string | null
+          programado_no_banco: boolean | null
+          updated_at: string | null
+          valor: number | null
+          valor_pago: number | null
+          vencimento: string | null
+        }
+        Insert: {
+          conciliado?: boolean | null
+          created_at?: string | null
+          data_conciliado?: string | null
+          data_pago?: string | null
+          data_programada?: string | null
+          id?: string | null
+          lancamento_id?: string | null
+          observacoes?: string | null
+          pago?: boolean | null
+          parcela_numero?: number | null
+          pedido_compra_formal_id?: string | null
+          programado_no_banco?: boolean | null
+          updated_at?: string | null
+          valor?: number | null
+          valor_pago?: number | null
+          vencimento?: string | null
+        }
+        Update: {
+          conciliado?: boolean | null
+          created_at?: string | null
+          data_conciliado?: string | null
+          data_pago?: string | null
+          data_programada?: string | null
+          id?: string | null
+          lancamento_id?: string | null
+          observacoes?: string | null
+          pago?: boolean | null
+          parcela_numero?: number | null
+          pedido_compra_formal_id?: string | null
+          programado_no_banco?: boolean | null
+          updated_at?: string | null
+          valor?: number | null
+          valor_pago?: number | null
+          vencimento?: string | null
+        }
+        Relationships: []
+      }
+      backup_fluxo_reset_20261006_1035_pedidos_compra_formais: {
+        Row: {
+          aprovacao_evidencia: string | null
+          aprovacao_mauro_em: string | null
+          compromisso_katia_em: string | null
+          compromisso_status: string | null
+          condicao_pagamento: string | null
+          confirmado_em: string | null
+          confirmado_por: string | null
+          created_at: string | null
+          criado_por_id: string | null
+          criado_por_nome: string | null
+          descricao: string | null
+          enviado_guto_em: string | null
+          fornecedor: string | null
+          fornecedor_contato: string | null
+          fornecedor_identificacao: string | null
+          frete_custos_adicionais: number | null
+          id: string | null
+          local_entrega: string | null
+          necessidade_id: string | null
+          numero: number | null
+          prazo_entrega: string | null
+          recebimento_divergencias: string | null
+          recebimento_em: string | null
+          recebimento_por: string | null
+          requisicao_compra_id: string | null
+          status: string | null
+          updated_at: string | null
+          valor_itens: number | null
+          valor_total: number | null
+        }
+        Insert: {
+          aprovacao_evidencia?: string | null
+          aprovacao_mauro_em?: string | null
+          compromisso_katia_em?: string | null
+          compromisso_status?: string | null
+          condicao_pagamento?: string | null
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          created_at?: string | null
+          criado_por_id?: string | null
+          criado_por_nome?: string | null
+          descricao?: string | null
+          enviado_guto_em?: string | null
+          fornecedor?: string | null
+          fornecedor_contato?: string | null
+          fornecedor_identificacao?: string | null
+          frete_custos_adicionais?: number | null
+          id?: string | null
+          local_entrega?: string | null
+          necessidade_id?: string | null
+          numero?: number | null
+          prazo_entrega?: string | null
+          recebimento_divergencias?: string | null
+          recebimento_em?: string | null
+          recebimento_por?: string | null
+          requisicao_compra_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          valor_itens?: number | null
+          valor_total?: number | null
+        }
+        Update: {
+          aprovacao_evidencia?: string | null
+          aprovacao_mauro_em?: string | null
+          compromisso_katia_em?: string | null
+          compromisso_status?: string | null
+          condicao_pagamento?: string | null
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          created_at?: string | null
+          criado_por_id?: string | null
+          criado_por_nome?: string | null
+          descricao?: string | null
+          enviado_guto_em?: string | null
+          fornecedor?: string | null
+          fornecedor_contato?: string | null
+          fornecedor_identificacao?: string | null
+          frete_custos_adicionais?: number | null
+          id?: string | null
+          local_entrega?: string | null
+          necessidade_id?: string | null
+          numero?: number | null
+          prazo_entrega?: string | null
+          recebimento_divergencias?: string | null
+          recebimento_em?: string | null
+          recebimento_por?: string | null
+          requisicao_compra_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          valor_itens?: number | null
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
+      backup_fluxo_reset_20261006_1035_pedidos_compra_rc: {
+        Row: {
+          aprovacao_executiva_em: string | null
+          aprovacao_executiva_por: string | null
+          condicao_pagamento: string | null
+          conferencia_estoque: string | null
+          created_at: string | null
+          criado_por_id: string | null
+          criado_por_nome: string | null
+          data_conclusao: string | null
+          data_limite_compra: string | null
+          data_necessaria: string | null
+          data_pedido: string | null
+          editado: boolean | null
+          editado_em: string | null
+          editado_por: string | null
+          especificacao_confirmada_em: string | null
+          especificacao_confirmada_por: string | null
+          especificacao_tecnica: string | null
+          estoque_conferido_em: string | null
+          estoque_conferido_por: string | null
+          estoque_id: string | null
+          fornecedores_consultados: string | null
+          frete_custos_adicionais: number | null
+          id: string | null
+          impacto_financeiro: string | null
+          impacto_financeiro_registrado_em: string | null
+          impacto_financeiro_registrado_por: string | null
+          integrar_financeiro: boolean | null
+          lead_time_dias: number | null
+          numero: number | null
+          observacoes: string | null
+          pn_origem_id: string | null
+          projeto_centro_custo: string | null
+          solicitacao_material_id: string | null
+          solicitacao_material_numero: number | null
+          status: string | null
+          status_financeiro_rc: string | null
+          updated_at: string | null
+          valor_estimado_cotado: number | null
+        }
+        Insert: {
+          aprovacao_executiva_em?: string | null
+          aprovacao_executiva_por?: string | null
+          condicao_pagamento?: string | null
+          conferencia_estoque?: string | null
+          created_at?: string | null
+          criado_por_id?: string | null
+          criado_por_nome?: string | null
+          data_conclusao?: string | null
+          data_limite_compra?: string | null
+          data_necessaria?: string | null
+          data_pedido?: string | null
+          editado?: boolean | null
+          editado_em?: string | null
+          editado_por?: string | null
+          especificacao_confirmada_em?: string | null
+          especificacao_confirmada_por?: string | null
+          especificacao_tecnica?: string | null
+          estoque_conferido_em?: string | null
+          estoque_conferido_por?: string | null
+          estoque_id?: string | null
+          fornecedores_consultados?: string | null
+          frete_custos_adicionais?: number | null
+          id?: string | null
+          impacto_financeiro?: string | null
+          impacto_financeiro_registrado_em?: string | null
+          impacto_financeiro_registrado_por?: string | null
+          integrar_financeiro?: boolean | null
+          lead_time_dias?: number | null
+          numero?: number | null
+          observacoes?: string | null
+          pn_origem_id?: string | null
+          projeto_centro_custo?: string | null
+          solicitacao_material_id?: string | null
+          solicitacao_material_numero?: number | null
+          status?: string | null
+          status_financeiro_rc?: string | null
+          updated_at?: string | null
+          valor_estimado_cotado?: number | null
+        }
+        Update: {
+          aprovacao_executiva_em?: string | null
+          aprovacao_executiva_por?: string | null
+          condicao_pagamento?: string | null
+          conferencia_estoque?: string | null
+          created_at?: string | null
+          criado_por_id?: string | null
+          criado_por_nome?: string | null
+          data_conclusao?: string | null
+          data_limite_compra?: string | null
+          data_necessaria?: string | null
+          data_pedido?: string | null
+          editado?: boolean | null
+          editado_em?: string | null
+          editado_por?: string | null
+          especificacao_confirmada_em?: string | null
+          especificacao_confirmada_por?: string | null
+          especificacao_tecnica?: string | null
+          estoque_conferido_em?: string | null
+          estoque_conferido_por?: string | null
+          estoque_id?: string | null
+          fornecedores_consultados?: string | null
+          frete_custos_adicionais?: number | null
+          id?: string | null
+          impacto_financeiro?: string | null
+          impacto_financeiro_registrado_em?: string | null
+          impacto_financeiro_registrado_por?: string | null
+          integrar_financeiro?: boolean | null
+          lead_time_dias?: number | null
+          numero?: number | null
+          observacoes?: string | null
+          pn_origem_id?: string | null
+          projeto_centro_custo?: string | null
+          solicitacao_material_id?: string | null
+          solicitacao_material_numero?: number | null
+          status?: string | null
+          status_financeiro_rc?: string | null
+          updated_at?: string | null
+          valor_estimado_cotado?: number | null
+        }
+        Relationships: []
+      }
+      backup_fluxo_reset_20261006_1035_posicoes_diarias: {
+        Row: {
+          conta_bancaria_id: string | null
+          created_at: string | null
+          data: string | null
+          entradas_realizadas: number | null
+          id: string | null
+          pagamentos_programados_nao_liquidados: number | null
+          pendencias_proximo_dia: string | null
+          recebimentos_previstos_nao_realizados: number | null
+          responsavel: string | null
+          saidas_nao_previstas_diferencas: number | null
+          saidas_realizadas: number | null
+          saldo_final_bancario: number | null
+          saldo_financeiro_gerencial: number | null
+          saldo_inicial_bancario: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          conta_bancaria_id?: string | null
+          created_at?: string | null
+          data?: string | null
+          entradas_realizadas?: number | null
+          id?: string | null
+          pagamentos_programados_nao_liquidados?: number | null
+          pendencias_proximo_dia?: string | null
+          recebimentos_previstos_nao_realizados?: number | null
+          responsavel?: string | null
+          saidas_nao_previstas_diferencas?: number | null
+          saidas_realizadas?: number | null
+          saldo_final_bancario?: number | null
+          saldo_financeiro_gerencial?: number | null
+          saldo_inicial_bancario?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          conta_bancaria_id?: string | null
+          created_at?: string | null
+          data?: string | null
+          entradas_realizadas?: number | null
+          id?: string | null
+          pagamentos_programados_nao_liquidados?: number | null
+          pendencias_proximo_dia?: string | null
+          recebimentos_previstos_nao_realizados?: number | null
+          responsavel?: string | null
+          saidas_nao_previstas_diferencas?: number | null
+          saidas_realizadas?: number | null
+          saldo_final_bancario?: number | null
+          saldo_financeiro_gerencial?: number | null
+          saldo_inicial_bancario?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_fluxo_reset_20261006_1035_programacoes: {
+        Row: {
+          banco_conta: string | null
+          beneficiario: string | null
+          categoria: string | null
+          comprovante_path: string | null
+          created_at: string | null
+          data_programada: string | null
+          forma_pagamento: string | null
+          id: string | null
+          lancamento_id: string | null
+          liberado_por_katia_em: string | null
+          observacao: string | null
+          parcela_id: string | null
+          pedido_compra_formal_id: string | null
+          programado_por_guto_em: string | null
+          projeto_centro_custo: string | null
+          registrado_por_id: string | null
+          registrado_por_nome: string | null
+          status: string | null
+          updated_at: string | null
+          valor: number | null
+          vencimento: string | null
+        }
+        Insert: {
+          banco_conta?: string | null
+          beneficiario?: string | null
+          categoria?: string | null
+          comprovante_path?: string | null
+          created_at?: string | null
+          data_programada?: string | null
+          forma_pagamento?: string | null
+          id?: string | null
+          lancamento_id?: string | null
+          liberado_por_katia_em?: string | null
+          observacao?: string | null
+          parcela_id?: string | null
+          pedido_compra_formal_id?: string | null
+          programado_por_guto_em?: string | null
+          projeto_centro_custo?: string | null
+          registrado_por_id?: string | null
+          registrado_por_nome?: string | null
+          status?: string | null
+          updated_at?: string | null
+          valor?: number | null
+          vencimento?: string | null
+        }
+        Update: {
+          banco_conta?: string | null
+          beneficiario?: string | null
+          categoria?: string | null
+          comprovante_path?: string | null
+          created_at?: string | null
+          data_programada?: string | null
+          forma_pagamento?: string | null
+          id?: string | null
+          lancamento_id?: string | null
+          liberado_por_katia_em?: string | null
+          observacao?: string | null
+          parcela_id?: string | null
+          pedido_compra_formal_id?: string | null
+          programado_por_guto_em?: string | null
+          projeto_centro_custo?: string | null
+          registrado_por_id?: string | null
+          registrado_por_nome?: string | null
+          status?: string | null
+          updated_at?: string | null
+          valor?: number | null
+          vencimento?: string | null
         }
         Relationships: []
       }
@@ -161,6 +1175,324 @@ export type Database = {
           tipo?: string | null
           tipo_operacao_id?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      backup_pagina54_20261007_importacoes: {
+        Row: {
+          aba: string | null
+          anotacao: string | null
+          autor_ultima_alteracao: string | null
+          bb_invest_original: string | null
+          bb_original: string | null
+          categoria_original: string | null
+          cores_originais: Json | null
+          credito_original: string | null
+          data_posicao_original: string | null
+          data_prevista_original: string | null
+          data_realizada_original: string | null
+          debito_original: string | null
+          descricao: string | null
+          id: string | null
+          importado_em: string | null
+          integracao_id: string | null
+          inter_invest_original: string | null
+          inter_original: string | null
+          linha: number | null
+          motivos_revisao: Json | null
+          origem_alteracao: string | null
+          resultado_original: string | null
+          revisao_pendente: boolean | null
+          saldo_dia_original: string | null
+          saldo_original: string | null
+          sicoob_invest_original: string | null
+          sicoob_original: string | null
+          sicredi_original: string | null
+          sinalizacao_cor: string | null
+          situacao: string | null
+          spreadsheet_id: string | null
+          spreadsheet_titulo: string | null
+          subcategoria_original: string | null
+          sync_em: string | null
+          sync_erro: string | null
+          sync_status: string | null
+          ultima_atualizacao_planilha: string | null
+          valor_a: string | null
+          valores_originais: Json | null
+        }
+        Insert: {
+          aba?: string | null
+          anotacao?: string | null
+          autor_ultima_alteracao?: string | null
+          bb_invest_original?: string | null
+          bb_original?: string | null
+          categoria_original?: string | null
+          cores_originais?: Json | null
+          credito_original?: string | null
+          data_posicao_original?: string | null
+          data_prevista_original?: string | null
+          data_realizada_original?: string | null
+          debito_original?: string | null
+          descricao?: string | null
+          id?: string | null
+          importado_em?: string | null
+          integracao_id?: string | null
+          inter_invest_original?: string | null
+          inter_original?: string | null
+          linha?: number | null
+          motivos_revisao?: Json | null
+          origem_alteracao?: string | null
+          resultado_original?: string | null
+          revisao_pendente?: boolean | null
+          saldo_dia_original?: string | null
+          saldo_original?: string | null
+          sicoob_invest_original?: string | null
+          sicoob_original?: string | null
+          sicredi_original?: string | null
+          sinalizacao_cor?: string | null
+          situacao?: string | null
+          spreadsheet_id?: string | null
+          spreadsheet_titulo?: string | null
+          subcategoria_original?: string | null
+          sync_em?: string | null
+          sync_erro?: string | null
+          sync_status?: string | null
+          ultima_atualizacao_planilha?: string | null
+          valor_a?: string | null
+          valores_originais?: Json | null
+        }
+        Update: {
+          aba?: string | null
+          anotacao?: string | null
+          autor_ultima_alteracao?: string | null
+          bb_invest_original?: string | null
+          bb_original?: string | null
+          categoria_original?: string | null
+          cores_originais?: Json | null
+          credito_original?: string | null
+          data_posicao_original?: string | null
+          data_prevista_original?: string | null
+          data_realizada_original?: string | null
+          debito_original?: string | null
+          descricao?: string | null
+          id?: string | null
+          importado_em?: string | null
+          integracao_id?: string | null
+          inter_invest_original?: string | null
+          inter_original?: string | null
+          linha?: number | null
+          motivos_revisao?: Json | null
+          origem_alteracao?: string | null
+          resultado_original?: string | null
+          revisao_pendente?: boolean | null
+          saldo_dia_original?: string | null
+          saldo_original?: string | null
+          sicoob_invest_original?: string | null
+          sicoob_original?: string | null
+          sicredi_original?: string | null
+          sinalizacao_cor?: string | null
+          situacao?: string | null
+          spreadsheet_id?: string | null
+          spreadsheet_titulo?: string | null
+          subcategoria_original?: string | null
+          sync_em?: string | null
+          sync_erro?: string | null
+          sync_status?: string | null
+          ultima_atualizacao_planilha?: string | null
+          valor_a?: string | null
+          valores_originais?: Json | null
+        }
+        Relationships: []
+      }
+      backup_pagina54_20261007_lancamentos: {
+        Row: {
+          categoria: string | null
+          created_at: string | null
+          credito_original: string | null
+          criado_por_id: string | null
+          data_prevista: string | null
+          data_realizada: string | null
+          debito_original: string | null
+          descricao: string | null
+          descricao_original: string | null
+          id: string | null
+          importacao_pagina54_id: string | null
+          liberado_programacao_em: string | null
+          liberado_programacao_por_id: string | null
+          liberado_programacao_por_nome: string | null
+          motivos_revisao: Json | null
+          necessidade_id: string | null
+          numero: number | null
+          observacoes: string | null
+          origem_id: string | null
+          origem_tipo: string | null
+          pagina54_autor_alteracao: string | null
+          pagina54_integracao_id: string | null
+          pagina54_precisa_exportar: boolean | null
+          pagina54_sync_em: string | null
+          pagina54_sync_erro: string | null
+          pagina54_sync_status: string | null
+          pagina54_ultima_atualizacao: string | null
+          pagina54_ultima_origem: string | null
+          parcela_numero: number | null
+          parcela_total: number | null
+          planilha_linha: number | null
+          producao_projeto_id: string | null
+          projeto_centro_custo: string | null
+          revisao_pendente: boolean | null
+          saldo_original: string | null
+          sinalizacao_cor: string | null
+          situacao_original: string | null
+          status: string | null
+          subcategoria: string | null
+          tipo: string | null
+          updated_at: string | null
+          valor_previsto: number | null
+          valor_realizado: number | null
+        }
+        Insert: {
+          categoria?: string | null
+          created_at?: string | null
+          credito_original?: string | null
+          criado_por_id?: string | null
+          data_prevista?: string | null
+          data_realizada?: string | null
+          debito_original?: string | null
+          descricao?: string | null
+          descricao_original?: string | null
+          id?: string | null
+          importacao_pagina54_id?: string | null
+          liberado_programacao_em?: string | null
+          liberado_programacao_por_id?: string | null
+          liberado_programacao_por_nome?: string | null
+          motivos_revisao?: Json | null
+          necessidade_id?: string | null
+          numero?: number | null
+          observacoes?: string | null
+          origem_id?: string | null
+          origem_tipo?: string | null
+          pagina54_autor_alteracao?: string | null
+          pagina54_integracao_id?: string | null
+          pagina54_precisa_exportar?: boolean | null
+          pagina54_sync_em?: string | null
+          pagina54_sync_erro?: string | null
+          pagina54_sync_status?: string | null
+          pagina54_ultima_atualizacao?: string | null
+          pagina54_ultima_origem?: string | null
+          parcela_numero?: number | null
+          parcela_total?: number | null
+          planilha_linha?: number | null
+          producao_projeto_id?: string | null
+          projeto_centro_custo?: string | null
+          revisao_pendente?: boolean | null
+          saldo_original?: string | null
+          sinalizacao_cor?: string | null
+          situacao_original?: string | null
+          status?: string | null
+          subcategoria?: string | null
+          tipo?: string | null
+          updated_at?: string | null
+          valor_previsto?: number | null
+          valor_realizado?: number | null
+        }
+        Update: {
+          categoria?: string | null
+          created_at?: string | null
+          credito_original?: string | null
+          criado_por_id?: string | null
+          data_prevista?: string | null
+          data_realizada?: string | null
+          debito_original?: string | null
+          descricao?: string | null
+          descricao_original?: string | null
+          id?: string | null
+          importacao_pagina54_id?: string | null
+          liberado_programacao_em?: string | null
+          liberado_programacao_por_id?: string | null
+          liberado_programacao_por_nome?: string | null
+          motivos_revisao?: Json | null
+          necessidade_id?: string | null
+          numero?: number | null
+          observacoes?: string | null
+          origem_id?: string | null
+          origem_tipo?: string | null
+          pagina54_autor_alteracao?: string | null
+          pagina54_integracao_id?: string | null
+          pagina54_precisa_exportar?: boolean | null
+          pagina54_sync_em?: string | null
+          pagina54_sync_erro?: string | null
+          pagina54_sync_status?: string | null
+          pagina54_ultima_atualizacao?: string | null
+          pagina54_ultima_origem?: string | null
+          parcela_numero?: number | null
+          parcela_total?: number | null
+          planilha_linha?: number | null
+          producao_projeto_id?: string | null
+          projeto_centro_custo?: string | null
+          revisao_pendente?: boolean | null
+          saldo_original?: string | null
+          sinalizacao_cor?: string | null
+          situacao_original?: string | null
+          status?: string | null
+          subcategoria?: string | null
+          tipo?: string | null
+          updated_at?: string | null
+          valor_previsto?: number | null
+          valor_realizado?: number | null
+        }
+        Relationships: []
+      }
+      backup_pagina54_20261007_posicoes: {
+        Row: {
+          conta_bancaria_id: string | null
+          created_at: string | null
+          data: string | null
+          entradas_realizadas: number | null
+          id: string | null
+          pagamentos_programados_nao_liquidados: number | null
+          pendencias_proximo_dia: string | null
+          recebimentos_previstos_nao_realizados: number | null
+          responsavel: string | null
+          saidas_nao_previstas_diferencas: number | null
+          saidas_realizadas: number | null
+          saldo_final_bancario: number | null
+          saldo_financeiro_gerencial: number | null
+          saldo_inicial_bancario: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          conta_bancaria_id?: string | null
+          created_at?: string | null
+          data?: string | null
+          entradas_realizadas?: number | null
+          id?: string | null
+          pagamentos_programados_nao_liquidados?: number | null
+          pendencias_proximo_dia?: string | null
+          recebimentos_previstos_nao_realizados?: number | null
+          responsavel?: string | null
+          saidas_nao_previstas_diferencas?: number | null
+          saidas_realizadas?: number | null
+          saldo_final_bancario?: number | null
+          saldo_financeiro_gerencial?: number | null
+          saldo_inicial_bancario?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          conta_bancaria_id?: string | null
+          created_at?: string | null
+          data?: string | null
+          entradas_realizadas?: number | null
+          id?: string | null
+          pagamentos_programados_nao_liquidados?: number | null
+          pendencias_proximo_dia?: string | null
+          recebimentos_previstos_nao_realizados?: number | null
+          responsavel?: string | null
+          saidas_nao_previstas_diferencas?: number | null
+          saidas_realizadas?: number | null
+          saldo_final_bancario?: number | null
+          saldo_financeiro_gerencial?: number | null
+          saldo_inicial_bancario?: number | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -712,6 +2044,277 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      cotacao_itens: {
+        Row: {
+          codigo_item: string | null
+          cotacao_id: string
+          created_at: string
+          descricao: string
+          especificacao: string | null
+          id: string
+          item_id: string | null
+          marca: string | null
+          ordem: number
+          quantidade: number | null
+          unidade: string | null
+          valor_total: number | null
+          valor_unitario: number | null
+        }
+        Insert: {
+          codigo_item?: string | null
+          cotacao_id: string
+          created_at?: string
+          descricao: string
+          especificacao?: string | null
+          id?: string
+          item_id?: string | null
+          marca?: string | null
+          ordem?: number
+          quantidade?: number | null
+          unidade?: string | null
+          valor_total?: number | null
+          valor_unitario?: number | null
+        }
+        Update: {
+          codigo_item?: string | null
+          cotacao_id?: string
+          created_at?: string
+          descricao?: string
+          especificacao?: string | null
+          id?: string
+          item_id?: string | null
+          marca?: string | null
+          ordem?: number
+          quantidade?: number | null
+          unidade?: string | null
+          valor_total?: number | null
+          valor_unitario?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotacao_itens_cotacao_id_fkey"
+            columns: ["cotacao_id"]
+            isOneToOne: false
+            referencedRelation: "cotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacao_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacao_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cotacao_solicitacoes: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          criado_por_nome: string | null
+          data_limite: string | null
+          fornecedores_solicitados: string | null
+          id: string
+          numero: number
+          observacoes: string | null
+          projeto_centro_custo: string | null
+          status: string
+          tipo: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          criado_por_nome?: string | null
+          data_limite?: string | null
+          fornecedores_solicitados?: string | null
+          id?: string
+          numero?: number
+          observacoes?: string | null
+          projeto_centro_custo?: string | null
+          status?: string
+          tipo: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          criado_por_nome?: string | null
+          data_limite?: string | null
+          fornecedores_solicitados?: string | null
+          id?: string
+          numero?: number
+          observacoes?: string | null
+          projeto_centro_custo?: string | null
+          status?: string
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cotacoes: {
+        Row: {
+          arquivo_mime: string | null
+          arquivo_nome: string | null
+          arquivo_path: string | null
+          condicao_pagamento: string | null
+          confirmado_em: string | null
+          confirmado_por: string | null
+          created_at: string
+          criado_por: string | null
+          criado_por_nome: string | null
+          cubagem_m3: number | null
+          data_cotacao: string | null
+          descricao: string | null
+          destino_frete: string | null
+          financeiro_necessidade_id: string | null
+          fornecedor_cnpj: string | null
+          fornecedor_contato: string | null
+          fornecedor_endereco: string | null
+          fornecedor_nome: string | null
+          id: string
+          leitura_erro: string | null
+          leitura_json: Json
+          leitura_status: string
+          numero: number
+          numero_proposta: string | null
+          origem_cadastro: string
+          origem_frete: string | null
+          peso_kg: number | null
+          prazo_dias: number | null
+          projeto_centro_custo: string | null
+          solicitacao_id: string | null
+          status: string
+          texto_extraido: string | null
+          tipo: string
+          tipo_veiculo: string | null
+          updated_at: string
+          validade_data: string | null
+          validade_dias: number | null
+          valor_desconto: number | null
+          valor_frete: number | null
+          valor_impostos: number | null
+          valor_subtotal: number | null
+          valor_total: number | null
+          volumes: number | null
+        }
+        Insert: {
+          arquivo_mime?: string | null
+          arquivo_nome?: string | null
+          arquivo_path?: string | null
+          condicao_pagamento?: string | null
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          criado_por?: string | null
+          criado_por_nome?: string | null
+          cubagem_m3?: number | null
+          data_cotacao?: string | null
+          descricao?: string | null
+          destino_frete?: string | null
+          financeiro_necessidade_id?: string | null
+          fornecedor_cnpj?: string | null
+          fornecedor_contato?: string | null
+          fornecedor_endereco?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          leitura_erro?: string | null
+          leitura_json?: Json
+          leitura_status?: string
+          numero?: number
+          numero_proposta?: string | null
+          origem_cadastro?: string
+          origem_frete?: string | null
+          peso_kg?: number | null
+          prazo_dias?: number | null
+          projeto_centro_custo?: string | null
+          solicitacao_id?: string | null
+          status?: string
+          texto_extraido?: string | null
+          tipo: string
+          tipo_veiculo?: string | null
+          updated_at?: string
+          validade_data?: string | null
+          validade_dias?: number | null
+          valor_desconto?: number | null
+          valor_frete?: number | null
+          valor_impostos?: number | null
+          valor_subtotal?: number | null
+          valor_total?: number | null
+          volumes?: number | null
+        }
+        Update: {
+          arquivo_mime?: string | null
+          arquivo_nome?: string | null
+          arquivo_path?: string | null
+          condicao_pagamento?: string | null
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          criado_por?: string | null
+          criado_por_nome?: string | null
+          cubagem_m3?: number | null
+          data_cotacao?: string | null
+          descricao?: string | null
+          destino_frete?: string | null
+          financeiro_necessidade_id?: string | null
+          fornecedor_cnpj?: string | null
+          fornecedor_contato?: string | null
+          fornecedor_endereco?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          leitura_erro?: string | null
+          leitura_json?: Json
+          leitura_status?: string
+          numero?: number
+          numero_proposta?: string | null
+          origem_cadastro?: string
+          origem_frete?: string | null
+          peso_kg?: number | null
+          prazo_dias?: number | null
+          projeto_centro_custo?: string | null
+          solicitacao_id?: string | null
+          status?: string
+          texto_extraido?: string | null
+          tipo?: string
+          tipo_veiculo?: string | null
+          updated_at?: string
+          validade_data?: string | null
+          validade_dias?: number | null
+          valor_desconto?: number | null
+          valor_frete?: number | null
+          valor_impostos?: number | null
+          valor_subtotal?: number | null
+          valor_total?: number | null
+          volumes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotacoes_financeiro_necessidade_id_fkey"
+            columns: ["financeiro_necessidade_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_necessidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacoes_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "cotacao_solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       estoques: {
         Row: {
@@ -1320,6 +2923,7 @@ export type Database = {
           registro_katia_em: string | null
           requisicao_compra_id: string | null
           solicitacao_material_id: string | null
+          solicitacao_material_item_id: string | null
           solicitante_id: string | null
           solicitante_nome: string | null
           status: string
@@ -1359,6 +2963,7 @@ export type Database = {
           registro_katia_em?: string | null
           requisicao_compra_id?: string | null
           solicitacao_material_id?: string | null
+          solicitacao_material_item_id?: string | null
           solicitante_id?: string | null
           solicitante_nome?: string | null
           status?: string
@@ -1398,6 +3003,7 @@ export type Database = {
           registro_katia_em?: string | null
           requisicao_compra_id?: string | null
           solicitacao_material_id?: string | null
+          solicitacao_material_item_id?: string | null
           solicitante_id?: string | null
           solicitante_nome?: string | null
           status?: string
@@ -1456,6 +3062,13 @@ export type Database = {
             columns: ["solicitacao_material_id"]
             isOneToOne: false
             referencedRelation: "solicitacoes_material"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_necessidades_solicitacao_material_item_id_fkey"
+            columns: ["solicitacao_material_item_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacao_material_itens"
             referencedColumns: ["id"]
           },
         ]
@@ -1908,6 +3521,65 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items_catalogo_oficial_v"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_movement_order_repair_audit_20261006: {
+        Row: {
+          classification: string
+          estoque_id: string | null
+          item_id: string
+          movement_id: string
+          new_data_hora: string
+          new_quantidade_anterior: number | null
+          new_quantidade_atual: number | null
+          old_data_hora: string
+          old_quantidade_anterior: number | null
+          old_quantidade_atual: number | null
+          pair_role: string
+          paired_movement_id: string | null
+          reason: string
+          repaired_at: string
+        }
+        Insert: {
+          classification: string
+          estoque_id?: string | null
+          item_id: string
+          movement_id: string
+          new_data_hora: string
+          new_quantidade_anterior?: number | null
+          new_quantidade_atual?: number | null
+          old_data_hora: string
+          old_quantidade_anterior?: number | null
+          old_quantidade_atual?: number | null
+          pair_role: string
+          paired_movement_id?: string | null
+          reason: string
+          repaired_at?: string
+        }
+        Update: {
+          classification?: string
+          estoque_id?: string | null
+          item_id?: string
+          movement_id?: string
+          new_data_hora?: string
+          new_quantidade_anterior?: number | null
+          new_quantidade_atual?: number | null
+          old_data_hora?: string
+          old_quantidade_anterior?: number | null
+          old_quantidade_atual?: number | null
+          pair_role?: string
+          paired_movement_id?: string | null
+          reason?: string
+          repaired_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movement_order_repair_audit_20261006_movement_id_fkey"
+            columns: ["movement_id"]
+            isOneToOne: true
+            referencedRelation: "movements"
             referencedColumns: ["id"]
           },
         ]
@@ -6377,6 +8049,7 @@ export type Database = {
       solicitacao_material_itens: {
         Row: {
           created_at: string
+          destino_atendimento: string
           id: string
           item_id: string | null
           item_snapshot: Json | null
@@ -6388,6 +8061,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          destino_atendimento?: string
           id?: string
           item_id?: string | null
           item_snapshot?: Json | null
@@ -6399,6 +8073,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          destino_atendimento?: string
           id?: string
           item_id?: string | null
           item_snapshot?: Json | null
@@ -6886,6 +8561,41 @@ export type Database = {
         }
         Relationships: []
       }
+      viewer_message_receipts: {
+        Row: {
+          created_at: string
+          delivered_at: string | null
+          message_id: string
+          read_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          delivered_at?: string | null
+          message_id: string
+          read_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          delivered_at?: string | null
+          message_id?: string
+          read_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "viewer_message_receipts_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "viewer_thread_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       viewer_message_threads: {
         Row: {
           created_at: string
@@ -6944,6 +8654,35 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "viewer_thread_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "viewer_message_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      viewer_thread_reads: {
+        Row: {
+          last_read_at: string
+          thread_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          last_read_at?: string
+          thread_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          last_read_at?: string
+          thread_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "viewer_thread_reads_thread_id_fkey"
             columns: ["thread_id"]
             isOneToOne: false
             referencedRelation: "viewer_message_threads"
@@ -7168,6 +8907,7 @@ export type Database = {
         Args: { p_itens: Json; p_solicitacao_id: string }
         Returns: {
           created_at: string
+          destino_atendimento: string
           id: string
           item_id: string | null
           item_snapshot: Json | null
@@ -7200,6 +8940,18 @@ export type Database = {
           p_nova_data: string
           p_novo_inicio: string
         }
+        Returns: Json
+      }
+      aprovar_solicitacao_material_com_pns: {
+        Args: { p_itens_ids: string[]; p_solicitacao_material_id: string }
+        Returns: {
+          id: string
+          ja_existia: boolean
+          numero: number
+        }[]
+      }
+      aprovar_solicitacao_material_v2: {
+        Args: { p_solicitacao_material_id: string }
         Returns: Json
       }
       atualizar_planejamento_projeto_v1: {
@@ -7294,9 +9046,14 @@ export type Database = {
         Args: { p_codigo: string }
         Returns: Json
       }
+      contar_mensagens_nao_lidas_v1: { Args: never; Returns: number }
       converter_solicitacao_material_retirada_v1: {
         Args: { p_solicitacao_material_id: string }
         Returns: Json
+      }
+      cotacao_converter_em_pn_v1: {
+        Args: { p_cotacao_id: string }
+        Returns: string
       }
       create_visualizador_message_thread: {
         Args: {
@@ -7712,6 +9469,22 @@ export type Database = {
         }
         Returns: string
       }
+      financeiro_criar_pns_da_solicitacao: {
+        Args: { p_itens_ids: string[]; p_solicitacao_material_id: string }
+        Returns: {
+          id: string
+          ja_existia: boolean
+          numero: number
+        }[]
+      }
+      financeiro_criar_rc_da_pn: {
+        Args: { p_necessidade_id: string }
+        Returns: {
+          id: string
+          ja_existia: boolean
+          numero: number
+        }[]
+      }
       financeiro_liberar_programacao: {
         Args: { p_lancamento_id: string }
         Returns: undefined
@@ -7750,6 +9523,19 @@ export type Database = {
       financeiro_parse_moeda_br: { Args: { p_texto: string }; Returns: number }
       financeiro_parse_timestamp_pagina54: {
         Args: { p_texto: string }
+        Returns: string
+      }
+      financeiro_programar_lancamento: {
+        Args: {
+          p_banco_conta?: string
+          p_beneficiario: string
+          p_data_programada: string
+          p_forma_pagamento?: string
+          p_lancamento_id: string
+          p_observacao?: string
+          p_valor: number
+          p_vencimento?: string
+        }
         Returns: string
       }
       financeiro_registrar_auditoria: {
@@ -7972,6 +9758,23 @@ export type Database = {
           membro_nome: string
           ordem_numero: number
           ordem_producao_id: string
+        }[]
+      }
+      listar_mensagens_nao_lidas_detalhes_v1: {
+        Args: { p_limite?: number }
+        Returns: {
+          created_at: string
+          id: string
+          message: string
+          sender_id: string
+          thread_id: string
+        }[]
+      }
+      listar_mensagens_nao_lidas_por_thread_v1: {
+        Args: never
+        Returns: {
+          quantidade: number
+          thread_id: string
         }[]
       }
       listar_movimentacoes_paginadas_v1: {
@@ -8200,6 +10003,14 @@ export type Database = {
           turno: string
         }[]
       }
+      listar_recibos_thread_v1: {
+        Args: { p_thread_id: string }
+        Returns: {
+          delivered_at: string
+          message_id: string
+          read_at: string
+        }[]
+      }
       listar_reservas_acervo_v1: {
         Args: never
         Returns: {
@@ -8225,6 +10036,19 @@ export type Database = {
           ultima_demao: number
         }[]
       }
+      listar_saldos_estoque_paginados_v2: {
+        Args: {
+          p_estoque_id?: string
+          p_incluir_sem_estoque?: boolean
+          p_inicio?: number
+          p_limite?: number
+        }
+        Returns: {
+          item_id: string
+          saldo_atual: number
+          ultima_movimentacao: Json
+        }[]
+      }
       listar_saldos_estoque_v1: {
         Args: { p_estoque_id?: string; p_incluir_sem_estoque?: boolean }
         Returns: {
@@ -8246,6 +10070,11 @@ export type Database = {
       }
       make_user_admin_by_email: {
         Args: { user_email: string }
+        Returns: undefined
+      }
+      marcar_mensagens_entregues_v1: { Args: never; Returns: number }
+      marcar_thread_como_lida_v1: {
+        Args: { p_thread_id: string }
         Returns: undefined
       }
       membros_ultimo_apontamento_op_v1: {
