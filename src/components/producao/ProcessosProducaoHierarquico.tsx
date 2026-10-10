@@ -51,7 +51,6 @@ import type {
   ProducaoTarefa,
 } from '@/types/producao';
 import { ControlesJornadaOp } from './ControlesJornadaOp';
-import { ApontamentosEncerradosOp } from './ApontamentosEncerradosOp';
 import { FormEditarOrdemProducao } from './FormEditarOrdemProducao';
 import { FormOrdemProducao } from './FormOrdemProducao';
 import { FormProcessoProducao } from './FormProcessoProducao';
@@ -850,8 +849,6 @@ export const ProcessosProducaoHierarquico = ({
                 estoqueAtivoId={estoqueAtivoId}
                 estoqueAtivoNome={estoqueAtivoNome}
               />
-
-              <ApontamentosEncerradosOp ordem={ordemSelecionada} />
             </div>
 
             <ModalIniciarOpComEquipe
