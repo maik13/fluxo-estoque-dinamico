@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ClipboardList, Clock3, Loader2, Pencil, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePermissions } from '@/hooks/usePermissions';
 import { notificarOrdensProducaoAlteradas } from '@/hooks/useOrdensProducao';
 import { supabase } from '@/integrations/supabase/client';
@@ -49,6 +50,7 @@ export const ApontamentosOrdemProducao = ({ ordem }: Props) => {
   const [membrosPorApontamento, setMembrosPorApontamento] = useState<
     Record<string, ProducaoApontamentoMembro[]>
   >({});
+  const [apontamentoSelecionadoId, setApontamentoSelecionadoId] = useState<string>('');
   const [retificando, setRetificando] = useState<ProducaoApontamento | null>(null);
   const { canApontarProducao } = usePermissions();
   const podeRetificar = canApontarProducao();
@@ -90,6 +92,9 @@ export const ApontamentosOrdemProducao = ({ ordem }: Props) => {
       }
 
       setApontamentos(lista);
+      setApontamentoSelecionadoId((selecionado) =>
+        lista.some((apontamento) => apontamento.id === selecionado) ? selecionado : '',
+      );
       setMembrosDisponiveis((equipe ?? []) as ProducaoMembro[]);
       setMembrosPorApontamento(
         membros.reduce<Record<string, ProducaoApontamentoMembro[]>>((porApontamento, membro) => {
@@ -112,6 +117,16 @@ export const ApontamentosOrdemProducao = ({ ordem }: Props) => {
   }, [carregar]);
 
   const tarefaNome = ordem.tarefa_nome_snapshot ?? 'Atividade da OP';
+  const apontamentoSelecionado = useMemo(
+    () => apontamentos.find((apontamento) => apontamento.id === apontamentoSelecionadoId) ?? null,
+    [apontamentoSelecionadoId, apontamentos],
+  );
+  const equipeSelecionada = apontamentoSelecionado
+    ? membrosPorApontamento[apontamentoSelecionado.id] ?? []
+    : [];
+  const quantidadeSelecionada = apontamentoSelecionado?.quantidade_produzida == null
+    ? null
+    : Number(apontamentoSelecionado.quantidade_produzida);
 
   return (
     <section className="mt-5 border-t pt-5" aria-labelledby="apontamentos-op-titulo">
@@ -147,77 +162,72 @@ export const ApontamentosOrdemProducao = ({ ordem }: Props) => {
           Nenhum apontamento foi registrado nesta OP ainda.
         </div>
       ) : (
-        <div className="mt-4 overflow-hidden rounded-xl border">
-          {apontamentos.map((apontamento, indice) => {
-            const equipe = membrosPorApontamento[apontamento.id] ?? [];
-            const retificado = Number((apontamento as any).retificacoes_count ?? 0) > 0;
-            const quantidade = apontamento.quantidade_produzida == null
-              ? null
-              : Number(apontamento.quantidade_produzida);
+        <div className="mt-4 rounded-xl border bg-muted/10 p-4">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Escolha o apontamento</label>
+              <Select value={apontamentoSelecionadoId} onValueChange={setApontamentoSelecionadoId}>
+                <SelectTrigger aria-label="Escolher apontamento da OP">
+                  <SelectValue placeholder="Selecione um apontamento para consultar ou retificar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {apontamentos.map((apontamento) => {
+                    const quantidade = apontamento.quantidade_produzida == null
+                      ? 'sem quantidade'
+                      : `${formatarQuantidade(Number(apontamento.quantidade_produzida))}${ordem.unidade_medida ? ` ${ordem.unidade_medida}` : ''}`;
+                    return (
+                      <SelectItem key={apontamento.id} value={apontamento.id}>
+                        {formatarData(apontamento.data)} · {apontamento.inicio.slice(0, 5)}–{apontamento.termino.slice(0, 5)} · {quantidade} · {statusLabel[apontamento.status]}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            {podeRetificar && apontamentoSelecionado && apontamentoSelecionado.status !== 'cancelado' && (
+              <Button type="button" onClick={() => setRetificando(apontamentoSelecionado)}>
+                <Pencil className="mr-2 h-4 w-4" /> Retificar apontamento
+              </Button>
+            )}
+          </div>
 
-            return (
-              <article
-                key={apontamento.id}
-                className={`p-4 ${indice > 0 ? 'border-t' : ''} ${apontamento.status === 'cancelado' ? 'bg-muted/25' : 'bg-card'}`}
-              >
-                <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
-                  <div className="min-w-0 space-y-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold">{formatarData(apontamento.data)}</span>
-                      <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                        <Clock3 className="h-3.5 w-3.5" />
-                        {apontamento.inicio.slice(0, 5)}–{apontamento.termino.slice(0, 5)}
-                      </span>
-                      <Badge variant="outline" className={statusClassName[apontamento.status]}>
-                        {statusLabel[apontamento.status]}
-                      </Badge>
-                      {apontamento.demao_numero != null && (
-                        <Badge variant="outline">{apontamento.demao_numero}ª demão</Badge>
-                      )}
-                      {retificado && <Badge variant="outline"><Pencil className="mr-1 h-3 w-3" />Retificado</Badge>}
-                      {apontamento.fechamento_retroativo && <Badge variant="outline">Lançamento retroativo</Badge>}
-                    </div>
+          {apontamentoSelecionado ? (
+            <article className={`mt-4 rounded-lg border bg-card p-4 ${apontamentoSelecionado.status === 'cancelado' ? 'opacity-75' : ''}`}>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold">{formatarData(apontamentoSelecionado.data)}</span>
+                <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                  <Clock3 className="h-3.5 w-3.5" />
+                  {apontamentoSelecionado.inicio.slice(0, 5)}–{apontamentoSelecionado.termino.slice(0, 5)}
+                </span>
+                <Badge variant="outline" className={statusClassName[apontamentoSelecionado.status]}>
+                  {statusLabel[apontamentoSelecionado.status]}
+                </Badge>
+                {apontamentoSelecionado.demao_numero != null && <Badge variant="outline">{apontamentoSelecionado.demao_numero}ª demão</Badge>}
+                {Number((apontamentoSelecionado as any).retificacoes_count ?? 0) > 0 && <Badge variant="outline"><Pencil className="mr-1 h-3 w-3" />Retificado</Badge>}
+              </div>
 
-                    <div className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Quantidade</p>
-                        <p className={apontamento.status === 'cancelado' ? 'font-semibold text-muted-foreground line-through' : 'font-semibold'}>
-                          {formatarQuantidade(quantidade)}{ordem.unidade_medida ? ` ${ordem.unidade_medida}` : ''}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Tempo produtivo</p>
-                        <p className="font-semibold">{apontamento.minutos_produtivos} min</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Tempo improdutivo</p>
-                        <p className="font-semibold">{apontamento.minutos_improdutivos} min</p>
-                      </div>
-                    </div>
+              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
+                <div><p className="text-xs text-muted-foreground">Quantidade</p><p className={apontamentoSelecionado.status === 'cancelado' ? 'font-semibold line-through' : 'font-semibold'}>{formatarQuantidade(quantidadeSelecionada)}{ordem.unidade_medida ? ` ${ordem.unidade_medida}` : ''}</p></div>
+                <div><p className="text-xs text-muted-foreground">Tempo produtivo</p><p className="font-semibold">{apontamentoSelecionado.minutos_produtivos} min</p></div>
+                <div><p className="text-xs text-muted-foreground">Tempo improdutivo</p><p className="font-semibold">{apontamentoSelecionado.minutos_improdutivos} min</p></div>
+              </div>
 
-                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <Users className="mt-0.5 h-4 w-4 shrink-0" />
-                      <span><strong className="font-medium text-foreground">Equipe:</strong> {equipe.map((membro) => membro.nome_snapshot).join(', ') || 'Não informada'}</span>
-                    </div>
+              <div className="mt-4 flex items-start gap-2 text-sm text-muted-foreground">
+                <Users className="mt-0.5 h-4 w-4 shrink-0" />
+                <span><strong className="font-medium text-foreground">Equipe:</strong> {equipeSelecionada.map((membro) => membro.nome_snapshot).join(', ') || 'Não informada'}</span>
+              </div>
 
-                    {(apontamento.observacoes || apontamento.motivo_improdutivo || apontamento.motivo_cancelamento) && (
-                      <div className="rounded-md bg-muted/45 px-3 py-2 text-sm text-muted-foreground">
-                        {apontamento.observacoes && <p><strong className="text-foreground">Observações:</strong> {apontamento.observacoes}</p>}
-                        {apontamento.motivo_improdutivo && <p><strong className="text-foreground">Motivo improdutivo:</strong> {apontamento.motivo_improdutivo}</p>}
-                        {apontamento.motivo_cancelamento && <p><strong className="text-foreground">Motivo do cancelamento:</strong> {apontamento.motivo_cancelamento}</p>}
-                      </div>
-                    )}
-                  </div>
-
-                  {podeRetificar && apontamento.status !== 'cancelado' && (
-                    <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setRetificando(apontamento)}>
-                      <Pencil className="mr-2 h-4 w-4" /> Retificar apontamento
-                    </Button>
-                  )}
+              {(apontamentoSelecionado.observacoes || apontamentoSelecionado.motivo_improdutivo || apontamentoSelecionado.motivo_cancelamento) && (
+                <div className="mt-4 rounded-md bg-muted/45 px-3 py-2 text-sm text-muted-foreground">
+                  {apontamentoSelecionado.observacoes && <p><strong className="text-foreground">Observações:</strong> {apontamentoSelecionado.observacoes}</p>}
+                  {apontamentoSelecionado.motivo_improdutivo && <p><strong className="text-foreground">Motivo improdutivo:</strong> {apontamentoSelecionado.motivo_improdutivo}</p>}
+                  {apontamentoSelecionado.motivo_cancelamento && <p><strong className="text-foreground">Motivo do cancelamento:</strong> {apontamentoSelecionado.motivo_cancelamento}</p>}
                 </div>
-              </article>
-            );
-          })}
+              )}
+            </article>
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">Escolha um apontamento acima para consultar seus dados ou retificá-lo.</p>
+          )}
         </div>
       )}
 
