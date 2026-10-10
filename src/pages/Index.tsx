@@ -6,6 +6,7 @@ import { TabelaMovimentacoes } from '@/components/gestao-estoque/TabelaMovimenta
 import { PainelGerencialAcesso } from '@/components/gestao-estoque/PainelGerencialAcesso';
 import { VisaoProjetos } from '@/components/gestao-estoque/VisaoProjetos';
 import { Mensagens } from '@/components/gestao-estoque/Mensagens';
+import { CentralCotacoes } from '@/components/gestao-estoque/CentralCotacoes';
 import { PosicaoEstoquePatrimonio } from '@/components/gestao-estoque/PosicaoEstoquePatrimonio';
 import { VisaoGeralEstoque } from '@/components/gestao-estoque/VisaoGeralEstoque';
 import { NavegacaoLateralEstoque } from '@/components/gestao-estoque/NavegacaoLateralEstoque';
@@ -217,6 +218,7 @@ const Index = () => {
           const showProjetos = canAccessProjects();
           const showProducao = canApontarProducao() || canConferirProducao() || canConfigurarProducao();
           const showFinanceiro = canAccessFinanceiro();
+          const showCotacoes = isAdmin() || hasPermission('compras.pedidos.criar');
           const showAcompanhamentoPedido = hasPermission('acompanhamento.acessar');
           const showPlanejamento2 = hasPermission('planejamento2.acessar');
           const showImagensOP = hasPermission('imagensop.acessar');
@@ -237,6 +239,7 @@ const Index = () => {
                 showProjetos={showProjetos}
                 showProducao={showProducao}
                 showFinanceiro={showFinanceiro}
+                showCotacoes={showCotacoes}
                 showAcompanhamentoPedido={showAcompanhamentoPedido}
                 showPlanejamento2={showPlanejamento2}
                 showImagensOP={showImagensOP}
@@ -309,6 +312,7 @@ const Index = () => {
                         </Suspense>
                       </TabsContent>
                     )}
+                    {showCotacoes && <TabsContent value="cotacoes" className="mt-0 space-y-6"><CentralCotacoes /></TabsContent>}
                     {showFinanceiro && <TabsContent value="financeiro" className="mt-0 space-y-6"><Financeiro /></TabsContent>}
                     {showMeuPonto && <TabsContent value="meu-ponto" className="mt-0 space-y-6"><MeuPonto /></TabsContent>}
                     {showControlePonto && (
