@@ -57,6 +57,7 @@ import { FormProcessoProducao } from './FormProcessoProducao';
 import { FormRetificarProcesso } from './FormRetificarProcesso';
 import { MateriaisEtapaProducao } from './MateriaisEtapaProducao';
 import { MateriaisOrdemProducao } from './MateriaisOrdemProducao';
+import { ApontamentosOrdemProducao } from './ApontamentosOrdemProducao';
 import { ExcluirProjetoProducao } from './ExcluirProjetoProducao';
 import { ModalExcluirProcesso } from './ModalExcluirProcesso';
 import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
@@ -843,6 +844,8 @@ export const ProcessosProducaoHierarquico = ({
                   <p className="font-semibold">{ordemSelecionada.responsavel_nome_snapshot ?? 'Não definido'}</p>
                 </div>
               </div>
+
+              <ApontamentosOrdemProducao ordem={ordemSelecionada} />
 
               <MateriaisOrdemProducao
                 ordem={ordemSelecionada}
