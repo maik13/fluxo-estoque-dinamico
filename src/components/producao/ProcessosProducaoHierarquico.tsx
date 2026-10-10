@@ -34,14 +34,14 @@ import {
   useOrdensProducao,
 } from '@/hooks/useOrdensProducao';
 import {
-  contextoFechamentoJornada,
   finalizarOrdemProducaoComConferencia,
   FinalizacaoParcialOrdemProducaoError,
 } from '@/services/producao/finalizarOrdemProducao';
-
 import {
+  contextoFechamentoJornada,
   iniciarJornadaOp,
   listarJornadasOpAbertas,
+
   type ContextoFechamentoJornadaOp,
   type JornadaOpAberta,
 } from '@/services/producao/jornadasOrdemProducao';
