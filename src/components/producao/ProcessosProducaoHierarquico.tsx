@@ -59,7 +59,7 @@ import { FormProcessoProducao } from './FormProcessoProducao';
 import { FormRetificarProcesso } from './FormRetificarProcesso';
 import { MateriaisEtapaProducao } from './MateriaisEtapaProducao';
 import { MateriaisOrdemProducao } from './MateriaisOrdemProducao';
-import { ApontamentosOrdemProducao } from './ApontamentosOrdemProducao';
+import { ApontamentosEncerradosOp } from './ApontamentosEncerradosOp';
 import { ExcluirProjetoProducao } from './ExcluirProjetoProducao';
 import { ModalExcluirProcesso } from './ModalExcluirProcesso';
 import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
@@ -847,13 +847,25 @@ export const ProcessosProducaoHierarquico = ({
                 </div>
               </div>
 
-              <ApontamentosOrdemProducao ordem={ordemSelecionada} />
+              <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
+                <div className="min-w-0">
+                  <MateriaisOrdemProducao
+                    ordem={ordemSelecionada}
+                    estoqueAtivoId={estoqueAtivoId}
+                    estoqueAtivoNome={estoqueAtivoNome}
+                  />
+                </div>
 
-              <MateriaisOrdemProducao
-                ordem={ordemSelecionada}
-                estoqueAtivoId={estoqueAtivoId}
-                estoqueAtivoNome={estoqueAtivoNome}
-              />
+                <aside className="min-w-0 rounded-lg border border-border/70 bg-muted/15 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Apontamentos da OP
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Abra o bloco e escolha o apontamento que deseja retificar.
+                  </p>
+                  <ApontamentosEncerradosOp ordem={ordemSelecionada} />
+                </aside>
+              </div>
             </div>
 
             <ModalIniciarOpComEquipe
