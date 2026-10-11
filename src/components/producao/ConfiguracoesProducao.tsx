@@ -44,6 +44,7 @@ import type {
 } from '@/types/producao';
 import { parseValorHoraProducao } from '@/utils/producaoImport';
 import { ImportacaoCadastrosProducao } from './ImportacaoCadastrosProducao';
+import { ImportacaoMSProjectControlada } from './ImportacaoMSProjectControlada';
 
 interface ConfiguracoesProducaoProps {
   membros: ProducaoMembro[];
@@ -229,6 +230,10 @@ export const ConfiguracoesProducao = ({
 
   return (
     <div className="grid gap-5 xl:grid-cols-2">
+      <div className="xl:col-span-2">
+        <ImportacaoMSProjectControlada />
+      </div>
+
       <div className="xl:col-span-2">
         <ImportacaoCadastrosProducao
           membros={membros}
