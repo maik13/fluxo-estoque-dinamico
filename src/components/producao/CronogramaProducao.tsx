@@ -45,6 +45,7 @@ import { formatarIdentificacaoOrdemProducao, formatarNumeroOrdemProducao } from 
 import { cn } from '@/lib/utils';
 import { PlanoDiarioProducao } from './PlanoDiarioProducao';
 import { AgendaPlanejamentoCronograma } from './AgendaPlanejamentoCronograma';
+import { CronogramaMSProjectImportado } from './CronogramaMSProjectImportado';
 
 const TASK_COLUMN_WIDTH = 330;
 const ASSIGNEE_COLUMN_WIDTH = 150;
@@ -382,6 +383,7 @@ export const CronogramaProducao = () => {
       <Tabs defaultValue="gantt">
         <TabsList>
           <TabsTrigger value="gantt">Gantt</TabsTrigger>
+          <TabsTrigger value="project">Plano do Project</TabsTrigger>
           <TabsTrigger value="plano-diario">Plano Diário</TabsTrigger>
           <TabsTrigger value="agenda">Marcos</TabsTrigger>
         </TabsList>
@@ -651,6 +653,10 @@ export const CronogramaProducao = () => {
               </div>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="project" className="mt-4">
+          <CronogramaMSProjectImportado />
         </TabsContent>
 
         <TabsContent value="plano-diario" className="mt-4"><PlanoDiarioProducao /></TabsContent>
