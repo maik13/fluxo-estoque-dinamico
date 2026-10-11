@@ -58,6 +58,7 @@ const ROW_HEIGHT_OP = 52;
 const GANTT_HEADER_HEIGHT = 76;
 
 type Visualizacao = '14dias' | 'semana' | 'mes';
+type FonteGantt = 'project' | 'ops';
 
 const PIXELS_POR_DIA: Record<Visualizacao, number> = {
   '14dias': 84,
@@ -175,6 +176,7 @@ export const CronogramaProducao = () => {
   const [deslocamento, setDeslocamento] = useState(0);
   const [configAberta, setConfigAberta] = useState(false);
   const [mostrarConcluidas, setMostrarConcluidas] = useState(false);
+  const [fonteGantt, setFonteGantt] = useState<FonteGantt>('project');
   const [projetosRecolhidos, setProjetosRecolhidos] = useState<Set<string>>(() => new Set());
   const [larguraViewport, setLarguraViewport] = useState(0);
   const ganttViewportRef = useRef<HTMLDivElement>(null);
@@ -361,34 +363,47 @@ export const CronogramaProducao = () => {
         <div>
           <h3 className="text-lg font-medium">Cronograma de Produção</h3>
           <p className="text-sm text-muted-foreground">
-            Visão operacional por projeto: mostra somente as OPs programadas ou em execução. Concluídas podem ser exibidas pelo filtro.
+            {fonteGantt === 'project'
+              ? 'Plano original do Microsoft Project, agrupado por projeto e separado da execução real.'
+              : 'Visão operacional por projeto: mostra somente as OPs programadas ou em execução. Concluídas podem ser exibidas pelo filtro.'}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        {fonteGantt === 'ops' && <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setConfigAberta(true)}><Settings2 className="mr-2 h-4 w-4" />Capacidade e calendário</Button>
           <Button onClick={() => void recalcularCronograma()} disabled={recalculando}><RefreshCw className={cn('mr-2 h-4 w-4', recalculando && 'animate-spin')} />Recalcular</Button>
-        </div>
+        </div>}
       </div>
 
-      {erro && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{erro}. Confirme se as migrations do cronograma e das OPs foram aplicadas.</AlertDescription></Alert>}
-      {alertasAltos > 0 && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>O cronograma possui {alertasAltos} alerta(s) crítico(s). Verifique prazo, capacidade e quantidade não alocada.</AlertDescription></Alert>}
+      {fonteGantt === 'ops' && erro && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{erro}. Confirme se as migrations do cronograma e das OPs foram aplicadas.</AlertDescription></Alert>}
+      {fonteGantt === 'ops' && alertasAltos > 0 && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>O cronograma possui {alertasAltos} alerta(s) crítico(s). Verifique prazo, capacidade e quantidade não alocada.</AlertDescription></Alert>}
 
-      <div className="grid gap-3 sm:grid-cols-4 print:hidden">
+      {fonteGantt === 'ops' && <div className="grid gap-3 sm:grid-cols-4 print:hidden">
         <Card className="p-4"><p className="text-xs text-muted-foreground">Equipe disponível/dia</p><p className="text-2xl font-bold">{configuracao?.equipe_disponivel_por_dia ?? '—'}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">OPs programadas no período</p><p className="text-2xl font-bold">{opsVisiveis.length}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Sem programação</p><p className="text-2xl font-bold">{semProgramacao.length}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Alertas críticos</p><p className={cn('text-2xl font-bold', alertasAltos > 0 && 'text-destructive')}>{alertasAltos}</p></Card>
-      </div>
+      </div>}
 
       <Tabs defaultValue="gantt">
         <TabsList>
           <TabsTrigger value="gantt">Gantt</TabsTrigger>
-          <TabsTrigger value="project">Plano do Project</TabsTrigger>
           <TabsTrigger value="plano-diario">Plano Diário</TabsTrigger>
           <TabsTrigger value="agenda">Marcos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="gantt" className="mt-4">
+          <Card className="mb-4 flex flex-col justify-between gap-3 p-3 sm:flex-row sm:items-center print:hidden">
+            <div>
+              <p className="text-sm font-semibold">Fonte exibida no Gantt</p>
+              <p className="text-xs text-muted-foreground">Alterne entre o plano original do Project e a programação operacional já cadastrada.</p>
+            </div>
+            <div className="flex rounded-md border p-1">
+              <Button type="button" size="sm" variant={fonteGantt === 'project' ? 'default' : 'ghost'} onClick={() => setFonteGantt('project')}>Plano do Project</Button>
+              <Button type="button" size="sm" variant={fonteGantt === 'ops' ? 'default' : 'ghost'} onClick={() => setFonteGantt('ops')}>OPs do sistema</Button>
+            </div>
+          </Card>
+
+          {fonteGantt === 'project' ? <CronogramaMSProjectImportado /> : <>
           <Card className="gantt-print-area overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 border-b p-3 print:hidden">
               <Button variant="ghost" size="sm" onClick={expandirTudo}>
@@ -653,10 +668,7 @@ export const CronogramaProducao = () => {
               </div>
             </Card>
           )}
-        </TabsContent>
-
-        <TabsContent value="project" className="mt-4">
-          <CronogramaMSProjectImportado />
+          </>}
         </TabsContent>
 
         <TabsContent value="plano-diario" className="mt-4"><PlanoDiarioProducao /></TabsContent>
