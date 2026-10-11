@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   addDays,
   differenceInCalendarDays,
@@ -11,13 +11,14 @@ import {
   startOfMonth,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { AlertCircle, CalendarDays, ChevronLeft, ChevronRight, FileClock, RefreshCw } from 'lucide-react';
+import { AlertCircle, CalendarDays, ChevronLeft, ChevronRight, FileClock, RefreshCw, Upload, X } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { ArquivoMSProjectNormalizado, lerArquivoMSProjectNormalizado } from '@/utils/msprojectImportacao';
 
 type Escala = '14dias' | 'mes';
 
@@ -108,6 +109,8 @@ export const CronogramaMSProjectImportado = () => {
   const [erro, setErro] = useState<string | null>(null);
   const [escala, setEscala] = useState<Escala>('mes');
   const [referencia, setReferencia] = useState(new Date());
+  const [previsualizacaoLocal, setPrevisualizacaoLocal] = useState<ArquivoMSProjectNormalizado | null>(null);
+  const seletorArquivoRef = useRef<HTMLInputElement>(null);
 
   const carregarImportacoes = async () => {
     setLoading(true);
@@ -164,7 +167,46 @@ export const CronogramaMSProjectImportado = () => {
     return () => { ativo = false; };
   }, [importacaoId]);
 
-  const importacao = importacoes.find((item) => item.id === importacaoId) ?? null;
+  const abrirPrevisualizacaoLocal = async (evento: ChangeEvent<HTMLInputElement>) => {
+    const arquivo = evento.target.files?.[0];
+    evento.target.value = '';
+    if (!arquivo) return;
+
+    try {
+      const documento = await lerArquivoMSProjectNormalizado(arquivo);
+      setPrevisualizacaoLocal(documento);
+      setErro(null);
+      const inicio = documento.inicio_planejado_original ?? documento.tarefas[0]?.inicio_planejado_original;
+      if (inicio) setReferencia(data(inicio));
+    } catch (causa) {
+      setErro(causa instanceof Error ? causa.message : 'Não foi possível abrir a prévia local do Project.');
+    }
+  };
+
+  const importacaoRemota = importacoes.find((item) => item.id === importacaoId) ?? null;
+  const importacaoLocal: ImportacaoMSProject | null = previsualizacaoLocal ? {
+    id: 'previsualizacao-local',
+    arquivo_nome: previsualizacaoLocal.arquivo_nome,
+    inicio_planejado_original: previsualizacaoLocal.inicio_planejado_original,
+    fim_planejado_original: previsualizacaoLocal.fim_planejado_original,
+    total_tarefas: previsualizacaoLocal.tarefas.length,
+    status: 'previsualizacao_local',
+    criado_em: new Date().toISOString(),
+  } : null;
+  const importacao = importacaoLocal ?? importacaoRemota;
+  const tarefasDaVisualizacao = previsualizacaoLocal
+    ? previsualizacaoLocal.tarefas.map((tarefa) => ({
+      id: `local-${tarefa.uid_origem}`,
+      uid_origem: tarefa.uid_origem,
+      nome: tarefa.nome,
+      referencia_msproject: tarefa.referencia_msproject,
+      cidade_msproject: tarefa.cidade_msproject,
+      inicio_planejado_original: tarefa.inicio_planejado_original,
+      fim_planejado_original: tarefa.fim_planejado_original,
+      percentual_concluido_origem: tarefa.percentual_concluido_origem,
+    }))
+    : tarefas;
+  const erroVisivel = previsualizacaoLocal ? null : erro;
   const periodo = useMemo(() => periodoDaEscala(referencia, escala), [escala, referencia]);
   const dias = useMemo(() => Array.from(
     { length: differenceInCalendarDays(periodo.fim, periodo.inicio) + 1 },
@@ -174,7 +216,7 @@ export const CronogramaMSProjectImportado = () => {
   const larguraTimeline = dias.length * pixelsPorDia;
 
   const linhas = useMemo<Linha[]>(() => {
-    const visiveis = tarefas.filter((tarefa) => {
+    const visiveis = tarefasDaVisualizacao.filter((tarefa) => {
       const inicio = data(tarefa.inicio_planejado_original);
       const fim = data(tarefa.fim_planejado_original);
       return fim >= periodo.inicio && inicio <= periodo.fim;
@@ -192,7 +234,7 @@ export const CronogramaMSProjectImportado = () => {
         { tipo: 'projeto' as const, id: `projeto-${chave}`, titulo: tituloProjeto(itens[0]) },
         ...itens.map((tarefa) => ({ tipo: 'tarefa' as const, id: tarefa.id, tarefa })),
       ]);
-  }, [periodo.fim, periodo.inicio, tarefas]);
+  }, [periodo.fim, periodo.inicio, tarefasDaVisualizacao]);
 
   const navegar = (direcao: -1 | 1) => {
     setReferencia((atual) => escala === 'mes'
@@ -206,27 +248,32 @@ export const CronogramaMSProjectImportado = () => {
         <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
           <div>
             <div className="flex items-center gap-2"><FileClock className="h-5 w-5 text-primary" /><h4 className="font-semibold">Plano original — Microsoft Project</h4></div>
-            <p className="mt-1 text-sm text-muted-foreground">Cronograma importado do Project, separado da execução real das OPs e dos apontamentos.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Cronograma do Project, separado da execução real das OPs e dos apontamentos.</p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => void carregarImportacoes()} disabled={loading}><RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />Atualizar</Button>
+          <div className="flex flex-wrap gap-2">
+            <input ref={seletorArquivoRef} type="file" accept="application/json,.json" className="hidden" onChange={(evento) => void abrirPrevisualizacaoLocal(evento)} />
+            <Button type="button" variant="outline" size="sm" onClick={() => seletorArquivoRef.current?.click()}><Upload className="mr-2 h-4 w-4" />Abrir prévia local</Button>
+            {previsualizacaoLocal && <Button type="button" variant="ghost" size="sm" onClick={() => setPrevisualizacaoLocal(null)}><X className="mr-2 h-4 w-4" />Fechar prévia</Button>}
+            <Button type="button" variant="outline" size="sm" onClick={() => void carregarImportacoes()} disabled={loading}><RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />Atualizar</Button>
+          </div>
         </div>
       </Card>
 
-      {erro && (
-        <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Plano do Project indisponível</AlertTitle><AlertDescription>{erro}</AlertDescription></Alert>
+      {erroVisivel && (
+        <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Plano do Project indisponível</AlertTitle><AlertDescription>{erroVisivel}</AlertDescription></Alert>
       )}
 
-      {!loading && !erro && importacoes.length === 0 && (
-        <Alert><FileClock className="h-4 w-4" /><AlertTitle>Nenhum plano do Project foi pré-importado</AlertTitle><AlertDescription>Faça a pré-importação controlada em Produção → Configurações. Ela não cria OPs: apenas disponibiliza o planejamento original para conciliação.</AlertDescription></Alert>
+      {!loading && !erroVisivel && !previsualizacaoLocal && importacoes.length === 0 && (
+        <Alert><FileClock className="h-4 w-4" /><AlertTitle>Nenhum plano do Project foi pré-importado</AlertTitle><AlertDescription>Use “Abrir prévia local” para conferir o JSON extraído do Project sem alterar a base, ou faça a pré-importação controlada em Produção → Configurações para disponibilizá-lo para toda a equipe.</AlertDescription></Alert>
       )}
 
       {importacao && (
         <Card className="overflow-hidden">
           <div className="flex flex-wrap items-center gap-2 border-b p-3 print:hidden">
-            <Select value={importacaoId ?? undefined} onValueChange={setImportacaoId}>
+            {!previsualizacaoLocal && <Select value={importacaoId ?? undefined} onValueChange={setImportacaoId}>
               <SelectTrigger className="w-[320px]"><SelectValue /></SelectTrigger>
               <SelectContent>{importacoes.map((item) => <SelectItem key={item.id} value={item.id}>{item.arquivo_nome} · {item.total_tarefas} tarefas</SelectItem>)}</SelectContent>
-            </Select>
+            </Select>}
             <Select value={escala} onValueChange={(valor) => setEscala(valor as Escala)}>
               <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="14dias">14 dias</SelectItem><SelectItem value="mes">Mês</SelectItem></SelectContent>
@@ -236,7 +283,7 @@ export const CronogramaMSProjectImportado = () => {
             <Button variant="outline" size="icon" onClick={() => navegar(1)}><ChevronRight className="h-4 w-4" /></Button>
           </div>
           <div className="border-b bg-muted/20 px-4 py-2 text-sm text-muted-foreground">
-            Origem: {importacao.arquivo_nome} · {format(data(importacao.inicio_planejado_original ?? referencia.toISOString()), 'dd/MM/yyyy')} a {format(data(importacao.fim_planejado_original ?? referencia.toISOString()), 'dd/MM/yyyy')} · planejamento original
+            Origem: {importacao.arquivo_nome} · {format(data(importacao.inicio_planejado_original ?? referencia.toISOString()), 'dd/MM/yyyy')} a {format(data(importacao.fim_planejado_original ?? referencia.toISOString()), 'dd/MM/yyyy')} · {previsualizacaoLocal ? 'prévia local — ainda não gravada no banco' : 'planejamento original'}
           </div>
           <div className="max-h-[70vh] overflow-auto">
             <div className="flex" style={{ width: larguraRotulo + larguraTimeline }}>
