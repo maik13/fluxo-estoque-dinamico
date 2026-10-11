@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   addDays,
   differenceInCalendarDays,
@@ -11,7 +11,7 @@ import {
   startOfMonth,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { AlertCircle, CalendarDays, ChevronLeft, ChevronRight, FileClock, RefreshCw, Upload, X } from 'lucide-react';
+import { AlertCircle, CalendarDays, ChevronLeft, ChevronRight, FileClock, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -110,7 +110,6 @@ export const CronogramaMSProjectImportado = () => {
   const [escala, setEscala] = useState<Escala>('mes');
   const [referencia, setReferencia] = useState(new Date());
   const [previsualizacaoLocal, setPrevisualizacaoLocal] = useState<ArquivoMSProjectNormalizado | null>(null);
-  const seletorArquivoRef = useRef<HTMLInputElement>(null);
 
   const carregarImportacoes = async () => {
     setLoading(true);
@@ -135,6 +134,24 @@ export const CronogramaMSProjectImportado = () => {
   };
 
   useEffect(() => { void carregarImportacoes(); }, []);
+
+  const carregarPlanoLocal = async () => {
+    if (!import.meta.env.DEV) return;
+    try {
+      const resposta = await fetch('/_local/msproject/natal-2026');
+      if (!resposta.ok) throw new Error('O plano local do Project ainda não foi gerado.');
+      const arquivo = new File([await resposta.blob()], 'Natal 2026 v21.mpp', { type: 'application/json' });
+      const documento = await lerArquivoMSProjectNormalizado(arquivo);
+      setPrevisualizacaoLocal(documento);
+      setErro(null);
+      const inicio = documento.inicio_planejado_original ?? documento.tarefas[0]?.inicio_planejado_original;
+      if (inicio) setReferencia(data(inicio));
+    } catch (causa) {
+      setErro(causa instanceof Error ? causa.message : 'Não foi possível carregar o plano local do Project.');
+    }
+  };
+
+  useEffect(() => { void carregarPlanoLocal(); }, []);
 
   useEffect(() => {
     if (!importacaoId) {
@@ -166,22 +183,6 @@ export const CronogramaMSProjectImportado = () => {
     })();
     return () => { ativo = false; };
   }, [importacaoId]);
-
-  const abrirPrevisualizacaoLocal = async (evento: ChangeEvent<HTMLInputElement>) => {
-    const arquivo = evento.target.files?.[0];
-    evento.target.value = '';
-    if (!arquivo) return;
-
-    try {
-      const documento = await lerArquivoMSProjectNormalizado(arquivo);
-      setPrevisualizacaoLocal(documento);
-      setErro(null);
-      const inicio = documento.inicio_planejado_original ?? documento.tarefas[0]?.inicio_planejado_original;
-      if (inicio) setReferencia(data(inicio));
-    } catch (causa) {
-      setErro(causa instanceof Error ? causa.message : 'Não foi possível abrir a prévia local do Project.');
-    }
-  };
 
   const importacaoRemota = importacoes.find((item) => item.id === importacaoId) ?? null;
   const importacaoLocal: ImportacaoMSProject | null = previsualizacaoLocal ? {
@@ -251,10 +252,7 @@ export const CronogramaMSProjectImportado = () => {
             <p className="mt-1 text-sm text-muted-foreground">Cronograma do Project, separado da execução real das OPs e dos apontamentos.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <input ref={seletorArquivoRef} type="file" accept="application/json,.json" className="hidden" onChange={(evento) => void abrirPrevisualizacaoLocal(evento)} />
-            <Button type="button" variant="outline" size="sm" onClick={() => seletorArquivoRef.current?.click()}><Upload className="mr-2 h-4 w-4" />Abrir prévia local</Button>
-            {previsualizacaoLocal && <Button type="button" variant="ghost" size="sm" onClick={() => setPrevisualizacaoLocal(null)}><X className="mr-2 h-4 w-4" />Fechar prévia</Button>}
-            <Button type="button" variant="outline" size="sm" onClick={() => void carregarImportacoes()} disabled={loading}><RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />Atualizar</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => { void carregarImportacoes(); void carregarPlanoLocal(); }} disabled={loading}><RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />Atualizar plano</Button>
           </div>
         </div>
       </Card>
@@ -283,7 +281,7 @@ export const CronogramaMSProjectImportado = () => {
             <Button variant="outline" size="icon" onClick={() => navegar(1)}><ChevronRight className="h-4 w-4" /></Button>
           </div>
           <div className="border-b bg-muted/20 px-4 py-2 text-sm text-muted-foreground">
-            Origem: {importacao.arquivo_nome} · {format(data(importacao.inicio_planejado_original ?? referencia.toISOString()), 'dd/MM/yyyy')} a {format(data(importacao.fim_planejado_original ?? referencia.toISOString()), 'dd/MM/yyyy')} · {previsualizacaoLocal ? 'prévia local — ainda não gravada no banco' : 'planejamento original'}
+            Origem: {importacao.arquivo_nome} · {format(data(importacao.inicio_planejado_original ?? referencia.toISOString()), 'dd/MM/yyyy')} a {format(data(importacao.fim_planejado_original ?? referencia.toISOString()), 'dd/MM/yyyy')} · {previsualizacaoLocal ? 'plano local carregado automaticamente — ainda não gravado no banco' : 'planejamento original'}
           </div>
           <div className="max-h-[70vh] overflow-auto">
             <div className="flex" style={{ width: larguraRotulo + larguraTimeline }}>
