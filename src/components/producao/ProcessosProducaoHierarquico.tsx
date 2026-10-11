@@ -847,7 +847,7 @@ export const ProcessosProducaoHierarquico = ({
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
+              <div className="mt-5 grid gap-4 lg:grid-cols-2 lg:items-stretch">
                 <div className="min-w-0">
                   <MateriaisOrdemProducao
                     ordem={ordemSelecionada}
@@ -856,7 +856,7 @@ export const ProcessosProducaoHierarquico = ({
                   />
                 </div>
 
-                <aside className="min-w-0 rounded-lg border border-border/70 bg-muted/15 p-3">
+                <aside className="min-w-0 rounded-lg border border-border/70 bg-muted/15 p-4">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     Apontamentos da OP
                   </p>
