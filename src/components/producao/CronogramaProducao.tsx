@@ -39,7 +39,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   useCronogramaProducao,
   type ConfiguracaoCronogramaProducao,
-  type GanttEtapaProducao,
   type GanttOrdemProducao,
 } from '@/hooks/useCronogramaProducao';
 import { formatarIdentificacaoOrdemProducao, formatarNumeroOrdemProducao } from '@/hooks/useOrdensProducao';
@@ -53,7 +52,7 @@ const PROGRESS_COLUMN_WIDTH = 100;
 const STATE_COLUMN_WIDTH = 140;
 const LABEL_WIDTH =
   TASK_COLUMN_WIDTH + ASSIGNEE_COLUMN_WIDTH + PROGRESS_COLUMN_WIDTH + STATE_COLUMN_WIDTH;
-const ROW_HEIGHT_ETAPA = 52;
+const ROW_HEIGHT_PROJETO = 42;
 const ROW_HEIGHT_OP = 52;
 const GANTT_HEADER_HEIGHT = 76;
 
@@ -63,24 +62,6 @@ const PIXELS_POR_DIA: Record<Visualizacao, number> = {
   '14dias': 84,
   semana: 120,
   mes: 68,
-};
-
-const statusEtapaClass: Record<string, string> = {
-  planejado: 'bg-slate-500',
-  em_andamento: 'bg-emerald-500',
-  pausado: 'bg-amber-500',
-  bloqueado: 'bg-red-500',
-  finalizado: 'bg-blue-500',
-  cancelado: 'bg-zinc-500',
-};
-
-const statusEtapaLabel: Record<string, string> = {
-  planejado: 'Planejada',
-  em_andamento: 'Em andamento',
-  pausado: 'Pausada',
-  bloqueado: 'Bloqueada',
-  finalizado: 'Concluída',
-  cancelado: 'Cancelada',
 };
 
 const statusOpClass: Record<string, string> = {
@@ -105,20 +86,23 @@ interface Intervalo {
   origem: 'real' | 'prevista';
 }
 
-interface LinhaEtapa {
-  tipo: 'etapa';
+interface LinhaProjeto {
+  tipo: 'projeto';
   id: string;
-  etapa: GanttEtapaProducao;
+  projetoId: string;
+  projetoNome: string;
+  cidade: string | null;
 }
 
 interface LinhaOp {
   tipo: 'op';
   id: string;
-  etapa: GanttEtapaProducao;
+  projetoId: string;
+  projetoNome: string;
   ordem: GanttOrdemProducao;
 }
 
-type LinhaGantt = LinhaEtapa | LinhaOp;
+type LinhaGantt = LinhaProjeto | LinhaOp;
 
 const dataValida = (valor: string | null | undefined) => valor ? parseISO(valor) : null;
 
@@ -143,14 +127,6 @@ const normalizarIntervalo = (
     origem: encerrado && Boolean(inicioReal || fimReal) ? 'real' : 'prevista',
   };
 };
-
-const intervaloEtapa = (etapa: GanttEtapaProducao) => normalizarIntervalo(
-  etapa.data_inicio_real,
-  etapa.data_fim_real,
-  etapa.data_inicio_prevista ?? etapa.data_inicio_desejada,
-  etapa.data_fim_prevista ?? etapa.data_limite,
-  etapa.status === 'finalizado' || etapa.status === 'cancelado',
-);
 
 const intervaloOrdem = (ordem: GanttOrdemProducao) => normalizarIntervalo(
   ordem.data_inicio_real,
@@ -198,7 +174,7 @@ export const CronogramaProducao = () => {
   const [deslocamento, setDeslocamento] = useState(0);
   const [configAberta, setConfigAberta] = useState(false);
   const [mostrarConcluidas, setMostrarConcluidas] = useState(false);
-  const [etapasRecolhidas, setEtapasRecolhidas] = useState<Set<string>>(() => new Set());
+  const [projetosRecolhidos, setProjetosRecolhidos] = useState<Set<string>>(() => new Set());
   const [larguraViewport, setLarguraViewport] = useState(0);
   const ganttViewportRef = useRef<HTMLDivElement>(null);
   const [configForm, setConfigForm] = useState<ConfiguracaoCronogramaProducao>({
@@ -252,43 +228,28 @@ export const CronogramaProducao = () => {
     });
   }, [busca, etapas, projetoId]);
 
-  const linhasProgramadas = useMemo<LinhaGantt[]>(() => etapasFiltradas.flatMap((etapa): LinhaGantt[] => {
-    const ordensAtivas = etapa.ordens.filter((ordem) => ordem.status !== 'cancelada');
-    const ordensProgramadas = ordensAtivas
-      .filter((ordem) => Boolean(intervaloOrdem(ordem)))
-      .map((ordem) => ({ tipo: 'op' as const, id: `op-${ordem.id}`, etapa, ordem }));
-
-    const linhaEtapa = intervaloEtapa(etapa)
-      ? [{ tipo: 'etapa' as const, id: `etapa-${etapa.etapa_id}`, etapa }]
-      : [];
-
-    return [
-      ...linhaEtapa,
-      ...(etapasRecolhidas.has(etapa.etapa_id) ? [] : ordensProgramadas),
-    ];
-  }), [etapasFiltradas, etapasRecolhidas]);
+  const opsProgramadas = useMemo<LinhaOp[]>(() => etapasFiltradas.flatMap((etapa) =>
+    etapa.ordens
+      .filter((ordem) => ordem.status !== 'cancelada' && Boolean(intervaloOrdem(ordem)))
+      .map((ordem) => ({
+        tipo: 'op' as const,
+        id: `op-${ordem.id}`,
+        projetoId: etapa.projeto_id,
+        projetoNome: etapa.projeto_nome,
+        ordem,
+      })),
+  ), [etapasFiltradas]);
 
   const semProgramacao = useMemo(() => etapasFiltradas.flatMap((etapa) => {
     const ordensAtivas = etapa.ordens.filter((ordem) => ordem.status !== 'cancelada');
-    if (ordensAtivas.length > 0) {
-      return ordensAtivas
-        .filter((ordem) => !intervaloOrdem(ordem))
-        .map((ordem) => ({
-          id: `op-${ordem.id}`,
-          titulo: formatarIdentificacaoOrdemProducao(ordem),
-          projeto: etapa.projeto_nome,
-          etapa: `${etapa.codigo} · ${etapa.etapa_nome}`,
-        }));
-    }
-    if (!intervaloEtapa(etapa)) {
-      return [{
-        id: `etapa-${etapa.etapa_id}`,
-        titulo: `${etapa.codigo} · ${etapa.etapa_nome}`,
+    return ordensAtivas
+      .filter((ordem) => !intervaloOrdem(ordem))
+      .map((ordem) => ({
+        id: `op-${ordem.id}`,
+        titulo: formatarIdentificacaoOrdemProducao(ordem),
         projeto: etapa.projeto_nome,
-        etapa: 'Etapa sem OP e sem período definido',
-      }];
-    }
-    return [];
+        etapa: 'OP sem período definido',
+      }));
   }), [etapasFiltradas]);
 
   const periodo = useMemo(() => calcularPeriodo(visualizacao, deslocamento), [deslocamento, visualizacao]);
@@ -315,17 +276,17 @@ export const CronogramaProducao = () => {
     return grupos;
   }, [dias]);
 
-  const alternarEtapa = (etapaId: string) => {
-    setEtapasRecolhidas((atuais) => {
+  const alternarProjeto = (projetoId: string) => {
+    setProjetosRecolhidos((atuais) => {
       const proximo = new Set(atuais);
-      if (proximo.has(etapaId)) proximo.delete(etapaId);
-      else proximo.add(etapaId);
+      if (proximo.has(projetoId)) proximo.delete(projetoId);
+      else proximo.add(projetoId);
       return proximo;
     });
   };
 
-  const expandirTudo = () => setEtapasRecolhidas(new Set());
-  const recolherTudo = () => setEtapasRecolhidas(new Set(etapasFiltradas.map((etapa) => etapa.etapa_id)));
+  const expandirTudo = () => setProjetosRecolhidos(new Set());
+  const recolherTudo = () => setProjetosRecolhidos(new Set(opsProgramadas.map((op) => op.projetoId)));
 
   const larguraMinima = dias.length * pixelsPorDiaBase;
   const larguraTimelineDisponivel = Math.max(0, larguraViewport - LABEL_WIDTH);
@@ -336,21 +297,45 @@ export const CronogramaProducao = () => {
   const hojeIndice = differenceInCalendarDays(new Date(), periodo.inicio);
   const hojeOffset = hojeIndice * pixelsPorDia;
   const hojeNaFaixa = hojeIndice >= 0 && hojeIndice < dias.length;
-  const linhas = useMemo(
-    () => linhasProgramadas.filter((linha) => {
-      const intervalo = linha.tipo === 'etapa' ? intervaloEtapa(linha.etapa) : intervaloOrdem(linha.ordem);
-      const concluida = linha.tipo === 'etapa'
-        ? linha.etapa.status === 'finalizado'
-        : linha.ordem.status === 'concluida';
+  const opsVisiveis = useMemo(
+    () => opsProgramadas.filter((linha) => {
+      const intervalo = intervaloOrdem(linha.ordem);
       return Boolean(
-        (mostrarConcluidas || !concluida)
+        (mostrarConcluidas || linha.ordem.status !== 'concluida')
         && intervalo
         && intervalo.fim.getTime() >= periodo.inicio.getTime()
-        && intervalo.inicio.getTime() <= periodo.fim.getTime()
+        && intervalo.inicio.getTime() <= periodo.fim.getTime(),
       );
     }),
-    [linhasProgramadas, mostrarConcluidas, periodo.fim, periodo.inicio],
+    [mostrarConcluidas, opsProgramadas, periodo.fim, periodo.inicio],
   );
+
+  const linhas = useMemo<LinhaGantt[]>(() => {
+    const porProjeto = new Map<string, LinhaOp[]>();
+    opsVisiveis.forEach((op) => {
+      const grupo = porProjeto.get(op.projetoId) ?? [];
+      grupo.push(op);
+      porProjeto.set(op.projetoId, grupo);
+    });
+
+    return [...porProjeto.entries()]
+      .sort(([, opsA], [, opsB]) => opsA[0].projetoNome.localeCompare(opsB[0].projetoNome, 'pt-BR'))
+      .flatMap(([id, ops]) => {
+        const ordenadas = [...ops].sort((a, b) => {
+          const inicioA = intervaloOrdem(a.ordem)?.inicio.getTime() ?? 0;
+          const inicioB = intervaloOrdem(b.ordem)?.inicio.getTime() ?? 0;
+          return inicioA - inicioB || a.ordem.numero - b.ordem.numero;
+        });
+        const cabecalho: LinhaProjeto = {
+          tipo: 'projeto',
+          id: `projeto-${id}`,
+          projetoId: id,
+          projetoNome: ordenadas[0].projetoNome,
+          cidade: etapasFiltradas.find((etapa) => etapa.projeto_id === id)?.cidade ?? null,
+        };
+        return [cabecalho, ...(projetosRecolhidos.has(id) ? [] : ordenadas)];
+      });
+  }, [etapasFiltradas, opsVisiveis, projetosRecolhidos]);
   const alertasAltos = alertas.filter((alerta) => alerta.severidade === 'alta').length;
 
   const salvarConfig = async () => {
@@ -367,19 +352,7 @@ export const CronogramaProducao = () => {
     setDeslocamento(0);
   };
 
-  const intervaloLinha = (linha: LinhaGantt) => linha.tipo === 'etapa'
-    ? intervaloEtapa(linha.etapa)
-    : intervaloOrdem(linha.ordem);
-
-  const percentualLinha = (linha: LinhaGantt) => linha.tipo === 'etapa'
-    ? linha.etapa.percentual_realizado
-    : linha.ordem.percentual_realizado;
-
-  const statusLinha = (linha: LinhaGantt) => linha.tipo === 'etapa'
-    ? linha.etapa.status
-    : linha.ordem.status;
-
-  const alturaLinha = (linha: LinhaGantt) => linha.tipo === 'etapa' ? ROW_HEIGHT_ETAPA : ROW_HEIGHT_OP;
+  const alturaLinha = (linha: LinhaGantt) => linha.tipo === 'projeto' ? ROW_HEIGHT_PROJETO : ROW_HEIGHT_OP;
 
   return (
     <div className="space-y-4">
@@ -387,7 +360,7 @@ export const CronogramaProducao = () => {
         <div>
           <h3 className="text-lg font-medium">Cronograma de Produção</h3>
           <p className="text-sm text-muted-foreground">
-            Visão operacional: mostra por padrão somente o que ainda está programado ou em execução. Concluídas podem ser exibidas pelo filtro.
+            Visão operacional por projeto: mostra somente as OPs programadas ou em execução. Concluídas podem ser exibidas pelo filtro.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -401,7 +374,7 @@ export const CronogramaProducao = () => {
 
       <div className="grid gap-3 sm:grid-cols-4 print:hidden">
         <Card className="p-4"><p className="text-xs text-muted-foreground">Equipe disponível/dia</p><p className="text-2xl font-bold">{configuracao?.equipe_disponivel_por_dia ?? '—'}</p></Card>
-        <Card className="p-4"><p className="text-xs text-muted-foreground">Programados no período</p><p className="text-2xl font-bold">{linhas.length}</p></Card>
+        <Card className="p-4"><p className="text-xs text-muted-foreground">OPs programadas no período</p><p className="text-2xl font-bold">{opsVisiveis.length}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Sem programação</p><p className="text-2xl font-bold">{semProgramacao.length}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Alertas críticos</p><p className={cn('text-2xl font-bold', alertasAltos > 0 && 'text-destructive')}>{alertasAltos}</p></Card>
       </div>
@@ -417,10 +390,10 @@ export const CronogramaProducao = () => {
           <Card className="gantt-print-area overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 border-b p-3 print:hidden">
               <Button variant="ghost" size="sm" onClick={expandirTudo}>
-                <ChevronsDown className="mr-2 h-4 w-4" />Expandir
+                <ChevronsDown className="mr-2 h-4 w-4" />Expandir projetos
               </Button>
               <Button variant="ghost" size="sm" onClick={recolherTudo}>
-                <ChevronsUp className="mr-2 h-4 w-4" />Recolher
+                <ChevronsUp className="mr-2 h-4 w-4" />Recolher projetos
               </Button>
               <SearchableSelect
                 value={projetoId}
@@ -434,7 +407,7 @@ export const CronogramaProducao = () => {
               />
               <div className="relative min-w-[240px] flex-1">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input className="pl-9" value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar etapa, OP, projeto, responsável ou cidade" />
+                <Input className="pl-9" value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar OP, projeto, responsável ou cidade" />
               </div>
               <Select value={visualizacao} onValueChange={selecionarVisualizacao}>
                 <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
@@ -471,87 +444,61 @@ export const CronogramaProducao = () => {
                   </div>
 
                   {linhas.map((linha) => {
-                    const percentual = Math.min(100, Math.max(0, Number(percentualLinha(linha) ?? 0)));
-                    const status = statusLinha(linha);
-                    const estado = linha.tipo === 'etapa'
-                      ? statusEtapaLabel[status] ?? status
-                      : linha.ordem.status === 'em_execucao' && percentual >= 100
-                        ? '100% · aguardando conclusão'
-                        : statusOpLabel[status] ?? status;
-                    const responsavel = linha.tipo === 'op'
-                      ? linha.ordem.responsavel_nome || 'não atribuído'
-                      : '—';
-                    const classeEstado = linha.tipo === 'etapa'
-                      ? statusEtapaClass[status] ?? 'bg-slate-500'
-                      : statusOpClass[status] ?? 'bg-indigo-500';
+                    if (linha.tipo === 'projeto') {
+                      const recolhido = projetosRecolhidos.has(linha.projetoId);
+                      return (
+                        <div
+                          key={linha.id}
+                          className="grid border-b bg-muted/35 text-xs font-medium"
+                          style={{
+                            height: alturaLinha(linha),
+                            gridTemplateColumns: `${TASK_COLUMN_WIDTH}px ${ASSIGNEE_COLUMN_WIDTH}px ${PROGRESS_COLUMN_WIDTH}px ${STATE_COLUMN_WIDTH}px`,
+                          }}
+                        >
+                          <div className="col-span-4 flex min-w-0 items-center gap-2 px-3">
+                            <button
+                              type="button"
+                              onClick={() => alternarProjeto(linha.projetoId)}
+                              className="flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-muted"
+                              aria-label={recolhido ? 'Expandir projeto' : 'Recolher projeto'}
+                            >
+                              <ChevronDown className={cn('h-4 w-4 transition-transform', recolhido && '-rotate-90')} />
+                            </button>
+                            <span className="truncate font-semibold" title={linha.projetoNome}>{linha.projetoNome}</span>
+                            {linha.cidade && <span className="truncate text-[11px] text-muted-foreground">· {linha.cidade}</span>}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const percentual = Math.min(100, Math.max(0, Number(linha.ordem.percentual_realizado ?? 0)));
+                    const estado = linha.ordem.status === 'em_execucao' && percentual >= 100
+                      ? '100% · aguardando conclusão'
+                      : statusOpLabel[linha.ordem.status] ?? linha.ordem.status;
+                    const responsavel = linha.ordem.responsavel_nome || 'não atribuído';
+                    const classeEstado = statusOpClass[linha.ordem.status] ?? 'bg-indigo-500';
 
                     return (
                       <div
                         key={linha.id}
-                        className={cn(
-                          'grid border-b text-xs',
-                          linha.tipo === 'etapa' ? 'bg-muted/25 font-medium' : 'bg-card',
-                        )}
+                        className="grid border-b bg-card text-xs"
                         style={{
                           height: alturaLinha(linha),
                           gridTemplateColumns: `${TASK_COLUMN_WIDTH}px ${ASSIGNEE_COLUMN_WIDTH}px ${PROGRESS_COLUMN_WIDTH}px ${STATE_COLUMN_WIDTH}px`,
                         }}
                       >
                         <div className="flex min-w-0 items-center gap-2 border-r px-3">
-                          {linha.tipo === 'etapa' ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => alternarEtapa(linha.etapa.etapa_id)}
-                                className="flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-muted"
-                                aria-label={etapasRecolhidas.has(linha.etapa.etapa_id) ? 'Expandir etapa' : 'Recolher etapa'}
-                              >
-                                <ChevronDown
-                                  className={cn(
-                                    'h-4 w-4 transition-transform',
-                                    etapasRecolhidas.has(linha.etapa.etapa_id) && '-rotate-90',
-                                  )}
-                                />
-                              </button>
-                              <div className="min-w-0">
-                                <div className="truncate font-semibold" title={`${linha.etapa.projeto_nome} · ${linha.etapa.etapa_nome}`}>
-                                  {linha.etapa.etapa_nome}
-                                </div>
-                                <div className="truncate text-[11px] text-muted-foreground">
-                                  {linha.etapa.projeto_nome} · {linha.etapa.codigo}
-                                </div>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <span className="ml-8 h-2 w-2 shrink-0 rounded-full border border-primary/70" />
-                              <div className="min-w-0">
-                                <div
-                                  className="truncate font-medium"
-                                  title={`${formatarNumeroOrdemProducao(linha.ordem.numero)} — ${linha.ordem.tarefa_nome_snapshot ?? 'Atividade'}`}
-                                >
-                                  {formatarNumeroOrdemProducao(linha.ordem.numero)} — {linha.ordem.tarefa_nome_snapshot ?? 'Atividade'}
-                                </div>
-                                <div className="truncate text-[11px] text-muted-foreground">
-                                  {linha.etapa.etapa_nome}
-                                </div>
-                              </div>
-                            </>
-                          )}
+                          <span className="ml-2 h-2 w-2 shrink-0 rounded-full border border-primary/70" />
+                          <div className="min-w-0">
+                            <div className="truncate font-medium" title={`${formatarNumeroOrdemProducao(linha.ordem.numero)} — ${linha.ordem.tarefa_nome_snapshot ?? 'Atividade'}`}>
+                              {formatarNumeroOrdemProducao(linha.ordem.numero)} — {linha.ordem.tarefa_nome_snapshot ?? 'Atividade'}
+                            </div>
+                            <div className="truncate text-[11px] text-muted-foreground">{linha.ordem.local_tipo}</div>
+                          </div>
                         </div>
-
-                        <div className="flex min-w-0 items-center border-r px-3 text-muted-foreground">
-                          <span className="truncate" title={responsavel}>{responsavel}</span>
-                        </div>
-
-                        <div className="flex items-center border-r px-3 font-semibold tabular-nums">
-                          {Math.round(percentual)}%
-                        </div>
-
-                        <div className="flex min-w-0 items-center gap-2 px-3">
-                          <span className={cn('h-2 w-2 shrink-0 rounded-full', classeEstado)} />
-                          <span className="truncate" title={estado}>{estado}</span>
-                        </div>
+                        <div className="flex min-w-0 items-center border-r px-3 text-muted-foreground"><span className="truncate" title={responsavel}>{responsavel}</span></div>
+                        <div className="flex items-center border-r px-3 font-semibold tabular-nums">{Math.round(percentual)}%</div>
+                        <div className="flex min-w-0 items-center gap-2 px-3"><span className={cn('h-2 w-2 shrink-0 rounded-full', classeEstado)} /><span className="truncate" title={estado}>{estado}</span></div>
                       </div>
                     );
                   })}
@@ -594,7 +541,25 @@ export const CronogramaProducao = () => {
                   </div>
 
                   {linhas.map((linha) => {
-                    const intervalo = intervaloLinha(linha);
+                    if (linha.tipo === 'projeto') {
+                      return (
+                        <div
+                          key={linha.id}
+                          className="relative border-b bg-muted/20"
+                          style={{ height: alturaLinha(linha) }}
+                        >
+                          {dias.map((dia, indice) => (
+                            <div
+                              key={dia.toISOString()}
+                              className="absolute inset-y-0 border-r"
+                              style={{ left: indice * pixelsPorDia, width: pixelsPorDia }}
+                            />
+                          ))}
+                        </div>
+                      );
+                    }
+
+                    const intervalo = intervaloOrdem(linha.ordem);
                     const intersecta = intervalo && intervalo.fim.getTime() >= periodo.inicio.getTime() && intervalo.inicio.getTime() <= periodo.fim.getTime();
                     const antesDoPeriodo = Boolean(intervalo && intervalo.fim.getTime() < periodo.inicio.getTime());
                     const inicioVisivel = intervalo && intersecta ? limitarData(intervalo.inicio, periodo.inicio, periodo.fim) : null;
@@ -603,19 +568,14 @@ export const CronogramaProducao = () => {
                     const larguraBarra = inicioVisivel && fimVisivel
                       ? Math.max(pixelsPorDia, (differenceInCalendarDays(fimVisivel, inicioVisivel) + 1) * pixelsPorDia)
                       : 0;
-                    const percentual = Math.min(100, Math.max(0, Number(percentualLinha(linha) ?? 0)));
-                    const status = statusLinha(linha);
-                    const titulo = linha.tipo === 'etapa'
-                      ? `${linha.etapa.codigo} · ${linha.etapa.etapa_nome}`
-                      : formatarNumeroOrdemProducao(linha.ordem.numero);
-                    const classe = linha.tipo === 'etapa'
-                      ? statusEtapaClass[status] ?? 'bg-slate-500'
-                      : statusOpClass[status] ?? 'bg-indigo-500';
+                    const percentual = Math.min(100, Math.max(0, Number(linha.ordem.percentual_realizado ?? 0)));
+                    const titulo = formatarNumeroOrdemProducao(linha.ordem.numero);
+                    const classe = statusOpClass[linha.ordem.status] ?? 'bg-indigo-500';
 
                     return (
                       <div
                         key={linha.id}
-                        className={cn('relative border-b', linha.tipo === 'etapa' ? 'bg-muted/10' : 'bg-card')}
+                        className="relative border-b bg-card"
                         style={{ height: alturaLinha(linha) }}
                       >
                         {dias.map((dia, indice) => (
@@ -640,7 +600,6 @@ export const CronogramaProducao = () => {
                             className={cn(
                               'absolute top-2.5 flex h-7 items-center overflow-hidden rounded-md text-[11px] font-bold text-white shadow-sm',
                               classe,
-                              linha.tipo === 'etapa' && 'opacity-80',
                             )}
                             style={{ left: esquerda + 4, width: Math.max(28, larguraBarra - 8) }}
                             title={`${titulo} · ${format(intervalo.inicio, 'dd/MM/yyyy')} a ${format(intervalo.fim, 'dd/MM/yyyy')} · ${Math.round(percentual)}% realizado`}
@@ -702,7 +661,7 @@ export const CronogramaProducao = () => {
 
       <Dialog open={configAberta} onOpenChange={setConfigAberta}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Capacidade e calendário</DialogTitle><DialogDescription>Esses parâmetros distribuem automaticamente as Etapas nos dias disponíveis. As OPs detalham a liberação operacional.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>Capacidade e calendário</DialogTitle><DialogDescription>Esses parâmetros apoiam o planejamento das OPs nos dias disponíveis.</DialogDescription></DialogHeader>
           <div className="space-y-4 pt-3">
             <div className="space-y-2"><Label>Equipe disponível por dia</Label><Input type="number" min="0" step="0.5" value={configForm.equipe_disponivel_por_dia} onChange={(event) => setConfigForm((atual) => ({ ...atual, equipe_disponivel_por_dia: Number(event.target.value) }))} /></div>
             <div className="space-y-2"><Label>Horizonte de cálculo em dias</Label><Input type="number" min="30" max="1825" value={configForm.horizonte_dias} onChange={(event) => setConfigForm((atual) => ({ ...atual, horizonte_dias: Number(event.target.value) }))} /></div>
