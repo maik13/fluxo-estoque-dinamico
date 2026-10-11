@@ -208,6 +208,16 @@ export const CronogramaProducao = () => {
     return [...mapa.entries()].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'));
   }, [etapas]);
 
+  const projetosDoSistema = useMemo(() => {
+    const mapa = new Map<string, { id: string; nome: string; cidade: string | null }>();
+    etapas.forEach((etapa) => {
+      if (!mapa.has(etapa.projeto_id)) {
+        mapa.set(etapa.projeto_id, { id: etapa.projeto_id, nome: etapa.projeto_nome, cidade: etapa.cidade });
+      }
+    });
+    return [...mapa.values()];
+  }, [etapas]);
+
   const etapasFiltradas = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase('pt-BR');
     return etapas.filter((etapa) => {
@@ -403,7 +413,7 @@ export const CronogramaProducao = () => {
             </div>
           </Card>
 
-          {fonteGantt === 'project' ? <CronogramaMSProjectImportado /> : <>
+          {fonteGantt === 'project' ? <CronogramaMSProjectImportado projetosDoSistema={projetosDoSistema} /> : <>
           <Card className="gantt-print-area overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 border-b p-3 print:hidden">
               <Button variant="ghost" size="sm" onClick={expandirTudo}>

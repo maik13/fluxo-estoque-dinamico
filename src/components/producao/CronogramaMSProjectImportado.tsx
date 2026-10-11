@@ -8,6 +8,7 @@ import {
   isSaturday,
   isSunday,
   parseISO,
+  startOfDay,
   startOfMonth,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -20,7 +21,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { ArquivoMSProjectNormalizado, lerArquivoMSProjectNormalizado } from '@/utils/msprojectImportacao';
 
-type Escala = '14dias' | 'mes';
+type Escala = 'plano' | '14dias' | 'mes';
+
+export type ProjetoDoSistemaNoCronograma = {
+  id: string;
+  nome: string;
+  cidade: string | null;
+};
 
 type ImportacaoMSProject = {
   id: string;
@@ -57,6 +64,10 @@ type LinhaTarefa = {
 
 type Linha = LinhaProjeto | LinhaTarefa;
 
+type CronogramaMSProjectImportadoProps = {
+  projetosDoSistema?: ProjetoDoSistemaNoCronograma[];
+};
+
 type ConsultaImportacoes = {
   select: (colunas: string) => {
     order: (coluna: string, opcoes: { ascending: boolean }) => {
@@ -85,15 +96,29 @@ const alturaTarefa = 46;
 
 const data = (valor: string) => parseISO(valor);
 
-const chaveProjeto = (tarefa: TarefaMSProject) =>
-  `${tarefa.referencia_msproject ?? 'Sem referência'}::${tarefa.cidade_msproject ?? 'Sem cidade'}`;
+const normalizarTexto = (valor: string | null | undefined) =>
+  (valor ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR');
 
-const tituloProjeto = (tarefa: TarefaMSProject) =>
-  [tarefa.referencia_msproject ?? 'Sem referência no Project', tarefa.cidade_msproject]
+const projetoDoSistema = (tarefa: TarefaMSProject, porCidade: Map<string, ProjetoDoSistemaNoCronograma | null>) =>
+  porCidade.get(normalizarTexto(tarefa.cidade_msproject)) ?? null;
+
+const chaveProjeto = (tarefa: TarefaMSProject, porCidade: Map<string, ProjetoDoSistemaNoCronograma | null>) => {
+  const projeto = projetoDoSistema(tarefa, porCidade);
+  return projeto ? `sistema::${projeto.id}` : `${tarefa.referencia_msproject ?? 'Sem referência'}::${tarefa.cidade_msproject ?? 'Sem cidade'}`;
+};
+
+const tituloProjeto = (tarefa: TarefaMSProject, porCidade: Map<string, ProjetoDoSistemaNoCronograma | null>) => {
+  const projeto = projetoDoSistema(tarefa, porCidade);
+  if (projeto) return projeto.nome;
+  return [tarefa.referencia_msproject ?? 'Sem referência no Project', tarefa.cidade_msproject]
     .filter(Boolean)
     .join(' · ');
+};
 
-const periodoDaEscala = (referencia: Date, escala: Escala) => {
+const periodoDaEscala = (referencia: Date, escala: Escala, inicioPlano: string | null, fimPlano: string | null) => {
+  if (escala === 'plano' && inicioPlano && fimPlano) {
+    return { inicio: startOfDay(data(inicioPlano)), fim: startOfDay(data(fimPlano)) };
+  }
   if (escala === 'mes') {
     const inicio = startOfMonth(referencia);
     return { inicio, fim: endOfMonth(referencia) };
@@ -101,13 +126,13 @@ const periodoDaEscala = (referencia: Date, escala: Escala) => {
   return { inicio: referencia, fim: addDays(referencia, 13) };
 };
 
-export const CronogramaMSProjectImportado = () => {
+export const CronogramaMSProjectImportado = ({ projetosDoSistema = [] }: CronogramaMSProjectImportadoProps) => {
   const [importacoes, setImportacoes] = useState<ImportacaoMSProject[]>([]);
   const [importacaoId, setImportacaoId] = useState<string | null>(null);
   const [tarefas, setTarefas] = useState<TarefaMSProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [escala, setEscala] = useState<Escala>('mes');
+  const [escala, setEscala] = useState<Escala>('plano');
   const [referencia, setReferencia] = useState(new Date());
   const [previsualizacaoLocal, setPrevisualizacaoLocal] = useState<ArquivoMSProjectNormalizado | null>(null);
 
@@ -208,12 +233,28 @@ export const CronogramaMSProjectImportado = () => {
     }))
     : tarefas;
   const erroVisivel = previsualizacaoLocal ? null : erro;
-  const periodo = useMemo(() => periodoDaEscala(referencia, escala), [escala, referencia]);
+  const projetosPorCidade = useMemo(() => {
+    const candidatos = new Map<string, ProjetoDoSistemaNoCronograma[]>();
+    projetosDoSistema.forEach((projeto) => {
+      const cidade = normalizarTexto(projeto.cidade);
+      if (!cidade) return;
+      const itens = candidatos.get(cidade) ?? [];
+      if (!itens.some((item) => item.id === projeto.id)) itens.push(projeto);
+      candidatos.set(cidade, itens);
+    });
+    return new Map([...candidatos.entries()].map(([cidade, itens]) => [cidade, itens.length === 1 ? itens[0] : null]));
+  }, [projetosDoSistema]);
+  const periodo = useMemo(() => periodoDaEscala(
+    referencia,
+    escala,
+    importacao?.inicio_planejado_original ?? null,
+    importacao?.fim_planejado_original ?? null,
+  ), [escala, importacao?.fim_planejado_original, importacao?.inicio_planejado_original, referencia]);
   const dias = useMemo(() => Array.from(
     { length: differenceInCalendarDays(periodo.fim, periodo.inicio) + 1 },
     (_, indice) => addDays(periodo.inicio, indice),
   ), [periodo]);
-  const pixelsPorDia = escala === 'mes' ? 48 : 78;
+  const pixelsPorDia = escala === 'plano' ? 20 : escala === 'mes' ? 48 : 78;
   const larguraTimeline = dias.length * pixelsPorDia;
 
   const linhas = useMemo<Linha[]>(() => {
@@ -224,20 +265,33 @@ export const CronogramaMSProjectImportado = () => {
     });
     const grupos = new Map<string, TarefaMSProject[]>();
     visiveis.forEach((tarefa) => {
-      const chave = chaveProjeto(tarefa);
+      const chave = chaveProjeto(tarefa, projetosPorCidade);
       const itens = grupos.get(chave) ?? [];
       itens.push(tarefa);
       grupos.set(chave, itens);
     });
     return [...grupos.entries()]
-      .sort(([, a], [, b]) => tituloProjeto(a[0]).localeCompare(tituloProjeto(b[0]), 'pt-BR'))
+      .sort(([, a], [, b]) => tituloProjeto(a[0], projetosPorCidade).localeCompare(tituloProjeto(b[0], projetosPorCidade), 'pt-BR'))
       .flatMap(([chave, itens]) => [
-        { tipo: 'projeto' as const, id: `projeto-${chave}`, titulo: tituloProjeto(itens[0]) },
+        { tipo: 'projeto' as const, id: `projeto-${chave}`, titulo: tituloProjeto(itens[0], projetosPorCidade) },
         ...itens.map((tarefa) => ({ tipo: 'tarefa' as const, id: tarefa.id, tarefa })),
       ]);
-  }, [periodo.fim, periodo.inicio, tarefasDaVisualizacao]);
+  }, [periodo.fim, periodo.inicio, projetosPorCidade, tarefasDaVisualizacao]);
+
+  const resumoCompatibilizacao = useMemo(() => {
+    const cidadesComProjeto = new Set<string>();
+    const cidadesSemProjeto = new Set<string>();
+    tarefasDaVisualizacao.forEach((tarefa) => {
+      const cidade = normalizarTexto(tarefa.cidade_msproject);
+      if (!cidade) return;
+      if (projetoDoSistema(tarefa, projetosPorCidade)) cidadesComProjeto.add(cidade);
+      else cidadesSemProjeto.add(cidade);
+    });
+    return { cidadesComProjeto: cidadesComProjeto.size, cidadesSemProjeto: cidadesSemProjeto.size };
+  }, [projetosPorCidade, tarefasDaVisualizacao]);
 
   const navegar = (direcao: -1 | 1) => {
+    if (escala === 'plano') return;
     setReferencia((atual) => escala === 'mes'
       ? new Date(atual.getFullYear(), atual.getMonth() + direcao, 1)
       : addDays(atual, direcao * 14));
@@ -274,14 +328,18 @@ export const CronogramaMSProjectImportado = () => {
             </Select>}
             <Select value={escala} onValueChange={(valor) => setEscala(valor as Escala)}>
               <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="14dias">14 dias</SelectItem><SelectItem value="mes">Mês</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="plano">Plano completo</SelectItem><SelectItem value="14dias">14 dias</SelectItem><SelectItem value="mes">Mês</SelectItem></SelectContent>
             </Select>
-            <Button variant="outline" size="icon" onClick={() => navegar(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" onClick={() => navegar(-1)} disabled={escala === 'plano'}><ChevronLeft className="h-4 w-4" /></Button>
             <Button variant="outline" onClick={() => setReferencia(new Date(importacao.inicio_planejado_original ?? referencia))}><CalendarDays className="mr-2 h-4 w-4" />Início do plano</Button>
-            <Button variant="outline" size="icon" onClick={() => navegar(1)}><ChevronRight className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" onClick={() => navegar(1)} disabled={escala === 'plano'}><ChevronRight className="h-4 w-4" /></Button>
           </div>
           <div className="border-b bg-muted/20 px-4 py-2 text-sm text-muted-foreground">
             Origem: {importacao.arquivo_nome} · {format(data(importacao.inicio_planejado_original ?? referencia.toISOString()), 'dd/MM/yyyy')} a {format(data(importacao.fim_planejado_original ?? referencia.toISOString()), 'dd/MM/yyyy')} · {previsualizacaoLocal ? 'plano local carregado automaticamente — ainda não gravado no banco' : 'planejamento original'}
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 border-b px-4 py-2 text-xs text-muted-foreground">
+            <span>{resumoCompatibilizacao.cidadesComProjeto} cidade(s) exibida(s) sob um projeto já cadastrado</span>
+            <span>{resumoCompatibilizacao.cidadesSemProjeto} cidade(s) ainda sem vínculo inequívoco com projeto do sistema</span>
           </div>
           <div className="max-h-[70vh] overflow-auto">
             <div className="flex" style={{ width: larguraRotulo + larguraTimeline }}>
@@ -290,7 +348,7 @@ export const CronogramaMSProjectImportado = () => {
                 {linhas.map((linha) => linha.tipo === 'projeto' ? (
                   <div key={linha.id} className="flex items-center border-b bg-muted/35 px-3 text-xs font-semibold" style={{ height: alturaProjeto }}>{linha.titulo}</div>
                 ) : (
-                  <div key={linha.id} className="flex min-w-0 items-center gap-2 border-b px-3 text-xs" style={{ height: alturaTarefa }}><span className="h-2 w-2 shrink-0 rounded-full border border-primary/70" /><div className="min-w-0"><div className="truncate font-medium">{linha.tarefa.nome}</div><div className="text-[11px] text-muted-foreground">UID {linha.tarefa.uid_origem} · {Math.round(linha.tarefa.percentual_concluido_origem)}% no Project</div></div></div>
+                  <div key={linha.id} className="flex min-w-0 items-center gap-2 border-b px-3 text-xs" style={{ height: alturaTarefa }}><span className="h-2 w-2 shrink-0 rounded-full border border-primary/70" /><div className="min-w-0"><div className="truncate font-medium">{linha.tarefa.nome}</div><div className="text-[11px] text-muted-foreground">{linha.tarefa.referencia_msproject ?? 'Sem referência'} · UID {linha.tarefa.uid_origem} · {Math.round(linha.tarefa.percentual_concluido_origem)}% no Project</div></div></div>
                 ))}
               </div>
               <div className="relative" style={{ width: larguraTimeline }}>
