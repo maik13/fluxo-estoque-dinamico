@@ -728,22 +728,14 @@ export function CentralCotacoes() {
     if (!confirmou) return;
 
     try {
-      const { error: outrasError } = await (supabase.from as any)('cotacoes')
-        .update({ status: 'rejeitada', updated_at: new Date().toISOString() })
-        .eq('solicitacao_id', solicitacao.id)
-        .neq('id', cotacao.id)
-        .in('status', ['confirmada', 'escolhida']);
-      if (outrasError) throw outrasError;
-
-      const { error: escolhidaError } = await (supabase.from as any)('cotacoes')
-        .update({ status: 'escolhida', updated_at: new Date().toISOString() })
-        .eq('id', cotacao.id);
-      if (escolhidaError) throw escolhidaError;
+      const { data: solicitacaoId, error } = await (supabase as any).rpc('cotacao_escolher_proposta_v1', {
+        p_cotacao_id: cotacao.id,
+      });
+      if (error) throw error;
 
       const { data: solicitacaoAtualizada, error: solicitacaoError } = await (supabase.from as any)('cotacao_solicitacoes')
-        .update({ status: 'escolhida', updated_at: new Date().toISOString() })
-        .eq('id', solicitacao.id)
         .select('*')
+        .eq('id', solicitacaoId || solicitacao.id)
         .single();
       if (solicitacaoError) throw solicitacaoError;
 
