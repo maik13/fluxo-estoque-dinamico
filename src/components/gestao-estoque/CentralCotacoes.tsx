@@ -745,7 +745,7 @@ export function CentralCotacoes() {
                         <TableHead>Fornecedor</TableHead>
                         <TableHead>Origem / descrição</TableHead>
                         <TableHead>Destino / projeto</TableHead>
-                        <TableHead>Veículo</TableHead>
+                        <TableHead>Tipo do caminhão</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
                         <TableHead>Situação</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
