@@ -707,7 +707,7 @@ export function CentralCotacoes() {
             Importar PDF
           </Button>
           <Button variant="outline" onClick={abrirManual}>
-            <Plus className="mr-2 h-4 w-4" /> Registrar cotação recebida
+            <Plus className="mr-2 h-4 w-4" /> Nova cotação
           </Button>
           <Button variant="ghost" size="icon" onClick={() => void carregar()} title="Atualizar">
             <RefreshCw className="h-4 w-4" />
@@ -922,11 +922,11 @@ export function CentralCotacoes() {
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
         <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editorCotacao ? `Cotação #${editorCotacao.numero}` : 'Registrar cotação recebida'}</DialogTitle>
+            <DialogTitle>{editorCotacao ? `Cotação #${editorCotacao.numero}` : 'Nova cotação'}</DialogTitle>
             <DialogDescription>
               {editorCotacao?.origem_cadastro === 'pdf'
                 ? 'Confira o que foi lido do PDF. Todos os campos podem ser corrigidos antes de confirmar.'
-                : 'Uso do Almoxarifado: registre uma proposta recebida de fornecedor e vincule os itens ao cadastro do estoque.'}
+                : 'Crie uma nova cotação, vincule os itens do estoque e preencha os dados conforme os orçamentos realizados pelo Almoxarifado.'}
             </DialogDescription>
           </DialogHeader>
 
