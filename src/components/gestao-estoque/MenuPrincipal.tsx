@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X, MessageCircle, Image as ImageIcon } from 'lucide-react';
+import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X, MessageCircle, ReceiptText } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Item, EstoqueItem } from '@/types/estoque';
@@ -34,13 +34,13 @@ import { toast } from 'sonner';
 
 export const MenuPrincipal = ({ 
   onAbrirMensagens,
-  onAbrirImagensOP
+  onAbrirCotacoes
 }: { 
   onAbrirGerencial?: () => void;
   onAbrirProjetos?: () => void;
   onAbrirMensagens?: () => void;
   onAbrirProducao?: () => void;
-  onAbrirImagensOP?: () => void;
+  onAbrirCotacoes?: () => void;
 }) => {
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoqueContext();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria, obterSubcategoriasDaCategoria, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
@@ -54,6 +54,9 @@ export const MenuPrincipal = ({
     canRegistrarSaida,
     canSolicitacaoMaterial,
     hasPermission,
+    isAdmin,
+    isGestor,
+    isEstoquista,
     userProfile
   } = usePermissions();
   
@@ -156,6 +159,7 @@ export const MenuPrincipal = ({
   const estoqueAtivoInfo = obterEstoqueAtivoInfo();
   const podeUsarCadastro = canCreateItems();
   const podeMovimentar = canManageStock();
+  const podeOperarCotacoes = isAdmin() || isGestor() || isEstoquista();
 
   // Buscar próximo código disponível quando o dialog de cadastro abrir
   useEffect(() => {
@@ -527,16 +531,32 @@ export const MenuPrincipal = ({
 
         {/* LINHA 1: Retirada, Devolução, Cadastro, Transferência, Entrada */}
         {canSolicitarMaterial() && <SolicitarMaterial />}
-        {(hasPermission('compras.orcamentos.solicitar') || hasPermission('compras.pedidos.criar')) && <SolicitarOrcamento />}
-        {hasPermission('imagensop.acessar') && onAbrirImagensOP && (
-          <Card onClick={onAbrirImagensOP} className="cursor-pointer border-primary/20 hover:border-primary/40" role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onAbrirImagensOP(); } }}>
+
+        {podeOperarCotacoes && onAbrirCotacoes ? (
+          <Card
+            onClick={onAbrirCotacoes}
+            className="cursor-pointer border-violet-500/20 transition-all duration-300 hover:scale-105 hover:border-violet-500/40"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onAbrirCotacoes();
+              }
+            }}
+          >
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10"><ImageIcon className="h-8 w-8 text-primary" /></div>
-              <CardTitle>Imagens OP</CardTitle>
-              <CardDescription>Consultar fotos dos apontamentos de produção</CardDescription>
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-violet-500/10">
+                <ReceiptText className="h-8 w-8 text-violet-500" />
+              </div>
+              <CardTitle className="text-violet-500">Cotação</CardTitle>
+              <CardDescription>Abrir a Central de Cotações do Almoxarifado</CardDescription>
             </CardHeader>
           </Card>
+        ) : (
+          <SolicitarOrcamento />
         )}
+
         {canDevolverMaterial() && <DevolverMaterial />}
 
 
