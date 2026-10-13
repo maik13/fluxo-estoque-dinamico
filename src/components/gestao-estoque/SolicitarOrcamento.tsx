@@ -61,6 +61,11 @@ export function SolicitarOrcamento() {
       return;
     }
 
+    if (!form.data_necessaria) {
+      toast.error('Informe a data da necessidade.');
+      return;
+    }
+
     if (form.tipo === 'insumo' && !itens.some((item) => item.descricao.trim())) {
       toast.error('Adicione ao menos um material à solicitação.');
       return;
@@ -261,7 +266,7 @@ export function SolicitarOrcamento() {
             </div>
 
             <div>
-              <Label>Data necessária</Label>
+              <Label>Data da necessidade *</Label>
               <Input
                 type="date"
                 value={form.data_necessaria}
