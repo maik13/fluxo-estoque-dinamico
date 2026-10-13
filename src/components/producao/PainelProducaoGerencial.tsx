@@ -42,6 +42,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { useProducao } from '@/hooks/useProducao';
 import { useProducaoGerencial } from '@/hooks/useProducaoGerencial';
 import { CalendarioFotosProducao } from './CalendarioFotosProducao';
@@ -99,6 +100,8 @@ export const PainelProducaoGerencial = ({
     listarTarefas,
     listarMembrosProducao,
   } = useProducao();
+  const { gruposProjeto } = useConfiguracoes();
+  const [grupoId, setGrupoId] = useState(TODOS);
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [projetoId, setProjetoId] = useState(TODOS);
@@ -143,6 +146,7 @@ export const PainelProducaoGerencial = ({
   }, [carregar, listarMembrosProducao, listarTarefas]);
 
   const montarFiltros = (): FiltrosProducaoGerencial => ({
+    grupo_id: grupoId === TODOS ? undefined : grupoId,
     data_inicio: dataInicio || undefined,
     data_fim: dataFim || undefined,
     projeto_local_id: projetoId === TODOS ? undefined : projetoId,
@@ -158,6 +162,7 @@ export const PainelProducaoGerencial = ({
   };
 
   const limparFiltros = () => {
+    setGrupoId(TODOS);
     setDataInicio('');
     setDataFim('');
     setProjetoId(TODOS);
@@ -171,6 +176,7 @@ export const PainelProducaoGerencial = ({
   const totalFiltrosAplicados = Object.values(filtros).filter(Boolean).length;
   const filtrosDescricao = () => {
     const partes: string[] = [];
+    if (filtros.grupo_id) partes.push(`Grupo: ${gruposProjeto.find((grupo) => grupo.id === filtros.grupo_id)?.nome ?? filtros.grupo_id}`);
     if (filtros.data_inicio) partes.push(`Data inicial: ${filtros.data_inicio}`);
     if (filtros.data_fim) partes.push(`Data final: ${filtros.data_fim}`);
     if (filtros.projeto_local_id) {
@@ -388,6 +394,10 @@ export const PainelProducaoGerencial = ({
                     ...tarefas.filter((tarefa) => tarefa.ativo).map((tarefa) => ({ value: tarefa.id, label: tarefa.nome })),
                   ]}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Grupo do projeto</Label>
+                <SearchableSelect value={grupoId} onValueChange={setGrupoId} placeholder="Todos os grupos" searchPlaceholder="Buscar grupo..." options={[{ value: TODOS, label: 'Todos os grupos' }, ...gruposProjeto.map((grupo) => ({ value: grupo.id, label: grupo.nome }))]} />
               </div>
               <div className="space-y-2">
                 <Label>Membro</Label>
@@ -1131,7 +1141,7 @@ export const PainelProducaoGerencial = ({
               <CardTitle>Materiais vinculados à Produção</CardTitle>
               <CardDescription>
                 Materiais exibidos aqui são referências vinculadas a
-                movimentações oficiais já existentes.
+                movimentações oficiais já existentes. O Excel inclui cada movimento, com data, grupo, projeto, código e unidade. Filtros de tarefa, membro, status e local de execução exigem vínculo explícito com um apontamento.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">

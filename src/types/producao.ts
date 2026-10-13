@@ -125,7 +125,7 @@ export interface NovoApontamentoProducao {
   demao_numero?: number | null;
 }
 export interface FiltrosProducao { data_inicio?: string; data_fim?: string; projeto_local_id?: string; processo_id?: string; ordem_producao_id?: string; tarefa_id?: string; status?: ProducaoStatus; local_tipo?: ProducaoLocalTipo; }
-export interface FiltrosProducaoGerencial extends FiltrosProducao { membro_id?: string; }
+export interface FiltrosProducaoGerencial extends FiltrosProducao { membro_id?: string; grupo_id?: string; }
 export interface DistribuicaoStatusProducao { lancado: number; conferido: number; cancelado: number; }
 export interface ResumoCustosProducao {
   horas_relogio: number; horas_homem: number; minutos_produtivos: number; minutos_improdutivos: number; horas_produtivas: number;
@@ -158,6 +158,7 @@ export interface JornadaProducaoGerencialLinha {
 }
 
 export interface IndicadorProducaoMateriais {
+  movimentacoes?: Array<ProducaoMaterialProjeto & { projeto_nome?: string; grupo_nome?: string; data_movimentacao?: string; codigo_item?: string; unidade?: string }>;
   total_movimentacoes_vinculadas: number;
   total_saida: number;
   total_entrada: number;

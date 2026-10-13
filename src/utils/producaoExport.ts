@@ -286,6 +286,24 @@ export const exportarBIProducaoExcel = (
     'Produção por Local de Execução',
   );
 
+  const movimentosMateriais = (dados.materiais.movimentacoes ?? []).map((material) => ({
+    Data: formatarDataHora(material.data_movimentacao ?? material.created_at),
+    Grupo: material.grupo_nome ?? 'Sem grupo',
+    'Projeto/local': material.projeto_nome ?? material.projeto_local_id ?? '',
+    Código: material.codigo_item ?? '',
+    Item: nomeItem(material),
+    Operação: material.tipo,
+    Quantidade: material.quantidade,
+    Unidade: material.unidade ?? '',
+    'Movimento oficial': material.movement_id ?? '',
+    'Apontamento vinculado': material.apontamento_id ?? '',
+    Observações: material.observacoes_producao ?? '',
+  }));
+  const cabecalhosMovimentos = ['Data', 'Grupo', 'Projeto/local', 'Código', 'Item', 'Operação', 'Quantidade', 'Unidade', 'Movimento oficial', 'Apontamento vinculado', 'Observações'];
+  const detalheMateriais = criarPlanilha(movimentosMateriais, cabecalhosMovimentos, [23, 24, 40, 14, 48, 20, 16, 12, 38, 38, 55]);
+  if (detalheMateriais['!ref']) detalheMateriais['!autofilter'] = { ref: detalheMateriais['!ref'] };
+  XLSX.utils.book_append_sheet(workbook, detalheMateriais, 'Movimentações de Materiais');
+
   const materiaisItem = dados.materiais.quantidade_por_item.map((item) => ({
     Item: item.item_nome,
     Quantidade: item.quantidade,
