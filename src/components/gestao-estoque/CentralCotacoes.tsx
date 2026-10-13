@@ -117,6 +117,8 @@ type Solicitacao = {
   fornecedores_solicitados: string | null;
   observacoes: string | null;
   criado_por_nome?: string | null;
+  criado_por_email?: string | null;
+  criado_por_perfil?: string | null;
   prioridade?: string | null;
   data_necessaria?: string | null;
   created_at: string;
@@ -877,7 +879,12 @@ export function CentralCotacoes() {
                           <div className="font-medium">{s.titulo}</div>
                           <div className="text-xs text-muted-foreground">{s.projeto_centro_custo || 'Sem projeto vinculado'}</div>
                         </TableCell>
-                        <TableCell>{s.criado_por_nome || 'Usuário'}</TableCell>
+                        <TableCell>
+                          <div className="font-medium">{s.criado_por_nome || 'Usuário'}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {[s.criado_por_perfil, s.criado_por_email].filter(Boolean).join(' · ') || 'Perfil não informado'}
+                          </div>
+                        </TableCell>
                         <TableCell>{tipoLabels[s.tipo]}</TableCell>
                         <TableCell>
                           <div>{dataPt(s.data_necessaria || s.data_limite)}</div>
