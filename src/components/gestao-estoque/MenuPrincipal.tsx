@@ -22,6 +22,7 @@ import { RegistrarEntrada } from './RegistrarEntrada';
 import { Transferencia } from './Transferencia';
 import { SolicitacaoMaterial } from './SolicitacaoMaterial';
 import { PrevisoesNecessidadeAlmoxarifado } from './PrevisoesNecessidadeAlmoxarifado';
+import { SolicitarOrcamento } from './SolicitarOrcamento';
 import { Badge } from '@/components/ui/badge';
 
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
@@ -522,6 +523,7 @@ export const MenuPrincipal = ({
 
         {/* LINHA 1: Retirada, Devolução, Cadastro, Transferência, Entrada */}
         {canSolicitarMaterial() && <SolicitarMaterial />}
+        <SolicitarOrcamento />
         {canDevolverMaterial() && <DevolverMaterial />}
 
 
