@@ -707,7 +707,7 @@ export function CentralCotacoes() {
             Importar PDF
           </Button>
           <Button variant="outline" onClick={abrirManual}>
-            <Plus className="mr-2 h-4 w-4" /> Lançamento manual
+            <Plus className="mr-2 h-4 w-4" /> Registrar cotação recebida
           </Button>
           <Button variant="ghost" size="icon" onClick={() => void carregar()} title="Atualizar">
             <RefreshCw className="h-4 w-4" />
