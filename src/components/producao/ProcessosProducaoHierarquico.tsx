@@ -728,7 +728,7 @@ export const ProcessosProducaoHierarquico = ({
         const jornadaDaOp = jornadasPorOp[ordemSelecionada.id] ?? null;
         const podePausarOp = Boolean(jornadaDaOp);
         const podeFinalizarOp =
-          !jornadaDaOp && ['liberada', 'em_execucao'].includes(ordemSelecionada.status);
+          ['liberada', 'em_execucao'].includes(ordemSelecionada.status);
         const progressoDaOp = clampPercent(percentualExecucaoOp(ordemSelecionada));
 
         const pausarOp = () => {
@@ -743,6 +743,24 @@ export const ProcessosProducaoHierarquico = ({
             ...contexto,
             tarefaId: contexto.tarefaId ?? ordemSelecionada.tarefa_id ?? null,
           });
+        };
+
+        const finalizarOp = () => {
+          if (jornadaDaOp) {
+            const contexto = contextoFechamentoJornada(
+              jornadaDaOp,
+              true,
+              ordemSelecionada.responsavel_id,
+              ordemSelecionada.responsavel_nome_snapshot,
+            );
+            onFecharJornada({
+              ...contexto,
+              tarefaId: contexto.tarefaId ?? ordemSelecionada.tarefa_id ?? null,
+            });
+            return;
+          }
+
+          void executarOp(ordemSelecionada, 'concluir');
         };
 
         return (
@@ -807,11 +825,18 @@ export const ProcessosProducaoHierarquico = ({
                   </Button>
                   <Button
                     size="sm"
-                    onClick={() => void executarOp(ordemSelecionada, 'concluir')}
+                    onClick={finalizarOp}
                     disabled={!podeFinalizarOp || executandoId === ordemSelecionada.id}
-                    title={podeFinalizarOp ? 'Finalizar OP' : 'Encerre o apontamento em andamento antes de finalizar a OP'}
+                    title={
+                      jornadaDaOp
+                        ? 'Encerrar o apontamento em andamento e finalizar a OP'
+                        : podeFinalizarOp
+                          ? 'Finalizar OP'
+                          : 'A OP não está aberta para finalização'
+                    }
                   >
-                    <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar OP
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    {jornadaDaOp ? 'Encerrar e finalizar OP' : 'Finalizar OP'}
                   </Button>
                   {['rascunho', 'liberada', 'em_execucao'].includes(ordemSelecionada.status) && (
                     <Button
