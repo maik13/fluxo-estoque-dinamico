@@ -218,7 +218,7 @@ const Index = () => {
           const showProjetos = canAccessProjects();
           const showProducao = canApontarProducao() || canConferirProducao() || canConfigurarProducao();
           const showFinanceiro = canAccessFinanceiro();
-          const showCotacoes = isAdmin() || hasPermission('compras.pedidos.criar');
+          const showCotacoes = isAdmin() || isEstoquista() || hasPermission('compras.pedidos.criar');
           const showAcompanhamentoPedido = hasPermission('acompanhamento.acessar');
           const showPlanejamento2 = hasPermission('planejamento2.acessar');
           const showImagensOP = hasPermission('imagensop.acessar');
