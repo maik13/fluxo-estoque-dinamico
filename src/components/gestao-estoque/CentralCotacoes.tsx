@@ -410,7 +410,14 @@ export function CentralCotacoes() {
         if (error) throw error;
       }
 
-      toast.success(confirmar ? 'Cotação confirmada e disponível para consulta.' : 'Cotação salva.');
+      if (form.solicitacao_id) {
+        await (supabase.from as any)('cotacao_solicitacoes')
+          .update({ status: 'em_analise', updated_at: new Date().toISOString() })
+          .eq('id', form.solicitacao_id)
+          .in('status', ['solicitada', 'aguardando_propostas']);
+      }
+
+      toast.success(confirmar ? 'Cotação confirmada e vinculada ao processo.' : 'Cotação salva.');
       setEditorOpen(false);
       await carregar();
     } catch (error: any) {
@@ -587,18 +594,165 @@ export function CentralCotacoes() {
   };
 
   const converterEmPn = async (cotacao: Cotacao) => {
+    if (cotacao.solicitacao_id && cotacao.status !== 'escolhida') {
+      toast.error('Escolha esta proposta no processo de cotação antes de converter em PN.');
+      return;
+    }
+
     if (!confirm(`Converter a cotação #${cotacao.numero} em PN?`)) return;
     try {
       const { data, error } = await (supabase as any).rpc('cotacao_converter_em_pn_v1', {
         p_cotacao_id: cotacao.id,
       });
       if (error) throw error;
-      toast.success('PN criada a partir da cotação.');
+      if (cotacao.solicitacao_id) {
+        await (supabase.from as any)('cotacao_solicitacoes')
+          .update({ status: 'encerrada', updated_at: new Date().toISOString() })
+          .eq('id', cotacao.solicitacao_id);
+      }
+
+      toast.success('PN criada a partir da cotação. Processo de cotação encerrado.');
       await carregar();
+      setProcessoSolicitacaoOpen(false);
       return data;
     } catch (error: any) {
       console.error(error);
       toast.error(error?.message || 'Não foi possível converter a cotação em PN.');
+    }
+  };
+
+  const abrirProcessoSolicitacao = async (solicitacao: Solicitacao) => {
+    setCarregandoProcesso(true);
+    try {
+      const { data: itensData, error: itensError } = await (supabase.from as any)('cotacao_solicitacao_itens')
+        .select('*')
+        .eq('solicitacao_id', solicitacao.id)
+        .order('ordem');
+
+      if (itensError) throw itensError;
+
+      setSolicitacaoSelecionada(solicitacao);
+      setItensSolicitacao((itensData || []) as SolicitacaoItem[]);
+      setProcessoSolicitacaoOpen(true);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível abrir o processo de cotação.');
+    } finally {
+      setCarregandoProcesso(false);
+    }
+  };
+
+  const iniciarAtendimento = async (solicitacao: Solicitacao) => {
+    setCarregandoProcesso(true);
+    try {
+      const { data, error } = await (supabase.from as any)('cotacao_solicitacoes')
+        .update({ status: 'aguardando_propostas', updated_at: new Date().toISOString() })
+        .eq('id', solicitacao.id)
+        .eq('status', 'solicitada')
+        .select('*')
+        .single();
+
+      if (error) throw error;
+
+      toast.success('Solicitação assumida pelo Almoxarifado.');
+      await carregar();
+      await abrirProcessoSolicitacao((data || solicitacao) as Solicitacao);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível iniciar o atendimento.');
+    } finally {
+      setCarregandoProcesso(false);
+    }
+  };
+
+  const abrirNovaCotacaoDaSolicitacao = async (solicitacao: Solicitacao) => {
+    let itensDaSolicitacao = itensSolicitacao;
+    if (solicitacaoSelecionada?.id !== solicitacao.id) {
+      const { data, error } = await (supabase.from as any)('cotacao_solicitacao_itens')
+        .select('*')
+        .eq('solicitacao_id', solicitacao.id)
+        .order('ordem');
+      if (error) {
+        toast.error('Não foi possível carregar os itens solicitados.');
+        return;
+      }
+      itensDaSolicitacao = (data || []) as SolicitacaoItem[];
+    }
+
+    setEditorCotacao(null);
+    setForm({
+      ...emptyForm,
+      tipo: solicitacao.tipo,
+      projeto_centro_custo: solicitacao.projeto_centro_custo || '',
+      descricao: solicitacao.observacoes || '',
+      origem_frete: solicitacao.origem_frete || '',
+      destino_frete: solicitacao.destino_frete || '',
+      peso_kg: toInput(solicitacao.peso_kg),
+      cubagem_m3: toInput(solicitacao.cubagem_m3),
+      volumes: solicitacao.volumes ? String(solicitacao.volumes) : '',
+      solicitacao_id: solicitacao.id,
+    });
+    setItens(
+      solicitacao.tipo === 'insumo'
+        ? itensDaSolicitacao.map((item) => ({
+            item_id: item.item_id,
+            codigo_item: item.codigo_item,
+            descricao: item.descricao,
+            quantidade: item.quantidade,
+            unidade: item.unidade,
+            valor_unitario: null,
+            valor_total: null,
+          }))
+        : [],
+    );
+    setBuscaItemCotacao('');
+    setProcessoSolicitacaoOpen(false);
+    setEditorOpen(true);
+  };
+
+  const importarPdfDaSolicitacao = (solicitacao: Solicitacao) => {
+    setSolicitacaoImportacaoId(solicitacao.id);
+    setProcessoSolicitacaoOpen(false);
+    window.setTimeout(() => fileInputRef.current?.click(), 0);
+  };
+
+  const escolherProposta = async (solicitacao: Solicitacao, cotacao: Cotacao) => {
+    if (!['confirmada', 'escolhida'].includes(cotacao.status)) {
+      toast.error('Confirme a cotação antes de escolhê-la.');
+      return;
+    }
+
+    const confirmou = window.confirm(
+      `Escolher a cotação #${cotacao.numero} de ${cotacao.fornecedor_nome || 'fornecedor não informado'}?`
+    );
+    if (!confirmou) return;
+
+    try {
+      const { error: outrasError } = await (supabase.from as any)('cotacoes')
+        .update({ status: 'rejeitada', updated_at: new Date().toISOString() })
+        .eq('solicitacao_id', solicitacao.id)
+        .neq('id', cotacao.id)
+        .in('status', ['confirmada', 'escolhida']);
+      if (outrasError) throw outrasError;
+
+      const { error: escolhidaError } = await (supabase.from as any)('cotacoes')
+        .update({ status: 'escolhida', updated_at: new Date().toISOString() })
+        .eq('id', cotacao.id);
+      if (escolhidaError) throw escolhidaError;
+
+      const { data: solicitacaoAtualizada, error: solicitacaoError } = await (supabase.from as any)('cotacao_solicitacoes')
+        .update({ status: 'escolhida', updated_at: new Date().toISOString() })
+        .eq('id', solicitacao.id)
+        .select('*')
+        .single();
+      if (solicitacaoError) throw solicitacaoError;
+
+      toast.success('Proposta escolhida. Ela já pode ser convertida em PN.');
+      await carregar();
+      await abrirProcessoSolicitacao((solicitacaoAtualizada || solicitacao) as Solicitacao);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível escolher a proposta.');
     }
   };
 
