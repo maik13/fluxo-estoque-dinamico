@@ -66,6 +66,14 @@ export function SolicitarOrcamento() {
       return;
     }
 
+    if (
+      form.tipo === 'insumo'
+      && itens.some((item) => !item.quantidade || Number(item.quantidade.replace(',', '.')) <= 0)
+    ) {
+      toast.error('Informe uma quantidade maior que zero para todos os materiais.');
+      return;
+    }
+
     if (form.tipo === 'frete' && (!form.origem_frete.trim() || !form.destino_frete.trim())) {
       toast.error('Informe origem e destino do frete.');
       return;
