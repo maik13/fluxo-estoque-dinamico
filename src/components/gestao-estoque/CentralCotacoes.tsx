@@ -201,10 +201,12 @@ export function CentralCotacoes() {
   const [loading, setLoading] = useState(true);
   const [importando, setImportando] = useState(false);
   const [reprocessandoId, setReprocessandoId] = useState<string | null>(null);
+  const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   const [busca, setBusca] = useState('');
   const [tipoFiltro, setTipoFiltro] = useState<'todos' | CotacaoTipo>('todos');
+  const [veiculoFiltro, setVeiculoFiltro] = useState('todos');
   const [periodoDias, setPeriodoDias] = useState('365');
 
   const [editorOpen, setEditorOpen] = useState(false);
@@ -503,6 +505,50 @@ export function CentralCotacoes() {
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
   };
 
+  const excluirCotacao = async (cotacao: Cotacao) => {
+    if (cotacao.status === 'convertida_pn' || cotacao.financeiro_necessidade_id) {
+      toast.error('Esta cotação já foi convertida em PN e não pode ser excluída.');
+      return;
+    }
+
+    const confirmou = window.confirm(
+      `Excluir definitivamente a cotação #${cotacao.numero}?` +
+      (cotacao.arquivo_nome ? `\n\nO PDF "${cotacao.arquivo_nome}" também será removido.` : '')
+    );
+    if (!confirmou) return;
+
+    setExcluindoId(cotacao.id);
+    try {
+      const { error: deleteError } = await (supabase.from as any)('cotacoes')
+        .delete()
+        .eq('id', cotacao.id);
+      if (deleteError) throw deleteError;
+
+      if (cotacao.arquivo_path) {
+        const { error: storageError } = await supabase.storage
+          .from('cotacoes-documentos')
+          .remove([cotacao.arquivo_path]);
+        if (storageError) {
+          console.error('Cotação excluída, mas houve erro ao remover o PDF:', storageError);
+          toast.warning('Cotação excluída. O PDF não pôde ser removido do armazenamento.');
+        }
+      }
+
+      if (editorCotacao?.id === cotacao.id) {
+        setEditorOpen(false);
+        setEditorCotacao(null);
+      }
+
+      toast.success('Cotação excluída.');
+      await carregar();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível excluir a cotação.');
+    } finally {
+      setExcluindoId(null);
+    }
+  };
+
   const converterEmPn = async (cotacao: Cotacao) => {
     if (!confirm(`Converter a cotação #${cotacao.numero} em PN?`)) return;
     try {
@@ -563,6 +609,7 @@ export function CentralCotacoes() {
 
     return cotacoes.filter((cotacao) => {
       if (tipoFiltro !== 'todos' && cotacao.tipo !== tipoFiltro) return false;
+      if (veiculoFiltro !== 'todos' && cotacao.tipo_veiculo !== veiculoFiltro) return false;
       if (new Date(cotacao.created_at) < cutoff) return false;
       if (!term) return true;
       return [
@@ -573,9 +620,18 @@ export function CentralCotacoes() {
         cotacao.destino_frete,
         cotacao.projeto_centro_custo,
         cotacao.numero_proposta,
+        cotacao.tipo_veiculo,
       ].filter(Boolean).some((value) => String(value).toLocaleLowerCase('pt-BR').includes(term));
     });
-  }, [busca, cotacoes, tipoFiltro, periodoDias]);
+  }, [busca, cotacoes, tipoFiltro, veiculoFiltro, periodoDias]);
+
+  const veiculosDisponiveis = useMemo(() => {
+    const padrao = ['CARRETA', 'TRUCK', 'TOCO', 'VUC', 'BITREM', 'RODOTREM', 'UTILITÁRIO', 'FIORINO'];
+    const existentes = cotacoes
+      .map((cotacao) => cotacao.tipo_veiculo)
+      .filter((value): value is string => Boolean(value));
+    return Array.from(new Set([...padrao, ...existentes]));
+  }, [cotacoes]);
 
   const kpis = useMemo(() => ({
     total: cotacoes.length,
@@ -641,7 +697,7 @@ export function CentralCotacoes() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-3 md:grid-cols-[1fr_190px_190px]">
+              <div className="grid gap-3 md:grid-cols-[1fr_180px_180px_180px]">
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Ex.: frete, Brusque, cinta 3,6x200, fornecedor..." className="pl-9" />
@@ -653,6 +709,15 @@ export function CentralCotacoes() {
                     <SelectItem value="insumo">Insumos</SelectItem>
                     <SelectItem value="frete">Fretes</SelectItem>
                     <SelectItem value="global">Globais</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={veiculoFiltro} onValueChange={setVeiculoFiltro}>
+                  <SelectTrigger><SelectValue placeholder="Tipo de caminhão" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os veículos</SelectItem>
+                    {veiculosDisponiveis.map((veiculo) => (
+                      <SelectItem key={veiculo} value={veiculo}>{veiculo}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <Select value={periodoDias} onValueChange={setPeriodoDias}>
@@ -680,6 +745,7 @@ export function CentralCotacoes() {
                         <TableHead>Fornecedor</TableHead>
                         <TableHead>Origem / descrição</TableHead>
                         <TableHead>Destino / projeto</TableHead>
+                        <TableHead>Veículo</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
                         <TableHead>Situação</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
@@ -701,6 +767,7 @@ export function CentralCotacoes() {
                           </TableCell>
                           <TableCell className="max-w-[260px] truncate">{cotacao.origem_frete || cotacao.descricao || '—'}</TableCell>
                           <TableCell className="max-w-[260px] truncate">{cotacao.destino_frete || cotacao.projeto_centro_custo || '—'}</TableCell>
+                          <TableCell>{cotacao.tipo === 'frete' ? (cotacao.tipo_veiculo || '—') : '—'}</TableCell>
                           <TableCell className="text-right font-medium">{moeda(cotacao.valor_total)}</TableCell>
                           <TableCell>
                             <Badge variant={cotacao.status === 'rejeitada' ? 'destructive' : 'outline'}>{statusLabels[cotacao.status] || cotacao.status}</Badge>
@@ -715,6 +782,19 @@ export function CentralCotacoes() {
                               <Button variant="ghost" size="icon" onClick={() => void abrirEdicao(cotacao)} title="Abrir / editar">
                                 <Pencil className="h-4 w-4" />
                               </Button>
+                              {cotacao.status !== 'convertida_pn' && !cotacao.financeiro_necessidade_id && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => void excluirCotacao(cotacao)}
+                                  disabled={excluindoId === cotacao.id}
+                                  title="Excluir cotação"
+                                >
+                                  {excluindoId === cotacao.id
+                                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                                    : <Trash2 className="h-4 w-4 text-destructive" />}
+                                </Button>
+                              )}
                               {['confirmada', 'escolhida'].includes(cotacao.status) && !cotacao.financeiro_necessidade_id && (
                                 <Button variant="ghost" size="icon" onClick={() => void converterEmPn(cotacao)} title="Converter em PN">
                                   <ArrowRightLeft className="h-4 w-4" />
@@ -725,7 +805,7 @@ export function CentralCotacoes() {
                         </TableRow>
                       ))}
                       {resultados.length === 0 && (
-                        <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">Nenhuma cotação encontrada.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={9} className="py-10 text-center text-muted-foreground">Nenhuma cotação encontrada.</TableCell></TableRow>
                       )}
                     </TableBody>
                   </Table>
@@ -853,7 +933,21 @@ export function CentralCotacoes() {
             <div className="grid gap-4 rounded-lg border p-4 md:grid-cols-3">
               <div><Label>Origem</Label><Input value={form.origem_frete} onChange={(e) => setForm((f) => ({ ...f, origem_frete: e.target.value }))} /></div>
               <div><Label>Destino</Label><Input value={form.destino_frete} onChange={(e) => setForm((f) => ({ ...f, destino_frete: e.target.value }))} /></div>
-              <div><Label>Tipo de veículo</Label><Input value={form.tipo_veiculo} onChange={(e) => setForm((f) => ({ ...f, tipo_veiculo: e.target.value }))} /></div>
+              <div>
+                <Label>Tipo de caminhão / veículo</Label>
+                <Select value={form.tipo_veiculo || 'nao_informado'} onValueChange={(value) => setForm((f) => ({ ...f, tipo_veiculo: value === 'nao_informado' ? '' : value }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nao_informado">Não informado</SelectItem>
+                    {veiculosDisponiveis.map((veiculo) => (
+                      <SelectItem key={veiculo} value={veiculo}>{veiculo}</SelectItem>
+                    ))}
+                    {form.tipo_veiculo && !veiculosDisponiveis.includes(form.tipo_veiculo) && (
+                      <SelectItem value={form.tipo_veiculo}>{form.tipo_veiculo}</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label>Peso (kg)</Label><Input value={form.peso_kg} onChange={(e) => setForm((f) => ({ ...f, peso_kg: e.target.value }))} /></div>
               <div><Label>Cubagem (m³)</Label><Input value={form.cubagem_m3} onChange={(e) => setForm((f) => ({ ...f, cubagem_m3: e.target.value }))} /></div>
               <div><Label>Volumes</Label><Input type="number" min="0" value={form.volumes} onChange={(e) => setForm((f) => ({ ...f, volumes: e.target.value }))} /></div>
@@ -906,7 +1000,20 @@ export function CentralCotacoes() {
             <div><Label>Observação / descrição geral</Label><Textarea value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))} rows={3} /></div>
           )}
 
-          <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
+          <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+            {editorCotacao && editorCotacao.status !== 'convertida_pn' && !editorCotacao.financeiro_necessidade_id && (
+              <Button
+                variant="destructive"
+                onClick={() => void excluirCotacao(editorCotacao)}
+                disabled={excluindoId === editorCotacao.id}
+                className="mr-auto"
+              >
+                {excluindoId === editorCotacao.id
+                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  : <Trash2 className="mr-2 h-4 w-4" />}
+                Excluir cotação
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setEditorOpen(false)}>Cancelar</Button>
             <Button variant="outline" onClick={() => void salvarCotacao(false)} disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar rascunho'}</Button>
             <Button onClick={() => void salvarCotacao(true)} disabled={salvando}>
