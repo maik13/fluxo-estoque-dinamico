@@ -163,8 +163,8 @@ export interface IndicadorProducaoMateriais {
   total_saida: number;
   total_entrada: number;
   itens_distintos: number;
-  quantidade_por_item: Array<{ item_id: string; item_nome: string; quantidade: number; total_movimentacoes: number }>;
-  quantidade_por_tipo_movimento: Array<{ tipo: string; quantidade: number; total_movimentacoes: number }>;
+  quantidade_por_item: Array<{ item_id: string; item_nome: string; codigo_item?: string; unidade?: string; saida?: number; devolvido?: number; outras_entradas?: number; quantidade: number; total_movimentacoes: number }>;
+  quantidade_por_tipo_movimento: Array<{ tipo: string; unidade?: string; quantidade: number; total_movimentacoes: number }>;
 }
 
 export interface IndicadorProducaoLocalTipoDetalhado extends IndicadorProducaoPorLocalTipo {

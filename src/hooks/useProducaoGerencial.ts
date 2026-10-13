@@ -22,7 +22,7 @@ type ApontamentoMembroRow = ApontamentoMembroBase & {
 type MembroRow = Database['public']['Tables']['producao_membros']['Row'];
 type TarefaRow = Database['public']['Tables']['producao_tarefas']['Row'];
 type MaterialRow = Database['public']['Tables']['producao_materiais_projeto']['Row'] & {
-  projeto_nome?: string; grupo_nome?: string; data_movimentacao?: string; codigo_item?: string; unidade?: string;
+  projeto_nome?: string; grupo_nome?: string; data_movimentacao?: string; codigo_item?: string; unidade?: string; tipo_operacao_id?: string | null;
 };
 type AnexoRow = Database['public']['Tables']['producao_apontamento_anexos']['Row'];
 type LocalRow = Database['public']['Tables']['locais_utilizacao']['Row'];
@@ -119,28 +119,37 @@ const nomeItemSnapshot = (snapshot: MaterialRow['item_snapshot']) => {
 };
 
 const consolidarMateriais = (materiais: MaterialRow[]): IndicadorProducaoMateriais => {
-  const porItem = new Map<string, { item_nome: string; quantidade: number; total_movimentacoes: number }>();
-  const porTipo = new Map<string, { quantidade: number; total_movimentacoes: number }>();
+  const porItem = new Map<string, IndicadorProducaoMateriais['quantidade_por_item'][number]>();
+  const porTipo = new Map<string, IndicadorProducaoMateriais['quantidade_por_tipo_movimento'][number]>();
   let totalSaida = 0;
   let totalEntrada = 0;
-  materiais.forEach((material) => {
-    const quantidade = material.quantidade ?? 0;
-    const tipo = material.tipo || 'Não informado';
-    const tipoNormalizado = tipo.trim().toLocaleUpperCase('pt-BR');
-    const itemAtual = porItem.get(material.item_id) ?? { item_nome: nomeItemSnapshot(material.item_snapshot) ?? material.item_id, quantidade: 0, total_movimentacoes: 0 };
-    itemAtual.quantidade += quantidade; itemAtual.total_movimentacoes += 1; porItem.set(material.item_id, itemAtual);
-    const tipoAtual = porTipo.get(tipo) ?? { quantidade: 0, total_movimentacoes: 0 };
-    tipoAtual.quantidade += quantidade; tipoAtual.total_movimentacoes += 1; porTipo.set(tipo, tipoAtual);
-    if (tipoNormalizado === 'SAIDA' || tipoNormalizado === 'SAÍDA') totalSaida += quantidade;
-    if (tipoNormalizado === 'ENTRADA') totalEntrada += quantidade;
-  });
+  for (const material of materiais) {
+    const quantidade = Math.abs(material.quantidade ?? 0);
+    const unidade = material.unidade?.trim().toUpperCase() || 'Não informada';
+    const tipoOriginal = material.tipo.trim().toUpperCase();
+    const observacao = (material.observacoes_producao ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const saida = tipoOriginal === 'SAIDA' || tipoOriginal === 'SAÍDA';
+    const devolucao = tipoOriginal === 'ENTRADA' && (material.tipo_operacao_id === '8462f967-121e-4a0a-8d43-5e7131fc1981' || observacao.includes('devolucao'));
+    const tipo = saida ? 'Saída' : devolucao ? 'Devolução' : 'Outras entradas';
+    const key = JSON.stringify([material.item_id, unidade]);
+    const item = porItem.get(key) ?? { item_id: material.item_id, item_nome: nomeItemSnapshot(material.item_snapshot) ?? material.item_id, codigo_item: material.codigo_item ?? '', unidade, quantidade: 0, saida: 0, devolvido: 0, outras_entradas: 0, total_movimentacoes: 0 };
+    if (saida) { item.saida! += quantidade; totalSaida += quantidade; }
+    else if (devolucao) { item.devolvido! += quantidade; totalEntrada += quantidade; }
+    else item.outras_entradas! += quantidade;
+    item.quantidade = item.saida! - item.devolvido!;
+    item.total_movimentacoes += 1;
+    porItem.set(key, item);
+    const tipoKey = JSON.stringify([tipo, unidade]);
+    const resumo = porTipo.get(tipoKey) ?? { tipo, unidade, quantidade: 0, total_movimentacoes: 0 };
+    resumo.quantidade += quantidade; resumo.total_movimentacoes += 1;
+    porTipo.set(tipoKey, resumo);
+  }
   return {
     total_movimentacoes_vinculadas: materiais.length,
-    total_saida: totalSaida,
-    total_entrada: totalEntrada,
-    itens_distintos: porItem.size,
-    quantidade_por_item: [...porItem.entries()].map(([item_id, valor]) => ({ item_id, ...valor })).sort((a, b) => b.quantidade - a.quantidade),
-    quantidade_por_tipo_movimento: [...porTipo.entries()].map(([tipo, valor]) => ({ tipo, ...valor })).sort((a, b) => b.quantidade - a.quantidade),
+    total_saida: totalSaida, total_entrada: totalEntrada,
+    itens_distintos: new Set(materiais.map((m) => m.item_id)).size,
+    quantidade_por_item: [...porItem.values()].sort((a, b) => a.item_nome.localeCompare(b.item_nome)),
+    quantidade_por_tipo_movimento: [...porTipo.values()].sort((a, b) => a.tipo.localeCompare(b.tipo) || (a.unidade ?? '').localeCompare(b.unidade ?? '')),
   };
 };
 
@@ -302,7 +311,7 @@ export const useProducaoGerencial = () => {
       for (let offset = 0; offset < locaisMateriais.length; offset += 20) {
         const lote = locaisMateriais.slice(offset, offset + 20);
         const movimentos = await carregarTodasPaginas((i, f) => {
-          let consulta = supabase.from('movements').select('id,item_id,tipo,quantidade,item_snapshot,observacoes,data_hora,created_at,local_utilizacao_id').in('local_utilizacao_id', lote);
+          let consulta = supabase.from('movements').select('id,item_id,tipo,quantidade,item_snapshot,observacoes,data_hora,created_at,local_utilizacao_id,tipo_operacao_id').in('local_utilizacao_id', lote);
           if (novosFiltros.data_inicio) consulta = consulta.gte('data_hora', novosFiltros.data_inicio + 'T00:00:00-03:00');
           if (novosFiltros.data_fim) consulta = consulta.lte('data_hora', novosFiltros.data_fim + 'T23:59:59.999999-03:00');
           return consulta.order('id').range(i, f);
@@ -317,6 +326,7 @@ export const useProducaoGerencial = () => {
             movement_id: movimento.id,
             projeto_local_id: movimento.local_utilizacao_id!,
             apontamento_id: vinculo?.apontamento_id ?? null,
+            tipo_operacao_id: movimento.tipo_operacao_id,
             tipo: movimento.tipo, item_id: movimento.item_id,
             quantidade: Math.abs(movimento.quantidade), item_snapshot: movimento.item_snapshot,
             observacoes_producao: vinculo?.observacoes_producao ?? movimento.observacoes,
