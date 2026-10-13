@@ -18,6 +18,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
@@ -194,6 +195,7 @@ const emptyForm = {
 export function CentralCotacoes() {
   const { user } = useAuth();
   const { userProfile } = usePermissions();
+  const { obterEstoque } = useEstoqueContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [cotacoes, setCotacoes] = useState<Cotacao[]>([]);
@@ -213,6 +215,7 @@ export function CentralCotacoes() {
   const [editorCotacao, setEditorCotacao] = useState<Cotacao | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [itens, setItens] = useState<CotacaoItem[]>([]);
+  const [buscaItemCotacao, setBuscaItemCotacao] = useState('');
 
   const [solicitacaoOpen, setSolicitacaoOpen] = useState(false);
   const [solicitacaoForm, setSolicitacaoForm] = useState({
@@ -254,6 +257,7 @@ export function CentralCotacoes() {
     setEditorCotacao(null);
     setForm({ ...emptyForm });
     setItens([]);
+    setBuscaItemCotacao('');
     setEditorOpen(true);
   };
 
@@ -640,6 +644,42 @@ export function CentralCotacoes() {
     pn: cotacoes.filter((c) => c.status === 'convertida_pn').length,
   }), [cotacoes]);
 
+  const itensCatalogo = useMemo(
+    () => (obterEstoque() ?? []).filter((item) => item.ativo !== false),
+    [obterEstoque],
+  );
+
+  const resultadosBuscaItemCotacao = useMemo(() => {
+    const termo = buscaItemCotacao.trim().toLocaleLowerCase('pt-BR');
+    if (termo.length < 2) return [];
+    return itensCatalogo
+      .filter((item) => !itens.some((selecionado) => selecionado.item_id === item.id))
+      .filter((item) =>
+        [item.nome, item.codigoBarras, item.marca, item.especificacao]
+          .filter(Boolean)
+          .some((valor) => String(valor).toLocaleLowerCase('pt-BR').includes(termo))
+      )
+      .slice(0, 10);
+  }, [buscaItemCotacao, itensCatalogo, itens]);
+
+  const adicionarItemCatalogoCotacao = (item: any) => {
+    setItens((current) => [
+      ...current,
+      {
+        item_id: item.id,
+        codigo_item: String(item.codigoBarras ?? ''),
+        descricao: item.nome,
+        marca: item.marca || null,
+        especificacao: item.especificacao || null,
+        quantidade: null,
+        unidade: item.unidade || 'un',
+        valor_unitario: null,
+        valor_total: null,
+      },
+    ]);
+    setBuscaItemCotacao('');
+  };
+
   const atualizarItem = (index: number, patch: Partial<CotacaoItem>) => {
     setItens((current) => current.map((item, idx) => idx === index ? { ...item, ...patch } : item));
   };
@@ -882,11 +922,11 @@ export function CentralCotacoes() {
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
         <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editorCotacao ? `Cotação #${editorCotacao.numero}` : 'Nova cotação manual'}</DialogTitle>
+            <DialogTitle>{editorCotacao ? `Cotação #${editorCotacao.numero}` : 'Registrar cotação recebida'}</DialogTitle>
             <DialogDescription>
               {editorCotacao?.origem_cadastro === 'pdf'
                 ? 'Confira o que foi lido do PDF. Todos os campos podem ser corrigidos antes de confirmar.'
-                : 'Preencha manualmente os dados da cotação.'}
+                : 'Uso do Almoxarifado: registre uma proposta recebida de fornecedor e vincule os itens ao cadastro do estoque.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -959,16 +999,61 @@ export function CentralCotacoes() {
 
           {form.tipo === 'insumo' && (
             <div className="space-y-3 rounded-lg border p-4">
-              <div className="flex items-center justify-between">
-                <div><p className="font-medium">Itens do orçamento</p><p className="text-xs text-muted-foreground">A leitura do PDF tenta separar descrição, quantidade, unidade e valores.</p></div>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium">Itens cotados</p>
+                  <p className="text-xs text-muted-foreground">Vincule ao cadastro do estoque quando possível e registre os valores recebidos do fornecedor.</p>
+                </div>
                 <Button type="button" variant="outline" size="sm" onClick={() => setItens((current) => [...current, { descricao: '', quantidade: null, unidade: 'un', valor_unitario: null, valor_total: null }])}>
-                  <Plus className="mr-2 h-4 w-4" /> Item
+                  <Plus className="mr-2 h-4 w-4" /> Item não cadastrado
                 </Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Buscar item do estoque</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={buscaItemCotacao}
+                    onChange={(e) => setBuscaItemCotacao(e.target.value)}
+                    placeholder="Ex.: cinta plástica, 1281..."
+                    className="pl-9"
+                  />
+                </div>
+                {resultadosBuscaItemCotacao.length > 0 && (
+                  <div className="max-h-56 overflow-y-auto rounded-lg border bg-background">
+                    {resultadosBuscaItemCotacao.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => adicionarItemCatalogoCotacao(item)}
+                        className="flex w-full items-start justify-between gap-3 border-b px-3 py-2 text-left last:border-b-0 hover:bg-muted/50"
+                      >
+                        <div>
+                          <div className="font-medium">{item.nome}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Código {item.codigoBarras}{item.marca ? ` · ${item.marca}` : ''}{item.especificacao ? ` · ${item.especificacao}` : ''}
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-xs text-muted-foreground">{item.unidade || 'un'}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 {itens.map((item, index) => (
                   <div key={index} className="grid gap-2 md:grid-cols-[2fr_110px_90px_130px_130px_40px]">
-                    <Input placeholder="Descrição / material" value={item.descricao} onChange={(e) => atualizarItem(index, { descricao: e.target.value })} />
+                    <div>
+                      {item.item_id ? (
+                        <div className="rounded-md border px-3 py-2">
+                          <div className="font-medium">{item.descricao}</div>
+                          <div className="text-xs text-muted-foreground">Código {item.codigo_item || '—'}</div>
+                        </div>
+                      ) : (
+                        <Input placeholder="Descrição / material" value={item.descricao} onChange={(e) => atualizarItem(index, { descricao: e.target.value })} />
+                      )}
+                    </div>
                     <Input placeholder="Qtd" value={item.quantidade ?? ''} onChange={(e) => atualizarItem(index, { quantidade: fromInput(e.target.value) })} />
                     <Input placeholder="Un." value={item.unidade || ''} onChange={(e) => atualizarItem(index, { unidade: e.target.value })} />
                     <Input placeholder="V. unit." value={item.valor_unitario ?? ''} onChange={(e) => atualizarItem(index, { valor_unitario: fromInput(e.target.value) })} />
