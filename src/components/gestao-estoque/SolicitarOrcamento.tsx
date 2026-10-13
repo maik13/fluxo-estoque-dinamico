@@ -97,6 +97,8 @@ export function SolicitarOrcamento() {
           volumes: form.tipo === 'frete' && form.volumes ? Number(form.volumes) : null,
           criado_por: user.id,
           criado_por_nome: userProfile?.nome || user.email || 'Usuário',
+          criado_por_email: userProfile?.email || user.email || null,
+          criado_por_perfil: userProfile?.tipo_usuario || null,
         })
         .select('id,numero')
         .single();
