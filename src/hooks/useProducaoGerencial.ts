@@ -251,6 +251,7 @@ export const useProducaoGerencial = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filtros, setFiltros] = useState<FiltrosProducaoGerencial>(FILTROS_INICIAIS);
+  const [gruposProjeto, setGruposProjeto] = useState<Array<{ id: string; nome: string }>>([]);
   const [dadosConsolidados, setDadosConsolidados] = useState<IndicadoresProducaoGerencial>(dadosIniciais);
 
   const carregarIndicadores = useCallback(async (novosFiltros: FiltrosProducaoGerencial = {}) => {
@@ -264,7 +265,7 @@ export const useProducaoGerencial = () => {
       if (novosFiltros.tarefa_id) consultaApontamentos = consultaApontamentos.eq('tarefa_id', novosFiltros.tarefa_id);
       if (novosFiltros.status) consultaApontamentos = consultaApontamentos.eq('status', novosFiltros.status);
       if (novosFiltros.local_tipo) consultaApontamentos = consultaApontamentos.eq('local_tipo', novosFiltros.local_tipo);
-      const [apontamentosResult, vinculosResult, membrosResult, tarefasResult, materiaisResult, anexosResult, locaisResult, projetosResult, gruposResult] = await Promise.all([
+      const [apontamentosResult, vinculosResult, membrosResult, tarefasResult, materiaisResult, anexosResult, locaisResult, projetosResult, gruposResult, vinculosGruposResult] = await Promise.all([
         carregarTodasPaginas((i, f) => consultaApontamentos.order('id').range(i, f)),
         carregarTodasPaginas((i, f) => supabase.from('producao_apontamento_membros').select('*').order('id').range(i, f)),
         carregarTodasPaginas((i, f) => supabase.from('producao_membros').select('*').order('id').range(i, f)),
@@ -273,14 +274,17 @@ export const useProducaoGerencial = () => {
         carregarTodasPaginas((i, f) => supabase.from('producao_apontamento_anexos').select('*').order('id').range(i, f)),
         carregarTodasPaginas((i, f) => supabase.from('locais_utilizacao').select('*').order('id').range(i, f)),
         carregarTodasPaginas((i, f) => supabase.from('producao_projetos').select('local_utilizacao_id').order('id').range(i, f)),
-        carregarTodasPaginas((i, f) => supabase.from('project_groups').select('id,nome').order('id').range(i, f)),
+        carregarTodasPaginas((i, f) => supabase.from('almoxarifado_grupos').select('id,nome').eq('ativo', true).order('id').range(i, f)),
+        carregarTodasPaginas((i, f) => supabase.from('almoxarifado_grupo_locais').select('grupo_id,local_utilizacao_id').order('local_utilizacao_id').range(i, f)),
       ]);
+      setGruposProjeto(gruposResult.data);
+      const grupoPorLocal = new Map(vinculosGruposResult.data.map((v) => [v.local_utilizacao_id, v.grupo_id]));
       const erroConsulta = apontamentosResult.error ?? vinculosResult.error ?? membrosResult.error ?? tarefasResult.error ?? materiaisResult.error ?? anexosResult.error ?? locaisResult.error;
       if (erroConsulta) throw erroConsulta;
       const todosVinculos = (vinculosResult.data ?? []) as ApontamentoMembroRow[];
       let apontamentos = apontamentosResult.data ?? [];
       if (novosFiltros.membro_id) { const ids = new Set(todosVinculos.filter((v) => v.membro_id === novosFiltros.membro_id).map((v) => v.apontamento_id)); apontamentos = apontamentos.filter((a) => ids.has(a.id)); }
-      const locaisDoGrupo = novosFiltros.grupo_id ? new Set(locaisResult.data.filter((l) => l.group_id === novosFiltros.grupo_id).map((l) => l.id)) : null;
+      const locaisDoGrupo = novosFiltros.grupo_id ? new Set(locaisResult.data.filter((l) => grupoPorLocal.get(l.id) === novosFiltros.grupo_id).map((l) => l.id)) : null;
       if (locaisDoGrupo) apontamentos = apontamentos.filter((a) => locaisDoGrupo.has(a.projeto_local_id));
       const idsApontamentos = new Set(apontamentos.map((a) => a.id));
       const vinculosMembros = todosVinculos.filter((v) => idsApontamentos.has(v.apontamento_id));
@@ -319,7 +323,7 @@ export const useProducaoGerencial = () => {
             created_at: movimento.created_at,
             data_movimentacao: movimento.data_hora,
             projeto_nome: local?.nome ?? movimento.local_utilizacao_id!,
-            grupo_nome: local?.group_id ? gruposPorId.get(local.group_id) ?? 'Grupo não encontrado' : 'Sem grupo',
+            grupo_nome: grupoPorLocal.has(movimento.local_utilizacao_id!) ? gruposPorId.get(grupoPorLocal.get(movimento.local_utilizacao_id!)!) ?? 'Grupo não encontrado' : 'Sem grupo',
             codigo_item: String(snapshot.codigoBarras ?? snapshot.codigo_barras ?? ''),
             unidade: String(snapshot.unidade ?? ''),
           });
@@ -333,5 +337,5 @@ export const useProducaoGerencial = () => {
     } finally { setLoading(false); }
   }, []);
 
-  return { loading, error, filtros, dadosConsolidados, carregarIndicadores };
+  return { loading, error, filtros, dadosConsolidados, carregarIndicadores, gruposProjeto };
 };

@@ -42,7 +42,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { useProducao } from '@/hooks/useProducao';
 import { useProducaoGerencial } from '@/hooks/useProducaoGerencial';
 import { CalendarioFotosProducao } from './CalendarioFotosProducao';
@@ -93,6 +92,7 @@ export const PainelProducaoGerencial = ({
     filtros,
     dadosConsolidados,
     carregarIndicadores,
+    gruposProjeto,
   } = useProducaoGerencial();
   const {
     tarefas,
@@ -100,7 +100,6 @@ export const PainelProducaoGerencial = ({
     listarTarefas,
     listarMembrosProducao,
   } = useProducao();
-  const { gruposProjeto } = useConfiguracoes();
   const [grupoId, setGrupoId] = useState(TODOS);
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
