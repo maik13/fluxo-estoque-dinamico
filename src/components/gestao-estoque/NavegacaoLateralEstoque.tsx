@@ -94,7 +94,7 @@ export const NavegacaoLateralEstoque = ({
     () => new Set([
       'Painel',
       'Almoxarifado',
-      ...(showFinanceiro || showCotacoes || showAcompanhamentoPedido || showGerencial || showProjetos ? ['Gestão'] : []),
+      ...(showFinanceiro || showAcompanhamentoPedido || showGerencial || showProjetos ? ['Gestão'] : []),
       ...(showProducao || showPlanejamento2 || showImagensOP ? ['Produção'] : []),
     ]),
   );
