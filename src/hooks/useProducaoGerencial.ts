@@ -31,7 +31,7 @@ type LocalRow = Database['public']['Tables']['locais_utilizacao']['Row'];
 const carregarTodasPaginas = async <T,>(consulta: (inicio: number, fim: number) => PromiseLike<{ data: T[] | null; error: unknown }>) => {
   const data: T[] = [];
   for (let inicio = 0; ; ) {
-    const pagina = await consulta(inicio, inicio + 499);
+    const pagina = await consulta(inicio, inicio + 99);
     if (pagina.error) throw pagina.error;
     const linhas = pagina.data ?? [];
     if (linhas.length === 0) break;
@@ -295,10 +295,10 @@ export const useProducaoGerencial = () => {
       const locaisPorId = new Map(locaisResult.data.map((l) => [l.id, l]));
       const gruposPorId = new Map(gruposResult.data.map((g) => [g.id, g.nome]));
       const materiais: MaterialRow[] = [];
-      for (let offset = 0; offset < locaisMateriais.length; offset += 200) {
-        const lote = locaisMateriais.slice(offset, offset + 200);
+      for (let offset = 0; offset < locaisMateriais.length; offset += 20) {
+        const lote = locaisMateriais.slice(offset, offset + 20);
         const movimentos = await carregarTodasPaginas((i, f) => {
-          let consulta = supabase.from('movements').select('*').in('local_utilizacao_id', lote);
+          let consulta = supabase.from('movements').select('id,item_id,tipo,quantidade,item_snapshot,observacoes,data_hora,created_at,local_utilizacao_id').in('local_utilizacao_id', lote);
           if (novosFiltros.data_inicio) consulta = consulta.gte('data_hora', novosFiltros.data_inicio + 'T00:00:00-03:00');
           if (novosFiltros.data_fim) consulta = consulta.lte('data_hora', novosFiltros.data_fim + 'T23:59:59.999999-03:00');
           return consulta.order('id').range(i, f);
@@ -328,7 +328,7 @@ export const useProducaoGerencial = () => {
       const consolidados = consolidarIndicadores({ apontamentos, vinculosMembros, membros: membrosResult.data ?? [], tarefas: tarefasResult.data ?? [], materiais, anexos: (anexosResult.data ?? []).filter((a) => idsApontamentos.has(a.apontamento_id)), locais: locaisResult.data ?? [] });
       setDadosConsolidados(consolidados); return consolidados;
     } catch (erro) {
-      const mensagem = erro instanceof Error ? erro.message : 'Não foi possível carregar os indicadores da Produção.';
+      const mensagem = erro instanceof Error ? erro.message : erro && typeof erro === 'object' && 'message' in erro ? String(erro.message) : 'Não foi possível carregar os indicadores da Produção.';
       setError(mensagem); throw erro;
     } finally { setLoading(false); }
   }, []);
