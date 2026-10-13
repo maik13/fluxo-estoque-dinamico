@@ -27,6 +27,7 @@ import { SeletorEstoque } from '@/components/gestao-estoque/SeletorEstoque';
 import { EstoqueProvider } from '@/contexts/EstoqueContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useSolicitacoesMaterialPendentes } from '@/hooks/useSolicitacoesMaterialPendentes';
+import { useSolicitacoesCotacaoPendentes } from '@/hooks/useSolicitacoesCotacaoPendentes';
 import { useMensagensNaoLidas } from '@/hooks/useMensagensNaoLidas';
 
 const AcompanhamentoPedidoIntegrado = lazy(() =>
@@ -80,6 +81,10 @@ const Index = () => {
     enabled: podeGerenciarSolicitacoesMaterial,
   });
   const { naoLidas: mensagensNaoLidasCount } = useMensagensNaoLidas();
+  const podeGerenciarCotacoes = isAdmin() || isEstoquista() || hasPermission('compras.pedidos.criar');
+  const { pendentesCount: solicitacoesCotacaoPendentesCount } = useSolicitacoesCotacaoPendentes({
+    enabled: podeGerenciarCotacoes,
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -248,6 +253,7 @@ const Index = () => {
                 showRHInformacoes={showRHInformacoes}
                 showConfiguracoes={showConfiguracoes}
                 solicitacoesPendentesCount={solicitacoesPendentesCount}
+                solicitacoesCotacaoPendentesCount={solicitacoesCotacaoPendentesCount}
                 mensagensNaoLidasCount={mensagensNaoLidasCount}
                 somenteBIProducao={somenteBIProducao}
               />
