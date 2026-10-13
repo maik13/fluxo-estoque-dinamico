@@ -269,6 +269,7 @@ const Index = () => {
                         onAbrirGerencial={() => setTabAtiva('gerencial')}
                         onAbrirProjetos={() => setTabAtiva('projetos')}
                         onAbrirMensagens={() => setTabAtiva('mensagens')}
+                        onAbrirImagensOP={showImagensOP ? () => setTabAtiva('imagens-op') : undefined}
                         onAbrirProducao={() => setTabAtiva('producao')}
                       />
                       {somenteBIProducao && (

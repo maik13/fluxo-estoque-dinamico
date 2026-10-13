@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X, MessageCircle } from 'lucide-react';
+import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X, MessageCircle, Image as ImageIcon } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Item, EstoqueItem } from '@/types/estoque';
@@ -33,12 +33,14 @@ import { itemRegistrationSchema, exitRegistrationSchema } from '@/schemas/valida
 import { toast } from 'sonner';
 
 export const MenuPrincipal = ({ 
-  onAbrirMensagens
+  onAbrirMensagens,
+  onAbrirImagensOP
 }: { 
   onAbrirGerencial?: () => void;
   onAbrirProjetos?: () => void;
   onAbrirMensagens?: () => void;
   onAbrirProducao?: () => void;
+  onAbrirImagensOP?: () => void;
 }) => {
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoqueContext();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria, obterSubcategoriasDaCategoria, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
@@ -50,6 +52,8 @@ export const MenuPrincipal = ({
     canRegistrarEntrada, 
     canTransferir, 
     canRegistrarSaida,
+    canSolicitacaoMaterial,
+    hasPermission,
     userProfile
   } = usePermissions();
   
@@ -523,7 +527,16 @@ export const MenuPrincipal = ({
 
         {/* LINHA 1: Retirada, Devolução, Cadastro, Transferência, Entrada */}
         {canSolicitarMaterial() && <SolicitarMaterial />}
-        <SolicitarOrcamento />
+        {(hasPermission('compras.orcamentos.solicitar') || hasPermission('compras.pedidos.criar')) && <SolicitarOrcamento />}
+        {hasPermission('imagensop.acessar') && onAbrirImagensOP && (
+          <Card onClick={onAbrirImagensOP} className="cursor-pointer border-primary/20 hover:border-primary/40" role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onAbrirImagensOP(); } }}>
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10"><ImageIcon className="h-8 w-8 text-primary" /></div>
+              <CardTitle>Imagens OP</CardTitle>
+              <CardDescription>Consultar fotos dos apontamentos de produção</CardDescription>
+            </CardHeader>
+          </Card>
+        )}
         {canDevolverMaterial() && <DevolverMaterial />}
 
 
@@ -833,9 +846,9 @@ export const MenuPrincipal = ({
         {/* Registrar Entrada */}
         {canRegistrarEntrada() && <RegistrarEntrada />}
 
-        {/* Solicitação de Material: disponível para todo usuário ativo.
+        {/* Solicitação de Material: respeita a permissão individual efetiva.
             Aprovação, retirada e PN permanecem restritas ao Almoxarifado. */}
-        {userProfile?.ativo && <SolicitacaoMaterial />}
+        {canSolicitacaoMaterial() && <SolicitacaoMaterial />}
 
         {/* Fila operacional: a formalização em RC continua no Financeiro, a partir da PN. */}
         {canManageStock() && <PrevisoesNecessidadeAlmoxarifado />}
