@@ -200,6 +200,7 @@ export function CentralCotacoes() {
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [importando, setImportando] = useState(false);
+  const [reprocessandoId, setReprocessandoId] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   const [busca, setBusca] = useState('');
@@ -457,6 +458,36 @@ export function CentralCotacoes() {
     } finally {
       setImportando(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const reprocessarPdf = async (cotacao: Cotacao) => {
+    if (!cotacao.arquivo_path) {
+      toast.error('Esta cotação não possui PDF para reprocessar.');
+      return;
+    }
+
+    setReprocessandoId(cotacao.id);
+    try {
+      const { error: fnError } = await supabase.functions.invoke('cotacoes-ler-pdf', {
+        body: { cotacao_id: cotacao.id },
+      });
+      if (fnError) throw fnError;
+
+      const { data: refreshed, error: refreshError } = await (supabase.from as any)('cotacoes')
+        .select('*')
+        .eq('id', cotacao.id)
+        .single();
+      if (refreshError) throw refreshError;
+
+      await carregar();
+      await abrirEdicao(refreshed as Cotacao);
+      toast.success('PDF reprocessado com o leitor atualizado. Confira os campos.');
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível reprocessar o PDF.');
+    } finally {
+      setReprocessandoId(null);
     }
   };
 
@@ -785,9 +816,22 @@ export function CentralCotacoes() {
               <span className="font-medium">{editorCotacao.arquivo_nome}</span>
               <Badge variant="outline">{editorCotacao.leitura_status}</Badge>
               {editorCotacao.leitura_erro && <span className="text-amber-500">{editorCotacao.leitura_erro}</span>}
-              <Button variant="ghost" size="sm" className="ml-auto" onClick={() => void abrirPdf(editorCotacao)}>
-                <Eye className="mr-2 h-4 w-4" /> Ver PDF original
-              </Button>
+              <div className="ml-auto flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void reprocessarPdf(editorCotacao)}
+                  disabled={reprocessandoId === editorCotacao.id}
+                >
+                  {reprocessandoId === editorCotacao.id
+                    ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    : <RefreshCw className="mr-2 h-4 w-4" />}
+                  Reprocessar PDF
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => void abrirPdf(editorCotacao)}>
+                  <Eye className="mr-2 h-4 w-4" /> Ver PDF original
+                </Button>
+              </div>
             </div>
           )}
 
