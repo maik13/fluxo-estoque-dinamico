@@ -121,7 +121,24 @@ type Solicitacao = {
   criado_por_perfil?: string | null;
   prioridade?: string | null;
   data_necessaria?: string | null;
+  origem_frete?: string | null;
+  destino_frete?: string | null;
+  peso_kg?: number | null;
+  cubagem_m3?: number | null;
+  volumes?: number | null;
   created_at: string;
+};
+
+type SolicitacaoItem = {
+  id: string;
+  solicitacao_id: string;
+  item_id: string | null;
+  codigo_item: string | null;
+  descricao: string;
+  quantidade: number | null;
+  unidade: string | null;
+  observacoes: string | null;
+  ordem: number;
 };
 
 const tipoLabels: Record<CotacaoTipo, string> = {
@@ -220,6 +237,11 @@ export function CentralCotacoes() {
   const [buscaItemCotacao, setBuscaItemCotacao] = useState('');
 
   const [solicitacaoOpen, setSolicitacaoOpen] = useState(false);
+  const [processoSolicitacaoOpen, setProcessoSolicitacaoOpen] = useState(false);
+  const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState<Solicitacao | null>(null);
+  const [itensSolicitacao, setItensSolicitacao] = useState<SolicitacaoItem[]>([]);
+  const [carregandoProcesso, setCarregandoProcesso] = useState(false);
+  const [solicitacaoImportacaoId, setSolicitacaoImportacaoId] = useState<string | null>(null);
   const [solicitacaoForm, setSolicitacaoForm] = useState({
     titulo: '',
     tipo: 'insumo' as CotacaoTipo,
@@ -399,7 +421,7 @@ export function CentralCotacoes() {
     }
   };
 
-  const importarPdf = async (file?: File) => {
+  const importarPdf = async (file?: File, solicitacaoId?: string | null) => {
     if (!file || !user?.id) return;
     if (file.type !== 'application/pdf') {
       toast.error('Selecione um arquivo PDF.');
@@ -422,6 +444,7 @@ export function CentralCotacoes() {
           arquivo_mime: file.type,
           criado_por: user.id,
           criado_por_nome: userProfile?.nome || user.email || 'Usuário',
+          solicitacao_id: solicitacaoId || null,
         })
         .select('*')
         .single();
@@ -452,6 +475,13 @@ export function CentralCotacoes() {
         .single();
       if (refreshError) throw refreshError;
 
+      if (solicitacaoId) {
+        await (supabase.from as any)('cotacao_solicitacoes')
+          .update({ status: 'em_analise', updated_at: new Date().toISOString() })
+          .eq('id', solicitacaoId)
+          .in('status', ['solicitada', 'aguardando_propostas']);
+      }
+
       await carregar();
       await abrirEdicao(refreshed as Cotacao);
 
@@ -466,6 +496,7 @@ export function CentralCotacoes() {
     } finally {
       setImportando(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+      setSolicitacaoImportacaoId(null);
     }
   };
 
@@ -693,7 +724,7 @@ export function CentralCotacoes() {
         type="file"
         accept="application/pdf"
         className="hidden"
-        onChange={(event) => void importarPdf(event.target.files?.[0])}
+        onChange={(event) => void importarPdf(event.target.files?.[0], solicitacaoImportacaoId)}
       />
 
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
