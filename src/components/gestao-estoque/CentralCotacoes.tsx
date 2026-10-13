@@ -831,6 +831,13 @@ export function CentralCotacoes() {
     pn: cotacoes.filter((c) => c.status === 'convertida_pn').length,
   }), [cotacoes]);
 
+  const cotacoesDoProcesso = useMemo(
+    () => solicitacaoSelecionada
+      ? cotacoes.filter((cotacao) => cotacao.solicitacao_id === solicitacaoSelecionada.id)
+      : [],
+    [cotacoes, solicitacaoSelecionada],
+  );
+
   const itensCatalogo = useMemo(
     () => (obterEstoque() ?? []).filter((item) => item.ativo !== false),
     [obterEstoque],
@@ -1057,49 +1064,61 @@ export function CentralCotacoes() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {solicitacoes.map((s) => (
-                      <TableRow key={s.id}>
-                        <TableCell>SOL-{String(s.numero).padStart(4, '0')}</TableCell>
-                        <TableCell>
-                          <div className="font-medium">{s.titulo}</div>
-                          <div className="text-xs text-muted-foreground">{s.projeto_centro_custo || 'Sem projeto vinculado'}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">{s.criado_por_nome || 'Usuário'}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {[s.criado_por_perfil, s.criado_por_email].filter(Boolean).join(' · ') || 'Perfil não informado'}
-                          </div>
-                        </TableCell>
-                        <TableCell>{tipoLabels[s.tipo]}</TableCell>
-                        <TableCell>
-                          <div>{dataPt(s.data_necessaria || s.data_limite)}</div>
-                          {s.prioridade === 'urgente' && <Badge variant="destructive" className="mt-1">Urgente</Badge>}
-                        </TableCell>
-                        <TableCell><Badge variant="outline">{solicitacaoStatusLabels[s.status] || s.status}</Badge></TableCell>
-                        <TableCell>
-                          <div className="flex justify-end">
-                            {s.status === 'solicitada' && (
-                              <Button
-                                size="sm"
-                                onClick={async () => {
-                                  const { error } = await (supabase.from as any)('cotacao_solicitacoes')
-                                    .update({ status: 'aguardando_propostas', updated_at: new Date().toISOString() })
-                                    .eq('id', s.id);
-                                  if (error) {
-                                    toast.error('Não foi possível iniciar o atendimento.');
-                                    return;
-                                  }
-                                  toast.success('Solicitação assumida pelo Almoxarifado.');
-                                  await carregar();
-                                }}
-                              >
-                                Iniciar atendimento
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {solicitacoes.map((s) => {
+                      const propostas = cotacoes.filter((cotacao) => cotacao.solicitacao_id === s.id).length;
+                      return (
+                        <TableRow key={s.id} className={s.status === 'solicitada' ? 'bg-amber-500/5' : undefined}>
+                          <TableCell className={s.status === 'solicitada' ? 'font-semibold text-amber-400' : undefined}>
+                            SOL-{String(s.numero).padStart(4, '0')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">{s.titulo}</div>
+                            <div className="text-xs text-muted-foreground">{s.projeto_centro_custo || 'Sem projeto vinculado'}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">{s.criado_por_nome || 'Usuário'}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {[s.criado_por_perfil, s.criado_por_email].filter(Boolean).join(' · ') || 'Perfil não informado'}
+                            </div>
+                          </TableCell>
+                          <TableCell>{tipoLabels[s.tipo]}</TableCell>
+                          <TableCell>
+                            <div>{dataPt(s.data_necessaria || s.data_limite)}</div>
+                            {s.prioridade === 'urgente' && <Badge variant="destructive" className="mt-1">Urgente</Badge>}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{solicitacaoStatusLabels[s.status] || s.status}</Badge>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {propostas} {propostas === 1 ? 'proposta' : 'propostas'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-end gap-2">
+                              {s.status === 'solicitada' ? (
+                                <Button
+                                  size="sm"
+                                  onClick={() => void iniciarAtendimento(s)}
+                                  disabled={carregandoProcesso}
+                                  className="animate-pulse"
+                                >
+                                  {carregandoProcesso && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                  Iniciar atendimento
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => void abrirProcessoSolicitacao(s)}
+                                  disabled={carregandoProcesso}
+                                >
+                                  <Eye className="mr-2 h-4 w-4" /> Abrir processo
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                     {solicitacoes.length === 0 && (
                       <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Nenhuma solicitação cadastrada.</TableCell></TableRow>
                     )}
@@ -1110,6 +1129,171 @@ export function CentralCotacoes() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={processoSolicitacaoOpen} onOpenChange={setProcessoSolicitacaoOpen}>
+        <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {solicitacaoSelecionada
+                ? `SOL-${String(solicitacaoSelecionada.numero).padStart(4, '0')} · ${solicitacaoSelecionada.titulo}`
+                : 'Processo de cotação'}
+            </DialogTitle>
+            <DialogDescription>
+              Pedido original preservado. As propostas abaixo pertencem a esta mesma solicitação.
+            </DialogDescription>
+          </DialogHeader>
+
+          {solicitacaoSelecionada && (
+            <div className="space-y-5">
+              <div className="grid gap-3 rounded-lg border bg-muted/20 p-4 md:grid-cols-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Solicitante</p>
+                  <p className="font-medium">{solicitacaoSelecionada.criado_por_nome || 'Usuário'}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {[solicitacaoSelecionada.criado_por_perfil, solicitacaoSelecionada.criado_por_email].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Data da necessidade</p>
+                  <p className="font-medium">{dataPt(solicitacaoSelecionada.data_necessaria || solicitacaoSelecionada.data_limite)}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Projeto / centro de custo</p>
+                  <p className="font-medium">{solicitacaoSelecionada.projeto_centro_custo || 'Não informado'}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Situação</p>
+                  <Badge variant="outline">{solicitacaoStatusLabels[solicitacaoSelecionada.status] || solicitacaoSelecionada.status}</Badge>
+                </div>
+              </div>
+
+              {solicitacaoSelecionada.tipo === 'insumo' && (
+                <div className="rounded-lg border">
+                  <div className="border-b px-4 py-3">
+                    <p className="font-medium">Itens solicitados</p>
+                    <p className="text-xs text-muted-foreground">Esses itens e quantidades são herdados automaticamente pelas novas cotações.</p>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Código</TableHead>
+                        <TableHead>Material</TableHead>
+                        <TableHead className="text-right">Quantidade</TableHead>
+                        <TableHead>Unidade</TableHead>
+                        <TableHead>Observação</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {itensSolicitacao.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.codigo_item || '—'}</TableCell>
+                          <TableCell className="font-medium">{item.descricao}</TableCell>
+                          <TableCell className="text-right">{item.quantidade ?? '—'}</TableCell>
+                          <TableCell>{item.unidade || '—'}</TableCell>
+                          <TableCell>{item.observacoes || '—'}</TableCell>
+                        </TableRow>
+                      ))}
+                      {itensSolicitacao.length === 0 && (
+                        <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Nenhum item registrado nesta solicitação.</TableCell></TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {solicitacaoSelecionada.tipo === 'frete' && (
+                <div className="grid gap-3 rounded-lg border p-4 md:grid-cols-5">
+                  <div><p className="text-xs text-muted-foreground">Origem</p><p className="font-medium">{solicitacaoSelecionada.origem_frete || '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Destino</p><p className="font-medium">{solicitacaoSelecionada.destino_frete || '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Peso</p><p className="font-medium">{solicitacaoSelecionada.peso_kg ? `${solicitacaoSelecionada.peso_kg} kg` : '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Cubagem</p><p className="font-medium">{solicitacaoSelecionada.cubagem_m3 ? `${solicitacaoSelecionada.cubagem_m3} m³` : '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Volumes</p><p className="font-medium">{solicitacaoSelecionada.volumes ?? '—'}</p></div>
+                </div>
+              )}
+
+              {solicitacaoSelecionada.observacoes && (
+                <div className="rounded-lg border p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Observações do solicitante</p>
+                  <p className="mt-1 whitespace-pre-wrap text-sm">{solicitacaoSelecionada.observacoes}</p>
+                </div>
+              )}
+
+              {!['encerrada', 'cancelada'].includes(solicitacaoSelecionada.status) && (
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={() => void abrirNovaCotacaoDaSolicitacao(solicitacaoSelecionada)}>
+                    <Plus className="mr-2 h-4 w-4" /> Nova cotação para esta solicitação
+                  </Button>
+                  <Button variant="outline" onClick={() => importarPdfDaSolicitacao(solicitacaoSelecionada)}>
+                    <Upload className="mr-2 h-4 w-4" /> Importar PDF para esta solicitação
+                  </Button>
+                </div>
+              )}
+
+              <div className="rounded-lg border">
+                <div className="border-b px-4 py-3">
+                  <p className="font-medium">Propostas vinculadas</p>
+                  <p className="text-xs text-muted-foreground">Compare as propostas, confirme os dados e escolha a que será utilizada.</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cotação</TableHead>
+                        <TableHead>Fornecedor</TableHead>
+                        <TableHead>Pagamento</TableHead>
+                        <TableHead>Prazo</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead>Situação</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {cotacoesDoProcesso.map((cotacao) => (
+                        <TableRow key={cotacao.id}>
+                          <TableCell>#{cotacao.numero}</TableCell>
+                          <TableCell className="font-medium">{cotacao.fornecedor_nome || 'Não informado'}</TableCell>
+                          <TableCell>{cotacao.condicao_pagamento || '—'}</TableCell>
+                          <TableCell>{cotacao.prazo_dias ? `${cotacao.prazo_dias} dias` : '—'}</TableCell>
+                          <TableCell className="text-right font-semibold">{moeda(cotacao.valor_total)}</TableCell>
+                          <TableCell>
+                            <Badge variant={cotacao.status === 'rejeitada' ? 'destructive' : 'outline'}>
+                              {statusLabels[cotacao.status] || cotacao.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-end gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => void abrirEdicao(cotacao)}>
+                                <Pencil className="mr-1 h-4 w-4" /> Abrir
+                              </Button>
+                              {cotacao.status === 'confirmada' && solicitacaoSelecionada.status !== 'encerrada' && (
+                                <Button size="sm" variant="outline" onClick={() => void escolherProposta(solicitacaoSelecionada, cotacao)}>
+                                  Escolher
+                                </Button>
+                              )}
+                              {cotacao.status === 'escolhida' && !cotacao.financeiro_necessidade_id && (
+                                <Button size="sm" onClick={() => void converterEmPn(cotacao)}>
+                                  <ArrowRightLeft className="mr-1 h-4 w-4" /> Converter em PN
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {cotacoesDoProcesso.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                            Nenhuma proposta foi vinculada ainda.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
         <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
