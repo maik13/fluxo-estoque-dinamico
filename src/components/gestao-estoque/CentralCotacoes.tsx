@@ -115,6 +115,9 @@ type Solicitacao = {
   data_limite: string | null;
   fornecedores_solicitados: string | null;
   observacoes: string | null;
+  criado_por_nome?: string | null;
+  prioridade?: string | null;
+  data_necessaria?: string | null;
   created_at: string;
 };
 
@@ -134,6 +137,7 @@ const statusLabels: Record<string, string> = {
 };
 
 const solicitacaoStatusLabels: Record<string, string> = {
+  solicitada: 'Solicitada',
   aguardando_propostas: 'Aguardando propostas',
   em_analise: 'Em análise',
   escolhida: 'Escolhida',
@@ -578,9 +582,6 @@ export function CentralCotacoes() {
           <Button variant="outline" onClick={abrirManual}>
             <Plus className="mr-2 h-4 w-4" /> Lançamento manual
           </Button>
-          <Button onClick={() => setSolicitacaoOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Nova solicitação
-          </Button>
           <Button variant="ghost" size="icon" onClick={() => void carregar()} title="Atualizar">
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -714,22 +715,50 @@ export function CentralCotacoes() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nº</TableHead><TableHead>Solicitação</TableHead><TableHead>Tipo</TableHead><TableHead>Prazo</TableHead><TableHead>Fornecedores</TableHead><TableHead>Status</TableHead>
+                      <TableHead>Nº</TableHead><TableHead>Solicitação</TableHead><TableHead>Solicitante</TableHead><TableHead>Tipo</TableHead><TableHead>Necessidade</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ação</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {solicitacoes.map((s) => (
                       <TableRow key={s.id}>
                         <TableCell>SOL-{String(s.numero).padStart(4, '0')}</TableCell>
-                        <TableCell><div className="font-medium">{s.titulo}</div><div className="text-xs text-muted-foreground">{s.projeto_centro_custo || 'Sem projeto vinculado'}</div></TableCell>
+                        <TableCell>
+                          <div className="font-medium">{s.titulo}</div>
+                          <div className="text-xs text-muted-foreground">{s.projeto_centro_custo || 'Sem projeto vinculado'}</div>
+                        </TableCell>
+                        <TableCell>{s.criado_por_nome || 'Usuário'}</TableCell>
                         <TableCell>{tipoLabels[s.tipo]}</TableCell>
-                        <TableCell>{dataPt(s.data_limite)}</TableCell>
-                        <TableCell className="max-w-[300px] truncate">{s.fornecedores_solicitados || '—'}</TableCell>
+                        <TableCell>
+                          <div>{dataPt(s.data_necessaria || s.data_limite)}</div>
+                          {s.prioridade === 'urgente' && <Badge variant="destructive" className="mt-1">Urgente</Badge>}
+                        </TableCell>
                         <TableCell><Badge variant="outline">{solicitacaoStatusLabels[s.status] || s.status}</Badge></TableCell>
+                        <TableCell>
+                          <div className="flex justify-end">
+                            {s.status === 'solicitada' && (
+                              <Button
+                                size="sm"
+                                onClick={async () => {
+                                  const { error } = await (supabase.from as any)('cotacao_solicitacoes')
+                                    .update({ status: 'aguardando_propostas', updated_at: new Date().toISOString() })
+                                    .eq('id', s.id);
+                                  if (error) {
+                                    toast.error('Não foi possível iniciar o atendimento.');
+                                    return;
+                                  }
+                                  toast.success('Solicitação assumida pelo Almoxarifado.');
+                                  await carregar();
+                                }}
+                              >
+                                Iniciar atendimento
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                     {solicitacoes.length === 0 && (
-                      <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">Nenhuma solicitação cadastrada.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Nenhuma solicitação cadastrada.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
