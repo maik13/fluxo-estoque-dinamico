@@ -34,13 +34,15 @@ import { toast } from 'sonner';
 
 export const MenuPrincipal = ({ 
   onAbrirMensagens,
-  onAbrirCotacoes
+  onAbrirCotacoes,
+  solicitacoesCotacaoPendentesCount = 0
 }: { 
   onAbrirGerencial?: () => void;
   onAbrirProjetos?: () => void;
   onAbrirMensagens?: () => void;
   onAbrirProducao?: () => void;
   onAbrirCotacoes?: () => void;
+  solicitacoesCotacaoPendentesCount?: number;
 }) => {
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoqueContext();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria, obterSubcategoriasDaCategoria, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
@@ -535,7 +537,12 @@ export const MenuPrincipal = ({
         {podeOperarCotacoes && onAbrirCotacoes ? (
           <Card
             onClick={onAbrirCotacoes}
-            className="cursor-pointer border-violet-500/20 transition-all duration-300 hover:scale-105 hover:border-violet-500/40"
+            className={cn(
+              "relative cursor-pointer transition-all duration-300 hover:scale-105",
+              solicitacoesCotacaoPendentesCount > 0
+                ? "animate-pulse border-amber-500/60 bg-amber-500/5 shadow-[0_0_0_1px_hsl(var(--warning)/0.15)] hover:border-amber-500"
+                : "border-violet-500/20 hover:border-violet-500/40",
+            )}
             role="button"
             tabIndex={0}
             onKeyDown={(event) => {
@@ -545,12 +552,33 @@ export const MenuPrincipal = ({
               }
             }}
           >
+            {solicitacoesCotacaoPendentesCount > 0 && (
+              <Badge
+                variant="destructive"
+                className="absolute right-3 top-3 min-w-6 justify-center rounded-full px-2"
+                title={`${solicitacoesCotacaoPendentesCount} solicitação(ões) de orçamento aguardando atendimento`}
+              >
+                {solicitacoesCotacaoPendentesCount > 99 ? '99+' : solicitacoesCotacaoPendentesCount}
+              </Badge>
+            )}
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-violet-500/10">
-                <ReceiptText className="h-8 w-8 text-violet-500" />
+              <div className={cn(
+                "mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full",
+                solicitacoesCotacaoPendentesCount > 0 ? "bg-amber-500/15" : "bg-violet-500/10",
+              )}>
+                <ReceiptText className={cn(
+                  "h-8 w-8",
+                  solicitacoesCotacaoPendentesCount > 0 ? "text-amber-500" : "text-violet-500",
+                )} />
               </div>
-              <CardTitle className="text-violet-500">Cotação</CardTitle>
-              <CardDescription>Abrir a Central de Cotações do Almoxarifado</CardDescription>
+              <CardTitle className={solicitacoesCotacaoPendentesCount > 0 ? "text-amber-500" : "text-violet-500"}>
+                Cotação
+              </CardTitle>
+              <CardDescription>
+                {solicitacoesCotacaoPendentesCount > 0
+                  ? `${solicitacoesCotacaoPendentesCount} ${solicitacoesCotacaoPendentesCount === 1 ? 'solicitação aguarda' : 'solicitações aguardam'} atendimento`
+                  : 'Abrir a Central de Cotações do Almoxarifado'}
+              </CardDescription>
             </CardHeader>
           </Card>
         ) : (
