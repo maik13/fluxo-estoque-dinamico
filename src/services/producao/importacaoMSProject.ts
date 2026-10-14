@@ -40,7 +40,7 @@ const chaveOrigem = (v: AtividadeMSProject) => 'MSP-v24 | EDT '+v.edt+' | '+v.co
  * são identificadores diferentes; a equivalência é explícita no projetoId.
  */
 export async function prepararConciliacaoProject(atividades: AtividadeMSProject[]): Promise<AcaoImportacaoMSP[]> {
-  const ids = [...new Set(atividades.map(a => a.projetoId))];
+  const ids = [...new Set(atividades.map(a => a.projetoId).filter(Boolean))];
   if (!ids.length) return [];
   const [{data: projetos,error:erroProjetos},{data: etapas,error:erroEtapas},{data: ops,error:erroOps},{data: apontamentos,error:erroAPs}] = await Promise.all([
     supabase.from('producao_projetos').select('id,nome').in('id',ids),
@@ -51,6 +51,8 @@ export async function prepararConciliacaoProject(atividades: AtividadeMSProject[
   if (erroProjetos || erroEtapas || erroOps || erroAPs) throw new Error('Não foi possível consultar projetos, etapas e OPs para a conciliação.');
   const resultado: AcaoImportacaoMSP[]=[];
   const chaves = new Set<string>();
+  const {data:tarefas,error:erroTarefas} = await supabase.from('producao_tarefas').select('id,nome,ativo');
+  if (erroTarefas) throw new Error('Não foi possível validar o cadastro de tarefas.');
   for (const a of atividades) {
     const base: AcaoImportacaoMSP={origem:a,acao:'bloquear',motivo:''};
     const projeto = projetos?.find(p => p.id===a.projetoId);
@@ -58,13 +60,16 @@ export async function prepararConciliacaoProject(atividades: AtividadeMSProject[
     if (!projeto || projeto.nome.trim()!==a.projetoNomeCompleto.trim()) base.motivo='Código e nome completo do projeto não conferem com o cadastro';
     else if (!etapa) base.motivo='Etapa ainda não cadastrada no projeto';
     else if (!a.tarefaId) base.motivo='Atividade não identificada no cadastro de tarefas';
+    else if (!tarefas?.some(t=>t.id===a.tarefaId && t.ativo && str(t.nome)===str(a.atividade))) base.motivo='Identificação da atividade divergente do cadastro ativo';
     else if (!a.atividade.trim() || !a.edt.trim() || !a.codigoPeca.trim()) base.motivo='Identificação da atividade incompleta';
     else if (!dataValida(a.inicio) || !dataValida(a.termino) || a.termino<a.inicio) base.motivo='Datas inválidas';
     else if (!(a.quantidadePlanejada>0) || !(a.duracaoHoras>0) || !(a.equipePrevista>0)) base.motivo='Quantidade física, duração ou equipe sem valores confirmados';
     else {
       const opExistente = ops?.find(o => o.projeto_id===a.projetoId &&
-        (o.instrucoes||'').includes(chaveOrigem(a)));
-      if (opExistente) {base.acao='manter_existente';base.opId=opExistente.id;base.motivo='Atividade original já vinculada à OP';}
+        (o.instrucoes||'').startsWith(chaveOrigem(a)+' |'));
+      const edtRepetido = chaves.has(a.projetoId+':'+a.edt);
+      if (edtRepetido) base.motivo='EDT duplicado no lote';
+      else if (opExistente) {base.acao='manter_existente';base.opId=opExistente.id;base.motivo='Atividade original já vinculada à OP';}
       else {
         // Similaridade de nome não permite criação automática: uma OP em execução
         // pode conter a atividade inteira ou parte dela, inclusive seus APs.
@@ -74,7 +79,6 @@ export async function prepararConciliacaoProject(atividades: AtividadeMSProject[
         if (candidatos.length) base.motivo=apontamentoExistente
           ? 'OP correlata com apontamentos existentes; preservar execução antes de qualquer associação'
           : 'OP correlata encontrada; conferir equivalência de escopo antes de criar';
-        else if (chaves.has(a.projetoId+':'+a.edt)) base.motivo='EDT duplicado no lote';
         else {base.acao='criar';base.motivo='Atividade sem OP correspondente por EDT nem nome exato';}
       }
     }
@@ -91,6 +95,11 @@ export async function prepararConciliacaoProject(atividades: AtividadeMSProject[
  */
 export async function executarImportacaoProject(acoes: AcaoImportacaoMSP[], confirmar: boolean) {
   if (!confirmar) throw new Error('A importação exige confirmação explícita do responsável pela Produção.');
+  // A criação RPC por RPC não é atômica: impedir execução de lotes que poderiam
+  // deixar OPs parcialmente importadas quando uma atividade intermediária falhar.
+  if (acoes.filter(a => a.acao === 'criar').length > 1) {
+    throw new Error('Importação em lote exige um RPC transacional no banco; nenhuma OP foi criada.');
+  }
   const bloqueadas=acoes.filter(a=>a.acao==='bloquear');
   if (bloqueadas.length) throw new Error('Há '+bloqueadas.length+' correspondências pendentes. Importação não executada.');
   // Atenção: RPCs independentes não formam uma transação. Não disparar o lote
