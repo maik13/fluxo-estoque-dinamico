@@ -42,12 +42,13 @@ const chaveOrigem = (v: AtividadeMSProject) => 'MSP-v24 | EDT '+v.edt+' | '+v.co
 export async function prepararConciliacaoProject(atividades: AtividadeMSProject[]): Promise<AcaoImportacaoMSP[]> {
   const ids = [...new Set(atividades.map(a => a.projetoId))];
   if (!ids.length) return [];
-  const [{data: projetos,error:erroProjetos},{data: etapas,error:erroEtapas},{data: ops,error:erroOps}] = await Promise.all([
+  const [{data: projetos,error:erroProjetos},{data: etapas,error:erroEtapas},{data: ops,error:erroOps},{data: apontamentos,error:erroAPs}] = await Promise.all([
     supabase.from('producao_projetos').select('id,nome').in('id',ids),
     supabase.from('producao_processos').select('id,projeto_id,nome').in('projeto_id',ids),
-    supabase.from('producao_ordens_producao').select('id,projeto_id,processo_id,tarefa_nome_snapshot,descricao,instrucoes,status').in('projeto_id',ids),
+    supabase.from('producao_ordens_producao').select('id,projeto_id,processo_id,tarefa_id,tarefa_nome_snapshot,descricao,instrucoes,status').in('projeto_id',ids),
+    supabase.from('producao_apontamentos').select('id,ordem_producao_id,processo_id,tarefa_id,status').not('ordem_producao_id','is',null),
   ]);
-  if (erroProjetos || erroEtapas || erroOps) throw new Error('Não foi possível consultar projetos, etapas e OPs para a conciliação.');
+  if (erroProjetos || erroEtapas || erroOps || erroAPs) throw new Error('Não foi possível consultar projetos, etapas e OPs para a conciliação.');
   const resultado: AcaoImportacaoMSP[]=[];
   const chaves = new Set<string>();
   for (const a of atividades) {
@@ -68,8 +69,11 @@ export async function prepararConciliacaoProject(atividades: AtividadeMSProject[
         // Similaridade de nome não permite criação automática: uma OP em execução
         // pode conter a atividade inteira ou parte dela, inclusive seus APs.
         const candidatos=ops?.filter(o=>o.projeto_id===a.projetoId &&
-          o.processo_id===etapa.id && str(o.tarefa_nome_snapshot||o.descricao||'')===str(a.atividade))||[];
-        if (candidatos.length) base.motivo='OP com atividade homônima já existe; conciliar APs sem duplicar';
+          (o.tarefa_id===a.tarefaId || str(o.tarefa_nome_snapshot||o.descricao||'')===str(a.atividade)))||[];
+        const apontamentoExistente = candidatos.some(o=>apontamentos?.some(ap=>ap.ordem_producao_id===o.id));
+        if (candidatos.length) base.motivo=apontamentoExistente
+          ? 'OP correlata com apontamentos existentes; preservar execução antes de qualquer associação'
+          : 'OP correlata encontrada; conferir equivalência de escopo antes de criar';
         else if (chaves.has(a.projetoId+':'+a.edt)) base.motivo='EDT duplicado no lote';
         else {base.acao='criar';base.motivo='Atividade sem OP correspondente por EDT nem nome exato';}
       }
@@ -89,6 +93,8 @@ export async function executarImportacaoProject(acoes: AcaoImportacaoMSP[], conf
   if (!confirmar) throw new Error('A importação exige confirmação explícita do responsável pela Produção.');
   const bloqueadas=acoes.filter(a=>a.acao==='bloquear');
   if (bloqueadas.length) throw new Error('Há '+bloqueadas.length+' correspondências pendentes. Importação não executada.');
+  // Atenção: RPCs independentes não formam uma transação. Não disparar o lote
+  // quando houver qualquer inconsistência; registrar falhas para reconciliação.
   const criadas: string[]=[];
   for (const {origem:a,acao} of acoes) {
     if (acao!=='criar') continue;
