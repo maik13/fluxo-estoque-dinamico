@@ -11,12 +11,15 @@ export interface AtividadeMSProject {
   projetoNomeCompleto: string;
   etapa: 1 | 2 | 3 | 4 | 5;
   atividade: string;
+  /** Grupo original da atividade no Project; usado ao cadastrar a tarefa no mesmo lote transacional. */
+  categoriaAtividade: string;
   inicio: string;
   termino: string;
-  duracaoHoras: number;
-  quantidadePlanejada: number;
-  tarefaId: string;
-  equipePrevista: number;
+  duracaoHoras: number | null;
+  quantidadePlanejada: number | null;
+  /** Opcional: quando ausente, a RPC reutiliza ou cria a tarefa pelo nome no mesmo commit. */
+  tarefaId?: string;
+  equipePrevista: number | null;
   localTipo: 'Fábrica' | 'Execução';
 }
 
@@ -116,11 +119,10 @@ export async function prepararConciliacaoProject(atividades: AtividadeMSProject[
     else if (taskUids.has(chaveTask)) base.motivo = 'Task UID duplicado no lote para o mesmo projeto';
     else if (!projeto || projeto.nome.trim() !== origem.projetoNomeCompleto.trim()) base.motivo = 'Código e nome completo do projeto não conferem com o cadastro';
     else if (!etapa) base.motivo = 'Etapa ainda não cadastrada no projeto';
-    else if (!origem.tarefaId) base.motivo = 'Atividade não identificada no cadastro de tarefas';
-    else if (!tarefas?.some((tarefa) => tarefa.id === origem.tarefaId && tarefa.ativo && str(tarefa.nome) === str(origem.atividade))) base.motivo = 'Identificação da atividade divergente do cadastro ativo';
-    else if (!origem.atividade.trim() || !origem.edt.trim() || !origem.codigoPeca.trim()) base.motivo = 'Identificação da atividade incompleta';
+    else if (origem.tarefaId && !tarefas?.some((tarefa) => tarefa.id === origem.tarefaId && tarefa.ativo && str(tarefa.nome) === str(origem.atividade))) base.motivo = 'Identificação da atividade divergente do cadastro ativo';
+    else if (!origem.atividade.trim() || !origem.categoriaAtividade.trim() || !origem.edt.trim() || !origem.codigoPeca.trim()) base.motivo = 'Identificação da atividade incompleta';
     else if (!dataValida(origem.inicio) || !dataValida(origem.termino) || origem.termino < origem.inicio) base.motivo = 'Datas originais inválidas';
-    else if (!(origem.quantidadePlanejada > 0) || !(origem.duracaoHoras > 0) || !(origem.equipePrevista > 0)) base.motivo = 'Quantidade física, duração ou equipe sem valores confirmados';
+    else if (!(origem.quantidadePlanejada != null && origem.quantidadePlanejada > 0) || !(origem.duracaoHoras != null && origem.duracaoHoras > 0) || !(origem.equipePrevista != null && origem.equipePrevista > 0)) base.motivo = 'Quantidade física, duração ou equipe sem valores confirmados';
     else {
       base.etapaId = etapa.id;
       const opExistente = ops?.find((op) => op.projeto_id === origem.projetoId && (op.instrucoes ?? '').startsWith(`${chaveOrigem(origem)} |`));
@@ -130,7 +132,7 @@ export async function prepararConciliacaoProject(atividades: AtividadeMSProject[
       } else if (legado) {
         base.motivo = 'OP MSP legada sem Task UID; exigir conciliação manual para preservar histórico';
       } else {
-        const candidatos = ops?.filter((op) => op.projeto_id === origem.projetoId && (op.tarefa_id === origem.tarefaId || str(op.tarefa_nome_snapshot ?? op.descricao ?? '') === str(origem.atividade))) ?? [];
+        const candidatos = ops?.filter((op) => op.projeto_id === origem.projetoId && ((origem.tarefaId && op.tarefa_id === origem.tarefaId) || str(op.tarefa_nome_snapshot ?? op.descricao ?? '') === str(origem.atividade))) ?? [];
         const comApontamento = candidatos.some((op) => apontamentos?.some((apontamento) => apontamento.ordem_producao_id === op.id));
         if (candidatos.length) base.motivo = comApontamento ? 'OP correlata com APs existentes; preservar execução antes de qualquer associação' : 'OP correlata encontrada; conferir equivalência de escopo antes de criar';
         else { base.acao = 'criar'; base.motivo = 'Task UID sem OP correspondente'; }
@@ -154,7 +156,7 @@ export async function executarImportacaoProject(acoes: AcaoImportacaoMSP[], conf
   const p_atividades = novas.map(({ origem, etapaId }) => ({
     task_uid: origem.taskUid.trim(), edt: origem.edt.trim(), codigo_peca: origem.codigoPeca.trim(),
     projeto_id: origem.projetoId, nome_completo_sistema: origem.projetoNomeCompleto.trim(), etapa: origem.etapa,
-    etapa_id: etapaId, tarefa_id: origem.tarefaId, nome_atividade: origem.atividade.trim(), inicio: origem.inicio,
+    etapa_id: etapaId, nome_atividade: origem.atividade.trim(), categoria_atividade: origem.categoriaAtividade.trim(), inicio: origem.inicio,
     termino: origem.termino, quantidade_planejada: origem.quantidadePlanejada, duracao_horas: origem.duracaoHoras,
     equipe_prevista: origem.equipePrevista, local_tipo: origem.localTipo,
   }));

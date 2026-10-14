@@ -8,7 +8,7 @@ import {
 const atividade: AtividadeMSProject = {
   taskUid: '841', edt: '1.21', codigoPeca: 'CAN', nomePecaProject: 'Casa Noel',
   projetoId: '00000000-0000-0000-0000-000000000001', projetoNomeCompleto: 'TEC-29 - Casa do Papai Noel · Brusque',
-  etapa: 2, atividade: 'Montagem fabril', inicio: '2026-08-03', termino: '2026-08-05',
+  etapa: 2, atividade: 'Montagem fabril', categoriaAtividade: 'Fábrica', inicio: '2026-08-03', termino: '2026-08-05',
   duracaoHoras: 16, quantidadePlanejada: 1, tarefaId: '00000000-0000-0000-0000-000000000002',
   equipePrevista: 2, localTipo: 'Fábrica',
 };

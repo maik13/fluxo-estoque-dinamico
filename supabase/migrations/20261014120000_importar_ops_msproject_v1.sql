@@ -1,5 +1,6 @@
 -- Importação transacional das OPs do MS Project. Cria apenas OPs ausentes;
--- não cria projeto/etapa/tarefa nem altera OP, AP, histórico ou PCP existentes.
+-- não cria projeto/etapa nem altera OP, AP, histórico ou PCP existentes.
+-- Tarefas específicas podem ser reutilizadas ou criadas na mesma transação das OPs.
 -- Task UID é a identidade imutável da tarefa no .mpp; EDT é só referência.
 
 BEGIN;
@@ -19,6 +20,7 @@ DECLARE
   v_existente public.producao_ordens_producao%ROWTYPE;
   v_nova uuid;
   v_task_uid text;
+  v_categoria text;
   v_chave text;
   v_criadas int := 0;
   v_mantidas int := 0;
@@ -44,8 +46,9 @@ BEGIN
     IF v_task_uid !~ '^[0-9]+$'
        OR btrim(coalesce(v_item->>'edt', '')) = ''
        OR btrim(coalesce(v_item->>'codigo_peca', '')) = ''
-       OR btrim(coalesce(v_item->>'nome_atividade', '')) = '' THEN
-      RAISE EXCEPTION 'Task UID, EDT, código da peça e nome da atividade são obrigatórios';
+       OR btrim(coalesce(v_item->>'nome_atividade', '')) = ''
+       OR btrim(coalesce(v_item->>'categoria_atividade', '')) = '' THEN
+      RAISE EXCEPTION 'Task UID, EDT, código da peça, nome e categoria da atividade são obrigatórios';
     END IF;
 
     SELECT * INTO STRICT v_projeto FROM public.producao_projetos
@@ -64,10 +67,21 @@ BEGIN
     FOR SHARE;
     IF v_etapa.status IN ('finalizado', 'cancelado') THEN RAISE EXCEPTION 'Etapa encerrada: %', v_etapa.id; END IF;
 
-    SELECT * INTO STRICT v_tarefa FROM public.producao_tarefas
-    WHERE id = (v_item->>'tarefa_id')::uuid
-      AND ativo = true
-      AND lower(btrim(nome)) = lower(btrim(v_item->>'nome_atividade'));
+    -- A tarefa é resolvida pelo nome original do Project. A trava também evita
+    -- duplicação entre dois lotes que cheguem ao mesmo tempo.
+    PERFORM pg_catalog.pg_advisory_xact_lock(hashtextextended('producao_tarefas:' || lower(btrim(v_item->>'nome_atividade')), 0));
+    SELECT * INTO v_tarefa FROM public.producao_tarefas
+    WHERE lower(btrim(nome)) = lower(btrim(v_item->>'nome_atividade'))
+    FOR UPDATE;
+    IF FOUND AND NOT v_tarefa.ativo THEN
+      RAISE EXCEPTION 'Atividade existente está inativa: %', v_item->>'nome_atividade';
+    END IF;
+    IF NOT FOUND THEN
+      v_categoria := btrim(v_item->>'categoria_atividade');
+      INSERT INTO public.producao_tarefas (nome, categoria, ativo)
+      VALUES (btrim(v_item->>'nome_atividade'), v_categoria, true)
+      RETURNING * INTO v_tarefa;
+    END IF;
 
     v_ini := (v_item->>'inicio')::date;
     v_fim := (v_item->>'termino')::date;
