@@ -8,6 +8,8 @@ import {
   Truck,
   Package,
   Globe2,
+  Link2,
+  ExternalLink,
   Eye,
   Pencil,
   CheckCircle2,
@@ -59,7 +61,10 @@ type Cotacao = {
   numero: number;
   tipo: CotacaoTipo;
   status: string;
-  origem_cadastro: 'manual' | 'pdf';
+  origem_cadastro: 'manual' | 'pdf' | 'link';
+  url_origem: string | null;
+  plataforma_origem: string | null;
+  consultado_em: string | null;
   fornecedor_nome: string | null;
   fornecedor_cnpj: string | null;
   fornecedor_endereco: string | null;
@@ -209,6 +214,9 @@ const emptyForm = {
   tipo_veiculo: '',
   prazo_dias: '',
   solicitacao_id: '',
+  origem_cadastro: 'manual' as 'manual' | 'pdf' | 'link',
+  url_origem: '',
+  plataforma_origem: '',
 };
 
 export function CentralCotacoes() {
@@ -279,7 +287,15 @@ export function CentralCotacoes() {
 
   const abrirManual = () => {
     setEditorCotacao(null);
-    setForm({ ...emptyForm });
+    setForm({ ...emptyForm, origem_cadastro: 'manual' });
+    setItens([]);
+    setBuscaItemCotacao('');
+    setEditorOpen(true);
+  };
+
+  const abrirLink = () => {
+    setEditorCotacao(null);
+    setForm({ ...emptyForm, origem_cadastro: 'link' });
     setItens([]);
     setBuscaItemCotacao('');
     setEditorOpen(true);
@@ -313,6 +329,9 @@ export function CentralCotacoes() {
       tipo_veiculo: cotacao.tipo_veiculo || '',
       prazo_dias: cotacao.prazo_dias ? String(cotacao.prazo_dias) : '',
       solicitacao_id: cotacao.solicitacao_id || '',
+      origem_cadastro: cotacao.origem_cadastro,
+      url_origem: cotacao.url_origem || '',
+      plataforma_origem: cotacao.plataforma_origem || '',
     });
 
     const { data, error } = await (supabase.from as any)('cotacao_itens')
@@ -333,6 +352,11 @@ export function CentralCotacoes() {
   const salvarCotacao = async (confirmar = false) => {
     if (!form.fornecedor_nome.trim() && !form.descricao.trim()) {
       toast.error('Informe ao menos o fornecedor ou a descrição da cotação.');
+      return;
+    }
+
+    if (form.origem_cadastro === 'link' && !form.url_origem.trim()) {
+      toast.error('Informe o link da cotação online.');
       return;
     }
 
@@ -364,8 +388,13 @@ export function CentralCotacoes() {
         tipo_veiculo: form.tipo_veiculo.trim() || null,
         prazo_dias: form.prazo_dias ? Number(form.prazo_dias) : null,
         solicitacao_id: form.solicitacao_id || null,
+        url_origem: form.url_origem.trim() || null,
+        plataforma_origem: form.plataforma_origem.trim() || null,
+        consultado_em: form.origem_cadastro === 'link'
+          ? (editorCotacao?.consultado_em || new Date().toISOString())
+          : editorCotacao?.consultado_em || null,
         status: confirmar ? 'confirmada' : (editorCotacao?.status || 'rascunho'),
-        origem_cadastro: editorCotacao?.origem_cadastro || 'manual',
+        origem_cadastro: editorCotacao?.origem_cadastro || form.origem_cadastro,
         criado_por: editorCotacao ? undefined : user?.id,
         criado_por_nome: editorCotacao ? undefined : (userProfile?.nome || user?.email || 'Usuário'),
         confirmado_por: confirmar ? user?.id : undefined,
@@ -710,6 +739,54 @@ export function CentralCotacoes() {
     setEditorOpen(true);
   };
 
+  const abrirLinkDaSolicitacao = async (solicitacao: Solicitacao) => {
+    let itensDaSolicitacao = itensSolicitacao;
+    if (solicitacaoSelecionada?.id !== solicitacao.id) {
+      const { data, error } = await (supabase.from as any)('cotacao_solicitacao_itens')
+        .select('*')
+        .eq('solicitacao_id', solicitacao.id)
+        .order('ordem');
+      if (error) {
+        toast.error('Não foi possível carregar os itens solicitados.');
+        return;
+      }
+      itensDaSolicitacao = (data || []) as SolicitacaoItem[];
+    }
+
+    setEditorCotacao(null);
+    setForm({
+      ...emptyForm,
+      tipo: solicitacao.tipo,
+      projeto_centro_custo: solicitacao.projeto_centro_custo || '',
+      descricao: solicitacao.observacoes || '',
+      origem_frete: solicitacao.origem_frete || '',
+      destino_frete: solicitacao.destino_frete || '',
+      peso_kg: toInput(solicitacao.peso_kg),
+      cubagem_m3: toInput(solicitacao.cubagem_m3),
+      volumes: solicitacao.volumes ? String(solicitacao.volumes) : '',
+      solicitacao_id: solicitacao.id,
+      origem_cadastro: 'link',
+      url_origem: '',
+      plataforma_origem: '',
+    });
+    setItens(
+      solicitacao.tipo === 'insumo'
+        ? itensDaSolicitacao.map((item) => ({
+            item_id: item.item_id,
+            codigo_item: item.codigo_item,
+            descricao: item.descricao,
+            quantidade: item.quantidade,
+            unidade: item.unidade,
+            valor_unitario: null,
+            valor_total: null,
+          }))
+        : [],
+    );
+    setBuscaItemCotacao('');
+    setProcessoSolicitacaoOpen(false);
+    setEditorOpen(true);
+  };
+
   const importarPdfDaSolicitacao = (solicitacao: Solicitacao) => {
     setSolicitacaoImportacaoId(solicitacao.id);
     setProcessoSolicitacaoOpen(false);
@@ -804,6 +881,8 @@ export function CentralCotacoes() {
         cotacao.projeto_centro_custo,
         cotacao.numero_proposta,
         cotacao.tipo_veiculo,
+        cotacao.url_origem,
+        cotacao.plataforma_origem,
       ].filter(Boolean).some((value) => String(value).toLocaleLowerCase('pt-BR').includes(term));
     });
   }, [busca, cotacoes, tipoFiltro, veiculoFiltro, periodoDias]);
@@ -891,6 +970,9 @@ export function CentralCotacoes() {
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importando}>
             {importando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
             Importar PDF
+          </Button>
+          <Button variant="outline" onClick={abrirLink}>
+            <Link2 className="mr-2 h-4 w-4" /> Cotação por link
           </Button>
           <Button variant="outline" onClick={abrirManual}>
             <Plus className="mr-2 h-4 w-4" /> Nova cotação
@@ -1215,6 +1297,9 @@ export function CentralCotacoes() {
                   <Button onClick={() => void abrirNovaCotacaoDaSolicitacao(solicitacaoSelecionada)}>
                     <Plus className="mr-2 h-4 w-4" /> Nova cotação para esta solicitação
                   </Button>
+                  <Button variant="outline" onClick={() => void abrirLinkDaSolicitacao(solicitacaoSelecionada)}>
+                    <Link2 className="mr-2 h-4 w-4" /> Cotação por link
+                  </Button>
                   <Button variant="outline" onClick={() => importarPdfDaSolicitacao(solicitacaoSelecionada)}>
                     <Upload className="mr-2 h-4 w-4" /> Importar PDF para esta solicitação
                   </Button>
@@ -1257,6 +1342,11 @@ export function CentralCotacoes() {
                               <Button variant="ghost" size="sm" onClick={() => void abrirEdicao(cotacao)}>
                                 <Pencil className="mr-1 h-4 w-4" /> Abrir
                               </Button>
+                              {cotacao.url_origem && (
+                                <Button variant="ghost" size="sm" onClick={() => window.open(cotacao.url_origem!, '_blank', 'noopener,noreferrer')}>
+                                  <ExternalLink className="mr-1 h-4 w-4" /> Link
+                                </Button>
+                              )}
                               {cotacao.status === 'confirmada' && solicitacaoSelecionada.status !== 'encerrada' && (
                                 <Button size="sm" variant="outline" onClick={() => void escolherProposta(solicitacaoSelecionada, cotacao)}>
                                   Escolher
@@ -1294,7 +1384,9 @@ export function CentralCotacoes() {
             <DialogDescription>
               {editorCotacao?.origem_cadastro === 'pdf'
                 ? 'Confira o que foi lido do PDF. Todos os campos podem ser corrigidos antes de confirmar.'
-                : 'Crie uma nova cotação, vincule os itens do estoque e preencha os dados conforme os orçamentos realizados pelo Almoxarifado.'}
+                : form.origem_cadastro === 'link'
+                  ? 'Registre uma cotação encontrada na internet. O link fica salvo como origem e os valores ficam preservados no histórico.'
+                  : 'Crie uma nova cotação, vincule os itens do estoque e preencha os dados conforme os orçamentos realizados pelo Almoxarifado.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -1319,6 +1411,38 @@ export function CentralCotacoes() {
                 <Button variant="ghost" size="sm" onClick={() => void abrirPdf(editorCotacao)}>
                   <Eye className="mr-2 h-4 w-4" /> Ver PDF original
                 </Button>
+              </div>
+            </div>
+          )}
+
+          {form.origem_cadastro === 'link' && (
+            <div className="grid gap-4 rounded-lg border border-violet-500/20 bg-violet-500/5 p-4 md:grid-cols-3">
+              <div className="md:col-span-2">
+                <Label>Link da cotação / anúncio *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="url"
+                    value={form.url_origem}
+                    onChange={(e) => setForm((f) => ({ ...f, url_origem: e.target.value }))}
+                    placeholder="https://..."
+                  />
+                  {form.url_origem && (
+                    <Button type="button" variant="outline" size="icon" onClick={() => window.open(form.url_origem, '_blank', 'noopener,noreferrer')} title="Abrir link">
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <Label>Site / plataforma</Label>
+                <Input
+                  value={form.plataforma_origem}
+                  onChange={(e) => setForm((f) => ({ ...f, plataforma_origem: e.target.value }))}
+                  placeholder="Ex.: Mercado Livre, Amazon, fornecedor"
+                />
+              </div>
+              <div className="md:col-span-3 text-xs text-muted-foreground">
+                O link identifica a fonte. Registre abaixo preço, frete, prazo e condições encontradas para preservar a cotação mesmo que o anúncio mude.
               </div>
             </div>
           )}
