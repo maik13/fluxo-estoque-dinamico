@@ -24,6 +24,46 @@ export interface AtividadeMSProject {
   equipePrevista: number;
   localTipo: 'Fábrica' | 'Execução';
 }
+export interface CadastroAtividadeMSP {
+  nome: string;
+  categoria: string;
+}
+
+/**
+ * Cadastra previamente as atividades detalhadas do Project como tarefas da
+ * Produção pelo RPC oficial (com auth.uid/validações atuais). Não aproxima
+ * nomes diferentes; só reutiliza correspondência exata normalizada.
+ *
+ * Executar antes da conciliação e atualizar tarefaId das atividades com o
+ * identificador retornado. Não altera OP/AP/PCP.
+ */
+export async function cadastrarAtividadesProject(
+  atividades: CadastroAtividadeMSP[],
+): Promise<{ criadas: string[]; reutilizadas: string[] }> {
+  const { data: cadastradas, error } = await supabase
+    .from('producao_tarefas').select('id,nome,ativo');
+  if (error) throw new Error('Não foi possível consultar tarefas existentes: '+error.message);
+  const nomes = new Set((cadastradas ?? []).filter(t=>t.ativo).map(t=>str(t.nome)));
+  const criadas: string[]=[];
+  const reutilizadas: string[]=[];
+  for (const a of atividades) {
+    const nome = a.nome.trim();
+    if (!nome || !a.categoria.trim()) throw new Error('Nome e categoria são obrigatórios para cadastrar atividades.');
+    const chave = str(nome);
+    if (nomes.has(chave)) {
+      reutilizadas.push(nome);
+      continue;
+    }
+    const {error: erroCriacao} = await (supabase.rpc as any)(
+      'criar_tarefa_producao',{p_nome:nome,p_categoria:a.categoria.trim()}
+    );
+    if (erroCriacao) throw new Error('Falha ao cadastrar '+nome+': '+erroCriacao.message);
+    criadas.push(nome);
+    nomes.add(chave);
+  }
+  return {criadas,reutilizadas};
+}
+
 export interface AcaoImportacaoMSP {
   origem: AtividadeMSProject;
   acao: 'manter_existente' | 'criar' | 'bloquear';
