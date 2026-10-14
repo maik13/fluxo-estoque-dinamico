@@ -894,9 +894,9 @@ export const MenuPrincipal = ({
         {/* Registrar Entrada */}
         {canRegistrarEntrada() && <RegistrarEntrada />}
 
-        {/* Solicitação de Material: respeita a permissão individual efetiva.
+        {/* Solicitação de Material: disponível para todo usuário autenticado.
             Aprovação, retirada e PN permanecem restritas ao Almoxarifado. */}
-        {canSolicitacaoMaterial() && <SolicitacaoMaterial />}
+        {userProfile?.ativo && <SolicitacaoMaterial />}
 
         {/* Fila operacional: a formalização em RC continua no Financeiro, a partir da PN. */}
         {canManageStock() && <PrevisoesNecessidadeAlmoxarifado />}
