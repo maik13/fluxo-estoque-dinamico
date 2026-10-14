@@ -81,7 +81,7 @@ const Index = () => {
     enabled: podeGerenciarSolicitacoesMaterial,
   });
   const { naoLidas: mensagensNaoLidasCount } = useMensagensNaoLidas();
-  const podeGerenciarCotacoes = isAdmin() || isEstoquista() || hasPermission('compras.pedidos.criar');
+  const podeGerenciarCotacoes = isAdmin() || isGestor() || isEstoquista() || hasPermission('compras.pedidos.criar');
   const { pendentesCount: solicitacoesCotacaoPendentesCount } = useSolicitacoesCotacaoPendentes({
     enabled: podeGerenciarCotacoes,
   });
@@ -276,6 +276,7 @@ const Index = () => {
                         onAbrirProjetos={() => setTabAtiva('projetos')}
                         onAbrirMensagens={() => setTabAtiva('mensagens')}
                         onAbrirCotacoes={showCotacoes ? () => setTabAtiva('cotacoes') : undefined}
+                        solicitacoesCotacaoPendentesCount={solicitacoesCotacaoPendentesCount}
                         onAbrirProducao={() => setTabAtiva('producao')}
                       />
                       {somenteBIProducao && (
