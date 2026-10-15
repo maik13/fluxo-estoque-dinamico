@@ -14,6 +14,7 @@ export interface PontualidadeMSPPeca {
   projetoNome: string;
   cidade: string | null;
   inicioPlanejado: string;
+  fimPlanejado: string;
   primeiroApontamento: string | null;
   opsImportadas: number;
   situacao: SituacaoPontualidadeMSP;
@@ -39,6 +40,7 @@ interface OrdemProducaoGerencial {
   instrucoes: string | null;
   status: string;
   data_inicio_prevista: string | null;
+  data_fim_prevista: string | null;
 }
 
 interface ApontamentoGerencial {
@@ -67,9 +69,8 @@ const resumoInicial = (): ResumoPontualidadeMSP => ({
 const hojeISO = () => format(new Date(), 'yyyy-MM-dd');
 
 /**
- * Compara o primeiro início planejado do lote Natal 2026 v24 com o primeiro
- * apontamento efetivo de toda a peça. O apontamento pode estar em OP legada:
- * é exatamente esse histórico que precisa ser preservado na leitura gerencial.
+ * Compara o período planejado de cada peça com o primeiro apontamento efetivo.
+ * O apontamento pode estar em uma OP anterior e continua valendo na leitura gerencial.
  */
 export const usePontualidadeMSPNatal2026 = () => {
   const [loading, setLoading] = useState(false);
@@ -134,6 +135,12 @@ export const usePontualidadeMSPNatal2026 = () => {
             if (ordem.data_inicio_prevista! < existente.inicioPlanejado) {
               existente.inicioPlanejado = ordem.data_inicio_prevista!;
             }
+            const fimDaOrdem = ordem.data_fim_prevista && ordem.data_fim_prevista >= ordem.data_inicio_prevista!
+              ? ordem.data_fim_prevista
+              : ordem.data_inicio_prevista!;
+            if (fimDaOrdem > existente.fimPlanejado) {
+              existente.fimPlanejado = fimDaOrdem;
+            }
             continue;
           }
           porProjeto.set(ordem.projeto_id, {
@@ -141,6 +148,9 @@ export const usePontualidadeMSPNatal2026 = () => {
             projetoNome: ordem.projeto_nome,
             cidade: ordem.projeto_cidade,
             inicioPlanejado: ordem.data_inicio_prevista!,
+            fimPlanejado: ordem.data_fim_prevista && ordem.data_fim_prevista >= ordem.data_inicio_prevista!
+              ? ordem.data_fim_prevista
+              : ordem.data_inicio_prevista!,
             primeiroApontamento: null,
             opsImportadas: 1,
             situacao: 'aguardando_inicio',

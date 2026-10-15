@@ -31,6 +31,7 @@ const linhas = (resumo: ResumoPontualidadeMSP) => resumo.pecas.map((peca) => ({
   Cidade: peca.cidade ?? '',
   'OPs programadas': peca.opsImportadas,
   'Início previsto': dataPt(peca.inicioPlanejado),
+  'Fim previsto': dataPt(peca.fimPlanejado),
   'Primeiro apontamento': dataPt(peca.primeiroApontamento),
   Situação: situacaoTexto[peca.situacao],
   Variação: variacaoTexto(peca),
@@ -87,19 +88,20 @@ export const exportarRelatorioPontualidadePdf = (resumo: ResumoPontualidadeMSP) 
 
   autoTable(doc, {
     startY: 38,
-    head: [['Peça / projeto', 'Cidade', 'OPs', 'Início previsto', 'Primeiro apontamento', 'Situação', 'Variação']],
+    head: [['Peça / projeto', 'Cidade', 'OPs', 'Início previsto', 'Fim previsto', 'Primeiro apontamento', 'Situação', 'Variação']],
     body: resumo.pecas.map((peca) => [
       peca.projetoNome,
       peca.cidade ?? '',
       String(peca.opsImportadas),
       dataPt(peca.inicioPlanejado),
+      dataPt(peca.fimPlanejado),
       dataPt(peca.primeiroApontamento),
       situacaoTexto[peca.situacao],
       variacaoTexto(peca),
     ]),
     styles: { fontSize: 7.5, cellPadding: 2.1, valign: 'middle' },
     headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: 'bold' },
-    columnStyles: { 0: { cellWidth: 65 }, 1: { cellWidth: 25 }, 2: { halign: 'center' }, 3: { cellWidth: 25 }, 4: { cellWidth: 30 }, 5: { cellWidth: 36 }, 6: { cellWidth: 25 } },
+    columnStyles: { 0: { cellWidth: 59 }, 1: { cellWidth: 22 }, 2: { halign: 'center' }, 3: { cellWidth: 22 }, 4: { cellWidth: 22 }, 5: { cellWidth: 29 }, 6: { cellWidth: 34 }, 7: { cellWidth: 23 } },
     didDrawPage: () => {
       const pagina = doc.getCurrentPageInfo().pageNumber;
       doc.setFontSize(7);

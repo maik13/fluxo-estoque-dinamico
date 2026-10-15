@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { addDays, differenceInCalendarDays, format, parseISO, subDays } from 'date-fns';
-import { CalendarClock, CheckCircle2, CircleAlert, FileSpreadsheet, FileText, Loader2, RefreshCcw, TrendingUp } from 'lucide-react';
+import { differenceInCalendarDays, eachDayOfInterval, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
+import { CalendarClock, CheckCircle2, CircleAlert, FileSpreadsheet, FileText, Loader2, Printer, RefreshCcw, TrendingUp } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,12 +15,14 @@ import {
 } from '@/components/ui/table';
 import {
   type SituacaoPontualidadeMSP,
+  type PontualidadeMSPPeca,
   usePontualidadeMSPNatal2026,
 } from '@/hooks/usePontualidadeMSPNatal2026';
 import {
   exportarRelatorioPontualidadeExcel,
   exportarRelatorioPontualidadePdf,
 } from '@/utils/relatorioPontualidadeProducao';
+import { imprimirSecaoProducao } from '@/utils/producaoExport';
 
 const dataPt = (data: string | null) => {
   if (!data) return 'Sem apontamento';
@@ -31,15 +33,15 @@ const dataPt = (data: string | null) => {
 const apresentacao: Record<SituacaoPontualidadeMSP, { rotulo: string; classe: string }> = {
   antecipado: {
     rotulo: 'Antecipado',
-    classe: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+    classe: 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300',
   },
   iniciado_no_prazo: {
     rotulo: 'No prazo',
-    classe: 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300',
+    classe: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
   },
   iniciado_atrasado: {
     rotulo: 'Iniciado após o previsto',
-    classe: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+    classe: 'border-destructive/30 bg-destructive/10 text-destructive',
   },
   atrasado_para_iniciar: {
     rotulo: 'Atrasado para iniciar',
@@ -66,67 +68,75 @@ const impacto = (situacao: SituacaoPontualidadeMSP, dias: number) => {
 
 const limitar = (valor: number) => Math.min(100, Math.max(0, valor));
 
-const LinhaDoTempoInicios = ({ pecas }: { pecas: ReturnType<typeof usePontualidadeMSPNatal2026>['resumo']['pecas'] }) => {
-  const datas = pecas.flatMap((peca) => [peca.inicioPlanejado, peca.primeiroApontamento].filter(Boolean) as string[]);
+const classeBarra: Record<SituacaoPontualidadeMSP, string> = {
+  antecipado: 'bg-blue-500',
+  iniciado_no_prazo: 'bg-emerald-500',
+  iniciado_atrasado: 'bg-red-500',
+  atrasado_para_iniciar: 'bg-red-500',
+  aguardando_inicio: 'bg-slate-400',
+};
+
+const LinhaDoTempoProducao = ({ pecas }: { pecas: PontualidadeMSPPeca[] }) => {
+  const datas = pecas.flatMap((peca) => [peca.inicioPlanejado, peca.fimPlanejado, peca.primeiroApontamento].filter(Boolean) as string[]);
   if (datas.length === 0) return null;
 
   const hoje = format(new Date(), 'yyyy-MM-dd');
   const menorData = datas.reduce((menor, data) => (data < menor ? data : menor));
   const maiorData = [...datas, hoje].reduce((maior, data) => (data > maior ? data : maior));
-  const inicioFaixa = subDays(parseISO(menorData), 5);
-  const fimFaixa = addDays(parseISO(maiorData), 5);
-  const totalDias = Math.max(1, differenceInCalendarDays(fimFaixa, inicioFaixa));
+  const inicioFaixa = startOfMonth(parseISO(menorData));
+  const fimFaixa = endOfMonth(parseISO(maiorData));
+  const dias = eachDayOfInterval({ start: inicioFaixa, end: fimFaixa });
+  const totalDias = Math.max(1, dias.length);
   const posicao = (data: string) => limitar(differenceInCalendarDays(parseISO(data), inicioFaixa) / totalDias * 100);
-  const marcas = [0, 0.25, 0.5, 0.75, 1].map((parte) => ({
-    posicao: parte * 100,
-    rotulo: format(addDays(inicioFaixa, Math.round(totalDias * parte)), 'dd/MM'),
-  }));
+  const larguraPeriodo = (inicio: string, fim: string) => Math.max(0.9, (differenceInCalendarDays(parseISO(fim), parseISO(inicio)) + 1) / totalDias * 100);
+  const meses = dias.reduce<Array<{ chave: string; rotulo: string; dias: number }>>((grupos, dia) => {
+    const chave = format(dia, 'yyyy-MM');
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo?.chave === chave) {
+      ultimo.dias += 1;
+    } else {
+      grupos.push({ chave, rotulo: format(dia, 'MM/yyyy'), dias: 1 });
+    }
+    return grupos;
+  }, []);
+  const gradeDias = { gridTemplateColumns: `repeat(${totalDias}, minmax(8px, 1fr))` };
+  const hojeNaFaixa = hoje >= format(inicioFaixa, 'yyyy-MM-dd') && hoje <= format(fimFaixa, 'yyyy-MM-dd');
 
   return (
-    <div className="overflow-x-auto rounded-md border">
-      <div className="min-w-[760px] p-4">
+    <div className="pontualidade-timeline-scroll overflow-x-auto rounded-md border">
+      <div className="pontualidade-timeline-canvas min-w-[1180px] p-4">
         <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span><i className="mr-1 inline-block h-3 w-0.5 bg-sky-500 align-middle" />Início previsto</span>
-          <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 align-middle" />Apontamento antes/no prazo</span>
-          <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-amber-500 align-middle" />Apontamento após o previsto</span>
-          <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-destructive align-middle" />Hoje, quando segue sem início</span>
+          <span><i className="mr-1 inline-block h-2.5 w-5 rounded bg-emerald-500 align-middle" />Em execução/no prazo</span>
+          <span><i className="mr-1 inline-block h-2.5 w-5 rounded bg-blue-500 align-middle" />Antecipada</span>
+          <span><i className="mr-1 inline-block h-2.5 w-5 rounded bg-red-500 align-middle" />Atrasada</span>
+          <span><i className="mr-1 inline-block h-2.5 w-5 rounded bg-slate-400 align-middle" />Ainda não iniciada</span>
+          <span><i className="mr-1 inline-block h-3 w-0.5 bg-foreground align-middle" />Hoje</span>
         </div>
-        <div className="grid grid-cols-[minmax(235px,30%)_1fr] gap-x-3">
-          <div className="pb-5 text-xs font-medium text-muted-foreground">Peça / projeto</div>
-          <div className="relative h-5 border-b">
-            {marcas.map((marca) => (
-              <span key={marca.posicao} className="absolute -translate-x-1/2 text-[10px] text-muted-foreground" style={{ left: `${marca.posicao}%` }}>{marca.rotulo}</span>
-            ))}
+        <div className="pontualidade-timeline-grid grid grid-cols-[minmax(285px,30%)_1fr] gap-x-3">
+          <div className="border-b pb-1 text-xs font-medium text-muted-foreground">Peça / projeto</div>
+          <div className="border-b">
+            <div className="grid text-center text-[10px] font-medium text-muted-foreground" style={gradeDias}>
+              {meses.map((mes) => <span key={mes.chave} style={{ gridColumn: `span ${mes.dias}` }} className="border-l border-muted pb-1">{mes.rotulo}</span>)}
+            </div>
+            <div className="grid border-t text-center text-[8px] text-muted-foreground" style={gradeDias}>
+              {dias.map((dia) => <span key={dia.toISOString()} className="border-l border-muted py-0.5">{format(dia, 'd')}</span>)}
+            </div>
           </div>
           {pecas.map((peca) => {
-            const previsto = posicao(peca.inicioPlanejado);
-            const referenciaReal = peca.primeiroApontamento ?? (peca.situacao === 'atrasado_para_iniciar' ? hoje : null);
-            const real = referenciaReal ? posicao(referenciaReal) : null;
-            const inicioVariacao = real === null ? previsto : Math.min(previsto, real);
-            const larguraVariacao = real === null ? 0 : Math.abs(real - previsto);
-            const classeVariacao = peca.situacao === 'antecipado'
-              ? 'bg-emerald-500/60'
-              : peca.situacao === 'atrasado_para_iniciar'
-                ? 'bg-destructive/60'
-                : peca.situacao === 'iniciado_atrasado'
-                  ? 'bg-amber-500/60'
-                  : 'bg-sky-500/40';
-            const classeMarco = peca.situacao === 'atrasado_para_iniciar'
-              ? 'bg-destructive'
-              : peca.situacao === 'iniciado_atrasado'
-                ? 'bg-amber-500'
-                : 'bg-emerald-500';
+            const inicio = posicao(peca.inicioPlanejado);
+            const largura = larguraPeriodo(peca.inicioPlanejado, peca.fimPlanejado);
             return (
               <div key={peca.projetoId} className="contents">
-                <div className="border-t py-2 pr-2 text-xs">
+                <div className="pontualidade-timeline-linha border-t py-1.5 pr-2 text-xs">
                   <p className="truncate font-medium" title={peca.projetoNome}>{peca.projetoNome}</p>
-                  <p className="text-muted-foreground">{apresentacao[peca.situacao].rotulo}{peca.diferencaDias ? ` · ${impacto(peca.situacao, peca.diferencaDias)}` : ''}</p>
+                  <p className="text-muted-foreground">{dataPt(peca.inicioPlanejado)} - {dataPt(peca.fimPlanejado)} · {apresentacao[peca.situacao].rotulo}</p>
                 </div>
-                <div className="relative border-t" aria-label={`${peca.projetoNome}: previsto ${dataPt(peca.inicioPlanejado)}, ${dataPt(peca.primeiroApontamento)}`}>
-                  {marcas.map((marca) => <span key={marca.posicao} className="absolute inset-y-0 border-l border-dashed border-muted" style={{ left: `${marca.posicao}%` }} />)}
-                  {real !== null && larguraVariacao > 0 && <span className={`absolute top-1/2 h-1 -translate-y-1/2 rounded ${classeVariacao}`} style={{ left: `${inicioVariacao}%`, width: `${larguraVariacao}%` }} />}
-                  <span className="absolute top-1/2 h-5 w-0.5 -translate-x-1/2 -translate-y-1/2 bg-sky-500" style={{ left: `${previsto}%` }} title={`Previsto: ${dataPt(peca.inicioPlanejado)}`} />
-                  {real !== null && <span className={`absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background ${classeMarco}`} style={{ left: `${real}%` }} title={peca.primeiroApontamento ? `Primeiro apontamento: ${dataPt(peca.primeiroApontamento)}` : 'Hoje: ainda sem apontamento'} />}
+                <div className="pontualidade-timeline-linha relative border-t" aria-label={`${peca.projetoNome}: período previsto de ${dataPt(peca.inicioPlanejado)} a ${dataPt(peca.fimPlanejado)}`}>
+                  <div className="absolute inset-0 grid pointer-events-none" style={gradeDias}>
+                    {dias.map((dia) => <span key={dia.toISOString()} className="border-l border-muted/70" />)}
+                  </div>
+                  <span className={`absolute top-1/2 h-3 -translate-y-1/2 rounded-sm ${classeBarra[peca.situacao]}`} style={{ left: `${inicio}%`, width: `${largura}%` }} title={`Previsto: ${dataPt(peca.inicioPlanejado)} a ${dataPt(peca.fimPlanejado)}`} />
+                  {hojeNaFaixa && <span className="absolute inset-y-0 z-10 w-px bg-foreground/80" style={{ left: `${posicao(hoje)}%` }} title="Hoje" />}
                 </div>
               </div>
             );
@@ -149,8 +159,8 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
   const exportacaoDisponivel = !loading && resumo.total > 0;
 
   return (
-    <Card>
-      <CardHeader className="gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
+    <Card id="relatorio-pontualidade-impressao" className="pontualidade-print-area">
+      <CardHeader className="pontualidade-cabecalho gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2 text-lg">
             <CalendarClock className="h-5 w-5 text-primary" />
@@ -160,7 +170,7 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
             Compara o primeiro início previsto das OPs de cada peça com o primeiro apontamento válido, incluindo o histórico preservado em OPs anteriores.
           </CardDescription>
         </div>
-        <div className="flex flex-wrap gap-2 print:hidden">
+        <div className="pontualidade-controles flex flex-wrap gap-2 print:hidden">
           <Button type="button" variant="outline" size="sm" onClick={() => exportarRelatorioPontualidadeExcel(resumo)} disabled={!exportacaoDisponivel}>
             <FileSpreadsheet className="mr-2 h-4 w-4" />
             Excel
@@ -168,6 +178,10 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
           <Button type="button" variant="outline" size="sm" onClick={() => exportarRelatorioPontualidadePdf(resumo)} disabled={!exportacaoDisponivel}>
             <FileText className="mr-2 h-4 w-4" />
             PDF
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => imprimirSecaoProducao('relatorio-pontualidade-impressao')} disabled={!exportacaoDisponivel}>
+            <Printer className="mr-2 h-4 w-4" />
+            Imprimir linha do tempo
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => void carregar()} disabled={loading}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
@@ -183,22 +197,22 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
           </Alert>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="pontualidade-indicadores grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <div className="rounded-lg border bg-muted/20 p-3">
             <p className="text-xs text-muted-foreground">Peças programadas</p>
             <p className="mt-1 text-2xl font-bold">{resumo.total}</p>
           </div>
+          <div className="rounded-lg border border-blue-500/25 bg-blue-500/5 p-3">
+            <p className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-300"><TrendingUp className="h-3.5 w-3.5" /> Antecipadas</p>
+            <p className="mt-1 text-2xl font-bold text-blue-700 dark:text-blue-300">{resumo.antecipados}</p>
+          </div>
           <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 p-3">
-            <p className="flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-300"><TrendingUp className="h-3.5 w-3.5" /> Antecipadas</p>
-            <p className="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-300">{resumo.antecipados}</p>
+            <p className="flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-300"><CheckCircle2 className="h-3.5 w-3.5" /> Início no prazo</p>
+            <p className="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-300">{resumo.noPrazo}</p>
           </div>
-          <div className="rounded-lg border border-sky-500/25 bg-sky-500/5 p-3">
-            <p className="flex items-center gap-1 text-xs text-sky-700 dark:text-sky-300"><CheckCircle2 className="h-3.5 w-3.5" /> Início no prazo</p>
-            <p className="mt-1 text-2xl font-bold text-sky-700 dark:text-sky-300">{resumo.noPrazo}</p>
-          </div>
-          <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-3">
-            <p className="text-xs text-amber-700 dark:text-amber-300">Com atraso</p>
-            <p className="mt-1 text-2xl font-bold text-amber-700 dark:text-amber-300">{comAtraso}</p>
+          <div className="rounded-lg border border-destructive/25 bg-destructive/5 p-3">
+            <p className="text-xs text-destructive">Com atraso</p>
+            <p className="mt-1 text-2xl font-bold text-destructive">{comAtraso}</p>
             <p className="text-[11px] text-muted-foreground">{resumo.atrasadosParaIniciar} sem início</p>
           </div>
           <div className="rounded-lg border bg-muted/20 p-3">
@@ -210,26 +224,27 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
         {loading && resumo.total === 0 ? (
           <div className="flex min-h-28 items-center justify-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Comparando Project e apontamentos...
+            Comparando programação e apontamentos...
           </div>
         ) : (
           <div className="space-y-4">
             {resumo.pecas.length > 0 && (
               <div className="space-y-2">
                 <div>
-                  <p className="text-sm font-medium">Linha do tempo dos inícios</p>
-                  <p className="text-xs text-muted-foreground">A barra mostra apenas a diferença entre a data prevista e o primeiro apontamento; não representa duração da produção.</p>
+                  <p className="text-sm font-medium">Linha do tempo de produção</p>
+                  <p className="text-xs text-muted-foreground">Cada barra representa o período previsto completo da peça. A cor reflete a situação do início frente à programação.</p>
                 </div>
-                <LinhaDoTempoInicios pecas={resumo.pecas} />
+                <LinhaDoTempoProducao pecas={resumo.pecas} />
               </div>
             )}
 
-            <div className="overflow-x-auto rounded-md border">
+            <div className="pontualidade-detalhe overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Peça / projeto</TableHead>
                     <TableHead>Início previsto</TableHead>
+                    <TableHead>Fim previsto</TableHead>
                     <TableHead>Primeiro apontamento</TableHead>
                     <TableHead>Situação</TableHead>
                     <TableHead className="text-right">Variação</TableHead>
@@ -245,6 +260,7 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
                           <div className="text-xs text-muted-foreground">{peca.opsImportadas} OP(s) programada(s){peca.cidade ? ` · ${peca.cidade}` : ''}</div>
                         </TableCell>
                         <TableCell>{dataPt(peca.inicioPlanejado)}</TableCell>
+                        <TableCell>{dataPt(peca.fimPlanejado)}</TableCell>
                         <TableCell>{dataPt(peca.primeiroApontamento)}</TableCell>
                         <TableCell><Badge variant="outline" className={item.classe}>{item.rotulo}</Badge></TableCell>
                         <TableCell className="text-right font-medium">{impacto(peca.situacao, peca.diferencaDias)}</TableCell>
@@ -252,14 +268,14 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
                     );
                   })}
                   {!error && resumo.pecas.length === 0 && !loading && (
-                    <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Nenhuma OP do Natal 2026 v24 foi encontrada.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Nenhuma peça com OP programada foi encontrada.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
             </div>
           </div>
         )}
-        <p className="text-xs text-muted-foreground">
+        <p className="pontualidade-notas text-xs text-muted-foreground">
           “Atrasado para iniciar” significa que a data prevista já passou e não há apontamento válido na peça. Dias são corridos e não representam quantidade, equipe ou percentual de produção.
         </p>
       </CardContent>

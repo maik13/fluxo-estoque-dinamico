@@ -1,0 +1,84 @@
+@page pontualidade-producao {
+  size: A4 landscape;
+  margin: 5mm;
+}
+
+@media print {
+  body:has(.pontualidade-print-area) {
+    page: pontualidade-producao;
+  }
+
+  .pontualidade-print-area {
+    background: #fff !important;
+    color: #111827 !important;
+    border: 0 !important;
+  }
+
+  .pontualidade-print-area .pontualidade-controles,
+  .pontualidade-print-area .pontualidade-cabecalho > div:first-child > p,
+  .pontualidade-print-area .pontualidade-indicadores,
+  .pontualidade-print-area .pontualidade-detalhe,
+  .pontualidade-print-area .pontualidade-notas {
+    display: none !important;
+  }
+
+  .pontualidade-print-area .pontualidade-timeline-scroll {
+    overflow: visible !important;
+    border: 0 !important;
+  }
+
+  .pontualidade-print-area .pontualidade-timeline-canvas {
+    min-width: 0 !important;
+    padding: 0 !important;
+  }
+
+  .pontualidade-print-area .pontualidade-timeline-grid {
+    grid-template-columns: 76mm 1fr !important;
+  }
+
+  .pontualidade-print-area .pontualidade-timeline-linha {
+    min-height: 4.4mm !important;
+    padding-top: 0.25mm !important;
+    padding-bottom: 0.25mm !important;
+    font-size: 5.4pt !important;
+    line-height: 1.05 !important;
+  }
+
+  .pontualidade-print-area .pontualidade-timeline-linha p {
+    line-height: 1.05 !important;
+  }
+
+  .pontualidade-print-area .pontualidade-timeline-grid .text-\[10px\] {
+    font-size: 5pt !important;
+  }
+
+  .pontualidade-print-area .pontualidade-timeline-grid .text-\[8px\] {
+    font-size: 4.2pt !important;
+  }
+
+  .pontualidade-print-area .pontualidade-timeline-grid .h-3 {
+    height: 2.1mm !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .pontualidade-print-area .bg-emerald-500 {
+    background-color: #16a34a !important;
+  }
+
+  .pontualidade-print-area .bg-blue-500 {
+    background-color: #2563eb !important;
+  }
+
+  .pontualidade-print-area .bg-red-500 {
+    background-color: #dc2626 !important;
+  }
+
+  .pontualidade-print-area .bg-slate-400 {
+    background-color: #94a3b8 !important;
+  }
+
+  .pontualidade-print-area .text-muted-foreground {
+    color: #475569 !important;
+  }
+}
