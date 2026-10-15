@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   CalendarDays,
@@ -140,6 +140,25 @@ const pertenceAoProjeto = (processo: ProducaoProcesso, projeto: ProducaoProjeto)
   processo.projeto_id === projeto.config_id ||
   processo.projeto?.local_utilizacao_id === projeto.local_utilizacao_id;
 
+const numeroDaEtapa = (nome: string) => {
+  const resultado = nome.match(/^Etapa\s+(\d+)\b/i);
+  return resultado ? Number(resultado[1]) : null;
+};
+
+const compararEtapas = (a: ProducaoProcesso, b: ProducaoProcesso) => {
+  const numeroA = numeroDaEtapa(a.nome);
+  const numeroB = numeroDaEtapa(b.nome);
+  if (numeroA !== null && numeroB !== null && numeroA !== numeroB) return numeroA - numeroB;
+  if (numeroA !== null && numeroB === null) return -1;
+  if (numeroA === null && numeroB !== null) return 1;
+  return Number(a.sequencia ?? 9999) - Number(b.sequencia ?? 9999)
+    || a.nome.localeCompare(b.nome, 'pt-BR');
+};
+
+const compararOpsDaEtapa = (a: ProducaoOrdemProducao, b: ProducaoOrdemProducao) =>
+  (a.data_inicio_prevista ?? '9999-12-31').localeCompare(b.data_inicio_prevista ?? '9999-12-31')
+  || a.numero - b.numero;
+
 const pesoEsforcoOp = (ordem: ProducaoOrdemProducao) => {
   const esforco = Number(ordem.esforco_estimado_horas_homem || 0);
   return esforco > 0 ? esforco : 1;
@@ -250,27 +269,33 @@ export const ProcessosProducaoHierarquico = ({
   } = useProcessosProducao();
   const { ordens, listarOrdens, criarOrdem, transicaoOrdem } = useOrdensProducao();
 
-  const carregarJornadas = async () => {
+  const carregarJornadas = useCallback(async () => {
     try {
       const jornadas = await listarJornadasOpAbertas();
       setJornadasAbertas(jornadas);
     } catch {
       setJornadasAbertas([]);
     }
-  };
+  }, []);
 
-  const recarregar = async () => {
+  const recarregar = useCallback(async () => {
     await Promise.all([
       listarProjetos(),
       listarProcessos(),
       listarOrdens(),
       carregarJornadas(),
     ]);
-  };
+  }, [carregarJornadas, listarOrdens, listarProcessos, listarProjetos]);
 
   useEffect(() => {
     void recarregar().catch(() => undefined);
-  }, []);
+  }, [recarregar]);
+
+  useEffect(() => {
+    const atualizarDadosAposImportacao = () => { void recarregar().catch(() => undefined); };
+    window.addEventListener('producao:ordens-alteradas', atualizarDadosAposImportacao);
+    return () => window.removeEventListener('producao:ordens-alteradas', atualizarDadosAposImportacao);
+  }, [recarregar]);
 
   useEffect(() => {
     const carregarOpsComImagem = async () => {
@@ -335,7 +360,9 @@ export const ProcessosProducaoHierarquico = ({
   const resumosProjetos = useMemo(
     () =>
       projetos.map((projeto) => {
-        const etapas = processos.filter((processo) => pertenceAoProjeto(processo, projeto));
+        const etapas = processos
+          .filter((processo) => pertenceAoProjeto(processo, projeto))
+          .sort(compararEtapas);
         const etapasValidas = etapas.filter((processo) => processo.status !== 'cancelado');
         const ops = etapas.flatMap((etapa) => ordensPorProcesso[etapa.id] ?? []);
         const concluido =
@@ -478,11 +505,7 @@ export const ProcessosProducaoHierarquico = ({
         ...etapa,
         percentual: progressoPonderadoOps(etapa.ops),
       }))
-      .sort((a, b) => {
-        const sa = Math.min(...a.processos.map((p) => Number(p.sequencia || 9999)));
-        const sb = Math.min(...b.processos.map((p) => Number(p.sequencia || 9999)));
-        return sa - sb || a.nome.localeCompare(b.nome, 'pt-BR');
-      });
+      .sort((a, b) => compararEtapas(a.processos[0], b.processos[0]));
   }, [grupoSelecionado, ordensPorProcesso]);
 
   const etapaGrupoAtual = etapasDoGrupo.find((etapa) => etapa.chave === etapaGrupoSelecionada) ?? null;
@@ -1040,37 +1063,96 @@ export const ProcessosProducaoHierarquico = ({
           </div>
 
           <div>
-            <h4 className="mb-3 text-base font-semibold">Etapas do projeto</h4>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {etapasDoGrupo.map((etapa) => {
-                const opsValidas = etapa.ops.filter((op) => op.status !== 'cancelada');
-                const concluidas = opsValidas.filter((op) => op.status === 'concluida').length;
-                return (
-                  <button
-                    key={etapa.chave}
-                    type="button"
-                    onClick={() => setEtapaGrupoSelecionada(etapa.chave)}
-                    className="rounded-xl border bg-card p-4 text-left shadow-sm transition hover:border-primary/50 hover:bg-muted/20"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground">{etapa.processos.length} peça(s)</p>
-                        <h5 className="mt-1 font-semibold">{etapa.nome}</h5>
-                      </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            <h4 className="mb-1 text-base font-semibold">Peças, etapas e OPs</h4>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Cada peça é exibida com suas etapas na sequência e as OPs correspondentes.
+            </p>
+            <div className="space-y-4">
+              {[...grupoSelecionado.projetos]
+                .sort((a, b) => a.projeto.nome.localeCompare(b.projeto.nome, 'pt-BR'))
+                .map((resumo) => (
+                  <section key={resumo.projeto.id} className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                    <div className="border-b bg-muted/30 px-5 py-4">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Peça</p>
+                      <h5 className="mt-1 text-lg font-semibold leading-snug">{resumo.projeto.nome}</h5>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {resumo.etapas.length} etapa(s) · {resumo.ops.length} OP(s) · {resumo.percentual}% concluído
+                      </p>
                     </div>
-                    <div className="mt-3 text-xs text-muted-foreground">
-                      {opsValidas.length} OP(s) · {concluidas} concluída(s)
+
+                    <div className="divide-y">
+                      {resumo.etapas.map((processo) => {
+                        const opsDaEtapa = [...(ordensPorProcesso[processo.id] ?? [])]
+                          .sort(compararOpsDaEtapa);
+                        const opsValidas = opsDaEtapa.filter((op) => op.status !== 'cancelada');
+                        const concluidas = opsValidas.filter((op) => op.status === 'concluida').length;
+                        const percentual = progressoEtapa(processo, opsDaEtapa);
+                        const chaveEtapa = processo.nome.trim().toLocaleLowerCase('pt-BR');
+
+                        return (
+                          <div key={processo.id} className="px-5 py-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setEtapaGrupoSelecionada(chaveEtapa)}
+                                className="min-w-0 text-left hover:text-primary"
+                                title={`Abrir ${processo.nome}`}
+                              >
+                                <p className="font-semibold">{processo.nome}</p>
+                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                  {opsValidas.length} OP(s) · {concluidas} concluída(s) · {statusEtapaLabel[processo.status] ?? processo.status}
+                                </p>
+                              </button>
+                              <div className="w-32 shrink-0 space-y-1">
+                                <div className="flex justify-between text-xs text-muted-foreground">
+                                  <span>Progresso</span><span>{percentual}%</span>
+                                </div>
+                                <BarraProgresso valor={percentual} />
+                              </div>
+                            </div>
+
+                            {opsDaEtapa.length === 0 ? (
+                              <p className="mt-3 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                                Nenhuma OP emitida nesta etapa.
+                              </p>
+                            ) : (
+                              <div className="mt-3 space-y-2">
+                                {opsDaEtapa.map((op) => {
+                                  const progresso = op.status === 'cancelada' ? 0 : clampPercent(percentualExecucaoOp(op));
+                                  return (
+                                    <button
+                                      key={op.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setEtapaGrupoSelecionada(chaveEtapa);
+                                        setOrdemSelecionadaId(op.id);
+                                      }}
+                                      className="flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition hover:border-primary/50 hover:bg-muted/30"
+                                    >
+                                      <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-medium">{formatarIdentificacaoOrdemProducao(op)}</p>
+                                        <p className="mt-0.5 text-xs text-muted-foreground">
+                                          Prevista: {formatarData(op.data_inicio_prevista)}{op.data_fim_prevista && op.data_fim_prevista !== op.data_inicio_prevista ? ` → ${formatarData(op.data_fim_prevista)}` : ''}
+                                        </p>
+                                      </div>
+                                      <div className="hidden w-28 shrink-0 space-y-1 sm:block">
+                                        <div className="flex justify-between text-xs text-muted-foreground">
+                                          <span>{statusOpLabel[op.status] ?? op.status}</span><span>{progresso}%</span>
+                                        </div>
+                                        <BarraProgresso valor={progresso} />
+                                      </div>
+                                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="mt-3 space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span>Progresso</span><span>{etapa.percentual}%</span>
-                      </div>
-                      <BarraProgresso valor={etapa.percentual} />
-                    </div>
-                  </button>
-                );
-              })}
+                  </section>
+                ))}
             </div>
           </div>
         </div>

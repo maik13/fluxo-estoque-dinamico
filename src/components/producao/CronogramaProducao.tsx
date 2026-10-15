@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -44,6 +45,8 @@ import {
 } from '@/hooks/useCronogramaProducao';
 import { formatarIdentificacaoOrdemProducao, formatarNumeroOrdemProducao } from '@/hooks/useOrdensProducao';
 import { cn } from '@/lib/utils';
+import { usePermissions } from '@/hooks/usePermissions';
+import { importarMSProjectNatal2026V24, resumoImportacaoMSProjectNatal2026V24 } from '@/services/producao/importacaoMSProjectNatal2026V24';
 import { PlanoDiarioProducao } from './PlanoDiarioProducao';
 import { AgendaPlanejamentoCronograma } from './AgendaPlanejamentoCronograma';
 
@@ -55,6 +58,7 @@ const LABEL_WIDTH =
   TASK_COLUMN_WIDTH + ASSIGNEE_COLUMN_WIDTH + PROGRESS_COLUMN_WIDTH + STATE_COLUMN_WIDTH;
 const ROW_HEIGHT_ETAPA = 52;
 const ROW_HEIGHT_OP = 52;
+const ROW_HEIGHT_PECA = 44;
 const GANTT_HEADER_HEIGHT = 76;
 
 type Visualizacao = '14dias' | 'semana' | 'mes';
@@ -118,9 +122,35 @@ interface LinhaOp {
   ordem: GanttOrdemProducao;
 }
 
-type LinhaGantt = LinhaEtapa | LinhaOp;
+interface LinhaPeca {
+  tipo: 'peca';
+  id: string;
+  projetoId: string;
+  projetoNome: string;
+}
+
+type LinhaGantt = LinhaPeca | LinhaEtapa | LinhaOp;
 
 const dataValida = (valor: string | null | undefined) => valor ? parseISO(valor) : null;
+
+const numeroDaEtapa = (nome: string) => {
+  const resultado = nome.match(/^Etapa\s+(\d+)\b/i);
+  return resultado ? Number(resultado[1]) : null;
+};
+
+const compararEtapasDaPeca = (a: GanttEtapaProducao, b: GanttEtapaProducao) => {
+  const numeroA = numeroDaEtapa(a.etapa_nome);
+  const numeroB = numeroDaEtapa(b.etapa_nome);
+  if (numeroA !== null && numeroB !== null && numeroA !== numeroB) return numeroA - numeroB;
+  if (numeroA !== null && numeroB === null) return -1;
+  if (numeroA === null && numeroB !== null) return 1;
+  return Number(a.sequencia ?? 9999) - Number(b.sequencia ?? 9999)
+    || a.etapa_nome.localeCompare(b.etapa_nome, 'pt-BR');
+};
+
+const compararOpsDaEtapa = (a: GanttOrdemProducao, b: GanttOrdemProducao) =>
+  (a.data_inicio_prevista ?? '9999-12-31').localeCompare(b.data_inicio_prevista ?? '9999-12-31')
+  || a.numero - b.numero;
 
 const normalizarIntervalo = (
   inicioRealTexto: string | null | undefined,
@@ -181,6 +211,7 @@ const calcularPeriodo = (visualizacao: Visualizacao, deslocamento: number) => {
 };
 
 export const CronogramaProducao = () => {
+  const { isAdmin } = usePermissions();
   const {
     etapas,
     configuracao,
@@ -198,6 +229,10 @@ export const CronogramaProducao = () => {
   const [deslocamento, setDeslocamento] = useState(0);
   const [configAberta, setConfigAberta] = useState(false);
   const [mostrarConcluidas, setMostrarConcluidas] = useState(false);
+  const [confirmarImportacaoMSP, setConfirmarImportacaoMSP] = useState(false);
+  const [importandoMSP, setImportandoMSP] = useState(false);
+  const [resultadoImportacaoMSP, setResultadoImportacaoMSP] = useState<string | null>(null);
+  const [erroImportacaoMSP, setErroImportacaoMSP] = useState<string | null>(null);
   const [etapasRecolhidas, setEtapasRecolhidas] = useState<Set<string>>(() => new Set());
   const [larguraViewport, setLarguraViewport] = useState(0);
   const ganttViewportRef = useRef<HTMLDivElement>(null);
@@ -252,21 +287,43 @@ export const CronogramaProducao = () => {
     });
   }, [busca, etapas, projetoId]);
 
-  const linhasProgramadas = useMemo<LinhaGantt[]>(() => etapasFiltradas.flatMap((etapa): LinhaGantt[] => {
-    const ordensAtivas = etapa.ordens.filter((ordem) => ordem.status !== 'cancelada');
-    const ordensProgramadas = ordensAtivas
-      .filter((ordem) => Boolean(intervaloOrdem(ordem)))
-      .map((ordem) => ({ tipo: 'op' as const, id: `op-${ordem.id}`, etapa, ordem }));
+  const linhasProgramadas = useMemo<LinhaGantt[]>(() => {
+    const etapasPorPeca = new Map<string, GanttEtapaProducao[]>();
+    etapasFiltradas.forEach((etapa) => {
+      const etapasDaPeca = etapasPorPeca.get(etapa.projeto_id) ?? [];
+      etapasDaPeca.push(etapa);
+      etapasPorPeca.set(etapa.projeto_id, etapasDaPeca);
+    });
 
-    const linhaEtapa = intervaloEtapa(etapa)
-      ? [{ tipo: 'etapa' as const, id: `etapa-${etapa.etapa_id}`, etapa }]
-      : [];
+    return [...etapasPorPeca.entries()]
+      .sort(([, etapasA], [, etapasB]) =>
+        etapasA[0].projeto_nome.localeCompare(etapasB[0].projeto_nome, 'pt-BR'))
+      .flatMap(([projetoId, etapasDaPeca]): LinhaGantt[] => [
+        {
+          tipo: 'peca',
+          id: `peca-${projetoId}`,
+          projetoId,
+          projetoNome: etapasDaPeca[0].projeto_nome,
+        },
+        ...etapasDaPeca
+          .sort(compararEtapasDaPeca)
+          .flatMap((etapa): LinhaGantt[] => {
+            const ordensAtivas = etapa.ordens.filter((ordem) => ordem.status !== 'cancelada');
+            const ordensProgramadas = ordensAtivas
+              .filter((ordem) => Boolean(intervaloOrdem(ordem)))
+              .sort(compararOpsDaEtapa)
+              .map((ordem) => ({ tipo: 'op' as const, id: `op-${ordem.id}`, etapa, ordem }));
+            const linhaEtapa = intervaloEtapa(etapa)
+              ? [{ tipo: 'etapa' as const, id: `etapa-${etapa.etapa_id}`, etapa }]
+              : [];
 
-    return [
-      ...linhaEtapa,
-      ...(etapasRecolhidas.has(etapa.etapa_id) ? [] : ordensProgramadas),
-    ];
-  }), [etapasFiltradas, etapasRecolhidas]);
+            return [
+              ...linhaEtapa,
+              ...(etapasRecolhidas.has(etapa.etapa_id) ? [] : ordensProgramadas),
+            ];
+          }),
+      ]);
+  }, [etapasFiltradas, etapasRecolhidas]);
 
   const semProgramacao = useMemo(() => etapasFiltradas.flatMap((etapa) => {
     const ordensAtivas = etapa.ordens.filter((ordem) => ordem.status !== 'cancelada');
@@ -336,21 +393,38 @@ export const CronogramaProducao = () => {
   const hojeIndice = differenceInCalendarDays(new Date(), periodo.inicio);
   const hojeOffset = hojeIndice * pixelsPorDia;
   const hojeNaFaixa = hojeIndice >= 0 && hojeIndice < dias.length;
-  const linhas = useMemo(
-    () => linhasProgramadas.filter((linha) => {
+  const linhasOperacionais = useMemo(() => {
+    const linhasVisiveis: LinhaGantt[] = [];
+    let cabecalhoDaPeca: LinhaPeca | null = null;
+
+    linhasProgramadas.forEach((linha) => {
+      if (linha.tipo === 'peca') {
+        cabecalhoDaPeca = linha;
+        return;
+      }
+
       const intervalo = linha.tipo === 'etapa' ? intervaloEtapa(linha.etapa) : intervaloOrdem(linha.ordem);
       const concluida = linha.tipo === 'etapa'
         ? linha.etapa.status === 'finalizado'
         : linha.ordem.status === 'concluida';
-      return Boolean(
+      const visivel = Boolean(
         (mostrarConcluidas || !concluida)
         && intervalo
         && intervalo.fim.getTime() >= periodo.inicio.getTime()
-        && intervalo.inicio.getTime() <= periodo.fim.getTime()
+        && intervalo.inicio.getTime() <= periodo.fim.getTime(),
       );
-    }),
-    [linhasProgramadas, mostrarConcluidas, periodo.fim, periodo.inicio],
-  );
+
+      if (!visivel) return;
+      if (cabecalhoDaPeca) {
+        linhasVisiveis.push(cabecalhoDaPeca);
+        cabecalhoDaPeca = null;
+      }
+      linhasVisiveis.push(linha);
+    });
+
+    return linhasVisiveis;
+  }, [linhasProgramadas, mostrarConcluidas, periodo.fim, periodo.inicio]);
+  const linhas = linhasOperacionais;
   const alertasAltos = alertas.filter((alerta) => alerta.severidade === 'alta').length;
 
   const salvarConfig = async () => {
@@ -362,24 +436,50 @@ export const CronogramaProducao = () => {
     setConfigAberta(false);
   };
 
+  const executarImportacaoMSP = async () => {
+    setErroImportacaoMSP(null);
+    setImportandoMSP(true);
+    try {
+      const resultado = await importarMSProjectNatal2026V24();
+      setResultadoImportacaoMSP(
+        `${resultado.criadas} OPs criadas, ${resultado.mantidas} mantidas e ${resultado.etapas_criadas} etapas criadas.`,
+      );
+      setConfirmarImportacaoMSP(false);
+      await listarCronograma();
+    } catch (error) {
+      const mensagem = error instanceof Error ? error.message : 'A importação não foi executada.';
+      setErroImportacaoMSP(mensagem);
+      setResultadoImportacaoMSP(`Importação não executada: ${mensagem}`);
+    } finally {
+      setImportandoMSP(false);
+    }
+  };
+
   const selecionarVisualizacao = (valor: string) => {
     setVisualizacao(valor as Visualizacao);
     setDeslocamento(0);
   };
 
-  const intervaloLinha = (linha: LinhaGantt) => linha.tipo === 'etapa'
-    ? intervaloEtapa(linha.etapa)
-    : intervaloOrdem(linha.ordem);
+  const intervaloLinha = (linha: LinhaGantt) => {
+    if (linha.tipo === 'peca') return null;
+    if (linha.tipo === 'etapa') return intervaloEtapa(linha.etapa);
+    return intervaloOrdem(linha.ordem);
+  };
 
-  const percentualLinha = (linha: LinhaGantt) => linha.tipo === 'etapa'
-    ? linha.etapa.percentual_realizado
-    : linha.ordem.percentual_realizado;
+  const percentualLinha = (linha: LinhaGantt) => {
+    if (linha.tipo === 'peca') return 0;
+    if (linha.tipo === 'etapa') return linha.etapa.percentual_realizado;
+    return linha.ordem.percentual_realizado;
+  };
 
-  const statusLinha = (linha: LinhaGantt) => linha.tipo === 'etapa'
-    ? linha.etapa.status
-    : linha.ordem.status;
+  const statusLinha = (linha: LinhaGantt) => {
+    if (linha.tipo === 'peca') return '';
+    if (linha.tipo === 'etapa') return linha.etapa.status;
+    return linha.ordem.status;
+  };
 
-  const alturaLinha = (linha: LinhaGantt) => linha.tipo === 'etapa' ? ROW_HEIGHT_ETAPA : ROW_HEIGHT_OP;
+  const alturaLinha = (linha: LinhaGantt) =>
+    linha.tipo === 'peca' ? ROW_HEIGHT_PECA : linha.tipo === 'etapa' ? ROW_HEIGHT_ETAPA : ROW_HEIGHT_OP;
 
   return (
     <div className="space-y-4">
@@ -398,7 +498,6 @@ export const CronogramaProducao = () => {
 
       {erro && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{erro}. Confirme se as migrations do cronograma e das OPs foram aplicadas.</AlertDescription></Alert>}
       {alertasAltos > 0 && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>O cronograma possui {alertasAltos} alerta(s) crítico(s). Verifique prazo, capacidade e quantidade não alocada.</AlertDescription></Alert>}
-
       <div className="grid gap-3 sm:grid-cols-4 print:hidden">
         <Card className="p-4"><p className="text-xs text-muted-foreground">Equipe disponível/dia</p><p className="text-2xl font-bold">{configuracao?.equipe_disponivel_por_dia ?? '—'}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Programados no período</p><p className="text-2xl font-bold">{linhas.length}</p></Card>
@@ -416,6 +515,12 @@ export const CronogramaProducao = () => {
         <TabsContent value="gantt" className="mt-4">
           <Card className="gantt-print-area overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 border-b p-3 print:hidden">
+              {isAdmin() && (
+                <Button onClick={() => { setErroImportacaoMSP(null); setConfirmarImportacaoMSP(true); }} disabled={importandoMSP}>
+                  {importandoMSP && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                  Importar MSP v24 · {resumoImportacaoMSProjectNatal2026V24.aptas} OPs aptas
+                </Button>
+              )}
               <Button variant="ghost" size="sm" onClick={expandirTudo}>
                 <ChevronsDown className="mr-2 h-4 w-4" />Expandir
               </Button>
@@ -450,6 +555,12 @@ export const CronogramaProducao = () => {
               <Button variant="outline" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Imprimir / PDF</Button>
             </div>
 
+            {resultadoImportacaoMSP && (
+              <Alert className="mx-4 mt-3">
+                <AlertDescription>{resultadoImportacaoMSP}</AlertDescription>
+              </Alert>
+            )}
+
             <div className="border-b bg-muted/20 px-4 py-2 text-sm text-muted-foreground">
               {format(periodo.inicio, "dd 'de' MMMM", { locale: ptBR })} a {format(periodo.fim, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })} · cada coluna representa um dia
             </div>
@@ -473,17 +584,38 @@ export const CronogramaProducao = () => {
                   {linhas.map((linha) => {
                     const percentual = Math.min(100, Math.max(0, Number(percentualLinha(linha) ?? 0)));
                     const status = statusLinha(linha);
+                    if (linha.tipo === 'peca') {
+                      return (
+                        <div
+                          key={linha.id}
+                          className="grid border-b bg-primary/10 text-xs"
+                          style={{
+                            height: alturaLinha(linha),
+                            gridTemplateColumns: `${TASK_COLUMN_WIDTH}px ${ASSIGNEE_COLUMN_WIDTH}px ${PROGRESS_COLUMN_WIDTH}px ${STATE_COLUMN_WIDTH}px`,
+                          }}
+                        >
+                          <div className="col-span-4 flex min-w-0 items-center gap-3 px-3">
+                            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+                              Peça
+                            </span>
+                            <span className="truncate font-semibold" title={linha.projetoNome}>
+                              {linha.projetoNome}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
                     const estado = linha.tipo === 'etapa'
-                      ? statusEtapaLabel[status] ?? status
-                      : linha.ordem.status === 'em_execucao' && percentual >= 100
-                        ? '100% · aguardando conclusão'
-                        : statusOpLabel[status] ?? status;
+                        ? statusEtapaLabel[status] ?? status
+                        : linha.ordem.status === 'em_execucao' && percentual >= 100
+                          ? '100% · aguardando conclusão'
+                          : statusOpLabel[status] ?? status;
                     const responsavel = linha.tipo === 'op'
                       ? linha.ordem.responsavel_nome || 'não atribuído'
                       : '—';
                     const classeEstado = linha.tipo === 'etapa'
-                      ? statusEtapaClass[status] ?? 'bg-slate-500'
-                      : statusOpClass[status] ?? 'bg-indigo-500';
+                        ? statusEtapaClass[status] ?? 'bg-slate-500'
+                        : statusOpClass[status] ?? 'bg-indigo-500';
 
                     return (
                       <div
@@ -545,7 +677,7 @@ export const CronogramaProducao = () => {
                         </div>
 
                         <div className="flex items-center border-r px-3 font-semibold tabular-nums">
-                          {Math.round(percentual)}%
+                          {`${Math.round(percentual)}%`}
                         </div>
 
                         <div className="flex min-w-0 items-center gap-2 px-3">
@@ -605,17 +737,22 @@ export const CronogramaProducao = () => {
                       : 0;
                     const percentual = Math.min(100, Math.max(0, Number(percentualLinha(linha) ?? 0)));
                     const status = statusLinha(linha);
-                    const titulo = linha.tipo === 'etapa'
-                      ? `${linha.etapa.codigo} · ${linha.etapa.etapa_nome}`
-                      : formatarNumeroOrdemProducao(linha.ordem.numero);
+                    const titulo = linha.tipo === 'peca'
+                        ? linha.projetoNome
+                        : linha.tipo === 'etapa'
+                        ? `${linha.etapa.codigo} · ${linha.etapa.etapa_nome}`
+                        : formatarNumeroOrdemProducao(linha.ordem.numero);
                     const classe = linha.tipo === 'etapa'
-                      ? statusEtapaClass[status] ?? 'bg-slate-500'
-                      : statusOpClass[status] ?? 'bg-indigo-500';
+                        ? statusEtapaClass[status] ?? 'bg-slate-500'
+                        : statusOpClass[status] ?? 'bg-indigo-500';
 
                     return (
                       <div
                         key={linha.id}
-                        className={cn('relative border-b', linha.tipo === 'etapa' ? 'bg-muted/10' : 'bg-card')}
+                        className={cn(
+                          'relative border-b',
+                          linha.tipo === 'peca' ? 'bg-primary/5' : linha.tipo === 'etapa' ? 'bg-muted/10' : 'bg-card',
+                        )}
                         style={{ height: alturaLinha(linha) }}
                       >
                         {dias.map((dia, indice) => (
@@ -650,7 +787,7 @@ export const CronogramaProducao = () => {
                               style={{ width: `${percentual}%` }}
                             />
                             <span className="relative z-10 w-full truncate px-2 text-center">
-                              {Math.round(percentual)}%
+                              {`${Math.round(percentual)}%`}
                             </span>
                           </div>
                         )}
@@ -699,6 +836,35 @@ export const CronogramaProducao = () => {
           <AgendaPlanejamentoCronograma />
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={confirmarImportacaoMSP} onOpenChange={setConfirmarImportacaoMSP}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Importar atividades reais do MS Project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Foram analisadas {resumoImportacaoMSProjectNatal2026V24.analisadas} atividades do Natal 2026 v24.mpp. Serão importadas somente as {resumoImportacaoMSProjectNatal2026V24.aptas} aptas, com as datas do Project:
+              {' '}{resumoImportacaoMSProjectNatal2026V24.porEtapa.etapa2} na Etapa 2,
+              {' '}{resumoImportacaoMSProjectNatal2026V24.porEtapa.etapa3} na Etapa 3,
+              {' '}{resumoImportacaoMSProjectNatal2026V24.porEtapa.etapa4} na Etapa 4 e
+              {' '}{resumoImportacaoMSProjectNatal2026V24.porEtapa.etapa5} na Etapa 5. As {resumoImportacaoMSProjectNatal2026V24.bloqueadasPorConciliacao} demais foram bloqueadas: têm somente correspondência por semelhança com OPs já apontadas e não serão duplicadas.
+              A operação é única e transacional; OPs, APs, histórico e PCP existentes não serão alterados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {erroImportacaoMSP && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>Importação não executada: {erroImportacaoMSP}</AlertDescription>
+            </Alert>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={importandoMSP}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); void executarImportacaoMSP(); }} disabled={importandoMSP}>
+              {importandoMSP && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+              Importar {resumoImportacaoMSProjectNatal2026V24.aptas} OPs aptas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={configAberta} onOpenChange={setConfigAberta}>
         <DialogContent>
