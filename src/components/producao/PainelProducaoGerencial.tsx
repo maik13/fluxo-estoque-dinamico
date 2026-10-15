@@ -45,6 +45,7 @@ import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
 import { useProducao } from '@/hooks/useProducao';
 import { useProducaoGerencial } from '@/hooks/useProducaoGerencial';
 import { CalendarioFotosProducao } from './CalendarioFotosProducao';
+import { ResumoPontualidadeMSPNatal2026 } from './ResumoPontualidadeMSPNatal2026';
 import {
   exportarBIProducaoExcel,
   imprimirSecaoProducao,
@@ -336,6 +337,8 @@ export const PainelProducaoGerencial = ({
         <p>Gerado em: {new Date().toLocaleString('pt-BR')}</p>
         <p>Filtros aplicados: {filtrosDescricao()}</p>
       </div>
+
+      <ResumoPontualidadeMSPNatal2026 />
 
       <Card className="print:hidden">
         <CardHeader className="pb-3">
