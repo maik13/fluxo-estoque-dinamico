@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { addDays, differenceInCalendarDays, format, parseISO, subDays } from 'date-fns';
-import { CalendarClock, CheckCircle2, CircleAlert, Loader2, RefreshCcw, TrendingUp } from 'lucide-react';
+import { CalendarClock, CheckCircle2, CircleAlert, FileSpreadsheet, FileText, Loader2, RefreshCcw, TrendingUp } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,10 @@ import {
   type SituacaoPontualidadeMSP,
   usePontualidadeMSPNatal2026,
 } from '@/hooks/usePontualidadeMSPNatal2026';
+import {
+  exportarRelatorioPontualidadeExcel,
+  exportarRelatorioPontualidadePdf,
+} from '@/utils/relatorioPontualidadeProducao';
 
 const dataPt = (data: string | null) => {
   if (!data) return 'Sem apontamento';
@@ -133,7 +137,7 @@ const LinhaDoTempoInicios = ({ pecas }: { pecas: ReturnType<typeof usePontualida
   );
 };
 
-/** Resumo gerencial das peças cuja programação veio do Natal 2026 v24.mpp. */
+/** Resumo gerencial da pontualidade de todas as peças programadas. */
 export const ResumoPontualidadeMSPNatal2026 = () => {
   const { loading, error, resumo, carregar } = usePontualidadeMSPNatal2026();
 
@@ -142,6 +146,7 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
   }, [carregar]);
 
   const comAtraso = resumo.iniciadosAtrasados + resumo.atrasadosParaIniciar;
+  const exportacaoDisponivel = !loading && resumo.total > 0;
 
   return (
     <Card>
@@ -149,16 +154,26 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
         <div>
           <CardTitle className="flex items-center gap-2 text-lg">
             <CalendarClock className="h-5 w-5 text-primary" />
-            Ritmo do Project — Natal 2026
+            Pontualidade da produção
           </CardTitle>
           <CardDescription className="mt-1 max-w-3xl">
-            Compara o primeiro início previsto das OPs importadas com o primeiro apontamento válido da peça, incluindo apontamentos preservados em OPs legadas.
+            Compara o primeiro início previsto das OPs de cada peça com o primeiro apontamento válido, incluindo o histórico preservado em OPs anteriores.
           </CardDescription>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => void carregar()} disabled={loading} className="print:hidden">
-          {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
-          Atualizar
-        </Button>
+        <div className="flex flex-wrap gap-2 print:hidden">
+          <Button type="button" variant="outline" size="sm" onClick={() => exportarRelatorioPontualidadeExcel(resumo)} disabled={!exportacaoDisponivel}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Excel
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => exportarRelatorioPontualidadePdf(resumo)} disabled={!exportacaoDisponivel}>
+            <FileText className="mr-2 h-4 w-4" />
+            PDF
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => void carregar()} disabled={loading}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+            Atualizar
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {error && (
@@ -170,7 +185,7 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <div className="rounded-lg border bg-muted/20 p-3">
-            <p className="text-xs text-muted-foreground">Peças importadas</p>
+            <p className="text-xs text-muted-foreground">Peças programadas</p>
             <p className="mt-1 text-2xl font-bold">{resumo.total}</p>
           </div>
           <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 p-3">
@@ -202,7 +217,7 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
             {resumo.pecas.length > 0 && (
               <div className="space-y-2">
                 <div>
-                  <p className="text-sm font-medium">Linha do tempo dos inícios importados</p>
+                  <p className="text-sm font-medium">Linha do tempo dos inícios</p>
                   <p className="text-xs text-muted-foreground">A barra mostra apenas a diferença entre a data prevista e o primeiro apontamento; não representa duração da produção.</p>
                 </div>
                 <LinhaDoTempoInicios pecas={resumo.pecas} />
@@ -227,7 +242,7 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
                       <TableRow key={peca.projetoId}>
                         <TableCell>
                           <div className="min-w-64 font-medium">{peca.projetoNome}</div>
-                          <div className="text-xs text-muted-foreground">{peca.opsImportadas} OP(s) importada(s){peca.cidade ? ` · ${peca.cidade}` : ''}</div>
+                          <div className="text-xs text-muted-foreground">{peca.opsImportadas} OP(s) programada(s){peca.cidade ? ` · ${peca.cidade}` : ''}</div>
                         </TableCell>
                         <TableCell>{dataPt(peca.inicioPlanejado)}</TableCell>
                         <TableCell>{dataPt(peca.primeiroApontamento)}</TableCell>
@@ -241,20 +256,6 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
                   )}
                 </TableBody>
               </Table>
-            </div>
-
-            <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
-              <p className="text-sm font-medium">Atrasos em todo o sistema: {resumo.totalAtrasosSistema}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Esta contagem inclui qualquer peça com OP programada, inclusive as que não vieram do Natal 2026 v24.</p>
-              <div className="mt-3 grid gap-2 lg:grid-cols-2">
-                {resumo.atrasosSistema.map((peca) => (
-                  <div key={peca.projetoId} className="rounded border bg-background/70 px-3 py-2 text-xs">
-                    <p className="font-medium">{peca.projetoNome}</p>
-                    <p className="mt-0.5 text-muted-foreground">Previsto: {dataPt(peca.inicioPlanejado)} · {peca.primeiroApontamento ? `Apontado: ${dataPt(peca.primeiroApontamento)}` : 'Sem apontamento'} · {impacto(peca.situacao, peca.diferencaDias)}</p>
-                    {!peca.importadaDoProject && <Badge variant="outline" className="mt-1 border-muted-foreground/30 text-[10px] text-muted-foreground">Fora da importação do Project</Badge>}
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         )}

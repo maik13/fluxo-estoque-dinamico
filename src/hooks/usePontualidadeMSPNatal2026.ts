@@ -18,7 +18,6 @@ export interface PontualidadeMSPPeca {
   opsImportadas: number;
   situacao: SituacaoPontualidadeMSP;
   diferencaDias: number;
-  importadaDoProject: boolean;
 }
 
 export interface ResumoPontualidadeMSP {
@@ -30,8 +29,6 @@ export interface ResumoPontualidadeMSP {
   iniciadosAtrasados: number;
   atrasadosParaIniciar: number;
   aguardandoInicio: number;
-  atrasosSistema: PontualidadeMSPPeca[];
-  totalAtrasosSistema: number;
 }
 
 interface OrdemProducaoGerencial {
@@ -65,8 +62,6 @@ const resumoInicial = (): ResumoPontualidadeMSP => ({
   iniciadosAtrasados: 0,
   atrasadosParaIniciar: 0,
   aguardandoInicio: 0,
-  atrasosSistema: [],
-  totalAtrasosSistema: 0,
 });
 
 const hojeISO = () => format(new Date(), 'yyyy-MM-dd');
@@ -104,11 +99,6 @@ export const usePontualidadeMSPNatal2026 = () => {
       if (processosResult.error) throw processosResult.error;
 
       const todasOrdens = (ordensResult.data ?? []) as OrdemProducaoGerencial[];
-      const ordensMSP = todasOrdens.filter((ordem) =>
-        ordem.status !== 'cancelada'
-        && ordem.instrucoes?.startsWith('MSP-v24 | Task UID ')
-        && Boolean(ordem.data_inicio_prevista),
-      );
       const ordensComPrevisao = todasOrdens.filter((ordem) =>
         ordem.status !== 'cancelada' && Boolean(ordem.data_inicio_prevista),
       );
@@ -135,7 +125,7 @@ export const usePontualidadeMSPNatal2026 = () => {
       }
 
       const hoje = parseISO(hojeISO());
-      const montarPecas = (ordens: OrdemProducaoGerencial[], importadaDoProject: boolean) => {
+      const montarPecas = (ordens: OrdemProducaoGerencial[]) => {
         const porProjeto = new Map<string, PontualidadeMSPPeca>();
         for (const ordem of ordens) {
           const existente = porProjeto.get(ordem.projeto_id);
@@ -155,7 +145,6 @@ export const usePontualidadeMSPNatal2026 = () => {
             opsImportadas: 1,
             situacao: 'aguardando_inicio',
             diferencaDias: 0,
-            importadaDoProject,
           });
         }
 
@@ -198,10 +187,7 @@ export const usePontualidadeMSPNatal2026 = () => {
         });
       };
 
-      const pecas = montarPecas(ordensMSP, true);
-      const atrasosSistema = montarPecas(ordensComPrevisao, false).filter((peca) =>
-        peca.situacao === 'iniciado_atrasado' || peca.situacao === 'atrasado_para_iniciar',
-      );
+      const pecas = montarPecas(ordensComPrevisao);
 
       const proximoResumo: ResumoPontualidadeMSP = {
         atualizadoEm: new Date(),
@@ -212,8 +198,6 @@ export const usePontualidadeMSPNatal2026 = () => {
         iniciadosAtrasados: pecas.filter((peca) => peca.situacao === 'iniciado_atrasado').length,
         atrasadosParaIniciar: pecas.filter((peca) => peca.situacao === 'atrasado_para_iniciar').length,
         aguardandoInicio: pecas.filter((peca) => peca.situacao === 'aguardando_inicio').length,
-        atrasosSistema,
-        totalAtrasosSistema: atrasosSistema.length,
       };
       setResumo(proximoResumo);
       return proximoResumo;
