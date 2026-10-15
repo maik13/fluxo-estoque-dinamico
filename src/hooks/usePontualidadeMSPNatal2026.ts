@@ -18,6 +18,7 @@ export interface PontualidadeMSPPeca {
   opsImportadas: number;
   situacao: SituacaoPontualidadeMSP;
   diferencaDias: number;
+  importadaDoProject: boolean;
 }
 
 export interface ResumoPontualidadeMSP {
@@ -29,6 +30,8 @@ export interface ResumoPontualidadeMSP {
   iniciadosAtrasados: number;
   atrasadosParaIniciar: number;
   aguardandoInicio: number;
+  atrasosSistema: PontualidadeMSPPeca[];
+  totalAtrasosSistema: number;
 }
 
 interface OrdemProducaoGerencial {
@@ -62,6 +65,8 @@ const resumoInicial = (): ResumoPontualidadeMSP => ({
   iniciadosAtrasados: 0,
   atrasadosParaIniciar: 0,
   aguardandoInicio: 0,
+  atrasosSistema: [],
+  totalAtrasosSistema: 0,
 });
 
 const hojeISO = () => format(new Date(), 'yyyy-MM-dd');
@@ -104,7 +109,10 @@ export const usePontualidadeMSPNatal2026 = () => {
         && ordem.instrucoes?.startsWith('MSP-v24 | Task UID ')
         && Boolean(ordem.data_inicio_prevista),
       );
-      const projetosMSP = new Set(ordensMSP.map((ordem) => ordem.projeto_id));
+      const ordensComPrevisao = todasOrdens.filter((ordem) =>
+        ordem.status !== 'cancelada' && Boolean(ordem.data_inicio_prevista),
+      );
+      const projetosComPrevisao = new Set(ordensComPrevisao.map((ordem) => ordem.projeto_id));
       const projetoPorOrdem = new Map(todasOrdens.map((ordem) => [ordem.id, ordem.projeto_id]));
       const projetoPorProcesso = new Map(
         ((processosResult.data ?? []) as ProcessoGerencial[]).map((processo) => [processo.id, processo.projeto_id]),
@@ -118,7 +126,7 @@ export const usePontualidadeMSPNatal2026 = () => {
           : apontamento.processo_id
             ? projetoPorProcesso.get(apontamento.processo_id)
             : undefined;
-        if (!projetoId || !projetosMSP.has(projetoId)) continue;
+        if (!projetoId || !projetosComPrevisao.has(projetoId)) continue;
 
         const anterior = primeiroApontamentoPorProjeto.get(projetoId);
         if (!anterior || apontamento.data < anterior) {
@@ -126,30 +134,32 @@ export const usePontualidadeMSPNatal2026 = () => {
         }
       }
 
-      const porProjeto = new Map<string, PontualidadeMSPPeca>();
-      for (const ordem of ordensMSP) {
-        const existente = porProjeto.get(ordem.projeto_id);
-        if (existente) {
-          existente.opsImportadas += 1;
-          if (ordem.data_inicio_prevista! < existente.inicioPlanejado) {
-            existente.inicioPlanejado = ordem.data_inicio_prevista!;
-          }
-          continue;
-        }
-        porProjeto.set(ordem.projeto_id, {
-          projetoId: ordem.projeto_id,
-          projetoNome: ordem.projeto_nome,
-          cidade: ordem.projeto_cidade,
-          inicioPlanejado: ordem.data_inicio_prevista!,
-          primeiroApontamento: null,
-          opsImportadas: 1,
-          situacao: 'aguardando_inicio',
-          diferencaDias: 0,
-        });
-      }
-
       const hoje = parseISO(hojeISO());
-      const pecas = [...porProjeto.values()].map((peca) => {
+      const montarPecas = (ordens: OrdemProducaoGerencial[], importadaDoProject: boolean) => {
+        const porProjeto = new Map<string, PontualidadeMSPPeca>();
+        for (const ordem of ordens) {
+          const existente = porProjeto.get(ordem.projeto_id);
+          if (existente) {
+            existente.opsImportadas += 1;
+            if (ordem.data_inicio_prevista! < existente.inicioPlanejado) {
+              existente.inicioPlanejado = ordem.data_inicio_prevista!;
+            }
+            continue;
+          }
+          porProjeto.set(ordem.projeto_id, {
+            projetoId: ordem.projeto_id,
+            projetoNome: ordem.projeto_nome,
+            cidade: ordem.projeto_cidade,
+            inicioPlanejado: ordem.data_inicio_prevista!,
+            primeiroApontamento: null,
+            opsImportadas: 1,
+            situacao: 'aguardando_inicio',
+            diferencaDias: 0,
+            importadaDoProject,
+          });
+        }
+
+        return [...porProjeto.values()].map((peca) => {
         const primeiroApontamento = primeiroApontamentoPorProjeto.get(peca.projetoId) ?? null;
         const inicioPlanejado = parseISO(peca.inicioPlanejado);
         const diferenca = primeiroApontamento
@@ -174,7 +184,7 @@ export const usePontualidadeMSPNatal2026 = () => {
           diferencaDias: Math.max(0, diferenca),
           situacao: diferenca > 0 ? 'atrasado_para_iniciar' as const : 'aguardando_inicio' as const,
         };
-      }).sort((a, b) => {
+        }).sort((a, b) => {
         const prioridade: Record<SituacaoPontualidadeMSP, number> = {
           atrasado_para_iniciar: 0,
           iniciado_atrasado: 1,
@@ -185,7 +195,13 @@ export const usePontualidadeMSPNatal2026 = () => {
         return prioridade[a.situacao] - prioridade[b.situacao]
           || b.diferencaDias - a.diferencaDias
           || a.projetoNome.localeCompare(b.projetoNome, 'pt-BR');
-      });
+        });
+      };
+
+      const pecas = montarPecas(ordensMSP, true);
+      const atrasosSistema = montarPecas(ordensComPrevisao, false).filter((peca) =>
+        peca.situacao === 'iniciado_atrasado' || peca.situacao === 'atrasado_para_iniciar',
+      );
 
       const proximoResumo: ResumoPontualidadeMSP = {
         atualizadoEm: new Date(),
@@ -196,6 +212,8 @@ export const usePontualidadeMSPNatal2026 = () => {
         iniciadosAtrasados: pecas.filter((peca) => peca.situacao === 'iniciado_atrasado').length,
         atrasadosParaIniciar: pecas.filter((peca) => peca.situacao === 'atrasado_para_iniciar').length,
         aguardandoInicio: pecas.filter((peca) => peca.situacao === 'aguardando_inicio').length,
+        atrasosSistema,
+        totalAtrasosSistema: atrasosSistema.length,
       };
       setResumo(proximoResumo);
       return proximoResumo;

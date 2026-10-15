@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { addDays, differenceInCalendarDays, format, parseISO, subDays } from 'date-fns';
 import { CalendarClock, CheckCircle2, CircleAlert, Loader2, RefreshCcw, TrendingUp } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -57,6 +58,79 @@ const impacto = (situacao: SituacaoPontualidadeMSP, dias: number) => {
     default:
       return '—';
   }
+};
+
+const limitar = (valor: number) => Math.min(100, Math.max(0, valor));
+
+const LinhaDoTempoInicios = ({ pecas }: { pecas: ReturnType<typeof usePontualidadeMSPNatal2026>['resumo']['pecas'] }) => {
+  const datas = pecas.flatMap((peca) => [peca.inicioPlanejado, peca.primeiroApontamento].filter(Boolean) as string[]);
+  if (datas.length === 0) return null;
+
+  const hoje = format(new Date(), 'yyyy-MM-dd');
+  const menorData = datas.reduce((menor, data) => (data < menor ? data : menor));
+  const maiorData = [...datas, hoje].reduce((maior, data) => (data > maior ? data : maior));
+  const inicioFaixa = subDays(parseISO(menorData), 5);
+  const fimFaixa = addDays(parseISO(maiorData), 5);
+  const totalDias = Math.max(1, differenceInCalendarDays(fimFaixa, inicioFaixa));
+  const posicao = (data: string) => limitar(differenceInCalendarDays(parseISO(data), inicioFaixa) / totalDias * 100);
+  const marcas = [0, 0.25, 0.5, 0.75, 1].map((parte) => ({
+    posicao: parte * 100,
+    rotulo: format(addDays(inicioFaixa, Math.round(totalDias * parte)), 'dd/MM'),
+  }));
+
+  return (
+    <div className="overflow-x-auto rounded-md border">
+      <div className="min-w-[760px] p-4">
+        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span><i className="mr-1 inline-block h-3 w-0.5 bg-sky-500 align-middle" />Início previsto</span>
+          <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 align-middle" />Apontamento antes/no prazo</span>
+          <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-amber-500 align-middle" />Apontamento após o previsto</span>
+          <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-destructive align-middle" />Hoje, quando segue sem início</span>
+        </div>
+        <div className="grid grid-cols-[minmax(235px,30%)_1fr] gap-x-3">
+          <div className="pb-5 text-xs font-medium text-muted-foreground">Peça / projeto</div>
+          <div className="relative h-5 border-b">
+            {marcas.map((marca) => (
+              <span key={marca.posicao} className="absolute -translate-x-1/2 text-[10px] text-muted-foreground" style={{ left: `${marca.posicao}%` }}>{marca.rotulo}</span>
+            ))}
+          </div>
+          {pecas.map((peca) => {
+            const previsto = posicao(peca.inicioPlanejado);
+            const referenciaReal = peca.primeiroApontamento ?? (peca.situacao === 'atrasado_para_iniciar' ? hoje : null);
+            const real = referenciaReal ? posicao(referenciaReal) : null;
+            const inicioVariacao = real === null ? previsto : Math.min(previsto, real);
+            const larguraVariacao = real === null ? 0 : Math.abs(real - previsto);
+            const classeVariacao = peca.situacao === 'antecipado'
+              ? 'bg-emerald-500/60'
+              : peca.situacao === 'atrasado_para_iniciar'
+                ? 'bg-destructive/60'
+                : peca.situacao === 'iniciado_atrasado'
+                  ? 'bg-amber-500/60'
+                  : 'bg-sky-500/40';
+            const classeMarco = peca.situacao === 'atrasado_para_iniciar'
+              ? 'bg-destructive'
+              : peca.situacao === 'iniciado_atrasado'
+                ? 'bg-amber-500'
+                : 'bg-emerald-500';
+            return (
+              <div key={peca.projetoId} className="contents">
+                <div className="border-t py-2 pr-2 text-xs">
+                  <p className="truncate font-medium" title={peca.projetoNome}>{peca.projetoNome}</p>
+                  <p className="text-muted-foreground">{apresentacao[peca.situacao].rotulo}{peca.diferencaDias ? ` · ${impacto(peca.situacao, peca.diferencaDias)}` : ''}</p>
+                </div>
+                <div className="relative border-t" aria-label={`${peca.projetoNome}: previsto ${dataPt(peca.inicioPlanejado)}, ${dataPt(peca.primeiroApontamento)}`}>
+                  {marcas.map((marca) => <span key={marca.posicao} className="absolute inset-y-0 border-l border-dashed border-muted" style={{ left: `${marca.posicao}%` }} />)}
+                  {real !== null && larguraVariacao > 0 && <span className={`absolute top-1/2 h-1 -translate-y-1/2 rounded ${classeVariacao}`} style={{ left: `${inicioVariacao}%`, width: `${larguraVariacao}%` }} />}
+                  <span className="absolute top-1/2 h-5 w-0.5 -translate-x-1/2 -translate-y-1/2 bg-sky-500" style={{ left: `${previsto}%` }} title={`Previsto: ${dataPt(peca.inicioPlanejado)}`} />
+                  {real !== null && <span className={`absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background ${classeMarco}`} style={{ left: `${real}%` }} title={peca.primeiroApontamento ? `Primeiro apontamento: ${dataPt(peca.primeiroApontamento)}` : 'Hoje: ainda sem apontamento'} />}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 /** Resumo gerencial das peças cuja programação veio do Natal 2026 v24.mpp. */
@@ -124,38 +198,64 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
             Comparando Project e apontamentos...
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Peça / projeto</TableHead>
-                  <TableHead>Início previsto</TableHead>
-                  <TableHead>Primeiro apontamento</TableHead>
-                  <TableHead>Situação</TableHead>
-                  <TableHead className="text-right">Variação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {resumo.pecas.map((peca) => {
-                  const item = apresentacao[peca.situacao];
-                  return (
-                    <TableRow key={peca.projetoId}>
-                      <TableCell>
-                        <div className="min-w-64 font-medium">{peca.projetoNome}</div>
-                        <div className="text-xs text-muted-foreground">{peca.opsImportadas} OP(s) importada(s){peca.cidade ? ` · ${peca.cidade}` : ''}</div>
-                      </TableCell>
-                      <TableCell>{dataPt(peca.inicioPlanejado)}</TableCell>
-                      <TableCell>{dataPt(peca.primeiroApontamento)}</TableCell>
-                      <TableCell><Badge variant="outline" className={item.classe}>{item.rotulo}</Badge></TableCell>
-                      <TableCell className="text-right font-medium">{impacto(peca.situacao, peca.diferencaDias)}</TableCell>
-                    </TableRow>
-                  );
-                })}
-                {!error && resumo.pecas.length === 0 && !loading && (
-                  <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Nenhuma OP do Natal 2026 v24 foi encontrada.</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
+          <div className="space-y-4">
+            {resumo.pecas.length > 0 && (
+              <div className="space-y-2">
+                <div>
+                  <p className="text-sm font-medium">Linha do tempo dos inícios importados</p>
+                  <p className="text-xs text-muted-foreground">A barra mostra apenas a diferença entre a data prevista e o primeiro apontamento; não representa duração da produção.</p>
+                </div>
+                <LinhaDoTempoInicios pecas={resumo.pecas} />
+              </div>
+            )}
+
+            <div className="overflow-x-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Peça / projeto</TableHead>
+                    <TableHead>Início previsto</TableHead>
+                    <TableHead>Primeiro apontamento</TableHead>
+                    <TableHead>Situação</TableHead>
+                    <TableHead className="text-right">Variação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {resumo.pecas.map((peca) => {
+                    const item = apresentacao[peca.situacao];
+                    return (
+                      <TableRow key={peca.projetoId}>
+                        <TableCell>
+                          <div className="min-w-64 font-medium">{peca.projetoNome}</div>
+                          <div className="text-xs text-muted-foreground">{peca.opsImportadas} OP(s) importada(s){peca.cidade ? ` · ${peca.cidade}` : ''}</div>
+                        </TableCell>
+                        <TableCell>{dataPt(peca.inicioPlanejado)}</TableCell>
+                        <TableCell>{dataPt(peca.primeiroApontamento)}</TableCell>
+                        <TableCell><Badge variant="outline" className={item.classe}>{item.rotulo}</Badge></TableCell>
+                        <TableCell className="text-right font-medium">{impacto(peca.situacao, peca.diferencaDias)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {!error && resumo.pecas.length === 0 && !loading && (
+                    <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Nenhuma OP do Natal 2026 v24 foi encontrada.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
+              <p className="text-sm font-medium">Atrasos em todo o sistema: {resumo.totalAtrasosSistema}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Esta contagem inclui qualquer peça com OP programada, inclusive as que não vieram do Natal 2026 v24.</p>
+              <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                {resumo.atrasosSistema.map((peca) => (
+                  <div key={peca.projetoId} className="rounded border bg-background/70 px-3 py-2 text-xs">
+                    <p className="font-medium">{peca.projetoNome}</p>
+                    <p className="mt-0.5 text-muted-foreground">Previsto: {dataPt(peca.inicioPlanejado)} · {peca.primeiroApontamento ? `Apontado: ${dataPt(peca.primeiroApontamento)}` : 'Sem apontamento'} · {impacto(peca.situacao, peca.diferencaDias)}</p>
+                    {!peca.importadaDoProject && <Badge variant="outline" className="mt-1 border-muted-foreground/30 text-[10px] text-muted-foreground">Fora da importação do Project</Badge>}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
         <p className="text-xs text-muted-foreground">
