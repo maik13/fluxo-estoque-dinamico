@@ -583,3 +583,38 @@
     content: "Página " counter(page) !important;
   }
 }
+
+
+/* Impressão do Gantt existente: A4 paisagem, todo o período visível em uma página. */
+@media print {
+  @page { size: A4 landscape; margin: 6mm; }
+  .gantt-print-root { margin: 0 !important; padding: 0 !important; }
+  .gantt-print-root .gantt-print-area {
+    width: max-content !important;
+    max-width: none !important;
+    overflow: visible !important;
+    transform: scale(var(--gantt-print-scale, 1));
+    transform-origin: top left;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .gantt-print-root .gantt-scroll {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .gantt-print-root .gantt-print-area .sticky {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+  }
+  .gantt-print-root .gantt-print-area .backdrop-blur {
+    backdrop-filter: none !important;
+  }
+  .gantt-print-root .gantt-print-area * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .gantt-print-root .gantt-print-area button { display: none !important; }
+}
