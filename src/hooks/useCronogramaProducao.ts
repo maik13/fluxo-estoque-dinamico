@@ -123,10 +123,8 @@ export const useCronogramaProducao = () => {
             ...ordem,
             tarefa_id: identidade?.tarefa_id ?? ordem.tarefa_id ?? null,
             tarefa_nome_snapshot: identidade?.tarefa_nome_snapshot ?? ordem.tarefa_nome_snapshot ?? null,
-            // No Gantt, a posição da OP é definida pela própria programação da OP.
-            // Datas reais/status não substituem início planejado e prazo da OP.
-            data_inicio_real: null,
-            data_fim_real: null,
+            // Preservar as datas reais para classificar antecipações e atrasos;
+            // a barra no componente continua usando início/fim previstos.
           };
         });
         const ordensValidas = ordens.filter((ordem) => ordem.status !== 'cancelada');
