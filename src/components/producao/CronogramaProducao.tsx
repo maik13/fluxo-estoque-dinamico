@@ -325,29 +325,6 @@ export const CronogramaProducao = () => {
       ]);
   }, [etapasFiltradas, etapasRecolhidas]);
 
-  const semProgramacao = useMemo(() => etapasFiltradas.flatMap((etapa) => {
-    const ordensAtivas = etapa.ordens.filter((ordem) => ordem.status !== 'cancelada');
-    if (ordensAtivas.length > 0) {
-      return ordensAtivas
-        .filter((ordem) => !intervaloOrdem(ordem))
-        .map((ordem) => ({
-          id: `op-${ordem.id}`,
-          titulo: formatarIdentificacaoOrdemProducao(ordem),
-          projeto: etapa.projeto_nome,
-          etapa: etapa.etapa_nome,
-        }));
-    }
-    if (!intervaloEtapa(etapa)) {
-      return [{
-        id: `etapa-${etapa.etapa_id}`,
-        titulo: etapa.etapa_nome,
-        projeto: etapa.projeto_nome,
-        etapa: 'Etapa sem OP e sem período definido',
-      }];
-    }
-    return [];
-  }), [etapasFiltradas]);
-
   const periodo = useMemo(() => calcularPeriodo(visualizacao, deslocamento), [deslocamento, visualizacao]);
   const pixelsPorDiaBase = PIXELS_POR_DIA[visualizacao];
   const dias = useMemo(() => {
@@ -498,10 +475,9 @@ export const CronogramaProducao = () => {
 
       {erro && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{erro}. Confirme se as migrations do cronograma e das OPs foram aplicadas.</AlertDescription></Alert>}
       {alertasAltos > 0 && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>O cronograma possui {alertasAltos} alerta(s) crítico(s). Verifique prazo, capacidade e quantidade não alocada.</AlertDescription></Alert>}
-      <div className="grid gap-3 sm:grid-cols-4 print:hidden">
+      <div className="grid gap-3 sm:grid-cols-3 print:hidden">
         <Card className="p-4"><p className="text-xs text-muted-foreground">Equipe disponível/dia</p><p className="text-2xl font-bold">{configuracao?.equipe_disponivel_por_dia ?? '—'}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Programados no período</p><p className="text-2xl font-bold">{linhas.length}</p></Card>
-        <Card className="p-4"><p className="text-xs text-muted-foreground">Sem programação</p><p className="text-2xl font-bold">{semProgramacao.length}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Alertas críticos</p><p className={cn('text-2xl font-bold', alertasAltos > 0 && 'text-destructive')}>{alertasAltos}</p></Card>
       </div>
 
@@ -813,22 +789,6 @@ export const CronogramaProducao = () => {
             </div>
           </Card>
 
-          {!loading && semProgramacao.length > 0 && (
-            <Card className="mt-4 p-4 print:hidden">
-              <div className="mb-3">
-                <h4 className="text-sm font-semibold">Sem programação ({semProgramacao.length})</h4>
-                <p className="text-xs text-muted-foreground">Itens sem início e fim definidos não ocupam linhas do cronograma visual.</p>
-              </div>
-              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                {semProgramacao.map((item) => (
-                  <div key={item.id} className="rounded-md border bg-muted/10 px-3 py-2">
-                    <div className="truncate text-sm font-medium">{item.titulo}</div>
-                    <div className="truncate text-xs text-muted-foreground">{item.projeto} · {item.etapa}</div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
         </TabsContent>
 
         <TabsContent value="plano-diario" className="mt-4"><PlanoDiarioProducao /></TabsContent>
