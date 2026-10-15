@@ -134,13 +134,14 @@ const normalizarIntervalo = (
   const inicioPrevisto = dataValida(inicioPrevistoTexto ?? fimPrevistoTexto);
   const fimPrevisto = dataValida(fimPrevistoTexto ?? inicioPrevistoTexto);
 
-  const inicio = encerrado ? inicioReal ?? inicioPrevisto : inicioPrevisto ?? inicioReal;
-  const fimBruto = encerrado ? fimReal ?? fimPrevisto ?? inicio : fimPrevisto ?? fimReal ?? inicio;
+  // Datas planejadas prevalecem sobre APs e status; não deslocar o prazo original.
+  const inicio = inicioPrevisto ?? inicioReal;
+  const fimBruto = fimPrevisto ?? fimReal ?? inicio;
   if (!inicio || !fimBruto) return null;
   return {
     inicio,
     fim: fimBruto.getTime() < inicio.getTime() ? inicio : fimBruto,
-    origem: encerrado && Boolean(inicioReal || fimReal) ? 'real' : 'prevista',
+    origem: inicioPrevisto && fimPrevisto ? 'prevista' : 'real',
   };
 };
 
@@ -159,6 +160,17 @@ const intervaloOrdem = (ordem: GanttOrdemProducao) => normalizarIntervalo(
   ordem.data_fim_prevista,
   ordem.status === 'concluida' || ordem.status === 'cancelada',
 );
+
+const classePrazo = (status: string, fimPrevisto: string | null | undefined, fimReal: string | null | undefined, hoje: Date): string => {
+  const fim = dataValida(fimPrevisto);
+  const concluido = status === 'concluida' || status === 'finalizado';
+  const real = dataValida(fimReal);
+  if (fim && ((concluido && real && differenceInCalendarDays(real, fim) > 0)
+    || (!concluido && differenceInCalendarDays(hoje, fim) > 0))) return 'bg-red-600';
+  if (status === 'em_execucao' || status === 'em_andamento') return 'bg-emerald-600';
+  if (status === 'cancelada' || status === 'cancelado') return 'bg-zinc-500';
+  return fim ? 'bg-blue-600' : 'bg-slate-500';
+};
 
 const limitarData = (data: Date, minimo: Date, maximo: Date) => {
   if (data.getTime() < minimo.getTime()) return minimo;
@@ -380,9 +392,13 @@ export const CronogramaProducao = () => {
     : linha.ordem.status;
 
   const alturaLinha = (linha: LinhaGantt) => linha.tipo === 'etapa' ? ROW_HEIGHT_ETAPA : ROW_HEIGHT_OP;
+  const larguraImpressao = LABEL_WIDTH + largura;
+  const alturaImpressao = GANTT_HEADER_HEIGHT + linhas.length * ROW_HEIGHT_ETAPA + 65;
+  const escalaImpressao = Math.min(1, 1050 / larguraImpressao, 700 / alturaImpressao);
+  const imprimirGantt = () => window.print();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 gantt-print-root" style={{ '--gantt-print-scale': escalaImpressao } as React.CSSProperties}>
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
           <h3 className="text-lg font-medium">Cronograma de Produção</h3>
@@ -447,7 +463,7 @@ export const CronogramaProducao = () => {
               <Button variant="outline" size="icon" onClick={() => setDeslocamento((valor) => valor - 1)}><ChevronLeft className="h-4 w-4" /></Button>
               <Button variant="outline" onClick={() => setDeslocamento(0)}><CalendarDays className="mr-2 h-4 w-4" />Hoje</Button>
               <Button variant="outline" size="icon" onClick={() => setDeslocamento((valor) => valor + 1)}><ChevronRight className="h-4 w-4" /></Button>
-              <Button variant="outline" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Imprimir / PDF</Button>
+              <Button variant="outline" onClick={imprimirGantt}><Printer className="mr-2 h-4 w-4" />Imprimir / PDF</Button>
             </div>
 
             <div className="border-b bg-muted/20 px-4 py-2 text-sm text-muted-foreground">
@@ -609,8 +625,8 @@ export const CronogramaProducao = () => {
                       ? `${linha.etapa.codigo} · ${linha.etapa.etapa_nome}`
                       : formatarNumeroOrdemProducao(linha.ordem.numero);
                     const classe = linha.tipo === 'etapa'
-                      ? statusEtapaClass[status] ?? 'bg-slate-500'
-                      : statusOpClass[status] ?? 'bg-indigo-500';
+                      ? classePrazo(status, linha.etapa.data_fim_prevista, linha.etapa.data_fim_real, new Date())
+                      : classePrazo(status, linha.ordem.data_fim_prevista, linha.ordem.data_fim_real, new Date());
 
                     return (
                       <div
