@@ -334,13 +334,13 @@ export const CronogramaProducao = () => {
           id: `op-${ordem.id}`,
           titulo: formatarIdentificacaoOrdemProducao(ordem),
           projeto: etapa.projeto_nome,
-          etapa: `${etapa.codigo} · ${etapa.etapa_nome}`,
+          etapa: etapa.etapa_nome,
         }));
     }
     if (!intervaloEtapa(etapa)) {
       return [{
         id: `etapa-${etapa.etapa_id}`,
-        titulo: `${etapa.codigo} · ${etapa.etapa_nome}`,
+        titulo: etapa.etapa_nome,
         projeto: etapa.projeto_nome,
         etapa: 'Etapa sem OP e sem período definido',
       }];
@@ -650,7 +650,7 @@ export const CronogramaProducao = () => {
                                   {linha.etapa.etapa_nome}
                                 </div>
                                 <div className="truncate text-[11px] text-muted-foreground">
-                                  {linha.etapa.projeto_nome} · {linha.etapa.codigo}
+                                  {linha.etapa.projeto_nome}
                                 </div>
                               </div>
                             </>
@@ -740,7 +740,7 @@ export const CronogramaProducao = () => {
                     const titulo = linha.tipo === 'peca'
                         ? linha.projetoNome
                         : linha.tipo === 'etapa'
-                        ? `${linha.etapa.codigo} · ${linha.etapa.etapa_nome}`
+                        ? linha.etapa.etapa_nome
                         : formatarNumeroOrdemProducao(linha.ordem.numero);
                     const classe = linha.tipo === 'etapa'
                         ? statusEtapaClass[status] ?? 'bg-slate-500'
