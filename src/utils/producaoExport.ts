@@ -286,17 +286,40 @@ export const exportarBIProducaoExcel = (
     'Produção por Local de Execução',
   );
 
+  const movimentosMateriais = (dados.materiais.movimentacoes ?? []).map((material) => ({
+    Data: formatarDataHora(material.data_movimentacao ?? material.created_at),
+    Grupo: material.grupo_nome ?? 'Sem grupo',
+    'Projeto/local': material.projeto_nome ?? material.projeto_local_id ?? '',
+    Código: material.codigo_item ?? '',
+    Item: nomeItem(material),
+    Operação: material.tipo,
+    Quantidade: material.quantidade,
+    Unidade: material.unidade ?? '',
+    'Movimento oficial': material.movement_id ?? '',
+    'Apontamento vinculado': material.apontamento_id ?? '',
+    Observações: material.observacoes_producao ?? '',
+  }));
+  const cabecalhosMovimentos = ['Data', 'Grupo', 'Projeto/local', 'Código', 'Item', 'Operação', 'Quantidade', 'Unidade', 'Movimento oficial', 'Apontamento vinculado', 'Observações'];
+  const detalheMateriais = criarPlanilha(movimentosMateriais, cabecalhosMovimentos, [23, 24, 40, 14, 48, 20, 16, 12, 38, 38, 55]);
+  if (detalheMateriais['!ref']) detalheMateriais['!autofilter'] = { ref: detalheMateriais['!ref'] };
+  XLSX.utils.book_append_sheet(workbook, detalheMateriais, 'Movimentações de Materiais');
+
   const materiaisItem = dados.materiais.quantidade_por_item.map((item) => ({
+    Código: item.codigo_item ?? '',
     Item: item.item_nome,
-    Quantidade: item.quantidade,
+    Unidade: item.unidade ?? 'Não informada',
+    Saída: item.saida ?? 0,
+    Devolvido: item.devolvido ?? 0,
+    'Saldo no projeto': item.quantidade,
+    'Outras entradas': item.outras_entradas ?? 0,
     'Movimentações vinculadas': item.total_movimentacoes,
   }));
   XLSX.utils.book_append_sheet(
     workbook,
     criarPlanilha(
       materiaisItem,
-      ['Item', 'Quantidade', 'Movimentações vinculadas'],
-      [44, 16, 26],
+      ['Código', 'Item', 'Unidade', 'Saída', 'Devolvido', 'Saldo no projeto', 'Outras entradas', 'Movimentações vinculadas'],
+      [14, 44, 18, 16, 16, 22, 20, 26],
     ),
     'Materiais por Item',
   );
@@ -304,6 +327,7 @@ export const exportarBIProducaoExcel = (
   const materiaisTipo = dados.materiais.quantidade_por_tipo_movimento.map(
     (item) => ({
       'Tipo de movimento': item.tipo,
+      Unidade: item.unidade ?? 'Não informada',
       Quantidade: item.quantidade,
       'Movimentações vinculadas': item.total_movimentacoes,
     }),
@@ -312,8 +336,8 @@ export const exportarBIProducaoExcel = (
     workbook,
     criarPlanilha(
       materiaisTipo,
-      ['Tipo de movimento', 'Quantidade', 'Movimentações vinculadas'],
-      [28, 16, 26],
+      ['Tipo de movimento', 'Unidade', 'Quantidade', 'Movimentações vinculadas'],
+      [28, 18, 16, 26],
     ),
     'Materiais por Tipo',
   );

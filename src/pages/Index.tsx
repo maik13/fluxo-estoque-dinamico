@@ -27,6 +27,7 @@ import { SeletorEstoque } from '@/components/gestao-estoque/SeletorEstoque';
 import { EstoqueProvider } from '@/contexts/EstoqueContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useSolicitacoesMaterialPendentes } from '@/hooks/useSolicitacoesMaterialPendentes';
+import { useSolicitacoesCotacaoPendentes } from '@/hooks/useSolicitacoesCotacaoPendentes';
 import { useMensagensNaoLidas } from '@/hooks/useMensagensNaoLidas';
 
 const AcompanhamentoPedidoIntegrado = lazy(() =>
@@ -80,6 +81,10 @@ const Index = () => {
     enabled: podeGerenciarSolicitacoesMaterial,
   });
   const { naoLidas: mensagensNaoLidasCount } = useMensagensNaoLidas();
+  const podeGerenciarCotacoes = isAdmin() || isGestor() || isEstoquista() || hasPermission('compras.pedidos.criar');
+  const { pendentesCount: solicitacoesCotacaoPendentesCount } = useSolicitacoesCotacaoPendentes({
+    enabled: podeGerenciarCotacoes,
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -218,7 +223,7 @@ const Index = () => {
           const showProjetos = canAccessProjects();
           const showProducao = canApontarProducao() || canConferirProducao() || canConfigurarProducao();
           const showFinanceiro = canAccessFinanceiro();
-          const showCotacoes = isAdmin() || hasPermission('compras.pedidos.criar');
+          const showCotacoes = isAdmin() || isGestor() || isEstoquista() || hasPermission('compras.pedidos.criar');
           const showAcompanhamentoPedido = hasPermission('acompanhamento.acessar');
           const showPlanejamento2 = hasPermission('planejamento2.acessar');
           const showImagensOP = hasPermission('imagensop.acessar');
@@ -248,6 +253,7 @@ const Index = () => {
                 showRHInformacoes={showRHInformacoes}
                 showConfiguracoes={showConfiguracoes}
                 solicitacoesPendentesCount={solicitacoesPendentesCount}
+                solicitacoesCotacaoPendentesCount={solicitacoesCotacaoPendentesCount}
                 mensagensNaoLidasCount={mensagensNaoLidasCount}
                 somenteBIProducao={somenteBIProducao}
               />
@@ -269,6 +275,8 @@ const Index = () => {
                         onAbrirGerencial={() => setTabAtiva('gerencial')}
                         onAbrirProjetos={() => setTabAtiva('projetos')}
                         onAbrirMensagens={() => setTabAtiva('mensagens')}
+                        onAbrirCotacoes={showCotacoes ? () => setTabAtiva('cotacoes') : undefined}
+                        solicitacoesCotacaoPendentesCount={solicitacoesCotacaoPendentesCount}
                         onAbrirProducao={() => setTabAtiva('producao')}
                       />
                       {somenteBIProducao && (

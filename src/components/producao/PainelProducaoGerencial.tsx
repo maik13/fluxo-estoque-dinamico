@@ -92,6 +92,7 @@ export const PainelProducaoGerencial = ({
     filtros,
     dadosConsolidados,
     carregarIndicadores,
+    gruposProjeto,
   } = useProducaoGerencial();
   const {
     tarefas,
@@ -99,6 +100,7 @@ export const PainelProducaoGerencial = ({
     listarTarefas,
     listarMembrosProducao,
   } = useProducao();
+  const [grupoId, setGrupoId] = useState(TODOS);
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [projetoId, setProjetoId] = useState(TODOS);
@@ -143,6 +145,7 @@ export const PainelProducaoGerencial = ({
   }, [carregar, listarMembrosProducao, listarTarefas]);
 
   const montarFiltros = (): FiltrosProducaoGerencial => ({
+    grupo_id: grupoId === TODOS ? undefined : grupoId,
     data_inicio: dataInicio || undefined,
     data_fim: dataFim || undefined,
     projeto_local_id: projetoId === TODOS ? undefined : projetoId,
@@ -158,6 +161,7 @@ export const PainelProducaoGerencial = ({
   };
 
   const limparFiltros = () => {
+    setGrupoId(TODOS);
     setDataInicio('');
     setDataFim('');
     setProjetoId(TODOS);
@@ -171,6 +175,7 @@ export const PainelProducaoGerencial = ({
   const totalFiltrosAplicados = Object.values(filtros).filter(Boolean).length;
   const filtrosDescricao = () => {
     const partes: string[] = [];
+    if (filtros.grupo_id) partes.push(`Grupo: ${gruposProjeto.find((grupo) => grupo.id === filtros.grupo_id)?.nome ?? filtros.grupo_id}`);
     if (filtros.data_inicio) partes.push(`Data inicial: ${filtros.data_inicio}`);
     if (filtros.data_fim) partes.push(`Data final: ${filtros.data_fim}`);
     if (filtros.projeto_local_id) {
@@ -388,6 +393,10 @@ export const PainelProducaoGerencial = ({
                     ...tarefas.filter((tarefa) => tarefa.ativo).map((tarefa) => ({ value: tarefa.id, label: tarefa.nome })),
                   ]}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Grupo do projeto</Label>
+                <SearchableSelect value={grupoId} onValueChange={setGrupoId} placeholder="Todos os grupos" searchPlaceholder="Buscar grupo..." options={[{ value: TODOS, label: 'Todos os grupos' }, ...gruposProjeto.map((grupo) => ({ value: grupo.id, label: grupo.nome }))]} />
               </div>
               <div className="space-y-2">
                 <Label>Membro</Label>
@@ -1131,7 +1140,7 @@ export const PainelProducaoGerencial = ({
               <CardTitle>Materiais vinculados à Produção</CardTitle>
               <CardDescription>
                 Materiais exibidos aqui são referências vinculadas a
-                movimentações oficiais já existentes.
+                movimentações oficiais já existentes. Saldo no projeto = saídas menos devoluções; não representa o saldo físico do almoxarifado. Quantidades são separadas por unidade. O Excel inclui cada movimento, com data, grupo, projeto, código e unidade. Filtros de tarefa, membro, status e local de execução exigem vínculo explícito com um apontamento.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -1148,15 +1157,15 @@ export const PainelProducaoGerencial = ({
                   </p>
                 </div>
                 <div className="rounded-lg border p-4">
-                  <p className="text-xs text-muted-foreground">Total saída</p>
+                  <p className="text-xs text-muted-foreground">Movimentos de saída</p>
                   <p className="text-2xl font-bold">
-                    {numero(dadosConsolidados.materiais.total_saida)}
+                    {numero(dadosConsolidados.materiais.quantidade_por_tipo_movimento.filter((t) => t.tipo === 'Saída').reduce((n, t) => n + t.total_movimentacoes, 0))}
                   </p>
                 </div>
                 <div className="rounded-lg border p-4">
-                  <p className="text-xs text-muted-foreground">Total entrada</p>
+                  <p className="text-xs text-muted-foreground">Movimentos de devolução</p>
                   <p className="text-2xl font-bold">
-                    {numero(dadosConsolidados.materiais.total_entrada)}
+                    {numero(dadosConsolidados.materiais.quantidade_por_tipo_movimento.filter((t) => t.tipo === 'Devolução').reduce((n, t) => n + t.total_movimentacoes, 0))}
                   </p>
                 </div>
                 <div className="rounded-lg border p-4">
@@ -1169,13 +1178,16 @@ export const PainelProducaoGerencial = ({
                 </div>
               </div>
 
-              <div className="grid gap-5 xl:grid-cols-2">
+              <div className="grid gap-5">
                 <div className="overflow-x-auto rounded-lg border">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Item</TableHead>
-                        <TableHead className="text-right">Quantidade</TableHead>
+                        <TableHead>Código</TableHead><TableHead>Item</TableHead><TableHead>Unidade</TableHead>
+                        <TableHead className="text-right">Saída</TableHead>
+                        <TableHead className="text-right">Devolvido</TableHead>
+                        <TableHead className="text-right">Saldo no projeto</TableHead>
+                        <TableHead className="text-right">Outras entradas</TableHead>
                         <TableHead className="text-right">Movimentos</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1184,7 +1196,7 @@ export const PainelProducaoGerencial = ({
                       0 ? (
                         <TableRow>
                           <TableCell
-                            colSpan={3}
+                            colSpan={8}
                             className="py-8 text-center text-muted-foreground"
                           >
                             Nenhum item vinculado.
@@ -1193,15 +1205,19 @@ export const PainelProducaoGerencial = ({
                       ) : (
                         dadosConsolidados.materiais.quantidade_por_item.map(
                           (item) => (
-                            <TableRow key={item.item_id}>
+                            <TableRow key={`${item.item_id}:${item.unidade}`}>
+                              <TableCell>{item.codigo_item || '—'}</TableCell>
                               <TableCell className="font-medium">
                                 {item.item_nome}
                               </TableCell>
+                              <TableCell>{item.unidade}</TableCell>
+                              <TableCell className="text-right">{numero(item.saida ?? 0)}</TableCell>
+                              <TableCell className="text-right">{numero(item.devolvido ?? 0)}</TableCell>
                               <TableCell className="text-right">
                                 {numero(item.quantidade)}
                               </TableCell>
                               <TableCell className="text-right">
-                                {numero(item.total_movimentacoes)}
+                                {numero(item.outras_entradas ?? 0)}</TableCell><TableCell className="text-right">{numero(item.total_movimentacoes)}
                               </TableCell>
                             </TableRow>
                           ),
@@ -1215,7 +1231,7 @@ export const PainelProducaoGerencial = ({
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Tipo de movimento</TableHead>
+                        <TableHead>Tipo de movimento</TableHead><TableHead>Unidade</TableHead>
                         <TableHead className="text-right">Quantidade</TableHead>
                         <TableHead className="text-right">Movimentos</TableHead>
                       </TableRow>
@@ -1234,10 +1250,10 @@ export const PainelProducaoGerencial = ({
                       ) : (
                         dadosConsolidados.materiais.quantidade_por_tipo_movimento.map(
                           (tipo) => (
-                            <TableRow key={tipo.tipo}>
+                            <TableRow key={`${tipo.tipo}:${tipo.unidade}`}>
                               <TableCell className="font-medium">
                                 {tipo.tipo}
-                              </TableCell>
+                              </TableCell><TableCell>{tipo.unidade}</TableCell>
                               <TableCell className="text-right">
                                 {numero(tipo.quantidade)}
                               </TableCell>

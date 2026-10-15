@@ -142,11 +142,11 @@ export const usePermissions = () => {
   const carregarPermissoesEfetivas = useCallback(async (tipoUsuario: string) => {
     const { data, error } = await (supabase as any).rpc('obter_minhas_permissoes');
 
-    // Antes da migration ser aplicada, a aplicação continua operando pela matriz antiga.
+    // Uma falha de consulta não pode reabrir acessos negados individualmente.
     if (error) {
-      const legado = await carregarPermissoesLegadas(tipoUsuario);
+      console.error('Erro ao consultar permissões efetivas:', error);
       setPermissoesEfetivas({});
-      setPermissoesDinamicas(legado);
+      setPermissoesDinamicas(DEFAULT_PERMISSIONS);
       return;
     }
 

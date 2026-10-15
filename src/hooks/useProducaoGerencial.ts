@@ -21,9 +21,25 @@ type ApontamentoMembroRow = ApontamentoMembroBase & {
 };
 type MembroRow = Database['public']['Tables']['producao_membros']['Row'];
 type TarefaRow = Database['public']['Tables']['producao_tarefas']['Row'];
-type MaterialRow = Database['public']['Tables']['producao_materiais_projeto']['Row'];
+type MaterialRow = Database['public']['Tables']['producao_materiais_projeto']['Row'] & {
+  projeto_nome?: string; grupo_nome?: string; data_movimentacao?: string; codigo_item?: string; unidade?: string; tipo_operacao_id?: string | null;
+};
 type AnexoRow = Database['public']['Tables']['producao_apontamento_anexos']['Row'];
 type LocalRow = Database['public']['Tables']['locais_utilizacao']['Row'];
+
+
+const carregarTodasPaginas = async <T,>(consulta: (inicio: number, fim: number) => PromiseLike<{ data: T[] | null; error: unknown }>) => {
+  const data: T[] = [];
+  for (let inicio = 0; ; ) {
+    const pagina = await consulta(inicio, inicio + 99);
+    if (pagina.error) throw pagina.error;
+    const linhas = pagina.data ?? [];
+    if (linhas.length === 0) break;
+    data.push(...linhas);
+    inicio += linhas.length;
+  }
+  return { data, error: null };
+};
 
 const FILTROS_INICIAIS: FiltrosProducaoGerencial = {};
 
@@ -103,28 +119,37 @@ const nomeItemSnapshot = (snapshot: MaterialRow['item_snapshot']) => {
 };
 
 const consolidarMateriais = (materiais: MaterialRow[]): IndicadorProducaoMateriais => {
-  const porItem = new Map<string, { item_nome: string; quantidade: number; total_movimentacoes: number }>();
-  const porTipo = new Map<string, { quantidade: number; total_movimentacoes: number }>();
+  const porItem = new Map<string, IndicadorProducaoMateriais['quantidade_por_item'][number]>();
+  const porTipo = new Map<string, IndicadorProducaoMateriais['quantidade_por_tipo_movimento'][number]>();
   let totalSaida = 0;
   let totalEntrada = 0;
-  materiais.forEach((material) => {
-    const quantidade = material.quantidade ?? 0;
-    const tipo = material.tipo || 'Não informado';
-    const tipoNormalizado = tipo.trim().toLocaleUpperCase('pt-BR');
-    const itemAtual = porItem.get(material.item_id) ?? { item_nome: nomeItemSnapshot(material.item_snapshot) ?? material.item_id, quantidade: 0, total_movimentacoes: 0 };
-    itemAtual.quantidade += quantidade; itemAtual.total_movimentacoes += 1; porItem.set(material.item_id, itemAtual);
-    const tipoAtual = porTipo.get(tipo) ?? { quantidade: 0, total_movimentacoes: 0 };
-    tipoAtual.quantidade += quantidade; tipoAtual.total_movimentacoes += 1; porTipo.set(tipo, tipoAtual);
-    if (tipoNormalizado === 'SAIDA' || tipoNormalizado === 'SAÍDA') totalSaida += quantidade;
-    if (tipoNormalizado === 'ENTRADA') totalEntrada += quantidade;
-  });
+  for (const material of materiais) {
+    const quantidade = Math.abs(material.quantidade ?? 0);
+    const unidade = material.unidade?.trim().toUpperCase() || 'Não informada';
+    const tipoOriginal = material.tipo.trim().toUpperCase();
+    const observacao = (material.observacoes_producao ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const saida = tipoOriginal === 'SAIDA' || tipoOriginal === 'SAÍDA';
+    const devolucao = tipoOriginal === 'ENTRADA' && (material.tipo_operacao_id === '8462f967-121e-4a0a-8d43-5e7131fc1981' || observacao.includes('devolucao'));
+    const tipo = saida ? 'Saída' : devolucao ? 'Devolução' : 'Outras entradas';
+    const key = JSON.stringify([material.item_id, unidade]);
+    const item = porItem.get(key) ?? { item_id: material.item_id, item_nome: nomeItemSnapshot(material.item_snapshot) ?? material.item_id, codigo_item: material.codigo_item ?? '', unidade, quantidade: 0, saida: 0, devolvido: 0, outras_entradas: 0, total_movimentacoes: 0 };
+    if (saida) { item.saida! += quantidade; totalSaida += quantidade; }
+    else if (devolucao) { item.devolvido! += quantidade; totalEntrada += quantidade; }
+    else item.outras_entradas! += quantidade;
+    item.quantidade = item.saida! - item.devolvido!;
+    item.total_movimentacoes += 1;
+    porItem.set(key, item);
+    const tipoKey = JSON.stringify([tipo, unidade]);
+    const resumo = porTipo.get(tipoKey) ?? { tipo, unidade, quantidade: 0, total_movimentacoes: 0 };
+    resumo.quantidade += quantidade; resumo.total_movimentacoes += 1;
+    porTipo.set(tipoKey, resumo);
+  }
   return {
     total_movimentacoes_vinculadas: materiais.length,
-    total_saida: totalSaida,
-    total_entrada: totalEntrada,
-    itens_distintos: porItem.size,
-    quantidade_por_item: [...porItem.entries()].map(([item_id, valor]) => ({ item_id, ...valor })).sort((a, b) => b.quantidade - a.quantidade),
-    quantidade_por_tipo_movimento: [...porTipo.entries()].map(([tipo, valor]) => ({ tipo, ...valor })).sort((a, b) => b.quantidade - a.quantidade),
+    total_saida: totalSaida, total_entrada: totalEntrada,
+    itens_distintos: new Set(materiais.map((m) => m.item_id)).size,
+    quantidade_por_item: [...porItem.values()].sort((a, b) => a.item_nome.localeCompare(b.item_nome)),
+    quantidade_por_tipo_movimento: [...porTipo.values()].sort((a, b) => a.tipo.localeCompare(b.tipo) || (a.unidade ?? '').localeCompare(b.unidade ?? '')),
   };
 };
 
@@ -227,7 +252,7 @@ const consolidarIndicadores = ({ apontamentos, vinculosMembros, membros, tarefas
     horas_produtivas: minutosParaHoras(totalMinutosProdutivos), horas_improdutivas: minutosParaHoras(totalMinutosImprodutivos), eficiencia_percentual: eficiencia(totalMinutosProdutivos, totalMinutosHomem),
     custo_total_mao_obra: custosGerais.custo_total === null ? null : Number(custosGerais.custo_total.toFixed(2)), custo_produtivo_mao_obra: custosGerais.custo_produtivo === null ? null : Number(custosGerais.custo_produtivo.toFixed(2)), custo_improdutivo_mao_obra: custosGerais.custo_improdutivo === null ? null : Number(custosGerais.custo_improdutivo.toFixed(2)), apontamentos_custo_incompleto: custosGerais.apontamentos_custo_incompleto, membros_sem_valor_hora: [...custosGerais.membros_sem_valor].sort(),
     quantidade_total_produzida: quantidadeTotal, media_horas_por_apontamento: produtivos.length > 0 ? minutosParaHoras(totalMinutos / produtivos.length) : 0, apontamentos_pendentes_conferencia: totalLancados,
-    por_projeto: porProjeto, por_tarefa: porTarefa, por_membro: porMembro, por_local_tipo: porLocalTipo as IndicadoresProducaoGerencial['por_local_tipo'], materiais: consolidarMateriais(materiais),
+    por_projeto: porProjeto, por_tarefa: porTarefa, por_membro: porMembro, por_local_tipo: porLocalTipo as IndicadoresProducaoGerencial['por_local_tipo'], materiais: { ...consolidarMateriais(materiais), movimentacoes: materiais },
   };
 };
 
@@ -235,6 +260,7 @@ export const useProducaoGerencial = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filtros, setFiltros] = useState<FiltrosProducaoGerencial>(FILTROS_INICIAIS);
+  const [gruposProjeto, setGruposProjeto] = useState<Array<{ id: string; nome: string }>>([]);
   const [dadosConsolidados, setDadosConsolidados] = useState<IndicadoresProducaoGerencial>(dadosIniciais);
 
   const carregarIndicadores = useCallback(async (novosFiltros: FiltrosProducaoGerencial = {}) => {
@@ -248,25 +274,78 @@ export const useProducaoGerencial = () => {
       if (novosFiltros.tarefa_id) consultaApontamentos = consultaApontamentos.eq('tarefa_id', novosFiltros.tarefa_id);
       if (novosFiltros.status) consultaApontamentos = consultaApontamentos.eq('status', novosFiltros.status);
       if (novosFiltros.local_tipo) consultaApontamentos = consultaApontamentos.eq('local_tipo', novosFiltros.local_tipo);
-      const [apontamentosResult, vinculosResult, membrosResult, tarefasResult, materiaisResult, anexosResult, locaisResult] = await Promise.all([
-        consultaApontamentos, supabase.from('producao_apontamento_membros').select('*'), supabase.from('producao_membros').select('*'), supabase.from('producao_tarefas').select('*'), consultaMateriais, supabase.from('producao_apontamento_anexos').select('*'), supabase.from('locais_utilizacao').select('*'),
+      const [apontamentosResult, vinculosResult, membrosResult, tarefasResult, materiaisResult, anexosResult, locaisResult, projetosResult, gruposResult, vinculosGruposResult] = await Promise.all([
+        carregarTodasPaginas((i, f) => consultaApontamentos.order('id').range(i, f)),
+        carregarTodasPaginas((i, f) => supabase.from('producao_apontamento_membros').select('*').order('id').range(i, f)),
+        carregarTodasPaginas((i, f) => supabase.from('producao_membros').select('*').order('id').range(i, f)),
+        carregarTodasPaginas((i, f) => supabase.from('producao_tarefas').select('*').order('id').range(i, f)),
+        carregarTodasPaginas((i, f) => consultaMateriais.order('id').range(i, f)),
+        carregarTodasPaginas((i, f) => supabase.from('producao_apontamento_anexos').select('*').order('id').range(i, f)),
+        carregarTodasPaginas((i, f) => supabase.from('locais_utilizacao').select('*').order('id').range(i, f)),
+        carregarTodasPaginas((i, f) => supabase.from('producao_projetos').select('local_utilizacao_id').order('id').range(i, f)),
+        carregarTodasPaginas((i, f) => supabase.from('almoxarifado_grupos').select('id,nome').eq('ativo', true).order('id').range(i, f)),
+        carregarTodasPaginas((i, f) => supabase.from('almoxarifado_grupo_locais').select('grupo_id,local_utilizacao_id').order('local_utilizacao_id').range(i, f)),
       ]);
+      setGruposProjeto(gruposResult.data);
+      const grupoPorLocal = new Map(vinculosGruposResult.data.map((v) => [v.local_utilizacao_id, v.grupo_id]));
       const erroConsulta = apontamentosResult.error ?? vinculosResult.error ?? membrosResult.error ?? tarefasResult.error ?? materiaisResult.error ?? anexosResult.error ?? locaisResult.error;
       if (erroConsulta) throw erroConsulta;
       const todosVinculos = (vinculosResult.data ?? []) as ApontamentoMembroRow[];
       let apontamentos = apontamentosResult.data ?? [];
       if (novosFiltros.membro_id) { const ids = new Set(todosVinculos.filter((v) => v.membro_id === novosFiltros.membro_id).map((v) => v.apontamento_id)); apontamentos = apontamentos.filter((a) => ids.has(a.id)); }
+      const locaisDoGrupo = novosFiltros.grupo_id ? new Set(locaisResult.data.filter((l) => grupoPorLocal.get(l.id) === novosFiltros.grupo_id).map((l) => l.id)) : null;
+      if (locaisDoGrupo) apontamentos = apontamentos.filter((a) => locaisDoGrupo.has(a.projeto_local_id));
       const idsApontamentos = new Set(apontamentos.map((a) => a.id));
       const vinculosMembros = todosVinculos.filter((v) => idsApontamentos.has(v.apontamento_id));
-      const filtraPorDadosDoApontamento = Boolean(novosFiltros.data_inicio || novosFiltros.data_fim || novosFiltros.tarefa_id || novosFiltros.membro_id || novosFiltros.status || novosFiltros.local_tipo);
-      const materiais = (materiaisResult.data ?? []).filter((m) => !filtraPorDadosDoApontamento || (m.apontamento_id !== null && idsApontamentos.has(m.apontamento_id)));
+      const filtraPorDadosDoApontamento = Boolean(novosFiltros.tarefa_id || novosFiltros.membro_id || novosFiltros.status || novosFiltros.local_tipo);
+      const idsLocais = novosFiltros.projeto_local_id ? [novosFiltros.projeto_local_id] : [...new Set([
+        ...projetosResult.data.map((p) => p.local_utilizacao_id),
+        ...apontamentos.map((a) => a.projeto_local_id),
+        ...materiaisResult.data.map((m) => m.projeto_local_id),
+      ].filter((id): id is string => Boolean(id)))];
+      const locaisMateriais = locaisDoGrupo ? idsLocais.filter((id) => locaisDoGrupo.has(id)) : idsLocais;
+      const porMovimento = new Map(materiaisResult.data.map((m) => [m.movement_id, m]));
+      const locaisPorId = new Map(locaisResult.data.map((l) => [l.id, l]));
+      const gruposPorId = new Map(gruposResult.data.map((g) => [g.id, g.nome]));
+      const materiais: MaterialRow[] = [];
+      for (let offset = 0; offset < locaisMateriais.length; offset += 20) {
+        const lote = locaisMateriais.slice(offset, offset + 20);
+        const movimentos = await carregarTodasPaginas((i, f) => {
+          let consulta = supabase.from('movements').select('id,item_id,tipo,quantidade,item_snapshot,observacoes,data_hora,created_at,local_utilizacao_id,tipo_operacao_id').in('local_utilizacao_id', lote);
+          if (novosFiltros.data_inicio) consulta = consulta.gte('data_hora', novosFiltros.data_inicio + 'T00:00:00-03:00');
+          if (novosFiltros.data_fim) consulta = consulta.lte('data_hora', novosFiltros.data_fim + 'T23:59:59.999999-03:00');
+          return consulta.order('id').range(i, f);
+        });
+        for (const movimento of movimentos.data) {
+          const vinculo = porMovimento.get(movimento.id);
+          if (filtraPorDadosDoApontamento && (!vinculo?.apontamento_id || !idsApontamentos.has(vinculo.apontamento_id))) continue;
+          const local = locaisPorId.get(movimento.local_utilizacao_id!);
+          const snapshot = movimento.item_snapshot && typeof movimento.item_snapshot === 'object' && !Array.isArray(movimento.item_snapshot) ? movimento.item_snapshot : {};
+          materiais.push({
+            id: vinculo?.id ?? movimento.id,
+            movement_id: movimento.id,
+            projeto_local_id: movimento.local_utilizacao_id!,
+            apontamento_id: vinculo?.apontamento_id ?? null,
+            tipo_operacao_id: movimento.tipo_operacao_id,
+            tipo: movimento.tipo, item_id: movimento.item_id,
+            quantidade: Math.abs(movimento.quantidade), item_snapshot: movimento.item_snapshot,
+            observacoes_producao: vinculo?.observacoes_producao ?? movimento.observacoes,
+            created_at: movimento.created_at,
+            data_movimentacao: movimento.data_hora,
+            projeto_nome: local?.nome ?? movimento.local_utilizacao_id!,
+            grupo_nome: grupoPorLocal.has(movimento.local_utilizacao_id!) ? gruposPorId.get(grupoPorLocal.get(movimento.local_utilizacao_id!)!) ?? 'Grupo não encontrado' : 'Sem grupo',
+            codigo_item: String(snapshot.codigoBarras ?? snapshot.codigo_barras ?? ''),
+            unidade: String(snapshot.unidade ?? ''),
+          });
+        }
+      }
       const consolidados = consolidarIndicadores({ apontamentos, vinculosMembros, membros: membrosResult.data ?? [], tarefas: tarefasResult.data ?? [], materiais, anexos: (anexosResult.data ?? []).filter((a) => idsApontamentos.has(a.apontamento_id)), locais: locaisResult.data ?? [] });
       setDadosConsolidados(consolidados); return consolidados;
     } catch (erro) {
-      const mensagem = erro instanceof Error ? erro.message : 'Não foi possível carregar os indicadores da Produção.';
+      const mensagem = erro instanceof Error ? erro.message : erro && typeof erro === 'object' && 'message' in erro ? String(erro.message) : 'Não foi possível carregar os indicadores da Produção.';
       setError(mensagem); throw erro;
     } finally { setLoading(false); }
   }, []);
 
-  return { loading, error, filtros, dadosConsolidados, carregarIndicadores };
+  return { loading, error, filtros, dadosConsolidados, carregarIndicadores, gruposProjeto };
 };

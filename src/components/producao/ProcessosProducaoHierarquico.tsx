@@ -19,6 +19,16 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,8 +48,10 @@ import {
   FinalizacaoParcialOrdemProducaoError,
 } from '@/services/producao/finalizarOrdemProducao';
 import {
+  contextoFechamentoJornada,
   iniciarJornadaOp,
   listarJornadasOpAbertas,
+
   type ContextoFechamentoJornadaOp,
   type JornadaOpAberta,
 } from '@/services/producao/jornadasOrdemProducao';
@@ -57,7 +69,7 @@ import { FormProcessoProducao } from './FormProcessoProducao';
 import { FormRetificarProcesso } from './FormRetificarProcesso';
 import { MateriaisEtapaProducao } from './MateriaisEtapaProducao';
 import { MateriaisOrdemProducao } from './MateriaisOrdemProducao';
-import { ApontamentosOrdemProducao } from './ApontamentosOrdemProducao';
+import { ApontamentosEncerradosOp } from './ApontamentosEncerradosOp';
 import { ExcluirProjetoProducao } from './ExcluirProjetoProducao';
 import { ModalExcluirProcesso } from './ModalExcluirProcesso';
 import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
@@ -255,6 +267,7 @@ export const ProcessosProducaoHierarquico = ({
   const [opsComImagem, setOpsComImagem] = useState<Set<string>>(new Set());
   const [jornadasAbertas, setJornadasAbertas] = useState<JornadaOpAberta[]>([]);
   const [ordemParaIniciar, setOrdemParaIniciar] = useState<ProducaoOrdemProducao | null>(null);
+  const [alertaJornadaAberta, setAlertaJornadaAberta] = useState(false);
 
   const { isAdmin, canConfigurarProducao } = usePermissions();
   const { projetos, loading: loadingProjetos, listarProjetos } = useProjetosProducao();
@@ -749,7 +762,7 @@ export const ProcessosProducaoHierarquico = ({
         const jornadaDaOp = jornadasPorOp[ordemSelecionada.id] ?? null;
         const podePausarOp = Boolean(jornadaDaOp);
         const podeFinalizarOp =
-          !jornadaDaOp && ['liberada', 'em_execucao'].includes(ordemSelecionada.status);
+          ['liberada', 'em_execucao'].includes(ordemSelecionada.status);
         const progressoDaOp = clampPercent(percentualExecucaoOp(ordemSelecionada));
 
         const pausarOp = () => {
@@ -766,8 +779,93 @@ export const ProcessosProducaoHierarquico = ({
           });
         };
 
+        const tarefaJornada = jornadaDaOp
+          ? tarefas.find((tarefa) => tarefa.id === jornadaDaOp.tarefa_id) ?? null
+          : null;
+        const membrosJornada = jornadaDaOp
+          ? jornadaDaOp.membros_ids
+              .map((id) => membros.find((membro) => membro.id === id)?.nome)
+              .filter((nome): nome is string => Boolean(nome))
+          : [];
+        const inicioJornada = jornadaDaOp
+          ? new Date(jornadaDaOp.iniciado_em).toLocaleString('pt-BR')
+          : null;
+
+        const abrirApontamentoAberto = () => {
+          if (!jornadaDaOp) return;
+          setAlertaJornadaAberta(false);
+          const contexto = contextoFechamentoJornada(
+            jornadaDaOp,
+            false,
+            ordemSelecionada.responsavel_id,
+            ordemSelecionada.responsavel_nome_snapshot,
+          );
+          onFecharJornada({
+            ...contexto,
+            tarefaId: contexto.tarefaId ?? ordemSelecionada.tarefa_id ?? null,
+          });
+        };
+
+        const finalizarOp = () => {
+          if (jornadaDaOp) {
+            setAlertaJornadaAberta(true);
+            return;
+          }
+
+          void executarOp(ordemSelecionada, 'concluir');
+        };
+
         return (
           <div className="space-y-5">
+            <AlertDialog open={alertaJornadaAberta} onOpenChange={setAlertaJornadaAberta}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Existe um apontamento em aberto nesta OP</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    A OP não pode ser finalizada enquanto este apontamento estiver aberto. Encerre o apontamento primeiro e depois finalize a OP.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+
+                {jornadaDaOp && (
+                  <div className="space-y-3 rounded-lg border bg-muted/20 p-4 text-sm">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ordem de Produção</p>
+                      <p className="mt-1 font-semibold">{formatarIdentificacaoOrdemProducao(ordemSelecionada)}</p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Atividade em aberto</p>
+                        <p className="mt-1 font-medium">
+                          {tarefaJornada?.nome || ordemSelecionada.tarefa_nome_snapshot || ordemSelecionada.descricao || 'Atividade não identificada'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Iniciado em</p>
+                        <p className="mt-1 font-medium">{inicioJornada || 'Não informado'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Iniciado por</p>
+                        <p className="mt-1 font-medium">{jornadaDaOp.iniciado_por_nome_snapshot || 'Não informado'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Equipe</p>
+                        <p className="mt-1 font-medium">
+                          {membrosJornada.length > 0 ? membrosJornada.join(', ') : 'Equipe não identificada'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Voltar</AlertDialogCancel>
+                  <AlertDialogAction onClick={abrirApontamentoAberto}>
+                    Abrir apontamento
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <Button variant="ghost" size="sm" onClick={() => {
                 setOrdemSelecionadaId(null);
@@ -828,11 +926,18 @@ export const ProcessosProducaoHierarquico = ({
                   </Button>
                   <Button
                     size="sm"
-                    onClick={() => void executarOp(ordemSelecionada, 'concluir')}
+                    onClick={finalizarOp}
                     disabled={!podeFinalizarOp || executandoId === ordemSelecionada.id}
-                    title={podeFinalizarOp ? 'Finalizar OP' : 'Encerre o apontamento em andamento antes de finalizar a OP'}
+                    title={
+                      jornadaDaOp
+                        ? 'Existe um apontamento em aberto. Clique para ver os detalhes.'
+                        : podeFinalizarOp
+                          ? 'Finalizar OP'
+                          : 'A OP não está aberta para finalização'
+                    }
                   >
-                    <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar OP
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Finalizar OP
                   </Button>
                   {['rascunho', 'liberada', 'em_execucao'].includes(ordemSelecionada.status) && (
                     <Button
@@ -868,13 +973,25 @@ export const ProcessosProducaoHierarquico = ({
                 </div>
               </div>
 
-              <ApontamentosOrdemProducao ordem={ordemSelecionada} />
+              <div className="mt-5 grid gap-4 lg:grid-cols-2 lg:items-stretch">
+                <div className="min-w-0">
+                  <MateriaisOrdemProducao
+                    ordem={ordemSelecionada}
+                    estoqueAtivoId={estoqueAtivoId}
+                    estoqueAtivoNome={estoqueAtivoNome}
+                  />
+                </div>
 
-              <MateriaisOrdemProducao
-                ordem={ordemSelecionada}
-                estoqueAtivoId={estoqueAtivoId}
-                estoqueAtivoNome={estoqueAtivoNome}
-              />
+                <aside className="min-w-0 rounded-lg border border-border/70 bg-muted/15 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Apontamentos da OP
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Abra o bloco e escolha o apontamento que deseja retificar.
+                  </p>
+                  <ApontamentosEncerradosOp ordem={ordemSelecionada} />
+                </aside>
+              </div>
             </div>
 
             <ModalIniciarOpComEquipe

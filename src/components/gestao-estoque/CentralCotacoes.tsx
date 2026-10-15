@@ -8,6 +8,8 @@ import {
   Truck,
   Package,
   Globe2,
+  Link2,
+  ExternalLink,
   Eye,
   Pencil,
   CheckCircle2,
@@ -18,6 +20,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
@@ -58,7 +61,10 @@ type Cotacao = {
   numero: number;
   tipo: CotacaoTipo;
   status: string;
-  origem_cadastro: 'manual' | 'pdf';
+  origem_cadastro: 'manual' | 'pdf' | 'link';
+  url_origem: string | null;
+  plataforma_origem: string | null;
+  consultado_em: string | null;
   fornecedor_nome: string | null;
   fornecedor_cnpj: string | null;
   fornecedor_endereco: string | null;
@@ -115,7 +121,29 @@ type Solicitacao = {
   data_limite: string | null;
   fornecedores_solicitados: string | null;
   observacoes: string | null;
+  criado_por_nome?: string | null;
+  criado_por_email?: string | null;
+  criado_por_perfil?: string | null;
+  prioridade?: string | null;
+  data_necessaria?: string | null;
+  origem_frete?: string | null;
+  destino_frete?: string | null;
+  peso_kg?: number | null;
+  cubagem_m3?: number | null;
+  volumes?: number | null;
   created_at: string;
+};
+
+type SolicitacaoItem = {
+  id: string;
+  solicitacao_id: string;
+  item_id: string | null;
+  codigo_item: string | null;
+  descricao: string;
+  quantidade: number | null;
+  unidade: string | null;
+  observacoes: string | null;
+  ordem: number;
 };
 
 const tipoLabels: Record<CotacaoTipo, string> = {
@@ -134,6 +162,7 @@ const statusLabels: Record<string, string> = {
 };
 
 const solicitacaoStatusLabels: Record<string, string> = {
+  solicitada: 'Solicitada',
   aguardando_propostas: 'Aguardando propostas',
   em_analise: 'Em análise',
   escolhida: 'Escolhida',
@@ -185,29 +214,42 @@ const emptyForm = {
   tipo_veiculo: '',
   prazo_dias: '',
   solicitacao_id: '',
+  origem_cadastro: 'manual' as 'manual' | 'pdf' | 'link',
+  url_origem: '',
+  plataforma_origem: '',
 };
 
 export function CentralCotacoes() {
   const { user } = useAuth();
   const { userProfile } = usePermissions();
+  const { obterEstoque } = useEstoqueContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [cotacoes, setCotacoes] = useState<Cotacao[]>([]);
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [importando, setImportando] = useState(false);
+  const [reprocessandoId, setReprocessandoId] = useState<string | null>(null);
+  const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   const [busca, setBusca] = useState('');
   const [tipoFiltro, setTipoFiltro] = useState<'todos' | CotacaoTipo>('todos');
+  const [veiculoFiltro, setVeiculoFiltro] = useState('todos');
   const [periodoDias, setPeriodoDias] = useState('365');
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorCotacao, setEditorCotacao] = useState<Cotacao | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [itens, setItens] = useState<CotacaoItem[]>([]);
+  const [buscaItemCotacao, setBuscaItemCotacao] = useState('');
 
   const [solicitacaoOpen, setSolicitacaoOpen] = useState(false);
+  const [processoSolicitacaoOpen, setProcessoSolicitacaoOpen] = useState(false);
+  const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState<Solicitacao | null>(null);
+  const [itensSolicitacao, setItensSolicitacao] = useState<SolicitacaoItem[]>([]);
+  const [carregandoProcesso, setCarregandoProcesso] = useState(false);
+  const [solicitacaoImportacaoId, setSolicitacaoImportacaoId] = useState<string | null>(null);
   const [solicitacaoForm, setSolicitacaoForm] = useState({
     titulo: '',
     tipo: 'insumo' as CotacaoTipo,
@@ -245,8 +287,17 @@ export function CentralCotacoes() {
 
   const abrirManual = () => {
     setEditorCotacao(null);
-    setForm({ ...emptyForm });
+    setForm({ ...emptyForm, origem_cadastro: 'manual' });
     setItens([]);
+    setBuscaItemCotacao('');
+    setEditorOpen(true);
+  };
+
+  const abrirLink = () => {
+    setEditorCotacao(null);
+    setForm({ ...emptyForm, origem_cadastro: 'link' });
+    setItens([]);
+    setBuscaItemCotacao('');
     setEditorOpen(true);
   };
 
@@ -278,6 +329,9 @@ export function CentralCotacoes() {
       tipo_veiculo: cotacao.tipo_veiculo || '',
       prazo_dias: cotacao.prazo_dias ? String(cotacao.prazo_dias) : '',
       solicitacao_id: cotacao.solicitacao_id || '',
+      origem_cadastro: cotacao.origem_cadastro,
+      url_origem: cotacao.url_origem || '',
+      plataforma_origem: cotacao.plataforma_origem || '',
     });
 
     const { data, error } = await (supabase.from as any)('cotacao_itens')
@@ -298,6 +352,11 @@ export function CentralCotacoes() {
   const salvarCotacao = async (confirmar = false) => {
     if (!form.fornecedor_nome.trim() && !form.descricao.trim()) {
       toast.error('Informe ao menos o fornecedor ou a descrição da cotação.');
+      return;
+    }
+
+    if (form.origem_cadastro === 'link' && !form.url_origem.trim()) {
+      toast.error('Informe o link da cotação online.');
       return;
     }
 
@@ -329,8 +388,13 @@ export function CentralCotacoes() {
         tipo_veiculo: form.tipo_veiculo.trim() || null,
         prazo_dias: form.prazo_dias ? Number(form.prazo_dias) : null,
         solicitacao_id: form.solicitacao_id || null,
+        url_origem: form.url_origem.trim() || null,
+        plataforma_origem: form.plataforma_origem.trim() || null,
+        consultado_em: form.origem_cadastro === 'link'
+          ? (editorCotacao?.consultado_em || new Date().toISOString())
+          : editorCotacao?.consultado_em || null,
         status: confirmar ? 'confirmada' : (editorCotacao?.status || 'rascunho'),
-        origem_cadastro: editorCotacao?.origem_cadastro || 'manual',
+        origem_cadastro: editorCotacao?.origem_cadastro || form.origem_cadastro,
         criado_por: editorCotacao ? undefined : user?.id,
         criado_por_nome: editorCotacao ? undefined : (userProfile?.nome || user?.email || 'Usuário'),
         confirmado_por: confirmar ? user?.id : undefined,
@@ -375,7 +439,14 @@ export function CentralCotacoes() {
         if (error) throw error;
       }
 
-      toast.success(confirmar ? 'Cotação confirmada e disponível para consulta.' : 'Cotação salva.');
+      if (form.solicitacao_id) {
+        await (supabase.from as any)('cotacao_solicitacoes')
+          .update({ status: 'em_analise', updated_at: new Date().toISOString() })
+          .eq('id', form.solicitacao_id)
+          .in('status', ['solicitada', 'aguardando_propostas']);
+      }
+
+      toast.success(confirmar ? 'Cotação confirmada e vinculada ao processo.' : 'Cotação salva.');
       setEditorOpen(false);
       await carregar();
     } catch (error: any) {
@@ -386,7 +457,7 @@ export function CentralCotacoes() {
     }
   };
 
-  const importarPdf = async (file?: File) => {
+  const importarPdf = async (file?: File, solicitacaoId?: string | null) => {
     if (!file || !user?.id) return;
     if (file.type !== 'application/pdf') {
       toast.error('Selecione um arquivo PDF.');
@@ -409,6 +480,7 @@ export function CentralCotacoes() {
           arquivo_mime: file.type,
           criado_por: user.id,
           criado_por_nome: userProfile?.nome || user.email || 'Usuário',
+          solicitacao_id: solicitacaoId || null,
         })
         .select('*')
         .single();
@@ -439,6 +511,13 @@ export function CentralCotacoes() {
         .single();
       if (refreshError) throw refreshError;
 
+      if (solicitacaoId) {
+        await (supabase.from as any)('cotacao_solicitacoes')
+          .update({ status: 'em_analise', updated_at: new Date().toISOString() })
+          .eq('id', solicitacaoId)
+          .in('status', ['solicitada', 'aguardando_propostas']);
+      }
+
       await carregar();
       await abrirEdicao(refreshed as Cotacao);
 
@@ -453,6 +532,37 @@ export function CentralCotacoes() {
     } finally {
       setImportando(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+      setSolicitacaoImportacaoId(null);
+    }
+  };
+
+  const reprocessarPdf = async (cotacao: Cotacao) => {
+    if (!cotacao.arquivo_path) {
+      toast.error('Esta cotação não possui PDF para reprocessar.');
+      return;
+    }
+
+    setReprocessandoId(cotacao.id);
+    try {
+      const { error: fnError } = await supabase.functions.invoke('cotacoes-ler-pdf', {
+        body: { cotacao_id: cotacao.id },
+      });
+      if (fnError) throw fnError;
+
+      const { data: refreshed, error: refreshError } = await (supabase.from as any)('cotacoes')
+        .select('*')
+        .eq('id', cotacao.id)
+        .single();
+      if (refreshError) throw refreshError;
+
+      await carregar();
+      await abrirEdicao(refreshed as Cotacao);
+      toast.success('PDF reprocessado com o leitor atualizado. Confira os campos.');
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível reprocessar o PDF.');
+    } finally {
+      setReprocessandoId(null);
     }
   };
 
@@ -468,19 +578,250 @@ export function CentralCotacoes() {
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
   };
 
+  const excluirCotacao = async (cotacao: Cotacao) => {
+    if (cotacao.status === 'convertida_pn' || cotacao.financeiro_necessidade_id) {
+      toast.error('Esta cotação já foi convertida em PN e não pode ser excluída.');
+      return;
+    }
+
+    const confirmou = window.confirm(
+      `Excluir definitivamente a cotação #${cotacao.numero}?` +
+      (cotacao.arquivo_nome ? `\n\nO PDF "${cotacao.arquivo_nome}" também será removido.` : '')
+    );
+    if (!confirmou) return;
+
+    setExcluindoId(cotacao.id);
+    try {
+      const { error: deleteError } = await (supabase.from as any)('cotacoes')
+        .delete()
+        .eq('id', cotacao.id);
+      if (deleteError) throw deleteError;
+
+      if (cotacao.arquivo_path) {
+        const { error: storageError } = await supabase.storage
+          .from('cotacoes-documentos')
+          .remove([cotacao.arquivo_path]);
+        if (storageError) {
+          console.error('Cotação excluída, mas houve erro ao remover o PDF:', storageError);
+          toast.warning('Cotação excluída. O PDF não pôde ser removido do armazenamento.');
+        }
+      }
+
+      if (editorCotacao?.id === cotacao.id) {
+        setEditorOpen(false);
+        setEditorCotacao(null);
+      }
+
+      toast.success('Cotação excluída.');
+      await carregar();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível excluir a cotação.');
+    } finally {
+      setExcluindoId(null);
+    }
+  };
+
   const converterEmPn = async (cotacao: Cotacao) => {
+    if (cotacao.solicitacao_id && cotacao.status !== 'escolhida') {
+      toast.error('Escolha esta proposta no processo de cotação antes de converter em PN.');
+      return;
+    }
+
     if (!confirm(`Converter a cotação #${cotacao.numero} em PN?`)) return;
     try {
       const { data, error } = await (supabase as any).rpc('cotacao_converter_em_pn_v1', {
         p_cotacao_id: cotacao.id,
       });
       if (error) throw error;
-      toast.success('PN criada a partir da cotação.');
+      if (cotacao.solicitacao_id) {
+        await (supabase.from as any)('cotacao_solicitacoes')
+          .update({ status: 'encerrada', updated_at: new Date().toISOString() })
+          .eq('id', cotacao.solicitacao_id);
+      }
+
+      toast.success('PN criada a partir da cotação. Processo de cotação encerrado.');
       await carregar();
+      setProcessoSolicitacaoOpen(false);
       return data;
     } catch (error: any) {
       console.error(error);
       toast.error(error?.message || 'Não foi possível converter a cotação em PN.');
+    }
+  };
+
+  const abrirProcessoSolicitacao = async (solicitacao: Solicitacao) => {
+    setCarregandoProcesso(true);
+    try {
+      const { data: itensData, error: itensError } = await (supabase.from as any)('cotacao_solicitacao_itens')
+        .select('*')
+        .eq('solicitacao_id', solicitacao.id)
+        .order('ordem');
+
+      if (itensError) throw itensError;
+
+      setSolicitacaoSelecionada(solicitacao);
+      setItensSolicitacao((itensData || []) as SolicitacaoItem[]);
+      setProcessoSolicitacaoOpen(true);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível abrir o processo de cotação.');
+    } finally {
+      setCarregandoProcesso(false);
+    }
+  };
+
+  const iniciarAtendimento = async (solicitacao: Solicitacao) => {
+    setCarregandoProcesso(true);
+    try {
+      const { data, error } = await (supabase.from as any)('cotacao_solicitacoes')
+        .update({ status: 'aguardando_propostas', updated_at: new Date().toISOString() })
+        .eq('id', solicitacao.id)
+        .eq('status', 'solicitada')
+        .select('*')
+        .single();
+
+      if (error) throw error;
+
+      toast.success('Solicitação assumida pelo Almoxarifado.');
+      await carregar();
+      await abrirProcessoSolicitacao((data || solicitacao) as Solicitacao);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível iniciar o atendimento.');
+    } finally {
+      setCarregandoProcesso(false);
+    }
+  };
+
+  const abrirNovaCotacaoDaSolicitacao = async (solicitacao: Solicitacao) => {
+    let itensDaSolicitacao = itensSolicitacao;
+    if (solicitacaoSelecionada?.id !== solicitacao.id) {
+      const { data, error } = await (supabase.from as any)('cotacao_solicitacao_itens')
+        .select('*')
+        .eq('solicitacao_id', solicitacao.id)
+        .order('ordem');
+      if (error) {
+        toast.error('Não foi possível carregar os itens solicitados.');
+        return;
+      }
+      itensDaSolicitacao = (data || []) as SolicitacaoItem[];
+    }
+
+    setEditorCotacao(null);
+    setForm({
+      ...emptyForm,
+      tipo: solicitacao.tipo,
+      projeto_centro_custo: solicitacao.projeto_centro_custo || '',
+      descricao: solicitacao.observacoes || '',
+      origem_frete: solicitacao.origem_frete || '',
+      destino_frete: solicitacao.destino_frete || '',
+      peso_kg: toInput(solicitacao.peso_kg),
+      cubagem_m3: toInput(solicitacao.cubagem_m3),
+      volumes: solicitacao.volumes ? String(solicitacao.volumes) : '',
+      solicitacao_id: solicitacao.id,
+    });
+    setItens(
+      solicitacao.tipo === 'insumo'
+        ? itensDaSolicitacao.map((item) => ({
+            item_id: item.item_id,
+            codigo_item: item.codigo_item,
+            descricao: item.descricao,
+            quantidade: item.quantidade,
+            unidade: item.unidade,
+            valor_unitario: null,
+            valor_total: null,
+          }))
+        : [],
+    );
+    setBuscaItemCotacao('');
+    setProcessoSolicitacaoOpen(false);
+    setEditorOpen(true);
+  };
+
+  const abrirLinkDaSolicitacao = async (solicitacao: Solicitacao) => {
+    let itensDaSolicitacao = itensSolicitacao;
+    if (solicitacaoSelecionada?.id !== solicitacao.id) {
+      const { data, error } = await (supabase.from as any)('cotacao_solicitacao_itens')
+        .select('*')
+        .eq('solicitacao_id', solicitacao.id)
+        .order('ordem');
+      if (error) {
+        toast.error('Não foi possível carregar os itens solicitados.');
+        return;
+      }
+      itensDaSolicitacao = (data || []) as SolicitacaoItem[];
+    }
+
+    setEditorCotacao(null);
+    setForm({
+      ...emptyForm,
+      tipo: solicitacao.tipo,
+      projeto_centro_custo: solicitacao.projeto_centro_custo || '',
+      descricao: solicitacao.observacoes || '',
+      origem_frete: solicitacao.origem_frete || '',
+      destino_frete: solicitacao.destino_frete || '',
+      peso_kg: toInput(solicitacao.peso_kg),
+      cubagem_m3: toInput(solicitacao.cubagem_m3),
+      volumes: solicitacao.volumes ? String(solicitacao.volumes) : '',
+      solicitacao_id: solicitacao.id,
+      origem_cadastro: 'link',
+      url_origem: '',
+      plataforma_origem: '',
+    });
+    setItens(
+      solicitacao.tipo === 'insumo'
+        ? itensDaSolicitacao.map((item) => ({
+            item_id: item.item_id,
+            codigo_item: item.codigo_item,
+            descricao: item.descricao,
+            quantidade: item.quantidade,
+            unidade: item.unidade,
+            valor_unitario: null,
+            valor_total: null,
+          }))
+        : [],
+    );
+    setBuscaItemCotacao('');
+    setProcessoSolicitacaoOpen(false);
+    setEditorOpen(true);
+  };
+
+  const importarPdfDaSolicitacao = (solicitacao: Solicitacao) => {
+    setSolicitacaoImportacaoId(solicitacao.id);
+    setProcessoSolicitacaoOpen(false);
+    window.setTimeout(() => fileInputRef.current?.click(), 0);
+  };
+
+  const escolherProposta = async (solicitacao: Solicitacao, cotacao: Cotacao) => {
+    if (!['confirmada', 'escolhida'].includes(cotacao.status)) {
+      toast.error('Confirme a cotação antes de escolhê-la.');
+      return;
+    }
+
+    const confirmou = window.confirm(
+      `Escolher a cotação #${cotacao.numero} de ${cotacao.fornecedor_nome || 'fornecedor não informado'}?`
+    );
+    if (!confirmou) return;
+
+    try {
+      const { data: solicitacaoId, error } = await (supabase as any).rpc('cotacao_escolher_proposta_v1', {
+        p_cotacao_id: cotacao.id,
+      });
+      if (error) throw error;
+
+      const { data: solicitacaoAtualizada, error: solicitacaoError } = await (supabase.from as any)('cotacao_solicitacoes')
+        .select('*')
+        .eq('id', solicitacaoId || solicitacao.id)
+        .single();
+      if (solicitacaoError) throw solicitacaoError;
+
+      toast.success('Proposta escolhida. Ela já pode ser convertida em PN.');
+      await carregar();
+      await abrirProcessoSolicitacao((solicitacaoAtualizada || solicitacao) as Solicitacao);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível escolher a proposta.');
     }
   };
 
@@ -528,6 +869,7 @@ export function CentralCotacoes() {
 
     return cotacoes.filter((cotacao) => {
       if (tipoFiltro !== 'todos' && cotacao.tipo !== tipoFiltro) return false;
+      if (veiculoFiltro !== 'todos' && cotacao.tipo_veiculo !== veiculoFiltro) return false;
       if (new Date(cotacao.created_at) < cutoff) return false;
       if (!term) return true;
       return [
@@ -538,9 +880,20 @@ export function CentralCotacoes() {
         cotacao.destino_frete,
         cotacao.projeto_centro_custo,
         cotacao.numero_proposta,
+        cotacao.tipo_veiculo,
+        cotacao.url_origem,
+        cotacao.plataforma_origem,
       ].filter(Boolean).some((value) => String(value).toLocaleLowerCase('pt-BR').includes(term));
     });
-  }, [busca, cotacoes, tipoFiltro, periodoDias]);
+  }, [busca, cotacoes, tipoFiltro, veiculoFiltro, periodoDias]);
+
+  const veiculosDisponiveis = useMemo(() => {
+    const padrao = ['CARRETA', 'TRUCK', 'TOCO', 'VUC', 'BITREM', 'RODOTREM', 'UTILITÁRIO', 'FIORINO'];
+    const existentes = cotacoes
+      .map((cotacao) => cotacao.tipo_veiculo)
+      .filter((value): value is string => Boolean(value));
+    return Array.from(new Set([...padrao, ...existentes]));
+  }, [cotacoes]);
 
   const kpis = useMemo(() => ({
     total: cotacoes.length,
@@ -548,6 +901,49 @@ export function CentralCotacoes() {
     fretes: cotacoes.filter((c) => c.tipo === 'frete').length,
     pn: cotacoes.filter((c) => c.status === 'convertida_pn').length,
   }), [cotacoes]);
+
+  const cotacoesDoProcesso = useMemo(
+    () => solicitacaoSelecionada
+      ? cotacoes.filter((cotacao) => cotacao.solicitacao_id === solicitacaoSelecionada.id)
+      : [],
+    [cotacoes, solicitacaoSelecionada],
+  );
+
+  const itensCatalogo = useMemo(
+    () => (obterEstoque() ?? []).filter((item) => item.ativo !== false),
+    [obterEstoque],
+  );
+
+  const resultadosBuscaItemCotacao = useMemo(() => {
+    const termo = buscaItemCotacao.trim().toLocaleLowerCase('pt-BR');
+    if (termo.length < 2) return [];
+    return itensCatalogo
+      .filter((item) => !itens.some((selecionado) => selecionado.item_id === item.id))
+      .filter((item) =>
+        [item.nome, item.codigoBarras, item.marca, item.especificacao]
+          .filter(Boolean)
+          .some((valor) => String(valor).toLocaleLowerCase('pt-BR').includes(termo))
+      )
+      .slice(0, 10);
+  }, [buscaItemCotacao, itensCatalogo, itens]);
+
+  const adicionarItemCatalogoCotacao = (item: any) => {
+    setItens((current) => [
+      ...current,
+      {
+        item_id: item.id,
+        codigo_item: String(item.codigoBarras ?? ''),
+        descricao: item.nome,
+        marca: item.marca || null,
+        especificacao: item.especificacao || null,
+        quantidade: null,
+        unidade: item.unidade || 'un',
+        valor_unitario: null,
+        valor_total: null,
+      },
+    ]);
+    setBuscaItemCotacao('');
+  };
 
   const atualizarItem = (index: number, patch: Partial<CotacaoItem>) => {
     setItens((current) => current.map((item, idx) => idx === index ? { ...item, ...patch } : item));
@@ -560,7 +956,7 @@ export function CentralCotacoes() {
         type="file"
         accept="application/pdf"
         className="hidden"
-        onChange={(event) => void importarPdf(event.target.files?.[0])}
+        onChange={(event) => void importarPdf(event.target.files?.[0], solicitacaoImportacaoId)}
       />
 
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -575,11 +971,11 @@ export function CentralCotacoes() {
             {importando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
             Importar PDF
           </Button>
-          <Button variant="outline" onClick={abrirManual}>
-            <Plus className="mr-2 h-4 w-4" /> Lançamento manual
+          <Button variant="outline" onClick={abrirLink}>
+            <Link2 className="mr-2 h-4 w-4" /> Cotação por link
           </Button>
-          <Button onClick={() => setSolicitacaoOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Nova solicitação
+          <Button variant="outline" onClick={abrirManual}>
+            <Plus className="mr-2 h-4 w-4" /> Nova cotação
           </Button>
           <Button variant="ghost" size="icon" onClick={() => void carregar()} title="Atualizar">
             <RefreshCw className="h-4 w-4" />
@@ -609,7 +1005,7 @@ export function CentralCotacoes() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-3 md:grid-cols-[1fr_190px_190px]">
+              <div className="grid gap-3 md:grid-cols-[1fr_180px_180px_180px]">
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Ex.: frete, Brusque, cinta 3,6x200, fornecedor..." className="pl-9" />
@@ -621,6 +1017,15 @@ export function CentralCotacoes() {
                     <SelectItem value="insumo">Insumos</SelectItem>
                     <SelectItem value="frete">Fretes</SelectItem>
                     <SelectItem value="global">Globais</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={veiculoFiltro} onValueChange={setVeiculoFiltro}>
+                  <SelectTrigger><SelectValue placeholder="Tipo de caminhão" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os veículos</SelectItem>
+                    {veiculosDisponiveis.map((veiculo) => (
+                      <SelectItem key={veiculo} value={veiculo}>{veiculo}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <Select value={periodoDias} onValueChange={setPeriodoDias}>
@@ -648,6 +1053,7 @@ export function CentralCotacoes() {
                         <TableHead>Fornecedor</TableHead>
                         <TableHead>Origem / descrição</TableHead>
                         <TableHead>Destino / projeto</TableHead>
+                        <TableHead>Tipo do caminhão</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
                         <TableHead>Situação</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
@@ -669,6 +1075,7 @@ export function CentralCotacoes() {
                           </TableCell>
                           <TableCell className="max-w-[260px] truncate">{cotacao.origem_frete || cotacao.descricao || '—'}</TableCell>
                           <TableCell className="max-w-[260px] truncate">{cotacao.destino_frete || cotacao.projeto_centro_custo || '—'}</TableCell>
+                          <TableCell>{cotacao.tipo === 'frete' ? (cotacao.tipo_veiculo || '—') : '—'}</TableCell>
                           <TableCell className="text-right font-medium">{moeda(cotacao.valor_total)}</TableCell>
                           <TableCell>
                             <Badge variant={cotacao.status === 'rejeitada' ? 'destructive' : 'outline'}>{statusLabels[cotacao.status] || cotacao.status}</Badge>
@@ -683,6 +1090,19 @@ export function CentralCotacoes() {
                               <Button variant="ghost" size="icon" onClick={() => void abrirEdicao(cotacao)} title="Abrir / editar">
                                 <Pencil className="h-4 w-4" />
                               </Button>
+                              {cotacao.status !== 'convertida_pn' && !cotacao.financeiro_necessidade_id && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => void excluirCotacao(cotacao)}
+                                  disabled={excluindoId === cotacao.id}
+                                  title="Excluir cotação"
+                                >
+                                  {excluindoId === cotacao.id
+                                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                                    : <Trash2 className="h-4 w-4 text-destructive" />}
+                                </Button>
+                              )}
                               {['confirmada', 'escolhida'].includes(cotacao.status) && !cotacao.financeiro_necessidade_id && (
                                 <Button variant="ghost" size="icon" onClick={() => void converterEmPn(cotacao)} title="Converter em PN">
                                   <ArrowRightLeft className="h-4 w-4" />
@@ -693,7 +1113,7 @@ export function CentralCotacoes() {
                         </TableRow>
                       ))}
                       {resultados.length === 0 && (
-                        <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">Nenhuma cotação encontrada.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={9} className="py-10 text-center text-muted-foreground">Nenhuma cotação encontrada.</TableCell></TableRow>
                       )}
                     </TableBody>
                   </Table>
@@ -714,22 +1134,67 @@ export function CentralCotacoes() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nº</TableHead><TableHead>Solicitação</TableHead><TableHead>Tipo</TableHead><TableHead>Prazo</TableHead><TableHead>Fornecedores</TableHead><TableHead>Status</TableHead>
+                      <TableHead>Nº</TableHead><TableHead>Solicitação</TableHead><TableHead>Solicitante</TableHead><TableHead>Tipo</TableHead><TableHead>Necessidade</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ação</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {solicitacoes.map((s) => (
-                      <TableRow key={s.id}>
-                        <TableCell>SOL-{String(s.numero).padStart(4, '0')}</TableCell>
-                        <TableCell><div className="font-medium">{s.titulo}</div><div className="text-xs text-muted-foreground">{s.projeto_centro_custo || 'Sem projeto vinculado'}</div></TableCell>
-                        <TableCell>{tipoLabels[s.tipo]}</TableCell>
-                        <TableCell>{dataPt(s.data_limite)}</TableCell>
-                        <TableCell className="max-w-[300px] truncate">{s.fornecedores_solicitados || '—'}</TableCell>
-                        <TableCell><Badge variant="outline">{solicitacaoStatusLabels[s.status] || s.status}</Badge></TableCell>
-                      </TableRow>
-                    ))}
+                    {solicitacoes.map((s) => {
+                      const propostas = cotacoes.filter((cotacao) => cotacao.solicitacao_id === s.id).length;
+                      return (
+                        <TableRow key={s.id} className={s.status === 'solicitada' ? 'bg-amber-500/5' : undefined}>
+                          <TableCell className={s.status === 'solicitada' ? 'font-semibold text-amber-400' : undefined}>
+                            SOL-{String(s.numero).padStart(4, '0')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">{s.titulo}</div>
+                            <div className="text-xs text-muted-foreground">{s.projeto_centro_custo || 'Sem projeto vinculado'}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">{s.criado_por_nome || 'Usuário'}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {[s.criado_por_perfil, s.criado_por_email].filter(Boolean).join(' · ') || 'Perfil não informado'}
+                            </div>
+                          </TableCell>
+                          <TableCell>{tipoLabels[s.tipo]}</TableCell>
+                          <TableCell>
+                            <div>{dataPt(s.data_necessaria || s.data_limite)}</div>
+                            {s.prioridade === 'urgente' && <Badge variant="destructive" className="mt-1">Urgente</Badge>}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{solicitacaoStatusLabels[s.status] || s.status}</Badge>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {propostas} {propostas === 1 ? 'proposta' : 'propostas'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-end gap-2">
+                              {s.status === 'solicitada' ? (
+                                <Button
+                                  size="sm"
+                                  onClick={() => void iniciarAtendimento(s)}
+                                  disabled={carregandoProcesso}
+                                  className="animate-pulse"
+                                >
+                                  {carregandoProcesso && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                  Iniciar atendimento
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => void abrirProcessoSolicitacao(s)}
+                                  disabled={carregandoProcesso}
+                                >
+                                  <Eye className="mr-2 h-4 w-4" /> Abrir processo
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                     {solicitacoes.length === 0 && (
-                      <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">Nenhuma solicitação cadastrada.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Nenhuma solicitação cadastrada.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -739,14 +1204,189 @@ export function CentralCotacoes() {
         </TabsContent>
       </Tabs>
 
+      <Dialog open={processoSolicitacaoOpen} onOpenChange={setProcessoSolicitacaoOpen}>
+        <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {solicitacaoSelecionada
+                ? `SOL-${String(solicitacaoSelecionada.numero).padStart(4, '0')} · ${solicitacaoSelecionada.titulo}`
+                : 'Processo de cotação'}
+            </DialogTitle>
+            <DialogDescription>
+              Pedido original preservado. As propostas abaixo pertencem a esta mesma solicitação.
+            </DialogDescription>
+          </DialogHeader>
+
+          {solicitacaoSelecionada && (
+            <div className="space-y-5">
+              <div className="grid gap-3 rounded-lg border bg-muted/20 p-4 md:grid-cols-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Solicitante</p>
+                  <p className="font-medium">{solicitacaoSelecionada.criado_por_nome || 'Usuário'}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {[solicitacaoSelecionada.criado_por_perfil, solicitacaoSelecionada.criado_por_email].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Data da necessidade</p>
+                  <p className="font-medium">{dataPt(solicitacaoSelecionada.data_necessaria || solicitacaoSelecionada.data_limite)}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Projeto / centro de custo</p>
+                  <p className="font-medium">{solicitacaoSelecionada.projeto_centro_custo || 'Não informado'}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Situação</p>
+                  <Badge variant="outline">{solicitacaoStatusLabels[solicitacaoSelecionada.status] || solicitacaoSelecionada.status}</Badge>
+                </div>
+              </div>
+
+              {solicitacaoSelecionada.tipo === 'insumo' && (
+                <div className="rounded-lg border">
+                  <div className="border-b px-4 py-3">
+                    <p className="font-medium">Itens solicitados</p>
+                    <p className="text-xs text-muted-foreground">Esses itens e quantidades são herdados automaticamente pelas novas cotações.</p>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Código</TableHead>
+                        <TableHead>Material</TableHead>
+                        <TableHead className="text-right">Quantidade</TableHead>
+                        <TableHead>Unidade</TableHead>
+                        <TableHead>Observação</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {itensSolicitacao.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.codigo_item || '—'}</TableCell>
+                          <TableCell className="font-medium">{item.descricao}</TableCell>
+                          <TableCell className="text-right">{item.quantidade ?? '—'}</TableCell>
+                          <TableCell>{item.unidade || '—'}</TableCell>
+                          <TableCell>{item.observacoes || '—'}</TableCell>
+                        </TableRow>
+                      ))}
+                      {itensSolicitacao.length === 0 && (
+                        <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Nenhum item registrado nesta solicitação.</TableCell></TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {solicitacaoSelecionada.tipo === 'frete' && (
+                <div className="grid gap-3 rounded-lg border p-4 md:grid-cols-5">
+                  <div><p className="text-xs text-muted-foreground">Origem</p><p className="font-medium">{solicitacaoSelecionada.origem_frete || '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Destino</p><p className="font-medium">{solicitacaoSelecionada.destino_frete || '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Peso</p><p className="font-medium">{solicitacaoSelecionada.peso_kg ? `${solicitacaoSelecionada.peso_kg} kg` : '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Cubagem</p><p className="font-medium">{solicitacaoSelecionada.cubagem_m3 ? `${solicitacaoSelecionada.cubagem_m3} m³` : '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Volumes</p><p className="font-medium">{solicitacaoSelecionada.volumes ?? '—'}</p></div>
+                </div>
+              )}
+
+              {solicitacaoSelecionada.observacoes && (
+                <div className="rounded-lg border p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Observações do solicitante</p>
+                  <p className="mt-1 whitespace-pre-wrap text-sm">{solicitacaoSelecionada.observacoes}</p>
+                </div>
+              )}
+
+              {!['encerrada', 'cancelada'].includes(solicitacaoSelecionada.status) && (
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={() => void abrirNovaCotacaoDaSolicitacao(solicitacaoSelecionada)}>
+                    <Plus className="mr-2 h-4 w-4" /> Nova cotação para esta solicitação
+                  </Button>
+                  <Button variant="outline" onClick={() => void abrirLinkDaSolicitacao(solicitacaoSelecionada)}>
+                    <Link2 className="mr-2 h-4 w-4" /> Cotação por link
+                  </Button>
+                  <Button variant="outline" onClick={() => importarPdfDaSolicitacao(solicitacaoSelecionada)}>
+                    <Upload className="mr-2 h-4 w-4" /> Importar PDF para esta solicitação
+                  </Button>
+                </div>
+              )}
+
+              <div className="rounded-lg border">
+                <div className="border-b px-4 py-3">
+                  <p className="font-medium">Propostas vinculadas</p>
+                  <p className="text-xs text-muted-foreground">Compare as propostas, confirme os dados e escolha a que será utilizada.</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cotação</TableHead>
+                        <TableHead>Fornecedor</TableHead>
+                        <TableHead>Pagamento</TableHead>
+                        <TableHead>Prazo</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead>Situação</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {cotacoesDoProcesso.map((cotacao) => (
+                        <TableRow key={cotacao.id}>
+                          <TableCell>#{cotacao.numero}</TableCell>
+                          <TableCell className="font-medium">{cotacao.fornecedor_nome || 'Não informado'}</TableCell>
+                          <TableCell>{cotacao.condicao_pagamento || '—'}</TableCell>
+                          <TableCell>{cotacao.prazo_dias ? `${cotacao.prazo_dias} dias` : '—'}</TableCell>
+                          <TableCell className="text-right font-semibold">{moeda(cotacao.valor_total)}</TableCell>
+                          <TableCell>
+                            <Badge variant={cotacao.status === 'rejeitada' ? 'destructive' : 'outline'}>
+                              {statusLabels[cotacao.status] || cotacao.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-end gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => void abrirEdicao(cotacao)}>
+                                <Pencil className="mr-1 h-4 w-4" /> Abrir
+                              </Button>
+                              {cotacao.url_origem && (
+                                <Button variant="ghost" size="sm" onClick={() => window.open(cotacao.url_origem!, '_blank', 'noopener,noreferrer')}>
+                                  <ExternalLink className="mr-1 h-4 w-4" /> Link
+                                </Button>
+                              )}
+                              {cotacao.status === 'confirmada' && solicitacaoSelecionada.status !== 'encerrada' && (
+                                <Button size="sm" variant="outline" onClick={() => void escolherProposta(solicitacaoSelecionada, cotacao)}>
+                                  Escolher
+                                </Button>
+                              )}
+                              {cotacao.status === 'escolhida' && !cotacao.financeiro_necessidade_id && (
+                                <Button size="sm" onClick={() => void converterEmPn(cotacao)}>
+                                  <ArrowRightLeft className="mr-1 h-4 w-4" /> Converter em PN
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {cotacoesDoProcesso.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                            Nenhuma proposta foi vinculada ainda.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
         <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editorCotacao ? `Cotação #${editorCotacao.numero}` : 'Nova cotação manual'}</DialogTitle>
+            <DialogTitle>{editorCotacao ? `Cotação #${editorCotacao.numero}` : 'Nova cotação'}</DialogTitle>
             <DialogDescription>
               {editorCotacao?.origem_cadastro === 'pdf'
                 ? 'Confira o que foi lido do PDF. Todos os campos podem ser corrigidos antes de confirmar.'
-                : 'Preencha manualmente os dados da cotação.'}
+                : form.origem_cadastro === 'link'
+                  ? 'Registre uma cotação encontrada na internet. O link fica salvo como origem e os valores ficam preservados no histórico.'
+                  : 'Crie uma nova cotação, vincule os itens do estoque e preencha os dados conforme os orçamentos realizados pelo Almoxarifado.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -756,9 +1396,54 @@ export function CentralCotacoes() {
               <span className="font-medium">{editorCotacao.arquivo_nome}</span>
               <Badge variant="outline">{editorCotacao.leitura_status}</Badge>
               {editorCotacao.leitura_erro && <span className="text-amber-500">{editorCotacao.leitura_erro}</span>}
-              <Button variant="ghost" size="sm" className="ml-auto" onClick={() => void abrirPdf(editorCotacao)}>
-                <Eye className="mr-2 h-4 w-4" /> Ver PDF original
-              </Button>
+              <div className="ml-auto flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void reprocessarPdf(editorCotacao)}
+                  disabled={reprocessandoId === editorCotacao.id}
+                >
+                  {reprocessandoId === editorCotacao.id
+                    ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    : <RefreshCw className="mr-2 h-4 w-4" />}
+                  Reprocessar PDF
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => void abrirPdf(editorCotacao)}>
+                  <Eye className="mr-2 h-4 w-4" /> Ver PDF original
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {form.origem_cadastro === 'link' && (
+            <div className="grid gap-4 rounded-lg border border-violet-500/20 bg-violet-500/5 p-4 md:grid-cols-3">
+              <div className="md:col-span-2">
+                <Label>Link da cotação / anúncio *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="url"
+                    value={form.url_origem}
+                    onChange={(e) => setForm((f) => ({ ...f, url_origem: e.target.value }))}
+                    placeholder="https://..."
+                  />
+                  {form.url_origem && (
+                    <Button type="button" variant="outline" size="icon" onClick={() => window.open(form.url_origem, '_blank', 'noopener,noreferrer')} title="Abrir link">
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <Label>Site / plataforma</Label>
+                <Input
+                  value={form.plataforma_origem}
+                  onChange={(e) => setForm((f) => ({ ...f, plataforma_origem: e.target.value }))}
+                  placeholder="Ex.: Mercado Livre, Amazon, fornecedor"
+                />
+              </div>
+              <div className="md:col-span-3 text-xs text-muted-foreground">
+                O link identifica a fonte. Registre abaixo preço, frete, prazo e condições encontradas para preservar a cotação mesmo que o anúncio mude.
+              </div>
             </div>
           )}
 
@@ -780,7 +1465,21 @@ export function CentralCotacoes() {
             <div className="grid gap-4 rounded-lg border p-4 md:grid-cols-3">
               <div><Label>Origem</Label><Input value={form.origem_frete} onChange={(e) => setForm((f) => ({ ...f, origem_frete: e.target.value }))} /></div>
               <div><Label>Destino</Label><Input value={form.destino_frete} onChange={(e) => setForm((f) => ({ ...f, destino_frete: e.target.value }))} /></div>
-              <div><Label>Tipo de veículo</Label><Input value={form.tipo_veiculo} onChange={(e) => setForm((f) => ({ ...f, tipo_veiculo: e.target.value }))} /></div>
+              <div>
+                <Label>Tipo de caminhão / veículo</Label>
+                <Select value={form.tipo_veiculo || 'nao_informado'} onValueChange={(value) => setForm((f) => ({ ...f, tipo_veiculo: value === 'nao_informado' ? '' : value }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nao_informado">Não informado</SelectItem>
+                    {veiculosDisponiveis.map((veiculo) => (
+                      <SelectItem key={veiculo} value={veiculo}>{veiculo}</SelectItem>
+                    ))}
+                    {form.tipo_veiculo && !veiculosDisponiveis.includes(form.tipo_veiculo) && (
+                      <SelectItem value={form.tipo_veiculo}>{form.tipo_veiculo}</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label>Peso (kg)</Label><Input value={form.peso_kg} onChange={(e) => setForm((f) => ({ ...f, peso_kg: e.target.value }))} /></div>
               <div><Label>Cubagem (m³)</Label><Input value={form.cubagem_m3} onChange={(e) => setForm((f) => ({ ...f, cubagem_m3: e.target.value }))} /></div>
               <div><Label>Volumes</Label><Input type="number" min="0" value={form.volumes} onChange={(e) => setForm((f) => ({ ...f, volumes: e.target.value }))} /></div>
@@ -792,16 +1491,61 @@ export function CentralCotacoes() {
 
           {form.tipo === 'insumo' && (
             <div className="space-y-3 rounded-lg border p-4">
-              <div className="flex items-center justify-between">
-                <div><p className="font-medium">Itens do orçamento</p><p className="text-xs text-muted-foreground">A leitura do PDF tenta separar descrição, quantidade, unidade e valores.</p></div>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium">Itens cotados</p>
+                  <p className="text-xs text-muted-foreground">Vincule ao cadastro do estoque quando possível e registre os valores recebidos do fornecedor.</p>
+                </div>
                 <Button type="button" variant="outline" size="sm" onClick={() => setItens((current) => [...current, { descricao: '', quantidade: null, unidade: 'un', valor_unitario: null, valor_total: null }])}>
-                  <Plus className="mr-2 h-4 w-4" /> Item
+                  <Plus className="mr-2 h-4 w-4" /> Item não cadastrado
                 </Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Buscar item do estoque</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={buscaItemCotacao}
+                    onChange={(e) => setBuscaItemCotacao(e.target.value)}
+                    placeholder="Ex.: cinta plástica, 1281..."
+                    className="pl-9"
+                  />
+                </div>
+                {resultadosBuscaItemCotacao.length > 0 && (
+                  <div className="max-h-56 overflow-y-auto rounded-lg border bg-background">
+                    {resultadosBuscaItemCotacao.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => adicionarItemCatalogoCotacao(item)}
+                        className="flex w-full items-start justify-between gap-3 border-b px-3 py-2 text-left last:border-b-0 hover:bg-muted/50"
+                      >
+                        <div>
+                          <div className="font-medium">{item.nome}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Código {item.codigoBarras}{item.marca ? ` · ${item.marca}` : ''}{item.especificacao ? ` · ${item.especificacao}` : ''}
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-xs text-muted-foreground">{item.unidade || 'un'}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 {itens.map((item, index) => (
                   <div key={index} className="grid gap-2 md:grid-cols-[2fr_110px_90px_130px_130px_40px]">
-                    <Input placeholder="Descrição / material" value={item.descricao} onChange={(e) => atualizarItem(index, { descricao: e.target.value })} />
+                    <div>
+                      {item.item_id ? (
+                        <div className="rounded-md border px-3 py-2">
+                          <div className="font-medium">{item.descricao}</div>
+                          <div className="text-xs text-muted-foreground">Código {item.codigo_item || '—'}</div>
+                        </div>
+                      ) : (
+                        <Input placeholder="Descrição / material" value={item.descricao} onChange={(e) => atualizarItem(index, { descricao: e.target.value })} />
+                      )}
+                    </div>
                     <Input placeholder="Qtd" value={item.quantidade ?? ''} onChange={(e) => atualizarItem(index, { quantidade: fromInput(e.target.value) })} />
                     <Input placeholder="Un." value={item.unidade || ''} onChange={(e) => atualizarItem(index, { unidade: e.target.value })} />
                     <Input placeholder="V. unit." value={item.valor_unitario ?? ''} onChange={(e) => atualizarItem(index, { valor_unitario: fromInput(e.target.value) })} />
@@ -833,7 +1577,20 @@ export function CentralCotacoes() {
             <div><Label>Observação / descrição geral</Label><Textarea value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))} rows={3} /></div>
           )}
 
-          <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
+          <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+            {editorCotacao && editorCotacao.status !== 'convertida_pn' && !editorCotacao.financeiro_necessidade_id && (
+              <Button
+                variant="destructive"
+                onClick={() => void excluirCotacao(editorCotacao)}
+                disabled={excluindoId === editorCotacao.id}
+                className="mr-auto"
+              >
+                {excluindoId === editorCotacao.id
+                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  : <Trash2 className="mr-2 h-4 w-4" />}
+                Excluir cotação
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setEditorOpen(false)}>Cancelar</Button>
             <Button variant="outline" onClick={() => void salvarCotacao(false)} disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar rascunho'}</Button>
             <Button onClick={() => void salvarCotacao(true)} disabled={salvando}>

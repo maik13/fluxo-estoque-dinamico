@@ -390,7 +390,7 @@ export const useEstoque = () => {
   ) => {
     try {
       const inicio = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const pageSize = 1000;
+      const pageSize = 500;
       let from = 0;
       let rows: any[] = [];
 

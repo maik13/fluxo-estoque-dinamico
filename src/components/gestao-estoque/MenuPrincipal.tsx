@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X, MessageCircle } from 'lucide-react';
+import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X, MessageCircle, ReceiptText } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Item, EstoqueItem } from '@/types/estoque';
@@ -22,6 +22,7 @@ import { RegistrarEntrada } from './RegistrarEntrada';
 import { Transferencia } from './Transferencia';
 import { SolicitacaoMaterial } from './SolicitacaoMaterial';
 import { PrevisoesNecessidadeAlmoxarifado } from './PrevisoesNecessidadeAlmoxarifado';
+import { SolicitarOrcamento } from './SolicitarOrcamento';
 import { Badge } from '@/components/ui/badge';
 
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
@@ -32,12 +33,16 @@ import { itemRegistrationSchema, exitRegistrationSchema } from '@/schemas/valida
 import { toast } from 'sonner';
 
 export const MenuPrincipal = ({ 
-  onAbrirMensagens
+  onAbrirMensagens,
+  onAbrirCotacoes,
+  solicitacoesCotacaoPendentesCount = 0
 }: { 
   onAbrirGerencial?: () => void;
   onAbrirProjetos?: () => void;
   onAbrirMensagens?: () => void;
   onAbrirProducao?: () => void;
+  onAbrirCotacoes?: () => void;
+  solicitacoesCotacaoPendentesCount?: number;
 }) => {
   const { cadastrarItem, registrarEntrada, registrarSaida, buscarItemPorCodigo, verificarCodigoExistente, obterProximoCodigoDisponivel, obterEstoque } = useEstoqueContext();
   const { obterTiposServicoAtivos, obterSubcategoriasAtivas, obterCategoriasUnicas, obterSubcategoriasPorCategoria, obterSubcategoriasDaCategoria, obterEstoqueAtivoInfo, tiposOperacao } = useConfiguracoes();
@@ -49,6 +54,11 @@ export const MenuPrincipal = ({
     canRegistrarEntrada, 
     canTransferir, 
     canRegistrarSaida,
+    canSolicitacaoMaterial,
+    hasPermission,
+    isAdmin,
+    isGestor,
+    isEstoquista,
     userProfile
   } = usePermissions();
   
@@ -151,6 +161,7 @@ export const MenuPrincipal = ({
   const estoqueAtivoInfo = obterEstoqueAtivoInfo();
   const podeUsarCadastro = canCreateItems();
   const podeMovimentar = canManageStock();
+  const podeOperarCotacoes = isAdmin() || isGestor() || isEstoquista();
 
   // Buscar próximo código disponível quando o dialog de cadastro abrir
   useEffect(() => {
@@ -522,6 +533,58 @@ export const MenuPrincipal = ({
 
         {/* LINHA 1: Retirada, Devolução, Cadastro, Transferência, Entrada */}
         {canSolicitarMaterial() && <SolicitarMaterial />}
+
+        {podeOperarCotacoes && onAbrirCotacoes ? (
+          <Card
+            onClick={onAbrirCotacoes}
+            className={cn(
+              "relative cursor-pointer transition-all duration-300 hover:scale-105",
+              solicitacoesCotacaoPendentesCount > 0
+                ? "animate-pulse border-amber-500/60 bg-amber-500/5 shadow-[0_0_0_1px_hsl(var(--warning)/0.15)] hover:border-amber-500"
+                : "border-violet-500/20 hover:border-violet-500/40",
+            )}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onAbrirCotacoes();
+              }
+            }}
+          >
+            {solicitacoesCotacaoPendentesCount > 0 && (
+              <Badge
+                variant="destructive"
+                className="absolute right-3 top-3 min-w-6 justify-center rounded-full px-2"
+                title={`${solicitacoesCotacaoPendentesCount} solicitação(ões) de orçamento aguardando atendimento`}
+              >
+                {solicitacoesCotacaoPendentesCount > 99 ? '99+' : solicitacoesCotacaoPendentesCount}
+              </Badge>
+            )}
+            <CardHeader className="text-center">
+              <div className={cn(
+                "mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full",
+                solicitacoesCotacaoPendentesCount > 0 ? "bg-amber-500/15" : "bg-violet-500/10",
+              )}>
+                <ReceiptText className={cn(
+                  "h-8 w-8",
+                  solicitacoesCotacaoPendentesCount > 0 ? "text-amber-500" : "text-violet-500",
+                )} />
+              </div>
+              <CardTitle className={solicitacoesCotacaoPendentesCount > 0 ? "text-amber-500" : "text-violet-500"}>
+                Cotação
+              </CardTitle>
+              <CardDescription>
+                {solicitacoesCotacaoPendentesCount > 0
+                  ? `${solicitacoesCotacaoPendentesCount} ${solicitacoesCotacaoPendentesCount === 1 ? 'solicitação aguarda' : 'solicitações aguardam'} atendimento`
+                  : 'Abrir a Central de Cotações do Almoxarifado'}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        ) : (
+          <SolicitarOrcamento />
+        )}
+
         {canDevolverMaterial() && <DevolverMaterial />}
 
 
@@ -831,7 +894,7 @@ export const MenuPrincipal = ({
         {/* Registrar Entrada */}
         {canRegistrarEntrada() && <RegistrarEntrada />}
 
-        {/* Solicitação de Material: disponível para todo usuário ativo.
+        {/* Solicitação de Material: disponível para todo usuário autenticado.
             Aprovação, retirada e PN permanecem restritas ao Almoxarifado. */}
         {userProfile?.ativo && <SolicitacaoMaterial />}
 

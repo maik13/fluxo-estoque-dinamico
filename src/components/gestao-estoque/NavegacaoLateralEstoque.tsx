@@ -49,6 +49,7 @@ type NavegacaoLateralEstoqueProps = {
   showRHInformacoes: boolean;
   showConfiguracoes: boolean;
   solicitacoesPendentesCount: number;
+  solicitacoesCotacaoPendentesCount: number;
   mensagensNaoLidasCount: number;
   somenteBIProducao: boolean;
 };
@@ -59,6 +60,7 @@ type NavItem = {
   icon: LucideIcon;
   visible?: boolean;
   badge?: number;
+  attention?: boolean;
 };
 
 type NavSection = {
@@ -86,6 +88,7 @@ export const NavegacaoLateralEstoque = ({
   showRHInformacoes,
   showConfiguracoes,
   solicitacoesPendentesCount,
+  solicitacoesCotacaoPendentesCount,
   mensagensNaoLidasCount,
   somenteBIProducao,
 }: NavegacaoLateralEstoqueProps) => {
@@ -94,7 +97,7 @@ export const NavegacaoLateralEstoque = ({
     () => new Set([
       'Painel',
       'Almoxarifado',
-      ...(showFinanceiro || showCotacoes || showAcompanhamentoPedido || showGerencial || showProjetos ? ['Gestão'] : []),
+      ...(showFinanceiro || showAcompanhamentoPedido || showGerencial || showProjetos ? ['Gestão'] : []),
       ...(showProducao || showPlanejamento2 || showImagensOP ? ['Produção'] : []),
     ]),
   );
@@ -129,6 +132,14 @@ export const NavegacaoLateralEstoque = ({
           icon: ClipboardList,
           visible: showSolicitantes,
         },
+        {
+          value: 'cotacoes',
+          label: 'Cotações',
+          icon: ReceiptText,
+          visible: showCotacoes,
+          badge: solicitacoesCotacaoPendentesCount,
+          attention: solicitacoesCotacaoPendentesCount > 0,
+        },
       ],
     },
     {
@@ -152,12 +163,6 @@ export const NavegacaoLateralEstoque = ({
           label: 'Acompanhamento do Pedido',
           icon: ClipboardCheck,
           visible: showAcompanhamentoPedido,
-        },
-        {
-          value: 'cotacoes',
-          label: 'Cotações',
-          icon: ReceiptText,
-          visible: showCotacoes,
         },
         {
           value: 'financeiro',
@@ -325,6 +330,7 @@ export const NavegacaoLateralEstoque = ({
                   const Icon = item.icon;
                   const active = tabAtiva === item.value;
                   const badge = item.badge && item.badge > 0 ? item.badge : 0;
+                  const attention = Boolean(item.attention && badge > 0);
 
                   return (
                     <button
@@ -336,7 +342,9 @@ export const NavegacaoLateralEstoque = ({
                         'group flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors',
                         active
                           ? 'border-primary/30 bg-primary/10 text-primary shadow-sm'
-                          : 'border-transparent text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground',
+                          : attention
+                            ? 'animate-pulse border-amber-500/50 bg-amber-500/10 text-amber-300 shadow-sm'
+                            : 'border-transparent text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground',
                       )}
                     >
                       <span
@@ -344,7 +352,9 @@ export const NavegacaoLateralEstoque = ({
                           'flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors',
                           active
                             ? 'bg-primary/15 text-primary'
-                            : 'bg-muted/60 text-muted-foreground group-hover:text-foreground',
+                            : attention
+                              ? 'bg-amber-500/15 text-amber-300'
+                              : 'bg-muted/60 text-muted-foreground group-hover:text-foreground',
                         )}
                       >
                         <Icon className="h-4 w-4" />
