@@ -593,8 +593,7 @@
     width: max-content !important;
     max-width: none !important;
     overflow: visible !important;
-    transform: scale(var(--gantt-print-scale, 1));
-    transform-origin: top left;
+    zoom: var(--gantt-print-scale, 1);
     box-shadow: none !important;
     break-inside: avoid;
     page-break-inside: avoid;
