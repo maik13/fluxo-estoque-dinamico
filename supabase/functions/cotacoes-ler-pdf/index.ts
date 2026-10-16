@@ -304,7 +304,9 @@ const parseDocument = (lines: string[], fileName: string) => {
   }
 
   if (valorTotal === null) {
-    const totalCandidates = [...flat.matchAll(/(?:valor\s+total|total\s+(?:geral|da proposta|do or[cç]amento)?|total)\s*[:\-]?\s*(R\$\s*[\d.]+,\d{2})/gi)]
+    // Alguns fornecedores apresentam o total sem o prefixo "R$" (por exemplo,
+    // "Valor Total: 49.880,00"). O rótulo do total é obrigatório; só a moeda é opcional.
+    const totalCandidates = [...flat.matchAll(/(?:valor\s+total|total\s+(?:geral|da proposta|do or[cç]amento)?|total)\s*[:\-]?\s*((?:R\$\s*)?[\d.]+,\d{2})/gi)]
       .map((m) => money(m[1]))
       .filter((v): v is number => v !== null);
     valorTotal = totalCandidates.at(-1) ?? null;
