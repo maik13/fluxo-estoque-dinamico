@@ -103,7 +103,20 @@ export const usePontualidadeMSPNatal2026 = () => {
       const ordensComPrevisao = todasOrdens.filter((ordem) =>
         ordem.status !== 'cancelada' && Boolean(ordem.data_inicio_prevista),
       );
-      const projetosComPrevisao = new Set(ordensComPrevisao.map((ordem) => ordem.projeto_id));
+      // Nas pecas reorganizadas, o cronograma operacional vigente corresponde
+      // exclusivamente as novas OPs. As OPs historicas permanecem no banco
+      // e continuam disponiveis para consultas e auditoria.
+      const marcadorReorganizacao = 'NATAL-OP-LISTA-20261016 | ';
+      const projetosReorganizados = new Set(
+        ordensComPrevisao
+          .filter((ordem) => ordem.instrucoes?.startsWith(marcadorReorganizacao))
+          .map((ordem) => ordem.projeto_id),
+      );
+      const ordensCronogramaVigente = ordensComPrevisao.filter((ordem) =>
+        !projetosReorganizados.has(ordem.projeto_id)
+        || ordem.instrucoes?.startsWith(marcadorReorganizacao),
+      );
+      const projetosComPrevisao = new Set(ordensCronogramaVigente.map((ordem) => ordem.projeto_id));
       const projetoPorOrdem = new Map(todasOrdens.map((ordem) => [ordem.id, ordem.projeto_id]));
       const projetoPorProcesso = new Map(
         ((processosResult.data ?? []) as ProcessoGerencial[]).map((processo) => [processo.id, processo.projeto_id]),
@@ -197,7 +210,7 @@ export const usePontualidadeMSPNatal2026 = () => {
         });
       };
 
-      const pecas = montarPecas(ordensComPrevisao);
+      const pecas = montarPecas(ordensCronogramaVigente);
 
       const proximoResumo: ResumoPontualidadeMSP = {
         atualizadoEm: new Date(),
