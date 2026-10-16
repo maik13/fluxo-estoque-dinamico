@@ -177,7 +177,7 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => exportarRelatorioPontualidadePdf(resumo)} disabled={!exportacaoDisponivel}>
             <FileText className="mr-2 h-4 w-4" />
-            PDF
+            PDF do Gantt
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => imprimirSecaoProducao('relatorio-pontualidade-impressao')} disabled={!exportacaoDisponivel}>
             <Printer className="mr-2 h-4 w-4" />

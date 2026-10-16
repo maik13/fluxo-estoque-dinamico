@@ -12,6 +12,8 @@
     background: #fff !important;
     color: #111827 !important;
     border: 0 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   .pontualidade-print-area .pontualidade-controles,
@@ -25,6 +27,8 @@
   .pontualidade-print-area .pontualidade-timeline-scroll {
     overflow: visible !important;
     border: 0 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   .pontualidade-print-area .pontualidade-timeline-canvas {
