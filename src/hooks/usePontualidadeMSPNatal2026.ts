@@ -16,6 +16,7 @@ export interface PontualidadeMSPPeca {
   inicioPlanejado: string;
   fimPlanejado: string;
   primeiroApontamento: string | null;
+  primeiroApontamentoHistorico: string | null;
   opsImportadas: number;
   situacao: SituacaoPontualidadeMSP;
   diferencaDias: number;
@@ -122,6 +123,8 @@ export const usePontualidadeMSPNatal2026 = () => {
         ((processosResult.data ?? []) as ProcessoGerencial[]).map((processo) => [processo.id, processo.projeto_id]),
       );
       const primeiroApontamentoPorProjeto = new Map<string, string>();
+      const primeiroApontamentoHistoricoPorProjeto = new Map<string, string>();
+      const idsOpsVigentes = new Set(ordensCronogramaVigente.map((ordem) => ordem.id));
 
       for (const apontamento of (apontamentosResult.data ?? []) as ApontamentoGerencial[]) {
         if (apontamento.status === 'cancelado') continue;
@@ -132,6 +135,15 @@ export const usePontualidadeMSPNatal2026 = () => {
             : undefined;
         if (!projetoId || !projetosComPrevisao.has(projetoId)) continue;
 
+        const anteriorHistorico = primeiroApontamentoHistoricoPorProjeto.get(projetoId);
+        if (!anteriorHistorico || apontamento.data < anteriorHistorico) {
+          primeiroApontamentoHistoricoPorProjeto.set(projetoId, apontamento.data);
+        }
+        // Em projetos reorganizados, a pontualidade corrente considera
+        // apenas apontamentos associados as novas OPs. O anterior fica
+        // registrado separadamente para auditoria e exportacao.
+        if (projetosReorganizados.has(projetoId)
+          && (!apontamento.ordem_producao_id || !idsOpsVigentes.has(apontamento.ordem_producao_id))) continue;
         const anterior = primeiroApontamentoPorProjeto.get(projetoId);
         if (!anterior || apontamento.data < anterior) {
           primeiroApontamentoPorProjeto.set(projetoId, apontamento.data);
@@ -165,6 +177,7 @@ export const usePontualidadeMSPNatal2026 = () => {
               ? ordem.data_fim_prevista
               : ordem.data_inicio_prevista!,
             primeiroApontamento: null,
+            primeiroApontamentoHistorico: null,
             opsImportadas: 1,
             situacao: 'aguardando_inicio',
             diferencaDias: 0,
@@ -173,6 +186,7 @@ export const usePontualidadeMSPNatal2026 = () => {
 
         return [...porProjeto.values()].map((peca) => {
         const primeiroApontamento = primeiroApontamentoPorProjeto.get(peca.projetoId) ?? null;
+        const primeiroApontamentoHistorico = primeiroApontamentoHistoricoPorProjeto.get(peca.projetoId) ?? null;
         const inicioPlanejado = parseISO(peca.inicioPlanejado);
         const diferenca = primeiroApontamento
           ? differenceInCalendarDays(parseISO(primeiroApontamento), inicioPlanejado)
@@ -182,6 +196,7 @@ export const usePontualidadeMSPNatal2026 = () => {
           return {
             ...peca,
             primeiroApontamento,
+            primeiroApontamentoHistorico,
             diferencaDias: diferenca,
             situacao: diferenca < 0
               ? 'antecipado' as const
@@ -193,6 +208,7 @@ export const usePontualidadeMSPNatal2026 = () => {
 
         return {
           ...peca,
+          primeiroApontamentoHistorico,
           diferencaDias: Math.max(0, diferenca),
           situacao: diferenca > 0 ? 'atrasado_para_iniciar' as const : 'aguardando_inicio' as const,
         };
