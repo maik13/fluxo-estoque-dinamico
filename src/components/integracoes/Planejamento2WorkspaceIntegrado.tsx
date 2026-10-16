@@ -25,7 +25,7 @@ async function loadDetail(workspace:Workspace){
   const [tasks,deps,fluxProject]=await Promise.all([
     ac.from("planejamento_v2_tasks").select("*").eq("workspace_id",workspace.id).order("position").order("created_at"),
     ac.from("planejamento_v2_dependencies").select("*").eq("workspace_id",workspace.id),
-    fluxo.from("producao_projetos").select("id,nome,status,cliente").ilike("nome",workspace.projectName).is("excluido_em",null).limit(1),
+    fluxo.from("producao_projetos").select("id,nome,status,cliente,local_utilizacao_id").ilike("nome",workspace.projectName).is("excluido_em",null).limit(1),
   ]);
   if(tasks.error) throw tasks.error;
   if(deps.error) throw deps.error;
@@ -34,13 +34,15 @@ async function loadDetail(workspace:Workspace){
   let ops:any[]=[]; let produzido=0;
   if(project?.id){
     const [or,ap]=await Promise.all([
-      fluxo.from("producao_ordens_producao").select("id,numero,descricao,status,quantidade_planejada").eq("projeto_id",project.id),
+      fluxo.from("producao_ordens_producao").select("id,numero,descricao,status,quantidade_planejada,data_inicio_prevista,data_fim_prevista,instrucoes,processo_id").eq("projeto_id",project.id).order("numero",{ascending:true}),
       fluxo.from("producao_apontamentos").select("quantidade_produzida,status").eq("projeto_local_id",project.local_utilizacao_id).neq("status","cancelado"),
     ]);
     if(!or.error) ops=or.data||[];
     if(!ap.error) produzido=(ap.data||[]).reduce((s:number,r:any)=>s+n(r.quantidade_produzida),0);
   }
-  return {tasks:tasks.data||[],dependencies:deps.data||[],fluxProject:project,fluxOps:ops,fluxProduzido:produzido};
+  const possuiReorganizacao=ops.some((op:any)=>String(op.instrucoes||"").startsWith("NATAL-OP-LISTA-20261016 | "));
+  const fluxOpsVigentes=possuiReorganizacao ? ops.filter((op:any)=>String(op.instrucoes||"").startsWith("NATAL-OP-LISTA-20261016 | ")) : ops.filter((op:any)=>op.status!=="cancelada");
+  return {tasks:tasks.data||[],dependencies:deps.data||[],fluxProject:project,fluxOps:ops,fluxOpsVigentes,fluxProduzido:produzido};
 }
 
 export function Planejamento2WorkspaceIntegrado({workspace,onBack}:{workspace:Workspace;onBack:()=>void}){
@@ -82,7 +84,7 @@ export function Planejamento2WorkspaceIntegrado({workspace,onBack}:{workspace:Wo
       <div><div className="text-xs text-muted-foreground">Tarefas</div><div className="text-2xl font-semibold">{tasks.length}</div></div>
       <div><div className="text-xs text-muted-foreground">Concluídas</div><div className="text-2xl font-semibold">{completed}</div></div>
       <div><div className="text-xs text-muted-foreground">Progresso</div><div className="text-2xl font-semibold">{progress}%</div></div>
-      <div><div className="text-xs text-muted-foreground">OPs no Fluxo</div><div className="text-2xl font-semibold">{detail.data?.fluxOps.length||0}</div></div>
+      <div><div className="text-xs text-muted-foreground">OPs vigentes no Fluxo</div><div className="text-2xl font-semibold">{detail.data?.fluxOpsVigentes.length||0}</div></div>
       <div><div className="text-xs text-muted-foreground">Produzido no Fluxo</div><div className="text-2xl font-semibold">{n(detail.data?.fluxProduzido).toLocaleString("pt-BR")}</div></div>
       <div className="md:col-span-5"><Progress value={progress}/></div>
     </CardContent></Card>
@@ -99,6 +101,29 @@ export function Planejamento2WorkspaceIntegrado({workspace,onBack}:{workspace:Wo
         </TableRow>)}{!tasks.length&&<TableRow><TableCell colSpan={5} className="py-10 text-center text-muted-foreground">Nenhuma atividade cadastrada.</TableCell></TableRow>}</TableBody>
       </Table>}
     </div>
+    {detail.data?.fluxProject && <div className="overflow-hidden rounded-lg border">
+      <div className="border-b bg-muted/20 px-4 py-3">
+        <div className="font-semibold">Ordens de produção vigentes no Fluxo</div>
+        <div className="text-xs text-muted-foreground">
+          Consulta em tempo real ao Fluxo. As OPs reorganizadas são apresentadas separadamente do histórico; nenhuma tarefa do App Controle é alterada.
+        </div>
+      </div>
+      <div className="max-h-[420px] overflow-auto">
+        <Table>
+          <TableHeader><TableRow><TableHead>OP</TableHead><TableHead>Atividade</TableHead><TableHead>Início previsto</TableHead><TableHead>Fim previsto</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {(detail.data.fluxOpsVigentes||[]).map((op:any)=><TableRow key={op.id}>
+              <TableCell className="whitespace-nowrap font-medium">{op.numero ? `OP ${op.numero}` : "—"}</TableCell>
+              <TableCell>{op.descricao||"—"}</TableCell>
+              <TableCell className="whitespace-nowrap">{op.data_inicio_prevista||"—"}</TableCell>
+              <TableCell className="whitespace-nowrap">{op.data_fim_prevista||"—"}</TableCell>
+              <TableCell>{op.status||"—"}</TableCell>
+            </TableRow>)}
+            {!detail.data.fluxOpsVigentes?.length&&<TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Nenhuma OP vigente encontrada para o projeto correspondente.</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </div>
+    </div>}
     <Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogHeader><DialogTitle>Nova atividade</DialogTitle></DialogHeader><form onSubmit={(e:FormEvent)=>{e.preventDefault();createTask.mutate();}} className="space-y-4">
       <div className="space-y-2"><Label>Atividade *</Label><Input value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></div>
       <div className="grid grid-cols-2 gap-3"><div className="space-y-2"><Label>Início</Label><Input type="date" value={form.start} onChange={e=>setForm({...form,start:e.target.value})}/></div><div className="space-y-2"><Label>Fim</Label><Input type="date" value={form.end} onChange={e=>setForm({...form,end:e.target.value})}/></div></div>
