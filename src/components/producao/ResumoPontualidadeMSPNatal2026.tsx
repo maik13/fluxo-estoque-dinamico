@@ -167,7 +167,7 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
             Pontualidade da produção
           </CardTitle>
           <CardDescription className="mt-1 max-w-3xl">
-            Compara o primeiro início previsto das OPs de cada peça com o primeiro apontamento válido, incluindo o histórico preservado em OPs anteriores.
+            Compara o início previsto das OPs vigentes com seu primeiro apontamento. O primeiro apontamento histórico é exibido separadamente.
           </CardDescription>
         </div>
         <div className="pontualidade-controles flex flex-wrap gap-2 print:hidden">
@@ -245,7 +245,8 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
                     <TableHead>Peça / projeto</TableHead>
                     <TableHead>Início previsto</TableHead>
                     <TableHead>Fim previsto</TableHead>
-                    <TableHead>Primeiro apontamento</TableHead>
+                    <TableHead>Primeiro apontamento vigente</TableHead>
+                    <TableHead>Primeiro histórico</TableHead>
                     <TableHead>Situação</TableHead>
                     <TableHead className="text-right">Variação</TableHead>
                   </TableRow>
@@ -262,13 +263,14 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
                         <TableCell>{dataPt(peca.inicioPlanejado)}</TableCell>
                         <TableCell>{dataPt(peca.fimPlanejado)}</TableCell>
                         <TableCell>{dataPt(peca.primeiroApontamento)}</TableCell>
+                        <TableCell>{dataPt(peca.primeiroApontamentoHistorico)}</TableCell>
                         <TableCell><Badge variant="outline" className={item.classe}>{item.rotulo}</Badge></TableCell>
                         <TableCell className="text-right font-medium">{impacto(peca.situacao, peca.diferencaDias)}</TableCell>
                       </TableRow>
                     );
                   })}
                   {!error && resumo.pecas.length === 0 && !loading && (
-                    <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Nenhuma peça com OP programada foi encontrada.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhuma peça com OP programada foi encontrada.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
