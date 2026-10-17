@@ -16,6 +16,7 @@ import { ptBR } from 'date-fns/locale';
 import {
   AlertCircle,
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Printer,
@@ -66,6 +67,8 @@ const CONFIG_ESCALA: Record<EscalaGantt, { pixelsPorDia: number; quantidadeDias?
 };
 
 const statusClass: Record<string, string> = {
+  liberada: 'bg-indigo-500',
+  rascunho: 'bg-slate-400',
   planejado: 'bg-slate-500',
   em_andamento: 'bg-emerald-500',
   pausado: 'bg-amber-500',
@@ -75,6 +78,8 @@ const statusClass: Record<string, string> = {
 };
 
 const statusLabel: Record<string, string> = {
+  liberada: 'Liberada',
+  rascunho: 'Rascunho',
   planejado: 'Planejada',
   em_andamento: 'Em andamento',
   pausado: 'Pausada',
@@ -118,16 +123,60 @@ const obterIntervaloOrdem = (ordem: GanttOrdemProducao): IntervaloEtapa | null =
 const ordensValidasEtapa = (etapa: GanttEtapaProducao) =>
   etapa.ordens.filter((ordem) => ordem.status !== 'cancelada');
 
-const obterPercentualEtapa = (etapa: GanttEtapaProducao) => {
+interface ResumoProgressoEtapa {
+  percentual: number;
+  opsAbertas: number;
+  opsValidas: number;
+}
+
+const obterResumoProgressoEtapa = (etapa: GanttEtapaProducao): ResumoProgressoEtapa => {
   const ordens = ordensValidasEtapa(etapa);
-  if (ordens.length === 0) return Number(etapa.percentual_realizado ?? 0);
+  if (ordens.length === 0) {
+    return { percentual: Number(etapa.percentual_realizado ?? 0), opsAbertas: 0, opsValidas: 0 };
+  }
 
-  const planejado = ordens.reduce((total, ordem) => total + Number(ordem.quantidade_planejada ?? 0), 0);
-  const realizado = ordens.reduce((total, ordem) => total + Number(ordem.quantidade_realizada ?? 0), 0);
+  // A quantidade apontada de OPs diferentes não é necessariamente comparável
+  // (por exemplo, uma OP pode medir peças e outra, uma atividade). Por isso o
+  // percentual do Gantt consolida o avanço de cada OP individualmente. Assim,
+  // uma etapa nunca aparece concluída enquanto ainda houver OP aberta.
+  const somatorioPercentuais = ordens.reduce((total, ordem) => {
+    if (ordem.status === 'concluida') return total + 100;
+    const planejado = Number(ordem.quantidade_planejada ?? 0);
+    const realizado = Number(ordem.quantidade_realizada ?? 0);
+    const percentual = planejado > 0 ? Math.min(100, (realizado / planejado) * 100) : 0;
+    return total + percentual;
+  }, 0);
 
-  if (planejado <= 0) return Number(etapa.percentual_realizado ?? 0);
-  return Math.min(100, Math.round((realizado / planejado) * 10000) / 100);
+  const opsAbertas = ordens.filter((ordem) => ordem.status !== 'concluida').length;
+  const percentualMedio = Math.round((somatorioPercentuais / ordens.length) * 100) / 100;
+  return {
+    // Fechar a OP é o ato operacional que confirma a conclusão da atividade.
+    // Apontamento integral em uma OP ainda aberta pode chegar a 100% físico,
+    // mas não deve fazer a Etapa parecer concluída.
+    percentual: opsAbertas > 0 ? Math.min(99.99, percentualMedio) : percentualMedio,
+    opsAbertas,
+    opsValidas: ordens.length,
+  };
 };
+
+const extrairNumeroEtapa = (nome: string) => {
+  const resultado = nome.match(/^\s*etapa\s+(\d+)\s*$/i);
+  return resultado ? Number(resultado[1]) : null;
+};
+
+const compararEtapasCronograma = (a: GanttEtapaProducao, b: GanttEtapaProducao) => {
+  const projeto = a.projeto_nome.localeCompare(b.projeto_nome, 'pt-BR');
+  if (projeto !== 0) return projeto;
+
+  const numeroA = extrairNumeroEtapa(a.etapa_nome);
+  const numeroB = extrairNumeroEtapa(b.etapa_nome);
+  if (numeroA !== null && numeroB !== null && numeroA !== numeroB) return numeroA - numeroB;
+  return a.sequencia - b.sequencia || a.etapa_nome.localeCompare(b.etapa_nome, 'pt-BR');
+};
+
+type LinhaCronograma =
+  | { tipo: 'etapa'; etapa: GanttEtapaProducao }
+  | { tipo: 'op'; etapa: GanttEtapaProducao; ordem: GanttOrdemProducao };
 
 const obterIntervaloEtapa = (etapa: GanttEtapaProducao): IntervaloEtapa | null => {
   const encerrada = etapa.status === 'finalizado' || etapa.status === 'cancelado';
@@ -199,6 +248,7 @@ export const CronogramaProducaoDiario = () => {
   const [busca, setBusca] = useState('');
   const [escala, setEscala] = useState<EscalaGantt>('semana');
   const [referencia, setReferencia] = useState(new Date());
+  const [etapasExpandidas, setEtapasExpandidas] = useState<Set<string>>(new Set());
   const [configAberta, setConfigAberta] = useState(false);
   const [configForm, setConfigForm] = useState<ConfiguracaoCronogramaProducao>({
     equipe_disponivel_por_dia: 5,
@@ -235,8 +285,27 @@ export const CronogramaProducaoDiario = () => {
       ]
         .filter(Boolean)
         .some((valor) => String(valor).toLocaleLowerCase('pt-BR').includes(termo))),
-    );
+    ).sort(compararEtapasCronograma);
   }, [busca, etapas, projetoId]);
+
+  const linhas = useMemo<LinhaCronograma[]>(() => filtradas.flatMap((etapa) => {
+    const linhaEtapa: LinhaCronograma = { tipo: 'etapa', etapa };
+    if (!etapasExpandidas.has(etapa.etapa_id)) return [linhaEtapa];
+    const ops = ordensValidasEtapa(etapa)
+      .slice()
+      .sort((a, b) => a.numero - b.numero)
+      .map((ordem): LinhaCronograma => ({ tipo: 'op', etapa, ordem }));
+    return [linhaEtapa, ...ops];
+  }), [etapasExpandidas, filtradas]);
+
+  const alternarEtapa = (etapaId: string) => {
+    setEtapasExpandidas((atuais) => {
+      const proximo = new Set(atuais);
+      if (proximo.has(etapaId)) proximo.delete(etapaId);
+      else proximo.add(etapaId);
+      return proximo;
+    });
+  };
 
   const periodo = useMemo(() => {
     if (escala === 'semana') {
@@ -297,7 +366,7 @@ export const CronogramaProducaoDiario = () => {
         <div>
           <h3 className="text-lg font-medium">Cronograma de Produção</h3>
           <p className="text-sm text-muted-foreground">
-            Semana e mês são exibidos por dias. Percentual e período das Etapas são consolidados pelas OPs.
+            Semana e mês são exibidos por dias. Expanda uma etapa para conferir o período e o status de cada OP.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -409,25 +478,55 @@ export const CronogramaProducaoDiario = () => {
               <div className="flex" style={{ width: LABEL_WIDTH + larguraTimeline }}>
                 <div className="sticky left-0 z-20 shrink-0 border-r bg-card" style={{ width: LABEL_WIDTH }}>
                   <div className="flex h-16 items-end border-b bg-muted/50 px-3 pb-2 text-xs font-semibold">
-                    Projeto / etapa
+                    Projeto / etapa / OP
                   </div>
-                  {filtradas.map((etapa) => (
+                  {linhas.map((linha) => {
+                    const { etapa } = linha;
+                    const op = linha.tipo === 'op' ? linha.ordem : null;
+                    const resumo = obterResumoProgressoEtapa(etapa);
+                    return (
                     <div
-                      key={etapa.etapa_id}
-                      className="flex flex-col justify-center border-b px-3"
+                      key={op ? `op-${op.id}` : etapa.etapa_id}
+                      className={cn(
+                        'flex flex-col justify-center border-b px-3',
+                        op && 'bg-muted/15 pl-8',
+                      )}
                       style={{ height: ROW_HEIGHT }}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="truncate text-xs font-semibold">{etapa.etapa_nome}</span>
+                        {op ? (
+                          <span className="truncate text-xs font-medium">
+                            OP {String(op.numero).padStart(6, '0')} — {op.tarefa_nome_snapshot ?? 'Sem atividade'}
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => alternarEtapa(etapa.etapa_id)}
+                            className="flex min-w-0 items-center gap-1 text-left text-xs font-semibold hover:text-primary"
+                            title={etapasExpandidas.has(etapa.etapa_id) ? 'Ocultar OPs da etapa' : 'Mostrar OPs da etapa'}
+                          >
+                            {etapasExpandidas.has(etapa.etapa_id)
+                              ? <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                              : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+                            <span className="truncate">{etapa.etapa_nome}</span>
+                          </button>
+                        )}
                         <span className="shrink-0 text-[9px] text-muted-foreground">
-                          {statusLabel[etapa.status] ?? etapa.status}
+                          {op
+                            ? statusLabel[op.status] ?? op.status
+                            : resumo.opsAbertas > 0
+                              ? `${resumo.opsAbertas} OP ${resumo.opsAbertas === 1 ? 'aberta' : 'abertas'}`
+                              : 'OPs concluídas'}
                         </span>
                       </div>
                       <span className="truncate text-[10px] text-muted-foreground">
-                        {etapa.projeto_nome}{etapa.grupo_cronograma ? ` · ${etapa.grupo_cronograma}` : ''}
+                        {op
+                          ? `${etapa.etapa_nome} · ${etapa.projeto_nome}`
+                          : `${etapa.projeto_nome}${etapa.grupo_cronograma ? ` · ${etapa.grupo_cronograma}` : ''}`}
                       </span>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="relative" style={{ width: larguraTimeline }}>
@@ -451,9 +550,21 @@ export const CronogramaProducaoDiario = () => {
                     ))}
                   </div>
 
-                  {filtradas.map((etapa) => {
-                    const intervalo = obterIntervaloEtapa(etapa);
-                    const percentual = obterPercentualEtapa(etapa);
+                  {linhas.map((linha) => {
+                    const { etapa } = linha;
+                    const op = linha.tipo === 'op' ? linha.ordem : null;
+                    const resumo = obterResumoProgressoEtapa(etapa);
+                    const percentual = op
+                      ? Number(op.percentual_realizado ?? 0)
+                      : resumo.percentual;
+                    const intervalo = op ? obterIntervaloOrdem(op) : obterIntervaloEtapa(etapa);
+                    const status = op?.status ?? etapa.status;
+                    const nome = op
+                      ? `OP ${String(op.numero).padStart(6, '0')} — ${op.tarefa_nome_snapshot ?? 'Sem atividade'}`
+                      : etapa.etapa_nome;
+                    const contextoProgresso = op
+                      ? `${percentual}% realizado`
+                      : `${percentual}% operacional · ${resumo.opsAbertas} OP ${resumo.opsAbertas === 1 ? 'aberta' : 'abertas'} de ${resumo.opsValidas}`;
                     const intersecta = intervalo
                       && intervalo.fim.getTime() >= periodo.inicio.getTime()
                       && intervalo.inicio.getTime() <= periodo.fim.getTime();
@@ -474,7 +585,7 @@ export const CronogramaProducaoDiario = () => {
                       : 0;
 
                     return (
-                      <div key={etapa.etapa_id} className="relative border-b" style={{ height: ROW_HEIGHT }}>
+                      <div key={op ? `op-${op.id}` : etapa.etapa_id} className={cn('relative border-b', op && 'bg-muted/15')} style={{ height: ROW_HEIGHT }}>
                         {dias.map((dia, indice) => (
                           <div
                             key={dia.toISOString()}
@@ -497,13 +608,17 @@ export const CronogramaProducaoDiario = () => {
                           <div
                             className={cn(
                               'absolute top-3 flex h-8 items-center overflow-hidden rounded text-[10px] font-semibold text-white shadow-sm',
-                              statusClass[etapa.status] ?? 'bg-slate-500',
+                              statusClass[status] ?? 'bg-slate-500',
                             )}
                             style={{ left: esquerda, width: largura }}
-                            title={`${etapa.etapa_nome} · ${statusLabel[etapa.status] ?? etapa.status} · ${intervalo.origem === 'real' ? 'período realizado' : 'período previsto'} · ${format(intervalo.inicio, 'dd/MM/yyyy')} a ${format(intervalo.fim, 'dd/MM/yyyy')} · ${percentual}% realizado`}
+                            title={`${nome} · ${statusLabel[status] ?? status} · ${intervalo.origem === 'real' ? 'período realizado' : 'período previsto'} · ${format(intervalo.inicio, 'dd/MM/yyyy')} a ${format(intervalo.fim, 'dd/MM/yyyy')} · ${contextoProgresso}`}
                           >
                             <span className="relative z-10 truncate px-2">
-                              {percentual}% · {statusLabel[etapa.status] ?? etapa.status}
+                              {op
+                                ? `${percentual}% · ${statusLabel[status] ?? status}`
+                                : resumo.opsAbertas > 0
+                                  ? `${percentual}% · ${resumo.opsAbertas} OP ${resumo.opsAbertas === 1 ? 'aberta' : 'abertas'}`
+                                  : `${percentual}% · OPs concluídas`}
                             </span>
                             <span
                               className="absolute inset-y-0 left-0 bg-black/25"
