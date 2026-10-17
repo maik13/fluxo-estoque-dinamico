@@ -4,6 +4,23 @@
 }
 
 @media print {
+  body.imprimir-producao #root {
+    height: 0 !important;
+    overflow: visible !important;
+    visibility: hidden !important;
+  }
+
+  body.imprimir-producao .pontualidade-print-area,
+  body.imprimir-producao .pontualidade-print-area * {
+    visibility: visible !important;
+  }
+
+  body.imprimir-producao .pontualidade-print-area {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+  }
+
   body:has(.pontualidade-print-area) {
     page: pontualidade-producao;
   }
@@ -20,7 +37,8 @@
   .pontualidade-print-area .pontualidade-cabecalho > div:first-child > p,
   .pontualidade-print-area .pontualidade-indicadores,
   .pontualidade-print-area .pontualidade-detalhe,
-  .pontualidade-print-area .pontualidade-notas {
+  .pontualidade-print-area .pontualidade-notas,
+  .pontualidade-print-area .pontualidade-timeline-canvas > p {
     display: none !important;
   }
 
@@ -52,15 +70,19 @@
     line-height: 1.05 !important;
   }
 
+  .pontualidade-print-area .pontualidade-timeline-linha p:last-child {
+    display: none !important;
+  }
+
   .pontualidade-print-area .pontualidade-timeline-grid .text-\[10px\] {
     font-size: 5pt !important;
   }
 
-  .pontualidade-print-area .pontualidade-timeline-grid .text-\[8px\] {
-    font-size: 4.2pt !important;
+  .pontualidade-print-area .pontualidade-timeline-grid .text-\[9px\] {
+    font-size: 4.5pt !important;
   }
 
-  .pontualidade-print-area .pontualidade-timeline-grid .h-3 {
+  .pontualidade-print-area .pontualidade-timeline-grid .h-3\.5 {
     height: 2.1mm !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;

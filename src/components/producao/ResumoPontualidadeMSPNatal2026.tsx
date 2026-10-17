@@ -109,10 +109,14 @@ const LinhaDoTempoProducao = ({ pecas }: { pecas: PontualidadeMSPPeca[] }) => {
   const gradeDias = { gridTemplateColumns: `repeat(${totalDias}, minmax(8px, 1fr))` };
   const hojeNaFaixa = hoje >= format(inicioFaixa, 'yyyy-MM-dd') && hoje <= format(fimFaixa, 'yyyy-MM-dd');
   const rotuloSemana = (dia: Date) => dia.getDate() === 1 || dia.getDay() === 1;
+  // Na tela, cada dia recebe largura mínima própria; a visualização permanece
+  // fiel ao calendário e usa rolagem horizontal em vez de comprimir a régua.
+  const larguraLinhaTempo = Math.max(760, totalDias * 12);
+  const gradeLinhaTempo = { gridTemplateColumns: `360px ${larguraLinhaTempo}px` };
 
   return (
-    <div className="pontualidade-timeline-scroll overflow-x-auto rounded-md border">
-      <div className="pontualidade-timeline-canvas min-w-[1120px] p-4 sm:p-5">
+    <div className="pontualidade-timeline-scroll overflow-x-scroll rounded-md border">
+      <div className="pontualidade-timeline-canvas p-4 sm:p-5">
         <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
           <span><i className="mr-1.5 inline-block h-2.5 w-5 rounded bg-emerald-500 align-middle" />No prazo</span>
           <span><i className="mr-1.5 inline-block h-2.5 w-5 rounded bg-blue-500 align-middle" />Antecipada</span>
@@ -121,7 +125,8 @@ const LinhaDoTempoProducao = ({ pecas }: { pecas: PontualidadeMSPPeca[] }) => {
           <span><i className="mr-1.5 inline-block h-2.5 w-5 rounded bg-slate-400 align-middle" />Aguardando início</span>
           <span><i className="mr-1.5 inline-block h-3 w-0.5 bg-foreground align-middle" />Hoje</span>
         </div>
-        <div className="pontualidade-timeline-grid grid grid-cols-[minmax(340px,36%)_minmax(640px,1fr)] gap-x-4">
+        <p className="mb-2 text-xs text-muted-foreground">Régua diária: cada divisão vertical representa um dia. Role horizontalmente para consultar todo o período.</p>
+        <div className="pontualidade-timeline-grid grid gap-x-4" style={gradeLinhaTempo}>
           <div className="border-b pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Peça / projeto</div>
           <div className="border-b">
             <div className="grid text-center text-[10px] font-medium text-muted-foreground" style={gradeDias}>
@@ -186,11 +191,11 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => exportarRelatorioPontualidadePdf(resumo)} disabled={!exportacaoDisponivel}>
             <FileText className="mr-2 h-4 w-4" />
-            PDF do Gantt
+            Baixar PDF A4
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => imprimirSecaoProducao('relatorio-pontualidade-impressao')} disabled={!exportacaoDisponivel}>
             <Printer className="mr-2 h-4 w-4" />
-            Imprimir linha do tempo
+            Imprimir Gantt A4
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => void carregar()} disabled={loading}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
