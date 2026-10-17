@@ -108,12 +108,23 @@ export const useCronogramaProducao = () => {
       if (alertasResult.error) throw new Error(formatarErroSupabase(alertasResult.error, 'Não foi possível carregar os alertas do cronograma.'));
       if (ordensResult.error) throw new Error(formatarErroSupabase(ordensResult.error, 'Não foi possível carregar os nomes das OPs.'));
 
-      const identidadePorOp = new Map<string, { tarefa_id: string | null; tarefa_nome_snapshot: string | null }>(
-        ((ordensResult.data ?? []) as Array<{ id: string; tarefa_id: string | null; tarefa_nome_snapshot: string | null }>).map((ordem) => [
-          ordem.id,
-          { tarefa_id: ordem.tarefa_id, tarefa_nome_snapshot: ordem.tarefa_nome_snapshot },
-        ]),
+      const ordensRpc = (ordensResult.data ?? []) as Array<{
+        id: string; projeto_id: string; instrucoes: string | null;
+        tarefa_id: string | null; tarefa_nome_snapshot: string | null;
+      }>;
+      const marcadorReorganizacao = 'NATAL-OP-LISTA-20261016 | ';
+      const projetosReorganizados = new Set(
+        ordensRpc.filter((ordem) => ordem.instrucoes?.startsWith(marcadorReorganizacao))
+          .map((ordem) => ordem.projeto_id),
       );
+      const identidadePorOp = new Map(ordensRpc.map((ordem) => [
+        ordem.id,
+        {
+          tarefa_id: ordem.tarefa_id,
+          tarefa_nome_snapshot: ordem.tarefa_nome_snapshot,
+          vigente: ordem.instrucoes?.startsWith(marcadorReorganizacao) ?? false,
+        },
+      ]));
 
       const resultado = ((data ?? []) as GanttEtapaProducao[]).map((item) => {
         const ordensOriginais = Array.isArray(item.ordens) ? item.ordens : [];
@@ -128,11 +139,17 @@ export const useCronogramaProducao = () => {
           };
         });
         const ordensValidas = ordens.filter((ordem) => ordem.status !== 'cancelada');
-        const datasInicio = ordensValidas
+        // Etapas 2 e 3 reorganizadas: datas consolidadas pelas novas OPs.
+        // As OPs historicas continuam na listagem da etapa.
+        const etapaOperacional = /^Etapa\s+[23]\b/i.test(item.etapa_nome);
+        const ordensCronograma = etapaOperacional && projetosReorganizados.has(item.projeto_id)
+          ? ordensValidas.filter((ordem) => identidadePorOp.get(ordem.id)?.vigente)
+          : ordensValidas;
+        const datasInicio = ordensCronograma
           .map((ordem) => ordem.data_inicio_prevista)
           .filter((valor): valor is string => Boolean(valor))
           .sort();
-        const datasFim = ordensValidas
+        const datasFim = ordensCronograma
           .map((ordem) => ordem.data_fim_prevista)
           .filter((valor): valor is string => Boolean(valor))
           .sort();
@@ -144,7 +161,7 @@ export const useCronogramaProducao = () => {
           (total, ordem) => total + Number(ordem.quantidade_realizada ?? 0),
           0,
         );
-        const possuiOps = ordensValidas.length > 0;
+        const possuiOps = ordensCronograma.length > 0;
 
         return {
           ...item,
