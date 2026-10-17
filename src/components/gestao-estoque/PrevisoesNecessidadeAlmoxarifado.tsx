@@ -1,11 +1,15 @@
-import { useState } from 'react';
-import { ClipboardList, RefreshCcw } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { ClipboardList, Plus, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
 
 type PrevisaoNecessidade = {
@@ -58,11 +62,34 @@ const statusRc: Record<string, string> = {
   convertida_em_pc: 'Convertida em PC',
 };
 
+const formularioInicial = {
+  descricao: '',
+  especificacao: '',
+  quantidade: '',
+  unidade: 'UN',
+  valorEstimado: '',
+  dataNecessidade: '',
+  projetoCentroCusto: '',
+  urgencia: 'normal',
+  justificativa: '',
+};
+
+const numeroOpcional = (valor: string) => {
+  const limpo = valor.trim();
+  if (!limpo) return null;
+  const numero = Number(limpo.replace(/\./g, '').replace(',', '.'));
+  return Number.isFinite(numero) ? numero : NaN;
+};
+
 export const PrevisoesNecessidadeAlmoxarifado = () => {
+  const { canCriarPrevisaoNecessidadeAlmoxarifado } = usePermissions();
   const [aberto, setAberto] = useState(false);
+  const [dialogCriacao, setDialogCriacao] = useState(false);
+  const [salvando, setSalvando] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [pns, setPns] = useState<PrevisaoNecessidade[]>([]);
   const [rcPorId, setRcPorId] = useState<Record<string, RequisicaoCompra>>({});
+  const [formulario, setFormulario] = useState(formularioInicial);
 
   const carregar = async () => {
     setCarregando(true);
@@ -105,6 +132,43 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
     void carregar();
   };
 
+  const criarPrevisao = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const quantidade = numeroOpcional(formulario.quantidade);
+    const valorEstimado = numeroOpcional(formulario.valorEstimado);
+
+    if (Number.isNaN(quantidade) || Number.isNaN(valorEstimado)) {
+      toast.error('Informe quantidade e valor estimado em um formato válido.');
+      return;
+    }
+
+    setSalvando(true);
+    try {
+      const { error } = await (supabase as any).rpc('criar_previsao_necessidade_almoxarifado', {
+        p_descricao: formulario.descricao,
+        p_especificacao: formulario.especificacao || null,
+        p_quantidade: quantidade,
+        p_unidade: formulario.unidade || null,
+        p_valor_estimado: valorEstimado,
+        p_data_necessidade: formulario.dataNecessidade || null,
+        p_projeto_centro_custo: formulario.projetoCentroCusto || null,
+        p_urgencia: formulario.urgencia,
+        p_justificativa: formulario.justificativa || null,
+      });
+      if (error) throw error;
+
+      toast.success('Previsão de necessidade criada no Almoxarifado.');
+      setFormulario(formularioInicial);
+      setDialogCriacao(false);
+      await carregar();
+    } catch (error) {
+      console.error('Erro ao criar PN no Almoxarifado:', error);
+      toast.error((error as any)?.message || 'Não foi possível criar a previsão de necessidade.');
+    } finally {
+      setSalvando(false);
+    }
+  };
+
   return (
     <>
       <Card
@@ -122,11 +186,18 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
 
       <Dialog open={aberto} onOpenChange={setAberto}>
         <DialogContent className="max-h-[90vh] w-[95vw] max-w-7xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Previsões de Necessidade (PN) — Almoxarifado</DialogTitle>
-            <DialogDescription>
-              Esta fila mostra as necessidades geradas pelas solicitações de material. A RC só é criada posteriormente no Financeiro, a partir da PN.
-            </DialogDescription>
+          <DialogHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <DialogTitle>Previsões de Necessidade (PN) — Almoxarifado</DialogTitle>
+              <DialogDescription>
+                Registre a necessidade antes da formalização em RC. A criação da RC e as aprovações permanecem no fluxo de Compras/Financeiro.
+              </DialogDescription>
+            </div>
+            {canCriarPrevisaoNecessidadeAlmoxarifado() && (
+              <Button size="sm" onClick={() => setDialogCriacao(true)}>
+                <Plus className="mr-2 h-4 w-4" />Nova PN
+              </Button>
+            )}
           </DialogHeader>
           <div className="flex justify-end">
             <Button variant="outline" size="sm" onClick={() => void carregar()} disabled={carregando}>
@@ -177,6 +248,66 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
               </Table>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogCriacao} onOpenChange={setDialogCriacao}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Nova Previsão de Necessidade</DialogTitle>
+            <DialogDescription>
+              Registre a necessidade identificada pelo Almoxarifado. Ela ficará prevista até seguir para a formalização em RC.
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={criarPrevisao}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="pn-descricao">Descrição da necessidade *</Label>
+                <Textarea id="pn-descricao" required value={formulario.descricao} onChange={(event) => setFormulario((atual) => ({ ...atual, descricao: event.target.value }))} placeholder="Ex.: reposição de materiais para manutenção" />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="pn-especificacao">Especificação</Label>
+                <Textarea id="pn-especificacao" value={formulario.especificacao} onChange={(event) => setFormulario((atual) => ({ ...atual, especificacao: event.target.value }))} placeholder="Modelo, medida, marca ou outra referência" rows={2} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pn-quantidade">Quantidade</Label>
+                <Input id="pn-quantidade" inputMode="decimal" value={formulario.quantidade} onChange={(event) => setFormulario((atual) => ({ ...atual, quantidade: event.target.value }))} placeholder="Ex.: 10" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pn-unidade">Unidade</Label>
+                <Input id="pn-unidade" value={formulario.unidade} onChange={(event) => setFormulario((atual) => ({ ...atual, unidade: event.target.value }))} placeholder="UN" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pn-valor">Valor estimado</Label>
+                <Input id="pn-valor" inputMode="decimal" value={formulario.valorEstimado} onChange={(event) => setFormulario((atual) => ({ ...atual, valorEstimado: event.target.value }))} placeholder="Deixe em branco se ainda não houver valor" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pn-data">Data necessária</Label>
+                <Input id="pn-data" type="date" value={formulario.dataNecessidade} onChange={(event) => setFormulario((atual) => ({ ...atual, dataNecessidade: event.target.value }))} />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="pn-projeto">Projeto / centro de custo</Label>
+                <Input id="pn-projeto" value={formulario.projetoCentroCusto} onChange={(event) => setFormulario((atual) => ({ ...atual, projetoCentroCusto: event.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pn-urgencia">Urgência</Label>
+                <select id="pn-urgencia" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={formulario.urgencia} onChange={(event) => setFormulario((atual) => ({ ...atual, urgencia: event.target.value }))}>
+                  <option value="baixa">Baixa</option>
+                  <option value="normal">Normal</option>
+                  <option value="alta">Alta</option>
+                  <option value="urgente">Urgente</option>
+                </select>
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="pn-justificativa">Justificativa / observação</Label>
+                <Textarea id="pn-justificativa" value={formulario.justificativa} onChange={(event) => setFormulario((atual) => ({ ...atual, justificativa: event.target.value }))} rows={2} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setDialogCriacao(false)} disabled={salvando}>Cancelar</Button>
+              <Button type="submit" disabled={salvando}>{salvando ? 'Criando...' : 'Criar PN'}</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </>

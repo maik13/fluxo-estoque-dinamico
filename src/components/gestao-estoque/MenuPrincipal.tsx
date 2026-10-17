@@ -49,6 +49,7 @@ export const MenuPrincipal = ({
   const { 
     canCreateItems, 
     canManageStock, 
+    canCriarPrevisaoNecessidadeAlmoxarifado,
     canSolicitarMaterial, 
     canDevolverMaterial, 
     canRegistrarEntrada, 
@@ -899,7 +900,7 @@ export const MenuPrincipal = ({
         {userProfile?.ativo && <SolicitacaoMaterial />}
 
         {/* Fila operacional: a formalização em RC continua no Financeiro, a partir da PN. */}
-        {canManageStock() && <PrevisoesNecessidadeAlmoxarifado />}
+        {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && <PrevisoesNecessidadeAlmoxarifado />}
 
         {/* BOTÃO SAÍDA */}
         {canRegistrarSaida() && <Dialog open={dialogoSaida} onOpenChange={(aberto) => {
