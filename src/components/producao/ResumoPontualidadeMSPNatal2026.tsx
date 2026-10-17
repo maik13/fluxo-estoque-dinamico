@@ -108,26 +108,27 @@ const LinhaDoTempoProducao = ({ pecas }: { pecas: PontualidadeMSPPeca[] }) => {
   }, []);
   const gradeDias = { gridTemplateColumns: `repeat(${totalDias}, minmax(8px, 1fr))` };
   const hojeNaFaixa = hoje >= format(inicioFaixa, 'yyyy-MM-dd') && hoje <= format(fimFaixa, 'yyyy-MM-dd');
+  const rotuloSemana = (dia: Date) => dia.getDate() === 1 || dia.getDay() === 1;
 
   return (
     <div className="pontualidade-timeline-scroll overflow-x-auto rounded-md border">
-      <div className="pontualidade-timeline-canvas min-w-[1180px] p-4">
-        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span><i className="mr-1 inline-block h-2.5 w-5 rounded bg-emerald-500 align-middle" />Em execução/no prazo</span>
-          <span><i className="mr-1 inline-block h-2.5 w-5 rounded bg-blue-500 align-middle" />Antecipada</span>
-          <span><i className="mr-1 inline-block h-2.5 w-5 rounded bg-red-500 align-middle" />Atrasada</span>
-          <span><i className="mr-1 inline-block h-2.5 w-5 rounded bg-amber-500 align-middle" />Possível atraso</span>
-          <span><i className="mr-1 inline-block h-2.5 w-5 rounded bg-slate-400 align-middle" />Ainda não iniciada</span>
-          <span><i className="mr-1 inline-block h-3 w-0.5 bg-foreground align-middle" />Hoje</span>
+      <div className="pontualidade-timeline-canvas min-w-[1120px] p-4 sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+          <span><i className="mr-1.5 inline-block h-2.5 w-5 rounded bg-emerald-500 align-middle" />No prazo</span>
+          <span><i className="mr-1.5 inline-block h-2.5 w-5 rounded bg-blue-500 align-middle" />Antecipada</span>
+          <span><i className="mr-1.5 inline-block h-2.5 w-5 rounded bg-amber-500 align-middle" />Possível atraso</span>
+          <span><i className="mr-1.5 inline-block h-2.5 w-5 rounded bg-red-500 align-middle" />Atrasada</span>
+          <span><i className="mr-1.5 inline-block h-2.5 w-5 rounded bg-slate-400 align-middle" />Aguardando início</span>
+          <span><i className="mr-1.5 inline-block h-3 w-0.5 bg-foreground align-middle" />Hoje</span>
         </div>
-        <div className="pontualidade-timeline-grid grid grid-cols-[minmax(285px,30%)_1fr] gap-x-3">
-          <div className="border-b pb-1 text-xs font-medium text-muted-foreground">Peça / projeto</div>
+        <div className="pontualidade-timeline-grid grid grid-cols-[minmax(340px,36%)_minmax(640px,1fr)] gap-x-4">
+          <div className="border-b pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Peça / projeto</div>
           <div className="border-b">
             <div className="grid text-center text-[10px] font-medium text-muted-foreground" style={gradeDias}>
-              {meses.map((mes) => <span key={mes.chave} style={{ gridColumn: `span ${mes.dias}` }} className="border-l border-muted pb-1">{mes.rotulo}</span>)}
+              {meses.map((mes) => <span key={mes.chave} style={{ gridColumn: `span ${mes.dias}` }} className="border-l border-muted pb-1.5">{mes.rotulo}</span>)}
             </div>
-            <div className="grid border-t text-center text-[8px] text-muted-foreground" style={gradeDias}>
-              {dias.map((dia) => <span key={dia.toISOString()} className="border-l border-muted py-0.5">{format(dia, 'd')}</span>)}
+            <div className="grid border-t text-center text-[9px] text-muted-foreground" style={gradeDias}>
+              {dias.map((dia) => <span key={dia.toISOString()} className="border-l border-muted py-1">{rotuloSemana(dia) ? format(dia, 'dd') : ''}</span>)}
             </div>
           </div>
           {pecas.map((peca) => {
@@ -135,15 +136,15 @@ const LinhaDoTempoProducao = ({ pecas }: { pecas: PontualidadeMSPPeca[] }) => {
             const largura = larguraPeriodo(peca.inicioPlanejado, peca.fimPlanejado);
             return (
               <div key={peca.projetoId} className="contents">
-                <div className="pontualidade-timeline-linha border-t py-1.5 pr-2 text-xs">
-                  <p className="truncate font-medium" title={peca.projetoNome}>{peca.projetoNome}</p>
-                  <p className="text-muted-foreground">{dataPt(peca.inicioPlanejado)} - {dataPt(peca.fimPlanejado)} · {apresentacao[peca.situacao].rotulo}</p>
+                <div className="pontualidade-timeline-linha flex min-h-[54px] flex-col justify-center border-t py-2 pr-2 text-xs">
+                  <p className="line-clamp-2 font-medium leading-tight" title={peca.projetoNome}>{peca.projetoNome}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">{dataPt(peca.inicioPlanejado)} — {dataPt(peca.fimPlanejado)} · {apresentacao[peca.situacao].rotulo}</p>
                 </div>
-                <div className="pontualidade-timeline-linha relative border-t" aria-label={`${peca.projetoNome}: período previsto de ${dataPt(peca.inicioPlanejado)} a ${dataPt(peca.fimPlanejado)}`}>
+                <div className="pontualidade-timeline-linha relative min-h-[54px] border-t" aria-label={`${peca.projetoNome}: período previsto de ${dataPt(peca.inicioPlanejado)} a ${dataPt(peca.fimPlanejado)}`}>
                   <div className="absolute inset-0 grid pointer-events-none" style={gradeDias}>
                     {dias.map((dia) => <span key={dia.toISOString()} className="border-l border-muted/70" />)}
                   </div>
-                  <span className={`absolute top-1/2 h-3 -translate-y-1/2 rounded-sm ${classeBarra[peca.situacao]}`} style={{ left: `${inicio}%`, width: `${largura}%` }} title={`Previsto: ${dataPt(peca.inicioPlanejado)} a ${dataPt(peca.fimPlanejado)}`} />
+                  <span className={`absolute top-1/2 h-3.5 -translate-y-1/2 rounded-full shadow-sm ${classeBarra[peca.situacao]}`} style={{ left: `${inicio}%`, width: `${largura}%` }} title={`Previsto: ${dataPt(peca.inicioPlanejado)} a ${dataPt(peca.fimPlanejado)}`} />
                   {hojeNaFaixa && <span className="absolute inset-y-0 z-10 w-px bg-foreground/80" style={{ left: `${posicao(hoje)}%` }} title="Hoje" />}
                 </div>
               </div>
