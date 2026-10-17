@@ -225,11 +225,13 @@ export const usePontualidadeMSPNatal2026 = () => {
         }).sort((a, b) => {
         const prioridade: Record<SituacaoPontualidadeMSP, number> = {
           atrasado_para_iniciar: 0,
-          iniciado_atrasado: 1,
-          em_risco: 2,
-          aguardando_inicio: 3,
-          antecipado: 4,
-          iniciado_no_prazo: 5,
+            iniciado_atrasado: 0,
+            // Ordem operacional: primeiro o que já venceu, depois o que
+            // precisa atenção, em seguida o que já está sendo produzido.
+            em_risco: 1,
+            iniciado_no_prazo: 2,
+            antecipado: 2,
+            aguardando_inicio: 3,
         };
         return prioridade[a.situacao] - prioridade[b.situacao]
           || b.diferencaDias - a.diferencaDias
