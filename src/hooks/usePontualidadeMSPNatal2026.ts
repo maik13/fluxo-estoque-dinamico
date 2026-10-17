@@ -7,6 +7,7 @@ export type SituacaoPontualidadeMSP =
   | 'iniciado_no_prazo'
   | 'iniciado_atrasado'
   | 'atrasado_para_iniciar'
+  | 'em_risco'
   | 'aguardando_inicio';
 
 export interface PontualidadeMSPPeca {
@@ -30,6 +31,7 @@ export interface ResumoPontualidadeMSP {
   noPrazo: number;
   iniciadosAtrasados: number;
   atrasadosParaIniciar: number;
+  emRisco: number;
   aguardandoInicio: number;
 }
 
@@ -64,14 +66,17 @@ const resumoInicial = (): ResumoPontualidadeMSP => ({
   noPrazo: 0,
   iniciadosAtrasados: 0,
   atrasadosParaIniciar: 0,
+  emRisco: 0,
   aguardandoInicio: 0,
 });
 
 const hojeISO = () => format(new Date(), 'yyyy-MM-dd');
 
 /**
- * Compara o período planejado de cada peça com o primeiro apontamento efetivo.
- * O apontamento pode estar em uma OP anterior e continua valendo na leitura gerencial.
+ * Compara o período operacional planejado de cada peça com o primeiro
+ * apontamento efetivo registrado nela. A leitura considera o histórico inteiro
+ * da peça: uma OP antiga também é execução real da mesma peça, não uma fonte
+ * separada de prazo.
  */
 export const usePontualidadeMSPNatal2026 = () => {
   const [loading, setLoading] = useState(false);
@@ -124,7 +129,6 @@ export const usePontualidadeMSPNatal2026 = () => {
       );
       const primeiroApontamentoPorProjeto = new Map<string, string>();
       const primeiroApontamentoHistoricoPorProjeto = new Map<string, string>();
-      const idsOpsVigentes = new Set(ordensCronogramaVigente.map((ordem) => ordem.id));
 
       for (const apontamento of (apontamentosResult.data ?? []) as ApontamentoGerencial[]) {
         if (apontamento.status === 'cancelado') continue;
@@ -139,11 +143,6 @@ export const usePontualidadeMSPNatal2026 = () => {
         if (!anteriorHistorico || apontamento.data < anteriorHistorico) {
           primeiroApontamentoHistoricoPorProjeto.set(projetoId, apontamento.data);
         }
-        // Em projetos reorganizados, a pontualidade corrente considera
-        // apenas apontamentos associados as novas OPs. O anterior fica
-        // registrado separadamente para auditoria e exportacao.
-        if (projetosReorganizados.has(projetoId)
-          && (!apontamento.ordem_producao_id || !idsOpsVigentes.has(apontamento.ordem_producao_id))) continue;
         const anterior = primeiroApontamentoPorProjeto.get(projetoId);
         if (!anterior || apontamento.data < anterior) {
           primeiroApontamentoPorProjeto.set(projetoId, apontamento.data);
@@ -188,37 +187,49 @@ export const usePontualidadeMSPNatal2026 = () => {
         const primeiroApontamento = primeiroApontamentoPorProjeto.get(peca.projetoId) ?? null;
         const primeiroApontamentoHistorico = primeiroApontamentoHistoricoPorProjeto.get(peca.projetoId) ?? null;
         const inicioPlanejado = parseISO(peca.inicioPlanejado);
-        const diferenca = primeiroApontamento
-          ? differenceInCalendarDays(parseISO(primeiroApontamento), inicioPlanejado)
-          : differenceInCalendarDays(hoje, inicioPlanejado);
+        const fimPlanejado = parseISO(peca.fimPlanejado);
 
         if (primeiroApontamento) {
+          const dataApontamento = parseISO(primeiroApontamento);
+          const diferencaInicio = differenceInCalendarDays(dataApontamento, inicioPlanejado);
+          const diferencaPrazo = differenceInCalendarDays(dataApontamento, fimPlanejado);
           return {
             ...peca,
             primeiroApontamento,
             primeiroApontamentoHistorico,
-            diferencaDias: diferenca,
-            situacao: diferenca < 0
+            diferencaDias: diferencaInicio < 0 ? diferencaInicio : Math.max(0, diferencaPrazo),
+            // O prazo da peça é o intervalo completo, não apenas o primeiro
+            // dia dele. Começar após o início, mas ainda dentro do período,
+            // permanece verde; só é atraso quando começa depois do fim.
+            situacao: diferencaInicio < 0
               ? 'antecipado' as const
-              : diferenca > 0
+              : diferencaPrazo > 0
                 ? 'iniciado_atrasado' as const
                 : 'iniciado_no_prazo' as const,
           };
         }
 
+        const diferencaDoFim = differenceInCalendarDays(hoje, fimPlanejado);
         return {
           ...peca,
           primeiroApontamentoHistorico,
-          diferencaDias: Math.max(0, diferenca),
-          situacao: diferenca > 0 ? 'atrasado_para_iniciar' as const : 'aguardando_inicio' as const,
+          diferencaDias: Math.max(0, diferencaDoFim),
+          // Durante uma janela que já iniciou mas ainda não venceu, a peça
+          // merece acompanhamento (amarelo), sem falso alerta vermelho.
+          situacao: hoje > fimPlanejado
+            ? 'atrasado_para_iniciar' as const
+            : hoje >= inicioPlanejado
+              ? 'em_risco' as const
+              : 'aguardando_inicio' as const,
         };
         }).sort((a, b) => {
         const prioridade: Record<SituacaoPontualidadeMSP, number> = {
           atrasado_para_iniciar: 0,
           iniciado_atrasado: 1,
-          aguardando_inicio: 2,
-          antecipado: 3,
-          iniciado_no_prazo: 4,
+          em_risco: 2,
+          aguardando_inicio: 3,
+          antecipado: 4,
+          iniciado_no_prazo: 5,
         };
         return prioridade[a.situacao] - prioridade[b.situacao]
           || b.diferencaDias - a.diferencaDias
@@ -236,6 +247,7 @@ export const usePontualidadeMSPNatal2026 = () => {
         noPrazo: pecas.filter((peca) => peca.situacao === 'iniciado_no_prazo').length,
         iniciadosAtrasados: pecas.filter((peca) => peca.situacao === 'iniciado_atrasado').length,
         atrasadosParaIniciar: pecas.filter((peca) => peca.situacao === 'atrasado_para_iniciar').length,
+        emRisco: pecas.filter((peca) => peca.situacao === 'em_risco').length,
         aguardandoInicio: pecas.filter((peca) => peca.situacao === 'aguardando_inicio').length,
       };
       setResumo(proximoResumo);

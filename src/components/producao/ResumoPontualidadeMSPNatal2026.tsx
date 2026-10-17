@@ -47,6 +47,10 @@ const apresentacao: Record<SituacaoPontualidadeMSP, { rotulo: string; classe: st
     rotulo: 'Atrasado para iniciar',
     classe: 'border-destructive/30 bg-destructive/10 text-destructive',
   },
+  em_risco: {
+    rotulo: 'Possível atraso',
+    classe: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  },
   aguardando_inicio: {
     rotulo: 'Aguardando início',
     classe: 'border-muted-foreground/30 bg-muted text-muted-foreground',
@@ -61,6 +65,8 @@ const impacto = (situacao: SituacaoPontualidadeMSP, dias: number) => {
       return `${dias} dia(s) após`;
     case 'atrasado_para_iniciar':
       return `${dias} dia(s) sem início`;
+    case 'em_risco':
+      return 'Sem apontamento no período';
     default:
       return '—';
   }
@@ -73,6 +79,7 @@ const classeBarra: Record<SituacaoPontualidadeMSP, string> = {
   iniciado_no_prazo: 'bg-emerald-500',
   iniciado_atrasado: 'bg-red-500',
   atrasado_para_iniciar: 'bg-red-500',
+  em_risco: 'bg-amber-500',
   aguardando_inicio: 'bg-slate-400',
 };
 
@@ -109,6 +116,7 @@ const LinhaDoTempoProducao = ({ pecas }: { pecas: PontualidadeMSPPeca[] }) => {
           <span><i className="mr-1 inline-block h-2.5 w-5 rounded bg-emerald-500 align-middle" />Em execução/no prazo</span>
           <span><i className="mr-1 inline-block h-2.5 w-5 rounded bg-blue-500 align-middle" />Antecipada</span>
           <span><i className="mr-1 inline-block h-2.5 w-5 rounded bg-red-500 align-middle" />Atrasada</span>
+          <span><i className="mr-1 inline-block h-2.5 w-5 rounded bg-amber-500 align-middle" />Possível atraso</span>
           <span><i className="mr-1 inline-block h-2.5 w-5 rounded bg-slate-400 align-middle" />Ainda não iniciada</span>
           <span><i className="mr-1 inline-block h-3 w-0.5 bg-foreground align-middle" />Hoje</span>
         </div>
@@ -167,7 +175,7 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
             Pontualidade da produção
           </CardTitle>
           <CardDescription className="mt-1 max-w-3xl">
-            Compara o início previsto das OPs vigentes com seu primeiro apontamento. O primeiro apontamento histórico é exibido separadamente.
+            A programação das OPs é a fonte de prazo. O primeiro apontamento registrado na peça indica a execução real, independentemente de qual OP o originou.
           </CardDescription>
         </div>
         <div className="pontualidade-controles flex flex-wrap gap-2 print:hidden">
@@ -197,7 +205,7 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
           </Alert>
         )}
 
-        <div className="pontualidade-indicadores grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="pontualidade-indicadores grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <div className="rounded-lg border bg-muted/20 p-3">
             <p className="text-xs text-muted-foreground">Peças programadas</p>
             <p className="mt-1 text-2xl font-bold">{resumo.total}</p>
@@ -211,9 +219,14 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
             <p className="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-300">{resumo.noPrazo}</p>
           </div>
           <div className="rounded-lg border border-destructive/25 bg-destructive/5 p-3">
-            <p className="text-xs text-destructive">Com atraso</p>
+            <p className="text-xs text-destructive">Atrasadas</p>
             <p className="mt-1 text-2xl font-bold text-destructive">{comAtraso}</p>
-            <p className="text-[11px] text-muted-foreground">{resumo.atrasadosParaIniciar} sem início</p>
+            <p className="text-[11px] text-muted-foreground">Prazo final já vencido</p>
+          </div>
+          <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-3">
+            <p className="text-xs text-amber-700 dark:text-amber-300">Possível atraso</p>
+            <p className="mt-1 text-2xl font-bold text-amber-700 dark:text-amber-300">{resumo.emRisco}</p>
+            <p className="text-[11px] text-muted-foreground">Período iniciado sem apontamento</p>
           </div>
           <div className="rounded-lg border bg-muted/20 p-3">
             <p className="text-xs text-muted-foreground">Aguardando início</p>
@@ -245,8 +258,7 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
                     <TableHead>Peça / projeto</TableHead>
                     <TableHead>Início previsto</TableHead>
                     <TableHead>Fim previsto</TableHead>
-                    <TableHead>Primeiro apontamento vigente</TableHead>
-                    <TableHead>Primeiro histórico</TableHead>
+                    <TableHead>Primeiro apontamento</TableHead>
                     <TableHead>Situação</TableHead>
                     <TableHead className="text-right">Variação</TableHead>
                   </TableRow>
@@ -263,14 +275,13 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
                         <TableCell>{dataPt(peca.inicioPlanejado)}</TableCell>
                         <TableCell>{dataPt(peca.fimPlanejado)}</TableCell>
                         <TableCell>{dataPt(peca.primeiroApontamento)}</TableCell>
-                        <TableCell>{dataPt(peca.primeiroApontamentoHistorico)}</TableCell>
                         <TableCell><Badge variant="outline" className={item.classe}>{item.rotulo}</Badge></TableCell>
                         <TableCell className="text-right font-medium">{impacto(peca.situacao, peca.diferencaDias)}</TableCell>
                       </TableRow>
                     );
                   })}
                   {!error && resumo.pecas.length === 0 && !loading && (
-                    <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhuma peça com OP programada foi encontrada.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Nenhuma peça com OP programada foi encontrada.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -278,7 +289,7 @@ export const ResumoPontualidadeMSPNatal2026 = () => {
           </div>
         )}
         <p className="pontualidade-notas text-xs text-muted-foreground">
-          “Atrasado para iniciar” significa que a data prevista já passou e não há apontamento válido na peça. Dias são corridos e não representam quantidade, equipe ou percentual de produção.
+          Vermelho: o fim programado já passou. Amarelo: o período já iniciou, mas ainda não há apontamento. Verde: iniciou dentro do período; azul: iniciou antes. Dias são corridos e não representam quantidade, equipe ou percentual de produção.
         </p>
       </CardContent>
     </Card>

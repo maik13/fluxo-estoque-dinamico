@@ -14,8 +14,9 @@ const dataPt = (data: string | null) => {
 const situacaoTexto: Record<SituacaoPontualidadeMSP, string> = {
   antecipado: 'Antecipado',
   iniciado_no_prazo: 'No prazo',
-  iniciado_atrasado: 'Iniciado após o previsto',
+  iniciado_atrasado: 'Iniciado após o prazo',
   atrasado_para_iniciar: 'Atrasado para iniciar',
+  em_risco: 'Possível atraso',
   aguardando_inicio: 'Aguardando início',
 };
 
@@ -23,6 +24,7 @@ const variacaoTexto = (peca: PontualidadeMSPPeca) => {
   if (peca.situacao === 'antecipado') return `${Math.abs(peca.diferencaDias)} dia(s) antes`;
   if (peca.situacao === 'iniciado_atrasado') return `${peca.diferencaDias} dia(s) após`;
   if (peca.situacao === 'atrasado_para_iniciar') return `${peca.diferencaDias} dia(s) sem início`;
+  if (peca.situacao === 'em_risco') return 'Sem apontamento no período';
   return '—';
 };
 
@@ -44,11 +46,12 @@ const resumoLinhas = (resumo: ResumoPontualidadeMSP) => [
   ['Peças programadas', resumo.total],
   ['Antecipadas', resumo.antecipados],
   ['Início no prazo', resumo.noPrazo],
-  ['Iniciadas após o previsto', resumo.iniciadosAtrasados],
+  ['Iniciadas após o prazo', resumo.iniciadosAtrasados],
   ['Atrasadas para iniciar', resumo.atrasadosParaIniciar],
+  ['Possível atraso', resumo.emRisco],
   ['Aguardando início', resumo.aguardandoInicio],
   [],
-  ['Critério', 'Primeiro início previsto das OPs da peça comparado ao primeiro apontamento válido. Dias corridos.'],
+  ['Critério', 'Período programado pelas OPs da peça, confrontado com o primeiro apontamento registrado. Amarelo indica período em curso sem apontamento; vermelho, prazo final vencido. Dias corridos.'],
 ];
 
 export const exportarRelatorioPontualidadeExcel = (resumo: ResumoPontualidadeMSP) => {
@@ -69,6 +72,7 @@ const corDaSituacao = (situacao: SituacaoPontualidadeMSP): [number, number, numb
   if (situacao === 'antecipado') return [37, 99, 235];
   if (situacao === 'iniciado_no_prazo') return [22, 163, 74];
   if (situacao === 'iniciado_atrasado' || situacao === 'atrasado_para_iniciar') return [220, 38, 38];
+  if (situacao === 'em_risco') return [217, 119, 6];
   return [148, 163, 184];
 };
 
@@ -106,13 +110,14 @@ export const exportarRelatorioPontualidadePdf = (resumo: ResumoPontualidadeMSP) 
   doc.setFontSize(8);
   doc.setTextColor(85);
   doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, margem, 17);
-  doc.text('Barra = período previsto. Verde = no prazo, azul = antecipada, vermelho = atrasada, cinza = aguardando início.', margem, 22);
+  doc.text('Barra = período programado. Verde = no prazo, azul = antecipada, amarelo = possível atraso, vermelho = atrasada.', margem, 22);
 
   const indicadores = [
     `Peças programadas: ${resumo.total}`,
     `Antecipadas: ${resumo.antecipados}`,
     `No prazo: ${resumo.noPrazo}`,
     `Com atraso: ${resumo.iniciadosAtrasados + resumo.atrasadosParaIniciar}`,
+    `Possível atraso: ${resumo.emRisco}`,
     `Aguardando início: ${resumo.aguardandoInicio}`,
   ];
   doc.setFontSize(7.5);
