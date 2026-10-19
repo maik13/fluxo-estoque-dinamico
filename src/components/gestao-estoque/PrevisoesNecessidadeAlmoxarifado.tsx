@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import {
   ClipboardList,
   PackagePlus,
+  Pencil,
   Plus,
   RefreshCcw,
   Search,
@@ -49,6 +50,8 @@ type PrevisaoNecessidade = {
   descricao?: string | null;
   projeto_centro_custo?: string | null;
   data_necessidade?: string | null;
+  urgencia?: string | null;
+  justificativa?: string | null;
   valor_estimado?: number | string | null;
   estimativa_incompleta?: boolean | null;
   requisicao_compra_id?: string | null;
@@ -62,6 +65,9 @@ type LinhaPnSalva = {
   unidade: string;
   origem: "estoque" | "avulso";
   ordem: number;
+  item_id?: string | null;
+  especificacao?: string | null;
+  valor_unitario_estimado?: number | string | null;
 };
 
 type ItemEstoque = {
@@ -159,6 +165,7 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
   const [formulario, setFormulario] = useState(formularioInicial);
   const [linhas, setLinhas] = useState<LinhaFormulario[]>([]);
   const [pnEmFormalizacao, setPnEmFormalizacao] = useState<string | null>(null);
+  const [pnEmEdicao, setPnEmEdicao] = useState<PrevisaoNecessidade | null>(null);
 
   const carregar = async () => {
     setCarregando(true);
@@ -166,7 +173,7 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
       const { data, error } = await (supabase as any)
         .from("financeiro_necessidades")
         .select(
-          "id, numero, status, origem_tipo, origem_modulo, area_solicitante, solicitante_nome, descricao, projeto_centro_custo, data_necessidade, valor_estimado, estimativa_incompleta, requisicao_compra_id",
+          "id, numero, status, origem_tipo, origem_modulo, area_solicitante, solicitante_nome, descricao, projeto_centro_custo, data_necessidade, urgencia, justificativa, valor_estimado, estimativa_incompleta, requisicao_compra_id",
         )
         .or("origem_modulo.eq.almoxarifado,origem_tipo.eq.solicitacao_material")
         .order("created_at", { ascending: false })
@@ -179,7 +186,7 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
         const { data: dadosLinhas, error: erroLinhas } = await (supabase as any)
           .from("financeiro_necessidade_itens")
           .select(
-            "id, necessidade_id, descricao, quantidade, unidade, origem, ordem",
+            "id, necessidade_id, item_id, descricao, especificacao, quantidade, unidade, origem, valor_unitario_estimado, ordem",
           )
           .in("necessidade_id", idsPns)
           .order("ordem");
@@ -250,8 +257,36 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
     void carregar();
   };
   const abrirCriacao = () => {
+    setPnEmEdicao(null);
     setFormulario(formularioInicial);
     setLinhas([]);
+    setBuscaItem("");
+    setDialogCriacao(true);
+    void carregarCatalogo();
+  };
+  const abrirEdicao = (pn: PrevisaoNecessidade) => {
+    if (pn.requisicao_compra_id) {
+      return toast.info("Esta PN já virou RC. Faça os ajustes operacionais na própria RC para preservar o vínculo.");
+    }
+    setPnEmEdicao(pn);
+    setFormulario({
+      dataNecessidade: pn.data_necessidade?.slice(0, 10) ?? "",
+      projetoCentroCusto: pn.projeto_centro_custo ?? "",
+      urgencia: pn.urgencia ?? "normal",
+      justificativa: pn.justificativa ?? "",
+    });
+    setLinhas((linhasPorPn[pn.id] ?? []).map((linha) => ({
+      chave: linha.id,
+      itemId: linha.item_id ?? undefined,
+      origem: linha.origem,
+      descricao: linha.descricao,
+      especificacao: linha.especificacao ?? "",
+      quantidade: String(linha.quantidade).replace(".", ","),
+      unidade: linha.unidade,
+      valorUnitario: linha.valor_unitario_estimado == null
+        ? ""
+        : String(linha.valor_unitario_estimado).replace(".", ","),
+    })));
     setBuscaItem("");
     setDialogCriacao(true);
     void carregarCatalogo();
@@ -320,20 +355,34 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
     setSalvando(true);
     try {
       const { error } = await (supabase as any).rpc(
-        "criar_previsao_necessidade_almoxarifado_lote",
-        {
-          p_itens: itens,
-          p_data_necessidade: formulario.dataNecessidade || null,
-          p_projeto_centro_custo: formulario.projetoCentroCusto || null,
-          p_urgencia: formulario.urgencia,
-          p_justificativa: formulario.justificativa || null,
-        },
+        pnEmEdicao
+          ? "editar_previsao_necessidade_almoxarifado_v1"
+          : "criar_previsao_necessidade_almoxarifado_lote",
+        pnEmEdicao
+          ? {
+              p_necessidade_id: pnEmEdicao.id,
+              p_itens: itens,
+              p_data_necessidade: formulario.dataNecessidade || null,
+              p_projeto_centro_custo: formulario.projetoCentroCusto || null,
+              p_urgencia: formulario.urgencia,
+              p_justificativa: formulario.justificativa || null,
+            }
+          : {
+              p_itens: itens,
+              p_data_necessidade: formulario.dataNecessidade || null,
+              p_projeto_centro_custo: formulario.projetoCentroCusto || null,
+              p_urgencia: formulario.urgencia,
+              p_justificativa: formulario.justificativa || null,
+            },
       );
       if (error) throw error;
       toast.success(
-        `PN criada com ${itens.length} ${itens.length === 1 ? "item" : "itens"}.`,
+        pnEmEdicao
+          ? `PN-${String(pnEmEdicao.numero).padStart(4, "0")} atualizada.`
+          : `PN criada com ${itens.length} ${itens.length === 1 ? "item" : "itens"}.`,
       );
       setDialogCriacao(false);
+      setPnEmEdicao(null);
       await carregar();
     } catch (error) {
       console.error("Erro ao criar PN em lote no Almoxarifado:", error);
@@ -523,16 +572,21 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
                           ) : (
                             <div className="space-y-1">
                               {canCriarPrevisaoNecessidadeAlmoxarifado() ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => void formalizarRc(pn)}
-                                  disabled={pnEmFormalizacao === pn.id || pn.status === "cancelado"}
-                                >
-                                  {pnEmFormalizacao === pn.id
-                                    ? "Criando RC..."
-                                    : "Formalizar RC"}
-                                </Button>
+                                <div className="flex flex-wrap gap-2">
+                                  <Button size="sm" variant="outline" onClick={() => abrirEdicao(pn)} disabled={pn.status === "cancelado"}>
+                                    <Pencil className="mr-1 h-3.5 w-3.5" /> Editar PN
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => void formalizarRc(pn)}
+                                    disabled={pnEmFormalizacao === pn.id || pn.status === "cancelado"}
+                                  >
+                                    {pnEmFormalizacao === pn.id
+                                      ? "Criando RC..."
+                                      : "Formalizar RC"}
+                                  </Button>
+                                </div>
                               ) : (
                                 <span className="text-sm text-muted-foreground">
                                   Aguardando formalização
@@ -553,12 +607,12 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
           )}
         </DialogContent>
       </Dialog>
-      <Dialog open={dialogCriacao} onOpenChange={setDialogCriacao}>
+      <Dialog open={dialogCriacao} onOpenChange={(open) => { setDialogCriacao(open); if (!open) setPnEmEdicao(null); }}>
         <DialogContent className="max-h-[92vh] w-[96vw] max-w-6xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nova PN do Almoxarifado</DialogTitle>
+            <DialogTitle>{pnEmEdicao ? `Editar PN-${String(pnEmEdicao.numero).padStart(4, "0")}` : "Nova PN do Almoxarifado"}</DialogTitle>
             <DialogDescription>
-              Adicione todos os itens da necessidade e envie uma única PN.
+              {pnEmEdicao ? "Corrija os dados antes de formalizar a RC." : "Adicione todos os itens da necessidade e envie uma única PN."}
               Selecionar um item do catálogo não movimenta o estoque.
             </DialogDescription>
           </DialogHeader>
@@ -847,7 +901,9 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
               <Button type="submit" disabled={salvando || !linhas.length}>
                 {salvando
                   ? "Enviando..."
-                  : `Criar PN com ${linhas.length || ""} ${linhas.length === 1 ? "item" : "itens"}`}
+                  : pnEmEdicao
+                    ? "Salvar correções da PN"
+                    : `Criar PN com ${linhas.length || ""} ${linhas.length === 1 ? "item" : "itens"}`}
               </Button>
             </DialogFooter>
           </form>

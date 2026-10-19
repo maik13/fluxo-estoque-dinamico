@@ -22,6 +22,7 @@ import { RegistrarEntrada } from './RegistrarEntrada';
 import { Transferencia } from './Transferencia';
 import { SolicitacaoMaterial } from './SolicitacaoMaterial';
 import { PrevisoesNecessidadeAlmoxarifado } from './PrevisoesNecessidadeAlmoxarifado';
+import { PedidoCompra } from './PedidoCompra';
 import { SolicitarOrcamento } from './SolicitarOrcamento';
 import { Badge } from '@/components/ui/badge';
 
@@ -899,8 +900,9 @@ export const MenuPrincipal = ({
             Aprovação, retirada e PN permanecem restritas ao Almoxarifado. */}
         {userProfile?.ativo && <SolicitacaoMaterial />}
 
-        {/* Fila operacional: a formalização em RC continua no Financeiro, a partir da PN. */}
+        {/* PN e a mesma fila operacional de RC permanecem visíveis no Almoxarifado. */}
         {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && <PrevisoesNecessidadeAlmoxarifado />}
+        {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && <PedidoCompra />}
 
         {/* BOTÃO SAÍDA */}
         {canRegistrarSaida() && <Dialog open={dialogoSaida} onOpenChange={(aberto) => {
