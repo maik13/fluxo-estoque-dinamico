@@ -50,6 +50,7 @@ interface SolicitacaoMaterialCompleta {
   data_aprovacao?: string;
   local_origem?: string;
   local_origem_id?: string;
+  data_necessidade?: string;
   created_at: string;
   updated_at: string;
   itens: {
@@ -70,6 +71,7 @@ export const SolicitacaoMaterial = () => {
   const [dialogoDetalhes, setDialogoDetalhes] = useState(false);
   const [solicitacaoParaAdicionar, setSolicitacaoParaAdicionar] = useState<SolicitacaoMaterialCompleta | null>(null);
   const [observacoes, setObservacoes] = useState('');
+  const [dataNecessidade, setDataNecessidade] = useState('');
   const [itensLista, setItensLista] = useState<ItemSolicitacaoMaterial[]>([]);
   const [popoverAberto, setPopoverAberto] = useState(false);
   const [busca, setBusca] = useState('');
@@ -272,6 +274,7 @@ export const SolicitacaoMaterial = () => {
   const limparFormularioCriacao = () => {
     setItensLista([]);
     setObservacoes('');
+    setDataNecessidade('');
     setBusca('');
     setQuantidadeItem('');
     setNomeItemCustom('');
@@ -302,6 +305,10 @@ export const SolicitacaoMaterial = () => {
       toast.error('Selecione o local de origem antes de criar a solicitação');
       return;
     }
+    if (!dataNecessidade) {
+      toast.error('Informe a data de necessidade');
+      return;
+    }
 
     setEnviando(true);
     try {
@@ -312,6 +319,7 @@ export const SolicitacaoMaterial = () => {
           solicitante_id: user.id,
           solicitante_nome: userProfile.nome,
           observacoes: observacoes || null,
+          data_necessidade: dataNecessidade,
           estoque_id: estoqueInfo?.id || null,
           local_origem: localOrigemNome || null,
           local_origem_id: localOrigemId || null,
@@ -348,6 +356,7 @@ export const SolicitacaoMaterial = () => {
         data_aprovacao: solData.data_aprovacao || undefined,
         local_origem: localOrigemNome || undefined,
         local_origem_id: localOrigemId || undefined,
+        data_necessidade: dataNecessidade,
         itens: itensInsert.map((item, index) => ({
           id: `${index}`,
           item_id: item.item_id || undefined,
@@ -858,6 +867,7 @@ export const SolicitacaoMaterial = () => {
                   <TableHead>Solicitante</TableHead>
                   <TableHead>Itens</TableHead>
                   <TableHead>Local de Origem</TableHead>
+                  <TableHead>Data necessária</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Ações</TableHead>
@@ -870,6 +880,7 @@ export const SolicitacaoMaterial = () => {
                     <TableCell>{sol.solicitante_nome}</TableCell>
                     <TableCell>{sol.itens.length} item(ns)</TableCell>
                     <TableCell>{sol.local_origem || '-'}</TableCell>
+                    <TableCell>{sol.data_necessidade ? format(new Date(`${sol.data_necessidade}T12:00:00`), "dd/MM/yyyy", { locale: ptBR }) : '—'}</TableCell>
                     <TableCell>{format(new Date(sol.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</TableCell>
                     <TableCell>{getStatusBadge(sol.status)}</TableCell>
                     <TableCell>
@@ -949,6 +960,7 @@ export const SolicitacaoMaterial = () => {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div><span className="text-muted-foreground">Solicitante:</span> {solicitacaoSelecionada.solicitante_nome}</div>
                 <div><span className="text-muted-foreground">Data:</span> {format(new Date(solicitacaoSelecionada.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</div>
+                <div><span className="text-muted-foreground">Data necessária:</span> {solicitacaoSelecionada.data_necessidade ? format(new Date(`${solicitacaoSelecionada.data_necessidade}T12:00:00`), "dd/MM/yyyy", { locale: ptBR }) : 'Não informada'}</div>
                 {solicitacaoSelecionada.observacoes && (
                   <div className="col-span-2"><span className="text-muted-foreground">Observações:</span> {solicitacaoSelecionada.observacoes}</div>
                 )}
@@ -1143,19 +1155,26 @@ export const SolicitacaoMaterial = () => {
           </DialogHeader>
 
           <div className="space-y-4">
-            {!solicitacaoParaAdicionar && <div className="space-y-2">
-              <Label htmlFor="local_origem">Local de Origem *</Label>
-              <SearchableSelect
-                value={localOrigemId}
-                onValueChange={(value) => {
-                  setLocalOrigemId(value);
-                  const nome = obterLocaisUtilizacaoAtivos().find((l) => l.id === value)?.nome || '';
-                  setLocalOrigemNome(nome);
-                }}
-                placeholder="Selecione o local de origem"
-                searchPlaceholder="Buscar local de origem..."
-                options={obterLocaisUtilizacaoAtivos().map((local) => ({ value: local.id, label: local.nome }))}
-              />
+            {!solicitacaoParaAdicionar && <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="local_origem">Local de Origem *</Label>
+                <SearchableSelect
+                  value={localOrigemId}
+                  onValueChange={(value) => {
+                    setLocalOrigemId(value);
+                    const nome = obterLocaisUtilizacaoAtivos().find((l) => l.id === value)?.nome || '';
+                    setLocalOrigemNome(nome);
+                  }}
+                  placeholder="Selecione o local de origem"
+                  searchPlaceholder="Buscar local de origem..."
+                  options={obterLocaisUtilizacaoAtivos().map((local) => ({ value: local.id, label: local.nome }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="data_necessidade">Data de necessidade *</Label>
+                <Input id="data_necessidade" type="date" value={dataNecessidade} onChange={(e) => setDataNecessidade(e.target.value)} required />
+                <p className="text-xs text-muted-foreground">A data acompanhará a PN e a RC quando houver compra.</p>
+              </div>
             </div>}
 
             {solicitacaoParaAdicionar && (
@@ -1329,7 +1348,7 @@ export const SolicitacaoMaterial = () => {
               <Button 
                 type="submit" 
                 onClick={solicitacaoParaAdicionar ? adicionarItensSolicitacao : criarSolicitacao}
-                disabled={enviando || isInicializandoSolicitacao || itensLista.length === 0 || (!solicitacaoParaAdicionar && !localOrigemId)}
+                disabled={enviando || isInicializandoSolicitacao || itensLista.length === 0 || (!solicitacaoParaAdicionar && (!localOrigemId || !dataNecessidade))}
                 className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02]"
               >
                 {enviando ? 'Enviando...' : isInicializandoSolicitacao ? 'Carregando...' : solicitacaoParaAdicionar ? 'Adicionar à solicitação' : '🚀 Criar Solicitação'}
