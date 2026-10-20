@@ -435,7 +435,7 @@ export const Financeiro = () => {
           .from("financeiro_necessidades")
           .select("*")
           .order("created_at", { ascending: false })
-          .limit(500),
+          .limit(1000),
         (supabase as any)
           .from("financeiro_lancamentos")
           .select("*")
@@ -444,9 +444,8 @@ export const Financeiro = () => {
         (supabase as any)
           .from("pedidos_compra")
           .select("*")
-          .not("status_financeiro_rc", "is", null)
           .order("data_pedido", { ascending: false })
-          .limit(300),
+          .limit(1000),
         (supabase as any)
           .from("financeiro_pedidos_compra_formais")
           .select("*")

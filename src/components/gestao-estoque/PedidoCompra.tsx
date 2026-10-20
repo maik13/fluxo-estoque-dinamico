@@ -386,10 +386,11 @@ export const PedidoCompra = ({ somenteConsulta = false }: PedidoCompraProps) => 
   const carregarPedidos = async () => {
     setLoadingPedidos(true);
     try {
-      const estoqueInfo = obterEstoqueAtivoInfo();
-      let query = (supabase as any).from('pedidos_compra').select('*').order('numero', { ascending: false });
-      if (estoqueInfo?.id) query = query.eq('estoque_id', estoqueInfo.id);
-      const { data, error } = await query;
+      const { data, error } = await (supabase as any)
+        .from('pedidos_compra')
+        .select('*')
+        .order('numero', { ascending: false })
+        .limit(1000);
       if (error) throw error;
       setPedidos((data as PedidoCompraDB[]) || []);
     } catch (error) {
@@ -546,7 +547,7 @@ export const PedidoCompra = ({ somenteConsulta = false }: PedidoCompraProps) => 
         <CardHeader className="text-center">
           <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mb-4 shadow-lg"><ShoppingCart className="h-8 w-8 text-white" /></div>
           <CardTitle className="text-blue-400">Requisições de Compra (RC)</CardTitle>
-          <CardDescription className="text-blue-500/70">Acompanhe as RCs formalizadas a partir das PNs do Almoxarifado</CardDescription>
+          <CardDescription className="text-blue-500/70">Acompanhe a mesma fila de RCs exibida no Financeiro</CardDescription>
         </CardHeader>
       </Card>
 

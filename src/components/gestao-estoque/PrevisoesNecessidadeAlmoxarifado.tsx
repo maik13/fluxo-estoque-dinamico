@@ -175,9 +175,8 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
         .select(
           "id, numero, status, origem_tipo, origem_modulo, area_solicitante, solicitante_nome, descricao, projeto_centro_custo, data_necessidade, urgencia, justificativa, valor_estimado, estimativa_incompleta, requisicao_compra_id",
         )
-        .or("origem_modulo.eq.almoxarifado,origem_tipo.eq.solicitacao_material")
         .order("created_at", { ascending: false })
-        .limit(300);
+        .limit(1000);
       if (error) throw error;
       const previsoes = (data ?? []) as PrevisaoNecessidade[];
       const idsPns = previsoes.map((pn) => pn.id);
@@ -441,10 +440,10 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
             <ClipboardList className="h-8 w-8 text-white" />
           </div>
           <CardTitle className="text-amber-400">
-            Previsões de Necessidade (PN)
+            Previsões de Necessidade (PN) — visão unificada
           </CardTitle>
           <CardDescription className="text-amber-500/70">
-            Crie a PN, formalize a RC e execute a compra sem sair do Almoxarifado
+            Consulte todas as PNs do sistema, formalize a RC e acompanhe o fluxo
           </CardDescription>
         </CardHeader>
       </Card>
@@ -453,12 +452,11 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
           <DialogHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <DialogTitle>
-                Previsões de Necessidade (PN) — Almoxarifado
+                Previsões de Necessidade (PN) — visão unificada
               </DialogTitle>
               <DialogDescription>
-                Escolha itens já cadastrados no estoque ou inclua itens avulsos.
-                A PN concentra todos eles em uma única solicitação. Depois,
-                formalize a RC aqui e execute a compra em Pedidos de Compra.
+                Esta é a mesma fila de PNs exibida no Financeiro. PNs criadas em
+                qualquer área aparecem aqui com o mesmo número, status e vínculo.
               </DialogDescription>
             </div>
             {canCriarPrevisaoNecessidadeAlmoxarifado() && (
