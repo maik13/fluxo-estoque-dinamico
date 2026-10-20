@@ -52,10 +52,11 @@ import { AgendaPlanejamentoCronograma } from './AgendaPlanejamentoCronograma';
 
 const TASK_COLUMN_WIDTH = 330;
 const ASSIGNEE_COLUMN_WIDTH = 150;
+const WORKFORCE_COLUMN_WIDTH = 250;
 const PROGRESS_COLUMN_WIDTH = 100;
 const STATE_COLUMN_WIDTH = 140;
 const LABEL_WIDTH =
-  TASK_COLUMN_WIDTH + ASSIGNEE_COLUMN_WIDTH + PROGRESS_COLUMN_WIDTH + STATE_COLUMN_WIDTH;
+  TASK_COLUMN_WIDTH + ASSIGNEE_COLUMN_WIDTH + WORKFORCE_COLUMN_WIDTH + PROGRESS_COLUMN_WIDTH + STATE_COLUMN_WIDTH;
 const ROW_HEIGHT_ETAPA = 52;
 const ROW_HEIGHT_OP = 52;
 const ROW_HEIGHT_PECA = 44;
@@ -130,6 +131,15 @@ interface LinhaPeca {
 }
 
 type LinhaGantt = LinhaPeca | LinhaEtapa | LinhaOp;
+
+const formatarQuantidadeMaoDeObra = (valor: number) =>
+  new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(Number(valor ?? 0));
+
+const resumoMaoDeObra = (ordem: GanttOrdemProducao) => {
+  const maoDeObra = ordem.mao_de_obra;
+  if (!maoDeObra || maoDeObra.total <= 0) return 'Sem Mestre/Oficial/Ajudante';
+  return `M ${formatarQuantidadeMaoDeObra(maoDeObra.mestres)} · O ${formatarQuantidadeMaoDeObra(maoDeObra.oficiais)} · A ${formatarQuantidadeMaoDeObra(maoDeObra.ajudantes)} · Total ${formatarQuantidadeMaoDeObra(maoDeObra.total)}`;
+};
 
 const dataValida = (valor: string | null | undefined) => valor ? parseISO(valor) : null;
 
@@ -564,11 +574,12 @@ export const CronogramaProducao = () => {
                     className="sticky top-0 z-40 grid border-b bg-muted/70 text-xs font-semibold backdrop-blur"
                     style={{
                       height: GANTT_HEADER_HEIGHT,
-                      gridTemplateColumns: `${TASK_COLUMN_WIDTH}px ${ASSIGNEE_COLUMN_WIDTH}px ${PROGRESS_COLUMN_WIDTH}px ${STATE_COLUMN_WIDTH}px`,
+                      gridTemplateColumns: `${TASK_COLUMN_WIDTH}px ${ASSIGNEE_COLUMN_WIDTH}px ${WORKFORCE_COLUMN_WIDTH}px ${PROGRESS_COLUMN_WIDTH}px ${STATE_COLUMN_WIDTH}px`,
                     }}
                   >
                     <div className="flex items-end border-r px-3 pb-3">Nome da tarefa</div>
                     <div className="flex items-end border-r px-3 pb-3">Atribuído</div>
+                    <div className="flex items-end border-r px-3 pb-3">Mão de obra planejada</div>
                     <div className="flex items-end border-r px-3 pb-3">Progresso</div>
                     <div className="flex items-end px-3 pb-3">Estado</div>
                   </div>
@@ -583,10 +594,10 @@ export const CronogramaProducao = () => {
                           className="grid border-b bg-primary/10 text-xs"
                           style={{
                             height: alturaLinha(linha),
-                            gridTemplateColumns: `${TASK_COLUMN_WIDTH}px ${ASSIGNEE_COLUMN_WIDTH}px ${PROGRESS_COLUMN_WIDTH}px ${STATE_COLUMN_WIDTH}px`,
+                            gridTemplateColumns: `${TASK_COLUMN_WIDTH}px ${ASSIGNEE_COLUMN_WIDTH}px ${WORKFORCE_COLUMN_WIDTH}px ${PROGRESS_COLUMN_WIDTH}px ${STATE_COLUMN_WIDTH}px`,
                           }}
                         >
-                          <div className="col-span-4 flex min-w-0 items-center gap-3 px-3">
+                          <div className="col-span-5 flex min-w-0 items-center gap-3 px-3">
                             <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
                               Peça
                             </span>
@@ -618,7 +629,7 @@ export const CronogramaProducao = () => {
                         )}
                         style={{
                           height: alturaLinha(linha),
-                          gridTemplateColumns: `${TASK_COLUMN_WIDTH}px ${ASSIGNEE_COLUMN_WIDTH}px ${PROGRESS_COLUMN_WIDTH}px ${STATE_COLUMN_WIDTH}px`,
+                          gridTemplateColumns: `${TASK_COLUMN_WIDTH}px ${ASSIGNEE_COLUMN_WIDTH}px ${WORKFORCE_COLUMN_WIDTH}px ${PROGRESS_COLUMN_WIDTH}px ${STATE_COLUMN_WIDTH}px`,
                         }}
                       >
                         <div className="flex min-w-0 items-center gap-2 border-r px-3">
@@ -666,6 +677,29 @@ export const CronogramaProducao = () => {
 
                         <div className="flex min-w-0 items-center border-r px-3 text-muted-foreground">
                           <span className="truncate" title={responsavel}>{responsavel}</span>
+                        </div>
+
+                        <div className="flex min-w-0 items-center border-r px-3">
+                          {linha.tipo === 'op' ? (
+                            <div className="min-w-0">
+                              <div
+                                className={cn(
+                                  'truncate font-semibold tabular-nums',
+                                  linha.ordem.mao_de_obra?.total > 0 ? 'text-foreground' : 'text-muted-foreground',
+                                )}
+                                title={`${resumoMaoDeObra(linha.ordem)}${linha.ordem.mao_de_obra?.fonte ? ` · Fonte: ${linha.ordem.mao_de_obra.fonte}` : ''}`}
+                              >
+                                {resumoMaoDeObra(linha.ordem)}
+                              </div>
+                              {linha.ordem.mao_de_obra?.fonte && (
+                                <div className="truncate text-[10px] text-muted-foreground">
+                                  {linha.ordem.mao_de_obra.fonte}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </div>
 
                         <div className="flex items-center border-r px-3 font-semibold tabular-nums">
@@ -774,7 +808,7 @@ export const CronogramaProducao = () => {
                               linha.tipo === 'etapa' && 'opacity-80',
                             )}
                             style={{ left: esquerda + 4, width: Math.max(28, larguraBarra - 8) }}
-                            title={`${titulo} · ${format(intervalo.inicio, 'dd/MM/yyyy')} a ${format(intervalo.fim, 'dd/MM/yyyy')} · ${Math.round(percentual)}% realizado`}
+                            title={`${titulo} · ${format(intervalo.inicio, 'dd/MM/yyyy')} a ${format(intervalo.fim, 'dd/MM/yyyy')} · ${Math.round(percentual)}% realizado${linha.tipo === 'op' ? ` · ${resumoMaoDeObra(linha.ordem)}` : ''}`}
                           >
                             <span
                               className="absolute inset-y-0 left-0 bg-black/20"

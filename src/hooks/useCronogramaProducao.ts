@@ -23,6 +23,13 @@ export interface GanttOrdemProducao {
   data_inicio_real: string | null;
   data_fim_real: string | null;
   responsavel_nome: string | null;
+  mao_de_obra: {
+    mestres: number;
+    oficiais: number;
+    ajudantes: number;
+    total: number;
+    fonte: string | null;
+  };
 }
 
 export interface GanttEtapaProducao {
@@ -130,10 +137,24 @@ export const useCronogramaProducao = () => {
         const ordensOriginais = Array.isArray(item.ordens) ? item.ordens : [];
         const ordens = ordensOriginais.map((ordem) => {
           const identidade = identidadePorOp.get(ordem.id);
+          const maoDeObra = ordem.mao_de_obra ?? {
+            mestres: 0,
+            oficiais: 0,
+            ajudantes: 0,
+            total: 0,
+            fonte: null,
+          };
           return {
             ...ordem,
             tarefa_id: identidade?.tarefa_id ?? ordem.tarefa_id ?? null,
             tarefa_nome_snapshot: identidade?.tarefa_nome_snapshot ?? ordem.tarefa_nome_snapshot ?? null,
+            mao_de_obra: {
+              mestres: Number(maoDeObra.mestres ?? 0),
+              oficiais: Number(maoDeObra.oficiais ?? 0),
+              ajudantes: Number(maoDeObra.ajudantes ?? 0),
+              total: Number(maoDeObra.total ?? 0),
+              fonte: maoDeObra.fonte ?? null,
+            },
             // Preservar as datas reais para classificar antecipações e atrasos;
             // a barra no componente continua usando início/fim previstos.
           };
