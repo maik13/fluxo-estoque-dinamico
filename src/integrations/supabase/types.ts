@@ -5406,6 +5406,7 @@ export type Database = {
           nome: string
           nome_snapshot: string | null
           origem: Database["public"]["Enums"]["producao_membro_origem"] | null
+          rh_colaborador_id: string | null
           updated_at: string
           valor_hora: number | null
         }
@@ -5419,6 +5420,7 @@ export type Database = {
           nome: string
           nome_snapshot?: string | null
           origem?: Database["public"]["Enums"]["producao_membro_origem"] | null
+          rh_colaborador_id?: string | null
           updated_at?: string
           valor_hora?: number | null
         }
@@ -5432,6 +5434,7 @@ export type Database = {
           nome?: string
           nome_snapshot?: string | null
           origem?: Database["public"]["Enums"]["producao_membro_origem"] | null
+          rh_colaborador_id?: string | null
           updated_at?: string
           valor_hora?: number | null
         }

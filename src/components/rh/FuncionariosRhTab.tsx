@@ -22,6 +22,16 @@ type PeriodosDia = { entrada1: string; saida1: string; entrada2: string; saida2:
 type HorariosSemana = Record<DiaKey, PeriodosDia>;
 
 type UsuarioExistente = { user_id: string; nome: string; email: string | null; colaborador_id: string | null };
+type ContextoFiltro = "todos" | "administrativo" | "pista" | "ponto";
+type MembroProducao = {
+  id: string;
+  nome: string;
+  nome_snapshot: string | null;
+  apelido: string | null;
+  funcao: string | null;
+  ativo: boolean;
+  rh_colaborador_id: string | null;
+};
 
 type Colaborador = {
   id: string;
@@ -232,9 +242,11 @@ export function FuncionariosRhTab() {
   const { isAdmin, hasPermission, loading: permissionsLoading } = usePermissions();
   const canManageRh = isAdmin() || hasPermission("rh.colaboradores.gerenciar");
   const [funcionarios, setFuncionarios] = useState<Colaborador[]>([]);
+  const [membrosProducao, setMembrosProducao] = useState<MembroProducao[]>([]);
   const [jornadas, setJornadas] = useState<Jornada[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [contextoFiltro, setContextoFiltro] = useState<ContextoFiltro>("todos");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingFuncionario, setEditingFuncionario] = useState<Colaborador | null>(null);
   const [saving, setSaving] = useState(false);
@@ -264,7 +276,7 @@ export function FuncionariosRhTab() {
   const [valorContrato, setValorContrato] = useState("");
   const [usuariosExistentes, setUsuariosExistentes] = useState<UsuarioExistente[]>([]);
   const [usuarioExistenteId, setUsuarioExistenteId] = useState("");
-  const [criarLogin, setCriarLogin] = useState(true);
+  const [criarLogin, setCriarLogin] = useState(false);
   const [senha, setSenha] = useState("");
 
   const presetJornadas = useMemo(
@@ -280,17 +292,20 @@ export function FuncionariosRhTab() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [funcResponse, jornadaResponse, usuariosResponse] = await Promise.all([
+      const [funcResponse, jornadaResponse, usuariosResponse, producaoResponse] = await Promise.all([
         db.from("rh_colaboradores").select("*").order("nome"),
         db.from("rh_jornadas").select("*").order("nome"),
         canManageRh ? db.rpc("rh_listar_usuarios_vinculaveis") : Promise.resolve({ data: [], error: null }),
+        db.from("producao_membros").select("id,nome,nome_snapshot,apelido,funcao,ativo,rh_colaborador_id").order("nome"),
       ]);
       if (funcResponse.error) throw funcResponse.error;
       if (jornadaResponse.error) throw jornadaResponse.error;
       if (usuariosResponse.error) throw usuariosResponse.error;
+      if (producaoResponse.error) throw producaoResponse.error;
       setUsuariosExistentes(usuariosResponse.data ?? []);
       setFuncionarios((funcResponse.data ?? []) as Colaborador[]);
       setJornadas((jornadaResponse.data ?? []) as Jornada[]);
+      setMembrosProducao((producaoResponse.data ?? []) as MembroProducao[]);
     } catch (error: any) {
       console.error(error);
       toast.error(error?.message || "Erro ao carregar funcionários");
@@ -327,7 +342,7 @@ export function FuncionariosRhTab() {
     setControlaPonto(false);
     setTipoContrato("clt");
     setValorContrato("");
-    setCriarLogin(true);
+    setCriarLogin(false);
     setUsuarioExistenteId("");
     setSenha("");
   };
@@ -373,7 +388,7 @@ export function FuncionariosRhTab() {
 
     setRhAtivo(func.rh_ativo);
     setPistaAtivo(func.pista_ativo_legado);
-    setControlaPonto(func.rh_ativo ? func.controla_ponto : false);
+    setControlaPonto(func.controla_ponto);
     const contract = (func.tipo_contrato || "clt") as ContractType;
     setTipoContrato(contract);
     if (contract === "clt") {
@@ -394,11 +409,13 @@ export function FuncionariosRhTab() {
     setEditingFuncionario(null);
   };
 
-  const saveMemberships = async (id: string, nextRh: boolean, nextPista: boolean) => {
-    const { error } = await db.rpc("rh_set_colaborador_contextos", {
+  const saveMemberships = async (id: string, nextRh: boolean, nextPista: boolean, nextPonto: boolean) => {
+    const { error } = await db.rpc("rh_set_colaborador_contextos_v2", {
       p_colaborador_id: id,
-      p_rh_ativo: nextRh,
+      p_administrativo_ativo: nextRh,
       p_pista_ativo: nextPista,
+      p_controla_ponto: nextPonto,
+      p_origem: "cadastro_rh",
     });
     if (error) throw error;
   };
@@ -423,7 +440,7 @@ export function FuncionariosRhTab() {
       : jornadaMode === "preset"
         ? jornadaId || null
         : null,
-    controla_ponto: rhAtivo ? controlaPonto : false,
+    controla_ponto: controlaPonto,
     tipo_contrato: tipoContrato,
     valor_contrato: tipoContrato === "clt" ? null : valorContrato ? Number(valorContrato) : null,
     hora_extra_gera_valor: tipoContrato !== "horista",
@@ -568,8 +585,8 @@ export function FuncionariosRhTab() {
 
     const nextPista = canManageRh ? pistaAtivo : editingFuncionario?.pista_ativo_legado ?? false;
     const needsNewLogin = criarLogin && !usuarioExistenteId && (!editingFuncionario || !editingFuncionario.user_id);
-    if (needsNewLogin && !rhAtivo) {
-      toast.error("Acesso para registro de ponto só pode ser criado para colaborador vinculado ao RH");
+    if (needsNewLogin && !controlaPonto) {
+      toast.error("Marque Controle de ponto antes de criar um acesso para registro de ponto");
       return;
     }
     if (needsNewLogin) {
@@ -594,7 +611,7 @@ export function FuncionariosRhTab() {
             ...payload,
             email: email.trim() || null,
             password: needsNewLogin ? senha : null,
-            ativo: rhAtivo || nextPista,
+            ativo: rhAtivo || nextPista || controlaPonto,
             create_login: needsNewLogin,
           },
         });
@@ -633,7 +650,7 @@ export function FuncionariosRhTab() {
         await deactivateCustomJourney(collaboratorId);
       }
 
-      await saveMemberships(collaboratorId, rhAtivo, nextPista);
+      await saveMemberships(collaboratorId, rhAtivo, nextPista, controlaPonto);
       await updateEmployeeFields(collaboratorId, resolvedJornadaId);
 
       const linkedUser = usuarioExistenteId || editingFuncionario?.user_id;
@@ -678,13 +695,23 @@ export function FuncionariosRhTab() {
 
   const filteredFuncionarios = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return funcionarios;
-    return funcionarios.filter((f) =>
-      f.nome.toLowerCase().includes(term) ||
-      f.email?.toLowerCase().includes(term) ||
-      f.cpf_cnpj?.includes(searchTerm.trim()),
-    );
-  }, [funcionarios, searchTerm]);
+    return funcionarios.filter((f) => {
+      const pertenceAoContexto = contextoFiltro === "todos"
+        || (contextoFiltro === "administrativo" && f.rh_ativo)
+        || (contextoFiltro === "pista" && f.pista_ativo_legado)
+        || (contextoFiltro === "ponto" && f.controla_ponto);
+      if (!pertenceAoContexto) return false;
+      if (!term) return true;
+      return f.nome.toLowerCase().includes(term)
+        || Boolean(f.email?.toLowerCase().includes(term))
+        || Boolean(f.cpf_cnpj?.includes(searchTerm.trim()));
+    });
+  }, [contextoFiltro, funcionarios, searchTerm]);
+
+  const membrosPistaSemVinculo = useMemo(
+    () => membrosProducao.filter((membro) => membro.ativo && !membro.rh_colaborador_id),
+    [membrosProducao],
+  );
 
   const switchContract = (value: ContractType) => {
     if (value === "clt" && tipoContrato !== "clt") {
@@ -709,7 +736,7 @@ export function FuncionariosRhTab() {
                 <Users className="h-5 w-5" /> Cadastro de Funcionários
               </CardTitle>
               <CardDescription>
-                Um cadastro por pessoa. RH e Pista são vínculos independentes; contrato, remuneração e jornada são dados únicos usados também pelo Financeiro.
+                Um cadastro por pessoa, classificado de forma independente entre Administrativo, Pista e Controle de ponto.
               </CardDescription>
             </div>
             <div className="flex items-center gap-3">
@@ -724,6 +751,24 @@ export function FuncionariosRhTab() {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {([
+              ["todos", "Todos", funcionarios.length],
+              ["administrativo", "RH Administrativo", funcionarios.filter((f) => f.rh_ativo).length],
+              ["pista", "RH Pista", funcionarios.filter((f) => f.pista_ativo_legado).length],
+              ["ponto", "Controle de ponto", funcionarios.filter((f) => f.controla_ponto).length],
+            ] as Array<[ContextoFiltro, string, number]>).map(([valor, label, quantidade]) => (
+              <Button
+                key={valor}
+                type="button"
+                size="sm"
+                variant={contextoFiltro === valor ? "default" : "outline"}
+                onClick={() => setContextoFiltro(valor)}
+              >
+                {label} ({quantidade})
+              </Button>
+            ))}
+          </div>
           {loading ? (
             <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : (
@@ -766,13 +811,14 @@ export function FuncionariosRhTab() {
                           <div className="flex flex-wrap gap-1">
                             {func.rh_ativo && <Badge>RH</Badge>}
                             {func.pista_ativo_legado && <Badge variant="secondary">Pista</Badge>}
-                            {!func.rh_ativo && !func.pista_ativo_legado && <Badge variant="outline">Sem vínculo</Badge>}
+                            {func.controla_ponto && <Badge variant="outline">Controle de ponto</Badge>}
+                            {!func.rh_ativo && !func.pista_ativo_legado && !func.controla_ponto && <Badge variant="outline">Sem vínculo</Badge>}
                           </div>
                         </TableCell>
                         <TableCell>
-                          {func.rh_ativo
-                            ? <Badge className="border-green-500/30 bg-green-500/20 text-green-400">Ativo no RH</Badge>
-                            : <Badge variant="outline" className="border-slate-500/40 text-muted-foreground">Fora do RH</Badge>}
+                          {func.ativo
+                            ? <Badge className="border-green-500/30 bg-green-500/20 text-green-400">Ativo</Badge>
+                            : <Badge variant="outline" className="border-slate-500/40 text-muted-foreground">Inativo</Badge>}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -787,6 +833,33 @@ export function FuncionariosRhTab() {
                   })}
                 </TableBody>
               </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Conciliação RH Pista × Produção</CardTitle>
+          <CardDescription>
+            O vínculo é feito sem duplicar a pessoa. Correspondências exatas foram associadas automaticamente; os casos abaixo precisam de revisão do RH.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border p-3"><div className="text-xs text-muted-foreground">Pessoas ativas na Produção</div><div className="text-2xl font-bold">{membrosProducao.filter((m) => m.ativo).length}</div></div>
+            <div className="rounded-lg border p-3"><div className="text-xs text-muted-foreground">Vinculadas ao RH Pista</div><div className="text-2xl font-bold text-emerald-500">{membrosProducao.filter((m) => m.ativo && m.rh_colaborador_id).length}</div></div>
+            <div className="rounded-lg border p-3"><div className="text-xs text-muted-foreground">Pendentes de vínculo</div><div className="text-2xl font-bold text-amber-500">{membrosPistaSemVinculo.length}</div></div>
+          </div>
+          {membrosPistaSemVinculo.length === 0 ? (
+            <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-600 dark:text-emerald-400">Todas as pessoas ativas da Produção estão vinculadas ao RH Pista.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {membrosPistaSemVinculo.map((membro) => (
+                <Badge key={membro.id} variant="outline" className="border-amber-500/40 px-3 py-1 text-amber-600 dark:text-amber-400">
+                  {membro.nome_snapshot || membro.nome}{membro.apelido ? ` (${membro.apelido})` : ""} · {membro.funcao || "função não informada"}
+                </Badge>
+              ))}
             </div>
           )}
         </CardContent>
@@ -826,14 +899,18 @@ export function FuncionariosRhTab() {
 
             <div className="space-y-4 rounded-lg border p-4">
               <h3 className="font-semibold">Vínculos no sistema</h3>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="flex items-start gap-3">
-                  <Switch checked={rhAtivo} disabled={!canManageRh} onCheckedChange={(checked) => { setRhAtivo(checked); if (!checked) { setControlaPonto(false); setCriarLogin(false); } }} id="rh-ativo" />
-                  <div><Label htmlFor="rh-ativo">RH</Label><p className="text-xs text-muted-foreground">Define se a pessoa está ativa no RH. Desativar não apaga contrato, remuneração nem histórico.</p></div>
+                  <Switch checked={rhAtivo} disabled={!canManageRh} onCheckedChange={setRhAtivo} id="rh-ativo" />
+                  <div><Label htmlFor="rh-ativo">RH Administrativo</Label><p className="text-xs text-muted-foreground">Classifica a pessoa na estrutura administrativa do RH.</p></div>
                 </div>
                 <div className="flex items-start gap-3">
                   <Switch checked={pistaAtivo} disabled={!canManageRh} onCheckedChange={setPistaAtivo} id="pista-ativo" />
-                  <div><Label htmlFor="pista-ativo">Pista / Produção</Label><p className="text-xs text-muted-foreground">Define se a pessoa pode ser utilizada em novas OPs e apontamentos de produção.</p></div>
+                  <div><Label htmlFor="pista-ativo">RH Pista</Label><p className="text-xs text-muted-foreground">Disponibiliza a pessoa para OPs e apontamentos da Produção.</p></div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Switch checked={controlaPonto} disabled={!canManageRh} onCheckedChange={setControlaPonto} id="controla-ponto-contexto" />
+                  <div><Label htmlFor="controla-ponto-contexto">Controle de ponto</Label><p className="text-xs text-muted-foreground">Inclui a pessoa no ponto eletrônico deste sistema.</p></div>
                 </div>
               </div>
             </div>
@@ -927,14 +1004,10 @@ export function FuncionariosRhTab() {
                     {tipoContrato === "clt" ? "Salário mensal usado também no custeio quando a pessoa estiver na Pista." : tipoContrato === "horista" ? "Valor por hora usado pelo RH e Financeiro." : "Valor da diária usado pelo RH e Financeiro."}
                   </p>
                 </div>
-                <div className="flex items-start gap-3 pt-2">
-                  <Switch checked={controlaPonto} disabled={!rhAtivo} onCheckedChange={setControlaPonto} id="controla-ponto" />
-                  <div><Label htmlFor="controla-ponto">Participa do controle de ponto</Label><p className="text-xs text-muted-foreground">Disponível quando o vínculo RH está ativo; exibe no espelho, aprovações e fechamento de ponto.</p></div>
-                </div>
               </div>
             </div>
 
-            {rhAtivo && (
+            {controlaPonto && (
               <div className="space-y-4">
                 <h3 className="flex items-center gap-2 font-semibold"><UserPlus className="h-4 w-4" /> Acesso ao Sistema (Registro de Ponto)</h3>
                 <div className="rounded-lg border bg-muted/30 p-4">

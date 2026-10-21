@@ -23,6 +23,7 @@ export interface GanttOrdemProducao {
   data_inicio_real: string | null;
   data_fim_real: string | null;
   responsavel_nome: string | null;
+  mao_de_obra_utilizada: number | null;
   mao_de_obra: {
     mestres: number;
     oficiais: number;
@@ -104,16 +105,29 @@ export const useCronogramaProducao = () => {
     setLoading(true);
     setErro(null);
     try {
-      const [{ data, error }, configResult, alertasResult, ordensResult] = await Promise.all([
+      const [{ data, error }, configResult, alertasResult, ordensResult, jornadasResult] = await Promise.all([
         (supabase.rpc as any)('listar_gantt_producao'),
         supabase.from('producao_cronograma_configuracoes').select('equipe_disponivel_por_dia,trabalha_sabado,trabalha_domingo,horizonte_dias').eq('id', 1).maybeSingle(),
         supabase.from('producao_cronograma_alertas').select('id,processo_id,data,severidade,codigo,mensagem').order('created_at', { ascending: false }).limit(100),
         (supabase.rpc as any)('listar_ordens_producao_v2', { p_processo_id: null, p_status: null }),
+        supabase
+          .from('producao_op_jornadas')
+          .select('ordem_producao_id,membros_ids,iniciado_em,status,descartada')
+          .eq('descartada', false)
+          .order('iniciado_em', { ascending: false })
+          .limit(10000),
       ]);
       if (error) throw new Error(formatarErroSupabase(error, 'Não foi possível carregar o Gantt.'));
       if (configResult.error) throw new Error(formatarErroSupabase(configResult.error, 'Não foi possível carregar a configuração do cronograma.'));
       if (alertasResult.error) throw new Error(formatarErroSupabase(alertasResult.error, 'Não foi possível carregar os alertas do cronograma.'));
       if (ordensResult.error) throw new Error(formatarErroSupabase(ordensResult.error, 'Não foi possível carregar os nomes das OPs.'));
+      if (jornadasResult.error) throw new Error(formatarErroSupabase(jornadasResult.error, 'Não foi possível carregar a equipe utilizada nas OPs.'));
+
+      const equipeUtilizadaPorOp = new Map<string, number>();
+      (jornadasResult.data ?? []).forEach((jornada) => {
+        if (equipeUtilizadaPorOp.has(jornada.ordem_producao_id)) return;
+        equipeUtilizadaPorOp.set(jornada.ordem_producao_id, new Set(jornada.membros_ids ?? []).size);
+      });
 
       const ordensRpc = (ordensResult.data ?? []) as Array<{
         id: string; projeto_id: string; instrucoes: string | null;
@@ -148,6 +162,7 @@ export const useCronogramaProducao = () => {
             ...ordem,
             tarefa_id: identidade?.tarefa_id ?? ordem.tarefa_id ?? null,
             tarefa_nome_snapshot: identidade?.tarefa_nome_snapshot ?? ordem.tarefa_nome_snapshot ?? null,
+            mao_de_obra_utilizada: equipeUtilizadaPorOp.get(ordem.id) ?? null,
             mao_de_obra: {
               mestres: Number(maoDeObra.mestres ?? 0),
               oficiais: Number(maoDeObra.oficiais ?? 0),
