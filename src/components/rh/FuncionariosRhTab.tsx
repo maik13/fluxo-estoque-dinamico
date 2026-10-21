@@ -22,7 +22,7 @@ type PeriodosDia = { entrada1: string; saida1: string; entrada2: string; saida2:
 type HorariosSemana = Record<DiaKey, PeriodosDia>;
 
 type UsuarioExistente = { user_id: string; nome: string; email: string | null; colaborador_id: string | null };
-type ContextoFiltro = "todos" | "administrativo" | "pista" | "ponto";
+type ContextoFiltro = "todos" | "administrativo" | "pista" | "ponto" | "inativos";
 type MembroProducao = {
   id: string;
   nome: string;
@@ -269,6 +269,7 @@ export function FuncionariosRhTab() {
   const [jornadaMode, setJornadaMode] = useState<JornadaMode>("none");
   const [jornadaId, setJornadaId] = useState("");
   const [customHorarios, setCustomHorarios] = useState<HorariosSemana>(emptyHorarios());
+  const [cadastroAtivo, setCadastroAtivo] = useState(true);
   const [rhAtivo, setRhAtivo] = useState(true);
   const [pistaAtivo, setPistaAtivo] = useState(false);
   const [controlaPonto, setControlaPonto] = useState(false);
@@ -337,6 +338,7 @@ export function FuncionariosRhTab() {
     setJornadaMode("none");
     setJornadaId("");
     setCustomHorarios(emptyHorarios());
+    setCadastroAtivo(true);
     setRhAtivo(true);
     setPistaAtivo(false);
     setControlaPonto(false);
@@ -386,6 +388,7 @@ export function FuncionariosRhTab() {
       setCustomHorarios(horariosFromJornada(personalJourney));
     }
 
+    setCadastroAtivo(func.ativo);
     setRhAtivo(func.rh_ativo);
     setPistaAtivo(func.pista_ativo_legado);
     setControlaPonto(func.controla_ponto);
@@ -409,9 +412,10 @@ export function FuncionariosRhTab() {
     setEditingFuncionario(null);
   };
 
-  const saveMemberships = async (id: string, nextRh: boolean, nextPista: boolean, nextPonto: boolean) => {
-    const { error } = await db.rpc("rh_set_colaborador_contextos_v2", {
+  const saveMemberships = async (id: string, nextActive: boolean, nextRh: boolean, nextPista: boolean, nextPonto: boolean) => {
+    const { error } = await db.rpc("rh_set_colaborador_contextos_v3", {
       p_colaborador_id: id,
+      p_ativo: nextActive,
       p_administrativo_ativo: nextRh,
       p_pista_ativo: nextPista,
       p_controla_ponto: nextPonto,
@@ -583,8 +587,15 @@ export function FuncionariosRhTab() {
       return;
     }
 
-    const nextPista = canManageRh ? pistaAtivo : editingFuncionario?.pista_ativo_legado ?? false;
-    const needsNewLogin = criarLogin && !usuarioExistenteId && (!editingFuncionario || !editingFuncionario.user_id);
+    if (cadastroAtivo && !rhAtivo && !pistaAtivo && !controlaPonto) {
+      toast.error("Para reativar o cadastro, selecione ao menos um vínculo: Administrativo, Pista ou Controle de ponto");
+      return;
+    }
+
+    const nextRh = cadastroAtivo ? rhAtivo : false;
+    const nextPista = cadastroAtivo && canManageRh ? pistaAtivo : cadastroAtivo ? editingFuncionario?.pista_ativo_legado ?? false : false;
+    const nextPonto = cadastroAtivo ? controlaPonto : false;
+    const needsNewLogin = cadastroAtivo && criarLogin && !usuarioExistenteId && (!editingFuncionario || !editingFuncionario.user_id);
     if (needsNewLogin && !controlaPonto) {
       toast.error("Marque Controle de ponto antes de criar um acesso para registro de ponto");
       return;
@@ -611,7 +622,7 @@ export function FuncionariosRhTab() {
             ...payload,
             email: email.trim() || null,
             password: needsNewLogin ? senha : null,
-            ativo: rhAtivo || nextPista || controlaPonto,
+            ativo: cadastroAtivo,
             create_login: needsNewLogin,
           },
         });
@@ -630,7 +641,7 @@ export function FuncionariosRhTab() {
             ...payload,
             email: email.trim() || null,
             password: senha,
-            ativo: rhAtivo || nextPista,
+            ativo: cadastroAtivo,
             create_login: true,
             existing_colaborador_id: collaboratorId,
           },
@@ -650,11 +661,11 @@ export function FuncionariosRhTab() {
         await deactivateCustomJourney(collaboratorId);
       }
 
-      await saveMemberships(collaboratorId, rhAtivo, nextPista, controlaPonto);
+      await saveMemberships(collaboratorId, cadastroAtivo, nextRh, nextPista, nextPonto);
       await updateEmployeeFields(collaboratorId, resolvedJornadaId);
 
       const linkedUser = usuarioExistenteId || editingFuncionario?.user_id;
-      if (linkedUser) {
+      if (cadastroAtivo && linkedUser) {
         const { error } = await db.rpc("rh_vincular_usuario_existente", {
           p_colaborador_id: collaboratorId,
           p_user_id: linkedUser,
@@ -696,10 +707,11 @@ export function FuncionariosRhTab() {
   const filteredFuncionarios = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return funcionarios.filter((f) => {
-      const pertenceAoContexto = contextoFiltro === "todos"
-        || (contextoFiltro === "administrativo" && f.rh_ativo)
-        || (contextoFiltro === "pista" && f.pista_ativo_legado)
-        || (contextoFiltro === "ponto" && f.controla_ponto);
+      const pertenceAoContexto = (contextoFiltro === "todos" && f.ativo)
+        || (contextoFiltro === "administrativo" && f.ativo && f.rh_ativo)
+        || (contextoFiltro === "pista" && f.ativo && f.pista_ativo_legado)
+        || (contextoFiltro === "ponto" && f.ativo && f.controla_ponto)
+        || (contextoFiltro === "inativos" && !f.ativo);
       if (!pertenceAoContexto) return false;
       if (!term) return true;
       return f.nome.toLowerCase().includes(term)
@@ -753,10 +765,11 @@ export function FuncionariosRhTab() {
         <CardContent>
           <div className="mb-4 flex flex-wrap gap-2">
             {([
-              ["todos", "Todos", funcionarios.length],
-              ["administrativo", "RH Administrativo", funcionarios.filter((f) => f.rh_ativo).length],
-              ["pista", "RH Pista", funcionarios.filter((f) => f.pista_ativo_legado).length],
-              ["ponto", "Controle de ponto", funcionarios.filter((f) => f.controla_ponto).length],
+              ["todos", "Todos", funcionarios.filter((f) => f.ativo).length],
+              ["administrativo", "RH Administrativo", funcionarios.filter((f) => f.ativo && f.rh_ativo).length],
+              ["pista", "RH Pista", funcionarios.filter((f) => f.ativo && f.pista_ativo_legado).length],
+              ["ponto", "Controle de ponto", funcionarios.filter((f) => f.ativo && f.controla_ponto).length],
+              ["inativos", "Inativos", funcionarios.filter((f) => !f.ativo).length],
             ] as Array<[ContextoFiltro, string, number]>).map(([valor, label, quantidade]) => (
               <Button
                 key={valor}
@@ -898,18 +911,40 @@ export function FuncionariosRhTab() {
             </div>
 
             <div className="space-y-4 rounded-lg border p-4">
+              <div className="flex flex-col gap-3 rounded-md border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <Label htmlFor="cadastro-ativo" className="font-semibold">Cadastro ativo</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Ao inativar, a pessoa sai das listas operacionais, mas todo o histórico é preservado.
+                  </p>
+                </div>
+                <Switch
+                  id="cadastro-ativo"
+                  checked={cadastroAtivo}
+                  disabled={!canManageRh}
+                  onCheckedChange={(checked) => {
+                    setCadastroAtivo(checked);
+                    if (!checked) {
+                      setRhAtivo(false);
+                      setPistaAtivo(false);
+                      setControlaPonto(false);
+                      setCriarLogin(false);
+                    }
+                  }}
+                />
+              </div>
               <h3 className="font-semibold">Vínculos no sistema</h3>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="flex items-start gap-3">
-                  <Switch checked={rhAtivo} disabled={!canManageRh} onCheckedChange={setRhAtivo} id="rh-ativo" />
+                  <Switch checked={rhAtivo} disabled={!canManageRh || !cadastroAtivo} onCheckedChange={setRhAtivo} id="rh-ativo" />
                   <div><Label htmlFor="rh-ativo">RH Administrativo</Label><p className="text-xs text-muted-foreground">Classifica a pessoa na estrutura administrativa do RH.</p></div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <Switch checked={pistaAtivo} disabled={!canManageRh} onCheckedChange={setPistaAtivo} id="pista-ativo" />
+                  <Switch checked={pistaAtivo} disabled={!canManageRh || !cadastroAtivo} onCheckedChange={setPistaAtivo} id="pista-ativo" />
                   <div><Label htmlFor="pista-ativo">RH Pista</Label><p className="text-xs text-muted-foreground">Disponibiliza a pessoa para OPs e apontamentos da Produção.</p></div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <Switch checked={controlaPonto} disabled={!canManageRh} onCheckedChange={setControlaPonto} id="controla-ponto-contexto" />
+                  <Switch checked={controlaPonto} disabled={!canManageRh || !cadastroAtivo} onCheckedChange={setControlaPonto} id="controla-ponto-contexto" />
                   <div><Label htmlFor="controla-ponto-contexto">Controle de ponto</Label><p className="text-xs text-muted-foreground">Inclui a pessoa no ponto eletrônico deste sistema.</p></div>
                 </div>
               </div>
