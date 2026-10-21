@@ -77,6 +77,7 @@ export interface ProducaoApontamento {
 }
 export interface ProducaoApontamentoMembro {
   id: string; apontamento_id: string; membro_id: string; nome_snapshot: string; valor_hora_snapshot: number | null;
+  custo_total_snapshot?: number | null; faixas_custo_snapshot?: Json | null;
   jornada_diaria_minutos_snapshot: number | null; minutos_produtivos_snapshot: number | null; minutos_improdutivos_snapshot: number | null;
   inicio_individual: string | null; termino_individual: string | null; duracao_minutos_snapshot: number | null;
   created_at: string;

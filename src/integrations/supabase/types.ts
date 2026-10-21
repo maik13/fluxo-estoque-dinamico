@@ -4659,7 +4659,9 @@ export type Database = {
         Row: {
           apontamento_id: string
           created_at: string
+          custo_total_snapshot: number | null
           duracao_minutos_snapshot: number | null
+          faixas_custo_snapshot: Json | null
           id: string
           inicio_individual: string | null
           jornada_diaria_minutos_snapshot: number | null
@@ -4673,7 +4675,9 @@ export type Database = {
         Insert: {
           apontamento_id: string
           created_at?: string
+          custo_total_snapshot?: number | null
           duracao_minutos_snapshot?: number | null
+          faixas_custo_snapshot?: Json | null
           id?: string
           inicio_individual?: string | null
           jornada_diaria_minutos_snapshot?: number | null
@@ -4687,7 +4691,9 @@ export type Database = {
         Update: {
           apontamento_id?: string
           created_at?: string
+          custo_total_snapshot?: number | null
           duracao_minutos_snapshot?: number | null
+          faixas_custo_snapshot?: Json | null
           id?: string
           inicio_individual?: string | null
           jornada_diaria_minutos_snapshot?: number | null

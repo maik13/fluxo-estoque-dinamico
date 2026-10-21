@@ -20,6 +20,16 @@ type JornadaMode = "none" | "preset" | "custom";
 type DiaKey = "segunda" | "terca" | "quarta" | "quinta" | "sexta" | "sabado" | "domingo";
 type PeriodosDia = { entrada1: string; saida1: string; entrada2: string; saida2: string };
 type HorariosSemana = Record<DiaKey, PeriodosDia>;
+type FaixaCusto = {
+  id?: string;
+  nome: string;
+  dias_semana: number[];
+  hora_inicio: string;
+  hora_fim: string;
+  valor_hora: string;
+  prioridade: number;
+  ativo: boolean;
+};
 
 type UsuarioExistente = { user_id: string; nome: string; email: string | null; colaborador_id: string | null };
 type ContextoFiltro = "todos" | "administrativo" | "pista" | "ponto" | "inativos";
@@ -107,6 +117,17 @@ const DIAS: Array<{ key: DiaKey; label: string }> = [
   { key: "sabado", label: "Sábado" },
   { key: "domingo", label: "Domingo" },
 ];
+
+const DIAS_FAIXA = [
+  { valor: 1, label: "Seg" }, { valor: 2, label: "Ter" }, { valor: 3, label: "Qua" },
+  { valor: 4, label: "Qui" }, { valor: 5, label: "Sex" }, { valor: 6, label: "Sáb" },
+  { valor: 7, label: "Dom" },
+];
+
+const novaFaixaCusto = (prioridade = 0): FaixaCusto => ({
+  nome: "", dias_semana: [1, 2, 3, 4, 5], hora_inicio: "08:00", hora_fim: "18:00",
+  valor_hora: "", prioridade, ativo: true,
+});
 
 const emptyHorarios = (): HorariosSemana => ({
   segunda: { entrada1: "", saida1: "", entrada2: "", saida2: "" },
@@ -275,6 +296,7 @@ export function FuncionariosRhTab() {
   const [controlaPonto, setControlaPonto] = useState(false);
   const [tipoContrato, setTipoContrato] = useState<ContractType>("clt");
   const [valorContrato, setValorContrato] = useState("");
+  const [faixasCusto, setFaixasCusto] = useState<FaixaCusto[]>([]);
   const [usuariosExistentes, setUsuariosExistentes] = useState<UsuarioExistente[]>([]);
   const [usuarioExistenteId, setUsuarioExistenteId] = useState("");
   const [criarLogin, setCriarLogin] = useState(false);
@@ -344,6 +366,7 @@ export function FuncionariosRhTab() {
     setControlaPonto(false);
     setTipoContrato("clt");
     setValorContrato("");
+    setFaixasCusto([]);
     setCriarLogin(false);
     setUsuarioExistenteId("");
     setSenha("");
@@ -404,6 +427,22 @@ export function FuncionariosRhTab() {
     setCriarLogin(false);
     setUsuarioExistenteId(func.user_id || "");
     setSenha("");
+    void db.from("rh_colaborador_faixas_custo")
+      .select("id,nome,dias_semana,hora_inicio,hora_fim,valor_hora,prioridade,ativo")
+      .eq("colaborador_id", func.id)
+      .order("prioridade")
+      .then(({ data, error }: { data: any[] | null; error: any }) => {
+        if (error) {
+          toast.error("Não foi possível carregar as faixas de custo");
+          return;
+        }
+        setFaixasCusto((data ?? []).map((faixa) => ({
+          ...faixa,
+          hora_inicio: String(faixa.hora_inicio).slice(0, 5),
+          hora_fim: String(faixa.hora_fim).slice(0, 5),
+          valor_hora: String(faixa.valor_hora),
+        })));
+      });
     setDialogOpen(true);
   };
 
@@ -473,6 +512,30 @@ export function FuncionariosRhTab() {
       p_tipo_contrato: payload.tipo_contrato,
       p_valor_contrato: payload.valor_contrato,
       p_hora_extra_gera_valor: payload.hora_extra_gera_valor,
+    });
+    if (error) throw error;
+  };
+
+  const saveCostRanges = async (collaboratorId: string) => {
+    for (const faixa of faixasCusto) {
+      if (!faixa.nome.trim() || !faixa.hora_inicio || !faixa.hora_fim || faixa.hora_inicio === faixa.hora_fim) {
+        throw new Error("Preencha o nome e horários diferentes em todas as faixas de custo");
+      }
+      if (faixa.dias_semana.length === 0 || faixa.valor_hora === "" || Number(faixa.valor_hora) < 0) {
+        throw new Error("Cada faixa precisa ter dias e um valor/hora válido");
+      }
+    }
+    const { error } = await db.rpc("rh_substituir_faixas_custo", {
+      p_colaborador_id: collaboratorId,
+      p_faixas: faixasCusto.map((faixa, index) => ({
+        nome: faixa.nome.trim(),
+        dias_semana: faixa.dias_semana,
+        hora_inicio: faixa.hora_inicio,
+        hora_fim: faixa.hora_fim,
+        valor_hora: Number(faixa.valor_hora),
+        prioridade: faixa.prioridade || index,
+        ativo: faixa.ativo,
+      })),
     });
     if (error) throw error;
   };
@@ -663,6 +726,7 @@ export function FuncionariosRhTab() {
 
       await saveMemberships(collaboratorId, cadastroAtivo, nextRh, nextPista, nextPonto);
       await updateEmployeeFields(collaboratorId, resolvedJornadaId);
+      await saveCostRanges(collaboratorId);
 
       const linkedUser = usuarioExistenteId || editingFuncionario?.user_id;
       if (cadastroAtivo && linkedUser) {
@@ -1040,6 +1104,76 @@ export function FuncionariosRhTab() {
                   </p>
                 </div>
               </div>
+            </div>
+
+            <div className="space-y-4 rounded-lg border border-primary/20 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="font-semibold">Faixas de custo da mão de obra</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Opcional. O sistema divide automaticamente o custo quando o trabalho atravessa uma mudança de faixa.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFaixasCusto((atuais) => [...atuais, novaFaixaCusto(atuais.length)])}
+                  disabled={!canManageRh}
+                >
+                  Adicionar faixa
+                </Button>
+              </div>
+
+              {faixasCusto.length === 0 ? (
+                <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                  Nenhuma faixa específica. O custeio continua usando o valor/hora padrão disponível na Produção.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {faixasCusto.map((faixa, index) => (
+                    <div key={faixa.id ?? index} className="space-y-3 rounded-md border bg-muted/20 p-3">
+                      <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_1fr_1fr_auto] md:items-end">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Nome da faixa</Label>
+                          <Input
+                            value={faixa.nome}
+                            placeholder={index === 0 ? "Normal" : "Após 18h"}
+                            onChange={(event) => setFaixasCusto((atuais) => atuais.map((item, posicao) => posicao === index ? { ...item, nome: event.target.value } : item))}
+                          />
+                        </div>
+                        <div className="space-y-1"><Label className="text-xs">Início</Label><Input type="time" value={faixa.hora_inicio} onChange={(event) => setFaixasCusto((atuais) => atuais.map((item, posicao) => posicao === index ? { ...item, hora_inicio: event.target.value } : item))} /></div>
+                        <div className="space-y-1"><Label className="text-xs">Fim</Label><Input type="time" value={faixa.hora_fim} onChange={(event) => setFaixasCusto((atuais) => atuais.map((item, posicao) => posicao === index ? { ...item, hora_fim: event.target.value } : item))} /></div>
+                        <div className="space-y-1"><Label className="text-xs">Valor por hora (R$)</Label><Input type="number" min="0" step="0.01" value={faixa.valor_hora} onChange={(event) => setFaixasCusto((atuais) => atuais.map((item, posicao) => posicao === index ? { ...item, valor_hora: event.target.value } : item))} /></div>
+                        <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => setFaixasCusto((atuais) => atuais.filter((_, posicao) => posicao !== index))}><Trash2 className="h-4 w-4" /></Button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {DIAS_FAIXA.map((dia) => {
+                          const selecionado = faixa.dias_semana.includes(dia.valor);
+                          return (
+                            <Button
+                              key={dia.valor}
+                              type="button"
+                              size="sm"
+                              variant={selecionado ? "secondary" : "outline"}
+                              className="h-7 px-2 text-xs"
+                              onClick={() => setFaixasCusto((atuais) => atuais.map((item, posicao) => posicao === index ? {
+                                ...item,
+                                dias_semana: selecionado ? item.dias_semana.filter((valor) => valor !== dia.valor) : [...item.dias_semana, dia.valor].sort(),
+                              } : item))}
+                            >
+                              {dia.label}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Uma faixa pode atravessar a meia-noite: use, por exemplo, 18:00–08:00. Se duas faixas coincidirem, prevalece a última da lista.
+              </p>
             </div>
 
             {controlaPonto && (

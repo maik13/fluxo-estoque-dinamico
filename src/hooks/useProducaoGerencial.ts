@@ -18,6 +18,8 @@ type ApontamentoRow = Database['public']['Tables']['producao_apontamentos']['Row
 type ApontamentoMembroBase = Database['public']['Tables']['producao_apontamento_membros']['Row'];
 type ApontamentoMembroRow = ApontamentoMembroBase & {
   duracao_minutos_snapshot?: number | null;
+  custo_total_snapshot?: number | null;
+  faixas_custo_snapshot?: unknown;
 };
 type MembroRow = Database['public']['Tables']['producao_membros']['Row'];
 type TarefaRow = Database['public']['Tables']['producao_tarefas']['Row'];
@@ -89,12 +91,20 @@ const custoVinculos = (apontamento: ApontamentoRow, vinculos: ApontamentoMembroR
   let custoTotal = 0;
   let custoProdutivo = 0;
   let custoImprodutivo = 0;
-  const semValor = vinculos.filter((v) => v.valor_hora_snapshot === null || v.valor_hora_snapshot === undefined);
+  const semValor = vinculos.filter((v) =>
+    (v.custo_total_snapshot === null || v.custo_total_snapshot === undefined)
+    && (v.valor_hora_snapshot === null || v.valor_hora_snapshot === undefined));
   vinculos.forEach((vinculo) => {
-    if (vinculo.valor_hora_snapshot === null || vinculo.valor_hora_snapshot === undefined) return;
-    custoTotal += (vinculo.valor_hora_snapshot * duracaoMembro(apontamento, vinculo)) / 60;
-    custoProdutivo += (vinculo.valor_hora_snapshot * produtivosMembro(apontamento, vinculo)) / 60;
-    custoImprodutivo += (vinculo.valor_hora_snapshot * improdutivosMembro(apontamento, vinculo)) / 60;
+    const duracao = duracaoMembro(apontamento, vinculo);
+    const custo = vinculo.custo_total_snapshot ?? (
+      vinculo.valor_hora_snapshot === null || vinculo.valor_hora_snapshot === undefined
+        ? null
+        : (vinculo.valor_hora_snapshot * duracao) / 60
+    );
+    if (custo === null) return;
+    custoTotal += custo;
+    custoProdutivo += duracao > 0 ? custo * produtivosMembro(apontamento, vinculo) / duracao : 0;
+    custoImprodutivo += duracao > 0 ? custo * improdutivosMembro(apontamento, vinculo) / duracao : 0;
   });
   return {
     custo_total: semValor.length > 0 ? null : Number(custoTotal.toFixed(2)),
@@ -227,8 +237,15 @@ const consolidarIndicadores = ({ apontamentos, vinculosMembros, membros, tarefas
     const atual = membrosConsolidados.get(v.membro_id) ?? { nome_snapshot: v.nome_snapshot, apontamentos: new Set<string>(), total_minutos: 0, minutos_produtivos: 0, minutos_improdutivos: 0, custo_total: 0, custo_produtivo: 0, custo_improdutivo: 0, custo_incompleto: false, valores_hora: [], projetos: new Set<string>(), tarefas: new Set<string>() };
     if (!atual.apontamentos.has(a.id)) {
       atual.apontamentos.add(a.id); atual.total_minutos += duracaoMembro(a, v); atual.minutos_produtivos += produtivosMembro(a, v); atual.minutos_improdutivos += improdutivosMembro(a, v);
-      if (v.valor_hora_snapshot === null || v.valor_hora_snapshot === undefined) { atual.custo_total = null; atual.custo_produtivo = null; atual.custo_improdutivo = null; atual.custo_incompleto = true; }
-      else { atual.valores_hora.push(v.valor_hora_snapshot); atual.custo_total = somarOpcional(atual.custo_total, v.valor_hora_snapshot * duracaoMembro(a, v) / 60); atual.custo_produtivo = somarOpcional(atual.custo_produtivo, v.valor_hora_snapshot * produtivosMembro(a, v) / 60); atual.custo_improdutivo = somarOpcional(atual.custo_improdutivo, v.valor_hora_snapshot * improdutivosMembro(a, v) / 60); }
+      const duracao = duracaoMembro(a, v);
+      const custo = v.custo_total_snapshot ?? (v.valor_hora_snapshot == null ? null : v.valor_hora_snapshot * duracao / 60);
+      if (custo === null) { atual.custo_total = null; atual.custo_produtivo = null; atual.custo_improdutivo = null; atual.custo_incompleto = true; }
+      else {
+        if (v.valor_hora_snapshot != null) atual.valores_hora.push(v.valor_hora_snapshot);
+        atual.custo_total = somarOpcional(atual.custo_total, custo);
+        atual.custo_produtivo = somarOpcional(atual.custo_produtivo, duracao > 0 ? custo * produtivosMembro(a, v) / duracao : 0);
+        atual.custo_improdutivo = somarOpcional(atual.custo_improdutivo, duracao > 0 ? custo * improdutivosMembro(a, v) / duracao : 0);
+      }
       atual.projetos.add(a.projeto_local_id); atual.tarefas.add(a.tarefa_id);
     }
     membrosConsolidados.set(v.membro_id, atual);
