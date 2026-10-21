@@ -297,6 +297,7 @@ export function FuncionariosRhTab() {
   const [tipoContrato, setTipoContrato] = useState<ContractType>("clt");
   const [valorContrato, setValorContrato] = useState("");
   const [faixasCusto, setFaixasCusto] = useState<FaixaCusto[]>([]);
+  const [faixasCustoPorColaborador, setFaixasCustoPorColaborador] = useState<Record<string, number[]>>({});
   const [usuariosExistentes, setUsuariosExistentes] = useState<UsuarioExistente[]>([]);
   const [usuarioExistenteId, setUsuarioExistenteId] = useState("");
   const [criarLogin, setCriarLogin] = useState(false);
@@ -315,20 +316,28 @@ export function FuncionariosRhTab() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [funcResponse, jornadaResponse, usuariosResponse, producaoResponse] = await Promise.all([
+      const [funcResponse, jornadaResponse, usuariosResponse, producaoResponse, faixasResponse] = await Promise.all([
         db.from("rh_colaboradores").select("*").order("nome"),
         db.from("rh_jornadas").select("*").order("nome"),
         canManageRh ? db.rpc("rh_listar_usuarios_vinculaveis") : Promise.resolve({ data: [], error: null }),
         db.from("producao_membros").select("id,nome,nome_snapshot,apelido,funcao,ativo,rh_colaborador_id").order("nome"),
+        db.from("rh_colaborador_faixas_custo").select("colaborador_id,valor_hora").eq("ativo", true),
       ]);
       if (funcResponse.error) throw funcResponse.error;
       if (jornadaResponse.error) throw jornadaResponse.error;
       if (usuariosResponse.error) throw usuariosResponse.error;
       if (producaoResponse.error) throw producaoResponse.error;
+      if (faixasResponse.error) throw faixasResponse.error;
       setUsuariosExistentes(usuariosResponse.data ?? []);
       setFuncionarios((funcResponse.data ?? []) as Colaborador[]);
       setJornadas((jornadaResponse.data ?? []) as Jornada[]);
       setMembrosProducao((producaoResponse.data ?? []) as MembroProducao[]);
+      setFaixasCustoPorColaborador((faixasResponse.data ?? []).reduce((acc: Record<string, number[]>, faixa: any) => {
+        const valor = Number(faixa.valor_hora);
+        if (!Number.isFinite(valor)) return acc;
+        acc[faixa.colaborador_id] = [...(acc[faixa.colaborador_id] ?? []), valor];
+        return acc;
+      }, {}));
     } catch (error: any) {
       console.error(error);
       toast.error(error?.message || "Erro ao carregar funcionários");
@@ -869,6 +878,9 @@ export function FuncionariosRhTab() {
                     <TableRow><TableCell colSpan={9} className="py-12 text-center text-muted-foreground">Nenhum funcionário encontrado</TableCell></TableRow>
                   ) : filteredFuncionarios.map((func) => {
                     const remuneration = remunerationValue(func);
+                    const valoresFaixa = faixasCustoPorColaborador[func.id] ?? [];
+                    const menorFaixa = valoresFaixa.length > 0 ? Math.min(...valoresFaixa) : null;
+                    const maiorFaixa = valoresFaixa.length > 0 ? Math.max(...valoresFaixa) : null;
                     return (
                       <TableRow key={func.id}>
                         <TableCell className="font-medium">
@@ -880,9 +892,16 @@ export function FuncionariosRhTab() {
                         <TableCell>{func.departamento || "-"}</TableCell>
                         <TableCell>{func.tipo_contrato ? <Badge variant="outline">{contractLabel(func.tipo_contrato)}</Badge> : <span className="text-amber-500">Não informado</span>}</TableCell>
                         <TableCell>
-                          {remuneration
-                            ? <span className="font-medium">{currency(remuneration)} <span className="text-xs text-muted-foreground">{remunerationSuffix(func.tipo_contrato)}</span></span>
-                            : <span className="text-amber-500">Não informado</span>}
+                          <div className="space-y-0.5">
+                            {remuneration && <div className="font-medium">{currency(remuneration)} <span className="text-xs text-muted-foreground">{remunerationSuffix(func.tipo_contrato)}</span></div>}
+                            {menorFaixa !== null && maiorFaixa !== null && (
+                              <div className="font-medium text-emerald-600">
+                                {menorFaixa === maiorFaixa ? currency(menorFaixa) : `${currency(menorFaixa)}–${currency(maiorFaixa)}`}
+                                <span className="text-xs">/h por faixa</span>
+                              </div>
+                            )}
+                            {!remuneration && menorFaixa === null && <span className="text-amber-500">Não informado</span>}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
