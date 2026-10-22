@@ -32,6 +32,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -97,6 +98,7 @@ type Cotacao = {
   leitura_erro: string | null;
   financeiro_necessidade_id: string | null;
   solicitacao_id: string | null;
+  solicitacao_ids?: string[];
   created_at: string;
 };
 
@@ -226,6 +228,7 @@ const emptyForm = {
   tipo_veiculo: '',
   prazo_dias: '',
   solicitacao_id: '',
+  solicitacao_ids: [] as string[],
   origem_cadastro: 'manual' as 'manual' | 'pdf' | 'link',
   url_origem: '',
   plataforma_origem: '',
@@ -264,7 +267,7 @@ export function CentralCotacoes() {
   const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState<Solicitacao | null>(null);
   const [itensSolicitacao, setItensSolicitacao] = useState<SolicitacaoItem[]>([]);
   const [carregandoProcesso, setCarregandoProcesso] = useState(false);
-  const [solicitacaoImportacaoId, setSolicitacaoImportacaoId] = useState<string | null>(null);
+  const [solicitacaoImportacaoIds, setSolicitacaoImportacaoIds] = useState<string[]>([]);
   const [editandoSolicitacao, setEditandoSolicitacao] = useState(false);
   const [salvandoSolicitacao, setSalvandoSolicitacao] = useState(false);
   const [edicaoSolicitacao, setEdicaoSolicitacao] = useState<{
@@ -286,16 +289,27 @@ export function CentralCotacoes() {
   const carregar = async () => {
     setLoading(true);
     try {
-      const [{ data: cotacoesData, error: cotacoesError }, { data: solicitacoesData, error: solicitacoesError }] =
+      const [{ data: cotacoesData, error: cotacoesError }, { data: solicitacoesData, error: solicitacoesError }, { data: vinculosData, error: vinculosError }] =
         await Promise.all([
           (supabase.from as any)('cotacoes').select('*').order('created_at', { ascending: false }),
           (supabase.from as any)('cotacao_solicitacoes').select('*').order('created_at', { ascending: false }),
+          (supabase.from as any)('cotacao_solicitacoes_vinculos').select('cotacao_id, solicitacao_id'),
         ]);
 
       if (cotacoesError) throw cotacoesError;
       if (solicitacoesError) throw solicitacoesError;
+      if (vinculosError) throw vinculosError;
 
-      setCotacoes((cotacoesData || []) as Cotacao[]);
+      const idsPorCotacao = new Map<string, string[]>();
+      for (const vinculo of vinculosData || []) {
+        const ids = idsPorCotacao.get(vinculo.cotacao_id) || [];
+        ids.push(vinculo.solicitacao_id);
+        idsPorCotacao.set(vinculo.cotacao_id, ids);
+      }
+      setCotacoes((cotacoesData || []).map((cotacao: Cotacao) => ({
+        ...cotacao,
+        solicitacao_ids: idsPorCotacao.get(cotacao.id) || (cotacao.solicitacao_id ? [cotacao.solicitacao_id] : []),
+      })) as Cotacao[]);
       setSolicitacoes((solicitacoesData || []) as Solicitacao[]);
     } catch (error: any) {
       console.error(error);
@@ -355,6 +369,7 @@ export function CentralCotacoes() {
       tipo_veiculo: cotacao.tipo_veiculo || '',
       prazo_dias: cotacao.prazo_dias ? String(cotacao.prazo_dias) : '',
       solicitacao_id: cotacao.solicitacao_id || '',
+      solicitacao_ids: cotacao.solicitacao_ids || (cotacao.solicitacao_id ? [cotacao.solicitacao_id] : []),
       origem_cadastro: cotacao.origem_cadastro,
       url_origem: cotacao.url_origem || '',
       plataforma_origem: cotacao.plataforma_origem || '',
@@ -413,7 +428,7 @@ export function CentralCotacoes() {
         volumes: form.volumes ? Number(form.volumes) : null,
         tipo_veiculo: form.tipo_veiculo.trim() || null,
         prazo_dias: form.prazo_dias ? Number(form.prazo_dias) : null,
-        solicitacao_id: form.solicitacao_id || null,
+        solicitacao_id: form.solicitacao_ids[0] || null,
         url_origem: form.url_origem.trim() || null,
         plataforma_origem: form.plataforma_origem.trim() || null,
         consultado_em: form.origem_cadastro === 'link'
@@ -444,6 +459,12 @@ export function CentralCotacoes() {
 
       if (!cotacaoId) throw new Error('Cotação sem ID');
 
+      const { error: vinculosError } = await (supabase as any).rpc('cotacao_definir_solicitacoes_v1', {
+        p_cotacao_id: cotacaoId,
+        p_solicitacao_ids: form.solicitacao_ids,
+      });
+      if (vinculosError) throw vinculosError;
+
       await (supabase.from as any)('cotacao_itens').delete().eq('cotacao_id', cotacaoId);
 
       const validItems = itens.filter((item) => item.descricao.trim());
@@ -465,10 +486,10 @@ export function CentralCotacoes() {
         if (error) throw error;
       }
 
-      if (form.solicitacao_id) {
+      if (form.solicitacao_ids.length > 0) {
         await (supabase.from as any)('cotacao_solicitacoes')
           .update({ status: 'em_analise', updated_at: new Date().toISOString() })
-          .eq('id', form.solicitacao_id)
+          .in('id', form.solicitacao_ids)
           .in('status', ['solicitada', 'aguardando_propostas']);
       }
 
@@ -483,7 +504,7 @@ export function CentralCotacoes() {
     }
   };
 
-  const importarPdf = async (file?: File, solicitacaoId?: string | null) => {
+  const importarPdf = async (file?: File, solicitacaoIds: string[] = []) => {
     if (!file || !user?.id) return;
     if (file.type !== 'application/pdf') {
       toast.error('Selecione um arquivo PDF.');
@@ -506,12 +527,18 @@ export function CentralCotacoes() {
           arquivo_mime: file.type,
           criado_por: user.id,
           criado_por_nome: userProfile?.nome || user.email || 'Usuário',
-          solicitacao_id: solicitacaoId || null,
+          solicitacao_id: solicitacaoIds[0] || null,
         })
         .select('*')
         .single();
 
       if (createError) throw createError;
+
+      const { error: vinculosError } = await (supabase as any).rpc('cotacao_definir_solicitacoes_v1', {
+        p_cotacao_id: created.id,
+        p_solicitacao_ids: solicitacaoIds,
+      });
+      if (vinculosError) throw vinculosError;
 
       const safeName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]+/g, '_');
       const path = `${user.id}/${created.id}/${Date.now()}_${safeName}`;
@@ -537,15 +564,18 @@ export function CentralCotacoes() {
         .single();
       if (refreshError) throw refreshError;
 
-      if (solicitacaoId) {
+      if (solicitacaoIds.length > 0) {
         await (supabase.from as any)('cotacao_solicitacoes')
           .update({ status: 'em_analise', updated_at: new Date().toISOString() })
-          .eq('id', solicitacaoId)
+          .in('id', solicitacaoIds)
           .in('status', ['solicitada', 'aguardando_propostas']);
       }
 
       await carregar();
-      await abrirEdicao(refreshed as Cotacao);
+      await abrirEdicao({
+        ...(refreshed as Cotacao),
+        solicitacao_ids: solicitacaoIds,
+      });
 
       if (refreshed.leitura_status === 'sem_texto') {
         toast.warning('PDF sem camada de texto. Preencha os dados manualmente.');
@@ -558,7 +588,7 @@ export function CentralCotacoes() {
     } finally {
       setImportando(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      setSolicitacaoImportacaoId(null);
+      setSolicitacaoImportacaoIds([]);
     }
   };
 
@@ -746,6 +776,7 @@ export function CentralCotacoes() {
       cubagem_m3: toInput(solicitacao.cubagem_m3),
       volumes: solicitacao.volumes ? String(solicitacao.volumes) : '',
       solicitacao_id: solicitacao.id,
+      solicitacao_ids: [solicitacao.id],
     });
     setItens(
       solicitacao.tipo === 'insumo'
@@ -791,6 +822,7 @@ export function CentralCotacoes() {
       cubagem_m3: toInput(solicitacao.cubagem_m3),
       volumes: solicitacao.volumes ? String(solicitacao.volumes) : '',
       solicitacao_id: solicitacao.id,
+      solicitacao_ids: [solicitacao.id],
       origem_cadastro: 'link',
       url_origem: '',
       plataforma_origem: '',
@@ -814,7 +846,7 @@ export function CentralCotacoes() {
   };
 
   const importarPdfDaSolicitacao = (solicitacao: Solicitacao) => {
-    setSolicitacaoImportacaoId(solicitacao.id);
+    setSolicitacaoImportacaoIds([solicitacao.id]);
     setProcessoSolicitacaoOpen(false);
     window.setTimeout(() => fileInputRef.current?.click(), 0);
   };
@@ -1040,14 +1072,14 @@ export function CentralCotacoes() {
     if (!confirmou) return;
 
     try {
-      const { data: solicitacaoId, error } = await (supabase as any).rpc('cotacao_escolher_proposta_v1', {
+      const { error } = await (supabase as any).rpc('cotacao_escolher_proposta_multi_v1', {
         p_cotacao_id: cotacao.id,
       });
       if (error) throw error;
 
       const { data: solicitacaoAtualizada, error: solicitacaoError } = await (supabase.from as any)('cotacao_solicitacoes')
         .select('*')
-        .eq('id', solicitacaoId || solicitacao.id)
+        .eq('id', solicitacao.id)
         .single();
       if (solicitacaoError) throw solicitacaoError;
 
@@ -1143,7 +1175,7 @@ export function CentralCotacoes() {
 
   const cotacoesDoProcesso = useMemo(
     () => solicitacaoSelecionada
-      ? cotacoes.filter((cotacao) => cotacao.solicitacao_id === solicitacaoSelecionada.id)
+      ? cotacoes.filter((cotacao) => (cotacao.solicitacao_ids || []).includes(solicitacaoSelecionada.id))
       : [],
     [cotacoes, solicitacaoSelecionada],
   );
@@ -1220,7 +1252,7 @@ export function CentralCotacoes() {
         type="file"
         accept="application/pdf"
         className="hidden"
-        onChange={(event) => void importarPdf(event.target.files?.[0], solicitacaoImportacaoId)}
+        onChange={(event) => void importarPdf(event.target.files?.[0], solicitacaoImportacaoIds)}
       />
 
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -1403,7 +1435,7 @@ export function CentralCotacoes() {
                   </TableHeader>
                   <TableBody>
                     {solicitacoes.map((s) => {
-                      const propostas = cotacoes.filter((cotacao) => cotacao.solicitacao_id === s.id).length;
+                      const propostas = cotacoes.filter((cotacao) => (cotacao.solicitacao_ids || []).includes(s.id)).length;
                       return (
                         <TableRow key={s.id} className={s.status === 'solicitada' ? 'bg-amber-500/5' : undefined}>
                           <TableCell className={s.status === 'solicitada' ? 'font-semibold text-amber-400' : undefined}>
@@ -1785,7 +1817,37 @@ export function CentralCotacoes() {
             <div><Label>Validade (dias)</Label><Input type="number" min="0" value={form.validade_dias} onChange={(e) => setForm((f) => ({ ...f, validade_dias: e.target.value }))} /></div>
             <div><Label>Condição de pagamento</Label><Input value={form.condicao_pagamento} onChange={(e) => setForm((f) => ({ ...f, condicao_pagamento: e.target.value }))} /></div>
             <div><Label>Projeto / centro de custo</Label><Input value={form.projeto_centro_custo} onChange={(e) => setForm((f) => ({ ...f, projeto_centro_custo: e.target.value }))} /></div>
-            <div><Label>Solicitação relacionada</Label><Select value={form.solicitacao_id || 'nenhuma'} onValueChange={(v) => setForm((f) => ({ ...f, solicitacao_id: v === 'nenhuma' ? '' : v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="nenhuma">Nenhuma</SelectItem>{solicitacoes.map((s) => <SelectItem key={s.id} value={s.id}>SOL-{String(s.numero).padStart(4, '0')} · {s.titulo}</SelectItem>)}</SelectContent></Select></div>
+            <div className="md:col-span-3">
+              <Label>Solicitações atendidas por este orçamento</Label>
+              <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-md border p-3">
+                {solicitacoes.map((s) => {
+                  const selecionada = form.solicitacao_ids.includes(s.id);
+                  return (
+                    <label key={s.id} className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted/50">
+                      <Checkbox
+                        checked={selecionada}
+                        onCheckedChange={(checked) => setForm((atual) => ({
+                          ...atual,
+                          solicitacao_ids: checked
+                            ? Array.from(new Set([...atual.solicitacao_ids, s.id]))
+                            : atual.solicitacao_ids.filter((id) => id !== s.id),
+                        }))}
+                      />
+                      <span className="text-sm">
+                        <strong>SOL-{String(s.numero).padStart(4, '0')}</strong> · {s.titulo}
+                        <span className="ml-2 text-xs text-muted-foreground">{s.projeto_centro_custo || 'Sem projeto'}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+                {solicitacoes.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma solicitação disponível.</p>}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {form.solicitacao_ids.length === 0
+                  ? 'Sem solicitação vinculada.'
+                  : `${form.solicitacao_ids.length} solicitação(ões) atendida(s) pelo mesmo orçamento/PDF.`}
+              </p>
+            </div>
           </div>
 
           {form.tipo === 'frete' && (
