@@ -47,15 +47,11 @@ export function PedidosCompraFormaisAlmoxarifado() {
     if(!Number.isFinite(valor)||valor<=0||!Number.isFinite(frete)||frete<0) return toast.error('Informe valores válidos.');
     setSaving(true);
     try{
-      const {error}=await (supabase as any).from('financeiro_pedidos_compra_formais').insert({
-        requisicao_compra_id:rc.id,necessidade_id:rc.pn_origem_id,
-        fornecedor:form.fornecedor.trim(),descricao:form.descricao.trim(),
-        valor_itens:valor,frete_custos_adicionais:frete,
-        condicao_pagamento:form.condicao.trim()||null,
+      const {error}=await (supabase as any).rpc('almoxarifado_formalizar_pc_v1',{
+        p_rc_id:rc.id,p_fornecedor:form.fornecedor.trim(),p_descricao:form.descricao.trim(),
+        p_valor_itens:valor,p_frete:frete,p_condicao:form.condicao.trim()||null,
       });
       if(error) throw error;
-      const {error:statusError}=await (supabase as any).from('pedidos_compra').update({status_financeiro_rc:'convertida_em_pc'}).eq('id',rc.id);
-      if(statusError) throw statusError;
       toast.success('Pedido de compra formal criado e vinculado à RC.');
       setForm(formVazio);
       await carregar();
