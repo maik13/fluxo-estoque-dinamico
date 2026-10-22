@@ -590,7 +590,7 @@ export const useEstoque = () => {
       }>((inicio, limite) =>
         (supabase as any)
           .rpc(
-            'listar_saldos_estoque_paginados_v2',
+            'listar_saldos_estoque_paginados_v3',
             {
               p_estoque_id: estoqueId ?? null,
               p_incluir_sem_estoque: incluirSemEstoque,

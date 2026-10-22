@@ -88,6 +88,16 @@ export const EstoqueProvider = ({ children }: { children: React.ReactNode }) => 
     return saldo;
   };
 
+  const obterSaldoConfirmado = async (itemId: string, estoqueId: string | null) => {
+    const { data, error } = await (supabase as any).rpc('obter_saldo_item_estoque_v1', {
+      p_item_id: itemId,
+      p_estoque_id: estoqueId,
+      p_incluir_sem_estoque: isEstoqueAtivoPrincipal(),
+    });
+    if (error) throw error;
+    return Number(data ?? 0);
+  };
+
   const editarItem: typeof estoque.editarItem = async (itemEditado) => {
     const atual = estoque.itens.find(item => item.id === itemEditado.id);
     if (!atual) {
@@ -185,7 +195,14 @@ export const EstoqueProvider = ({ children }: { children: React.ReactNode }) => 
     }
 
     const estoqueInfo = obterEstoqueAtivoInfo();
-    const saldoBanco = estoque.calcularEstoqueAtual(item.id);
+    let saldoBanco: number;
+    try {
+      saldoBanco = await obterSaldoConfirmado(item.id, estoqueInfo?.id ?? null);
+    } catch (error) {
+      console.error('Erro ao confirmar saldo antes da entrada:', error);
+      toast({ title: 'Saldo não confirmado', description: 'Não foi possível confirmar a posição atual do item. Tente novamente.', variant: 'destructive' });
+      return false;
+    }
     const saldoProjetado = await obterSaldoProjetado(item.id, estoqueInfo?.id ?? null, saldoBanco);
     const saldoAposCliente = saldoProjetado + quantidade;
 
@@ -244,7 +261,14 @@ export const EstoqueProvider = ({ children }: { children: React.ReactNode }) => 
     }
 
     const estoqueInfo = obterEstoqueAtivoInfo();
-    const saldoBanco = estoque.calcularEstoqueAtual(item.id);
+    let saldoBanco: number;
+    try {
+      saldoBanco = await obterSaldoConfirmado(item.id, estoqueInfo?.id ?? null);
+    } catch (error) {
+      console.error('Erro ao confirmar saldo antes da saída:', error);
+      toast({ title: 'Saldo não confirmado', description: 'Não foi possível confirmar a posição atual do item. Tente novamente.', variant: 'destructive' });
+      return false;
+    }
     const saldoProjetado = await obterSaldoProjetado(item.id, estoqueInfo?.id ?? null, saldoBanco);
     if (saldoProjetado < quantidade) {
       toast({ title: 'Estoque insuficiente', description: `Saldo disponível/projetado: ${saldoProjetado} ${item.unidade}.`, variant: 'destructive' });

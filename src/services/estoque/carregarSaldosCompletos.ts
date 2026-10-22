@@ -11,7 +11,9 @@ export async function carregarSaldosCompletos<T extends { item_id: string }>(
   // A leitura do saldo é paginada porque a API limita o tamanho da resposta.
   // Uma movimentação pode ocorrer entre duas páginas; nesse caso recomeçamos
   // silenciosamente a leitura para publicar somente uma posição consistente.
-  const tamanhoPagina = 1000;
+  // Páginas menores mantêm a resposta abaixo do timeout mesmo sob uso
+  // simultâneo de vários usuários do almoxarifado.
+  const tamanhoPagina = 500;
   const maxTentativas = 3;
   let ultimoErro: unknown;
 
