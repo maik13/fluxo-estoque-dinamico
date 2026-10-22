@@ -43,6 +43,7 @@ interface SolicitacaoMaterialCompleta {
   numero: number;
   solicitante_id: string;
   solicitante_nome: string;
+  solicitante_email?: string;
   observacoes?: string;
   status: string;
   estoque_id?: string;
@@ -161,8 +162,20 @@ export const SolicitacaoMaterial = () => {
         itensData = itens || [];
       }
 
+      const solicitanteIds = [...new Set((data || []).map((s) => s.solicitante_id).filter(Boolean))];
+      const emailsPorUsuario = new Map<string, string>();
+      if (solicitanteIds.length > 0) {
+        const { data: perfis } = await supabase
+          .from('profiles')
+          .select('user_id, email')
+          .in('user_id', solicitanteIds);
+        (perfis || []).forEach((perfil) => emailsPorUsuario.set(perfil.user_id, perfil.email));
+      }
+
       const completas: SolicitacaoMaterialCompleta[] = (data || []).map(s => ({
         ...s,
+        solicitante_email: emailsPorUsuario.get(s.solicitante_id)
+          || (s.solicitante_id === user?.id ? userProfile?.email : undefined),
         itens: itensData.filter(i => i.solicitacao_material_id === s.id)
       }));
 
@@ -838,47 +851,192 @@ export const SolicitacaoMaterial = () => {
     printWindow.print();
   };
 
-  const gerarPDF = (sol: SolicitacaoMaterialCompleta) => {
-    // Usar jsPDF para gerar PDF
-    import('jspdf').then(({ default: jsPDF }) => {
-      import('jspdf-autotable').then((autoTableModule) => {
-        const doc = new jsPDF();
-        const estoqueInfo = obterEstoqueAtivoInfo();
-        
-        doc.setFontSize(16);
-        doc.text(`Solicitação de Material #${sol.numero}`, 14, 20);
-        
-        doc.setFontSize(10);
-        doc.text(`Solicitante: ${sol.solicitante_nome}`, 14, 32);
-        doc.text(`Data: ${format(new Date(sol.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}`, 14, 38);
-        doc.text(`Status: ${sol.status.toUpperCase()}`, 14, 44);
-        doc.text(`Estoque: ${estoqueInfo?.nome || '-'}`, 14, 50);
-        if (sol.local_origem) doc.text(`Local de Origem: ${sol.local_origem}`, 14, 56);
-        if (sol.observacoes) doc.text(`Obs: ${sol.observacoes}`, 14, sol.local_origem ? 62 : 56);
+  const carregarLogoParaPdf = async (): Promise<string | null> => {
+    try {
+      const { data: arquivos, error } = await supabase.storage
+        .from('branding')
+        .list('', { limit: 20, sortBy: { column: 'updated_at', order: 'desc' } });
+      if (error || !arquivos?.length) return null;
 
-        const startY = sol.observacoes ? (sol.local_origem ? 70 : 64) : (sol.local_origem ? 64 : 58);
-        const tableData = sol.itens.map((item, i) => [
-          i + 1,
-          item.item_id && item.item_snapshot?.codigoBarras ? `${item.nome_item}\nCód: ${item.item_snapshot.codigoBarras}` : item.nome_item,
-          item.especificacao || item.item_snapshot?.especificacao || '-',
-          item.quantidade,
-          item.unidade,
-          item.item_id ? 'Estoque' : 'Avulso',
-          item.observacoes || '-'
-        ]);
+      const arquivo = arquivos.find((item) => /^logo\./i.test(item.name)) || arquivos[0];
+      const { data } = supabase.storage.from('branding').getPublicUrl(arquivo.name);
+      const resposta = await fetch(data.publicUrl);
+      if (!resposta.ok) return null;
+      const blob = await resposta.blob();
 
-        (doc as any).autoTable({
-          startY,
-          head: [['#', 'Item', 'Especificação', 'Qtd', 'Unidade', 'Tipo', 'Obs']],
-          body: tableData,
-          theme: 'grid',
-          headStyles: { fillColor: [26, 82, 118] }
-        });
-
-        doc.save(`solicitacao-material-${sol.numero}.pdf`);
-        toast.success('PDF gerado com sucesso!');
+      return await new Promise<string>((resolve, reject) => {
+        const leitor = new FileReader();
+        leitor.onload = () => resolve(String(leitor.result));
+        leitor.onerror = () => reject(leitor.error);
+        leitor.readAsDataURL(blob);
       });
-    });
+    } catch {
+      return null;
+    }
+  };
+
+  const gerarPDF = async (sol: SolicitacaoMaterialCompleta) => {
+    try {
+      const [{ default: jsPDF }, { default: autoTable }, logoDataUrl] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable'),
+        carregarLogoParaPdf(),
+      ]);
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const estoqueInfo = obterEstoqueAtivoInfo();
+      const verdeEscuro: [number, number, number] = [18, 82, 67];
+      const verde: [number, number, number] = [29, 126, 96];
+      const cinza: [number, number, number] = [83, 96, 104];
+      const statusLabel: Record<string, string> = {
+        pendente: 'PENDENTE', aprovada: 'APROVADA', rejeitada: 'REJEITADA', convertida: 'CONVERTIDA',
+      };
+      const quantidadeTotal = sol.itens.reduce((total, item) => total + Number(item.quantidade || 0), 0);
+      const loginSolicitante = sol.solicitante_email
+        || (sol.solicitante_id === user?.id ? userProfile?.email : undefined)
+        || 'Não informado';
+
+      doc.setFillColor(...verdeEscuro);
+      doc.rect(0, 0, 210, 33, 'F');
+      if (logoDataUrl) {
+        try {
+          const propriedades = doc.getImageProperties(logoDataUrl);
+          const largura = Math.min(42, 18 * (propriedades.width / propriedades.height));
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(12, 6, largura + 8, 21, 2, 2, 'F');
+          doc.addImage(logoDataUrl, propriedades.fileType, 16, 8, largura, 17);
+        } catch {
+          doc.setTextColor(255, 255, 255);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(17);
+          doc.text('BAMBUSA', 14, 20);
+        }
+      } else {
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(17);
+        doc.text('BAMBUSA', 14, 20);
+      }
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(15);
+      doc.text('SOLICITAÇÃO DE MATERIAL', 198, 14, { align: 'right' });
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Documento nº ${String(sol.numero).padStart(4, '0')}`, 198, 21, { align: 'right' });
+      doc.text(`Emitido em ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 198, 27, { align: 'right' });
+
+      doc.setTextColor(...verdeEscuro);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('DADOS DA SOLICITAÇÃO', 14, 42);
+      doc.setDrawColor(210, 218, 216);
+      doc.line(14, 44, 196, 44);
+
+      const metadados = [
+        ['Solicitante', sol.solicitante_nome],
+        ['Login Bambusa', loginSolicitante],
+        ['Data da solicitação', format(new Date(sol.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })],
+        ['Data de necessidade', sol.data_necessidade ? format(new Date(`${sol.data_necessidade}T12:00:00`), 'dd/MM/yyyy', { locale: ptBR }) : 'Não informada'],
+        ['Status', statusLabel[sol.status] || sol.status.toUpperCase()],
+        ['Estoque / local', [estoqueInfo?.nome, sol.local_origem].filter(Boolean).join(' - ') || 'Não informado'],
+      ];
+      metadados.forEach(([rotulo, valor], indice) => {
+        const coluna = indice % 2;
+        const linha = Math.floor(indice / 2);
+        const x = 14 + coluna * 92;
+        const y = 50 + linha * 14;
+        doc.setFillColor(246, 249, 248);
+        doc.roundedRect(x, y, 88, 11, 1.5, 1.5, 'F');
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...cinza);
+        doc.text(rotulo.toUpperCase(), x + 3, y + 4);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(30, 41, 46);
+        doc.text(doc.splitTextToSize(String(valor), 81)[0], x + 3, y + 8.5);
+      });
+
+      doc.setFillColor(232, 246, 240);
+      doc.roundedRect(14, 94, 182, 13, 1.5, 1.5, 'F');
+      doc.setTextColor(...verdeEscuro);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(`${sol.itens.length} ${sol.itens.length === 1 ? 'item solicitado' : 'itens solicitados'}`, 19, 102);
+      doc.text(`Quantidade total: ${quantidadeTotal.toLocaleString('pt-BR', { maximumFractionDigits: 3 })}`, 191, 102, { align: 'right' });
+
+      const tableData = sol.itens.map((item, i) => [
+        i + 1,
+        item.item_id && item.item_snapshot?.codigoBarras
+          ? `${item.nome_item}\nCód.: ${item.item_snapshot.codigoBarras}`
+          : item.nome_item,
+        item.especificacao || item.item_snapshot?.especificacao || '-',
+        Number(item.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 3 }),
+        item.unidade,
+        item.observacoes || '-',
+      ]);
+
+      autoTable(doc, {
+        startY: 112,
+        margin: { left: 14, right: 14, bottom: 24 },
+        head: [['#', 'Material', 'Especificação', 'Quantidade', 'Un.', 'Observações']],
+        body: tableData,
+        theme: 'grid',
+        styles: { font: 'helvetica', fontSize: 8, cellPadding: 2.4, valign: 'middle', lineColor: [221, 226, 224], lineWidth: 0.2 },
+        headStyles: { fillColor: verde, textColor: 255, fontStyle: 'bold', halign: 'left' },
+        alternateRowStyles: { fillColor: [248, 250, 249] },
+        columnStyles: {
+          0: { cellWidth: 9, halign: 'center' },
+          1: { cellWidth: 47 },
+          2: { cellWidth: 48 },
+          3: { cellWidth: 24, halign: 'right' },
+          4: { cellWidth: 13, halign: 'center' },
+          5: { cellWidth: 41 },
+        },
+      });
+
+      const tabelaFinalY = (doc as typeof doc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 112;
+      let assinaturaY = tabelaFinalY + 18;
+      if (assinaturaY > 260) {
+        doc.addPage();
+        assinaturaY = 35;
+      }
+      if (sol.observacoes) {
+        doc.setTextColor(...verdeEscuro);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.text('OBSERVAÇÕES GERAIS', 14, assinaturaY - 8);
+        doc.setTextColor(45, 55, 60);
+        doc.setFont('helvetica', 'normal');
+        doc.text(doc.splitTextToSize(sol.observacoes, 182), 14, assinaturaY - 3);
+        assinaturaY += Math.max(8, doc.splitTextToSize(sol.observacoes, 182).length * 4);
+      }
+      doc.setDrawColor(130, 140, 138);
+      doc.line(22, assinaturaY + 15, 91, assinaturaY + 15);
+      doc.line(119, assinaturaY + 15, 188, assinaturaY + 15);
+      doc.setFontSize(8);
+      doc.setTextColor(...cinza);
+      doc.text('Solicitante', 56.5, assinaturaY + 20, { align: 'center' });
+      doc.text('Responsável pelo atendimento', 153.5, assinaturaY + 20, { align: 'center' });
+
+      const paginas = doc.getNumberOfPages();
+      for (let pagina = 1; pagina <= paginas; pagina += 1) {
+        doc.setPage(pagina);
+        doc.setDrawColor(220, 225, 223);
+        doc.line(14, 284, 196, 284);
+        doc.setFontSize(7);
+        doc.setTextColor(110, 120, 118);
+        doc.text('Bambusa - Documento gerado pelo sistema de gestão', 14, 289);
+        doc.text(`Página ${pagina} de ${paginas}`, 196, 289, { align: 'right' });
+      }
+
+      doc.save(`solicitacao-material-${String(sol.numero).padStart(4, '0')}.pdf`);
+      toast.success('PDF profissional gerado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao gerar PDF da solicitação:', error);
+      toast.error('Não foi possível gerar o PDF da solicitação');
+    }
   };
 
   return (
