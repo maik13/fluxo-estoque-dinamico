@@ -248,6 +248,9 @@ export function CentralCotacoes() {
   const [editorCotacao, setEditorCotacao] = useState<Cotacao | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [itens, setItens] = useState<CotacaoItem[]>([]);
+  // Preserva a digitacao de '12.' ou '12,' ate que o usuario termine o decimal.
+  const [valoresDigitados, setValoresDigitados] = useState<Record<string, string>>({});
+
   const [buscaItemCotacao, setBuscaItemCotacao] = useState('');
 
   const [solicitacaoOpen, setSolicitacaoOpen] = useState(false);
@@ -304,6 +307,7 @@ export function CentralCotacoes() {
     setEditorCotacao(null);
     setForm({ ...emptyForm, origem_cadastro: 'manual' });
     setItens([]);
+    setValoresDigitados({});
     setBuscaItemCotacao('');
     setEditorOpen(true);
   };
@@ -318,6 +322,7 @@ export function CentralCotacoes() {
 
   const abrirEdicao = async (cotacao: Cotacao) => {
     setEditorCotacao(cotacao);
+    setValoresDigitados({});
     setForm({
       tipo: cotacao.tipo,
       fornecedor_nome: cotacao.fornecedor_nome || '',
@@ -1174,8 +1179,33 @@ export function CentralCotacoes() {
   };
 
   const atualizarItem = (index: number, patch: Partial<CotacaoItem>) => {
-    setItens((current) => current.map((item, idx) => idx === index ? { ...item, ...patch } : item));
+    setItens((current) => current.map((item, idx) => {
+      if (idx !== index) return item;
+      const novo = { ...item, ...patch };
+      if ('quantidade' in patch || 'valor_unitario' in patch) {
+        novo.valor_total = novo.quantidade != null && novo.valor_unitario != null
+          ? Math.round(Number(novo.quantidade) * Number(novo.valor_unitario) * 100) / 100
+          : null;
+      }
+      return novo;
+    }));
   };
+
+  const digitarValorItem = (index: number, campo: 'quantidade' | 'valor_unitario', valor: string) => {
+    setValoresDigitados((atual) => ({ ...atual, [index + ':' + campo]: valor }));
+    atualizarItem(index, { [campo]: fromInput(valor) });
+  };
+
+  useEffect(() => {
+    if (form.tipo !== 'insumo' || itens.length === 0) return;
+    const subtotal = itens.reduce((soma, item) => soma + Number(item.valor_total || 0), 0);
+    const total = subtotal + Number(fromInput(form.valor_frete) || 0)
+      + Number(fromInput(form.valor_impostos) || 0) - Number(fromInput(form.valor_desconto) || 0);
+    const subtotalTexto = toInput(Math.round(subtotal * 100) / 100);
+    const totalTexto = toInput(Math.round(total * 100) / 100);
+    setForm((atual) => atual.valor_subtotal === subtotalTexto && atual.valor_total === totalTexto
+      ? atual : { ...atual, valor_subtotal: subtotalTexto, valor_total: totalTexto });
+  }, [itens, form.tipo, form.valor_frete, form.valor_impostos, form.valor_desconto]);
 
   return (
     <div className="space-y-6">
@@ -1837,10 +1867,10 @@ export function CentralCotacoes() {
                         <Input placeholder="Descrição / material" value={item.descricao} onChange={(e) => atualizarItem(index, { descricao: e.target.value })} />
                       )}
                     </div>
-                    <Input placeholder="Qtd" value={item.quantidade ?? ''} onChange={(e) => atualizarItem(index, { quantidade: fromInput(e.target.value) })} />
+                    <Input inputMode="decimal" placeholder="Qtd" value={valoresDigitados[index + ':quantidade'] ?? (item.quantidade ?? '')} onChange={(e) => digitarValorItem(index, 'quantidade', e.target.value)} />
                     <Input placeholder="Un." value={item.unidade || ''} onChange={(e) => atualizarItem(index, { unidade: e.target.value })} />
-                    <Input placeholder="V. unit." value={item.valor_unitario ?? ''} onChange={(e) => atualizarItem(index, { valor_unitario: fromInput(e.target.value) })} />
-                    <Input placeholder="V. total" value={item.valor_total ?? ''} onChange={(e) => atualizarItem(index, { valor_total: fromInput(e.target.value) })} />
+                    <Input inputMode="decimal" placeholder="V. unit." value={valoresDigitados[index + ':valor_unitario'] ?? (item.valor_unitario ?? '')} onChange={(e) => digitarValorItem(index, 'valor_unitario', e.target.value)} />
+                    <Input placeholder="V. total (auto)" value={item.valor_total == null ? '' : toInput(item.valor_total)} readOnly />
                     <Button type="button" variant="ghost" size="icon" onClick={() => setItens((current) => current.filter((_, idx) => idx !== index))}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 ))}
