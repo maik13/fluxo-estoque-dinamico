@@ -1100,7 +1100,7 @@ export const SolicitacaoMaterial = () => {
                   <TableHead>Data necessária</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
+                  <TableHead className="min-w-[250px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1114,16 +1114,31 @@ export const SolicitacaoMaterial = () => {
                     <TableCell>{format(new Date(sol.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</TableCell>
                     <TableCell>{getStatusBadge(sol.status)}</TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
+                      <div className="flex flex-wrap gap-1">
                         <Button variant="ghost" size="icon" title="Visualizar solicitação" onClick={() => { setSolicitacaoSelecionada(sol); setLocalOrigemEdicaoId(sol.local_origem_id || ''); setModoEdicaoSolicitacao(false); setEdicaoSolicitacao(null); setDialogoDetalhes(true); }}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => imprimirSolicitacao(sol)}>
                           <Printer className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => gerarPDF(sol)}>
-                          <FileText className="h-4 w-4" />
+                        <Button variant="outline" size="sm" className="gap-1" title="Baixar solicitação em PDF" onClick={() => void gerarPDF(sol)}>
+                          <FileText className="h-4 w-4" /> PDF
                         </Button>
+                        {podeEditarSolicitacao(sol) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => {
+                              setSolicitacaoSelecionada(sol);
+                              setLocalOrigemEdicaoId(sol.local_origem_id || '');
+                              iniciarEdicaoSolicitacao(sol);
+                              setDialogoDetalhes(true);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" /> Editar
+                          </Button>
+                        )}
                         {canManageStock() && sol.status === 'pendente' && (
                           <>
                             <Button variant="ghost" size="icon" className="text-green-400 hover:text-green-300" onClick={() => aprovarSolicitacao(sol.id)}>

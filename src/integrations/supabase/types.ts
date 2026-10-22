@@ -8915,6 +8915,10 @@ export type Database = {
       }
     }
     Functions: {
+      cancelar_ordem_producao_v1: {
+        Args: { p_justificativa: string; p_ordem_producao_id: string }
+        Returns: undefined
+      }
       adicionar_itens_solicitacao_material: {
         Args: { p_itens: Json; p_solicitacao_id: string }
         Returns: {
@@ -9320,6 +9324,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      usuario_pode_excluir_op_v1: { Args: never; Returns: boolean }
       editar_movimentacao_v1: {
         Args: {
           p_local_utilizacao_id: string

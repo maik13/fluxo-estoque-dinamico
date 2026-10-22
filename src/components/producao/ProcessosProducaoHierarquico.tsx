@@ -269,6 +269,7 @@ export const ProcessosProducaoHierarquico = ({
   const [jornadasAbertas, setJornadasAbertas] = useState<JornadaOpAberta[]>([]);
   const [ordemParaIniciar, setOrdemParaIniciar] = useState<ProducaoOrdemProducao | null>(null);
   const [alertaJornadaAberta, setAlertaJornadaAberta] = useState(false);
+  const [podeExcluirOps, setPodeExcluirOps] = useState(false);
 
   const { isAdmin, canConfigurarProducao } = usePermissions();
   const { projetos, loading: loadingProjetos, listarProjetos } = useProjetosProducao();
@@ -282,6 +283,14 @@ export const ProcessosProducaoHierarquico = ({
     excluirProcesso,
   } = useProcessosProducao();
   const { ordens, listarOrdens, criarOrdem, transicaoOrdem } = useOrdensProducao();
+
+  useEffect(() => {
+    let ativo = true;
+    void (supabase.rpc as any)('usuario_pode_excluir_op_v1').then(({ data, error }: { data: boolean | null; error: unknown }) => {
+      if (ativo) setPodeExcluirOps(!error && data === true);
+    });
+    return () => { ativo = false; };
+  }, []);
 
   const carregarJornadas = useCallback(async () => {
     try {
@@ -662,7 +671,15 @@ export const ProcessosProducaoHierarquico = ({
           ? window.prompt('Informe a justificativa para esta alteração da OP:')?.trim()
           : null;
         if (precisaJustificativa && !justificativa) return;
-        await transicaoOrdem(ordem.id, acao, justificativa);
+        if (acao === 'cancelar') {
+          const { error } = await (supabase.rpc as any)('cancelar_ordem_producao_v1', {
+            p_ordem_producao_id: ordem.id,
+            p_justificativa: justificativa,
+          });
+          if (error) throw error;
+        } else {
+          await transicaoOrdem(ordem.id, acao, justificativa);
+        }
       }
       await recarregar();
       toast.success(`${formatarIdentificacaoOrdemProducao(ordem)} atualizada.`);
@@ -940,7 +957,7 @@ export const ProcessosProducaoHierarquico = ({
                     <CheckCircle2 className="mr-2 h-4 w-4" />
                     Finalizar OP
                   </Button>
-                  {['rascunho', 'liberada', 'em_execucao'].includes(ordemSelecionada.status) && (
+                  {(canConfigurarProducao() || podeExcluirOps) && ['rascunho', 'liberada', 'em_execucao'].includes(ordemSelecionada.status) && (
                     <Button
                       variant="outline"
                       size="sm"
