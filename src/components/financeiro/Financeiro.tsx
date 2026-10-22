@@ -133,6 +133,61 @@ const corFundoTranslucido = (hex: string) => {
   return `rgba(${r}, ${g}, ${b}, 0.12)`;
 };
 
+const dataOperacionalLancamento = (lancamento: Registro) =>
+  String(lancamento.data_realizada || lancamento.data_prevista || "").slice(0, 10);
+
+const chaveNaturalLancamento = (lancamento: Registro) => {
+  const descricao = String(lancamento.descricao || "")
+    .trim()
+    .toLocaleLowerCase("pt-BR")
+    .replace(/\s+/g, " ");
+  const valor = Number(lancamento.valor_realizado ?? lancamento.valor_previsto ?? 0).toFixed(2);
+  return [lancamento.tipo || "", dataOperacionalLancamento(lancamento), valor, descricao].join("|");
+};
+
+const consolidarConflitosPagamento = (registros: Registro[]) => {
+  const grupos = new Map<string, Registro[]>();
+  registros.forEach((registro) => {
+    const chave = chaveNaturalLancamento(registro);
+    grupos.set(chave, [...(grupos.get(chave) || []), registro]);
+  });
+
+  return [...grupos.values()].flatMap((grupo) => {
+    const realizados = grupo.filter((item) => ["pago", "conciliado"].includes(item.status));
+    const pendentes = grupo.filter((item) => item.status === "aguardando_vencimento");
+    if (realizados.length > 0 && pendentes.length > 0) {
+      const escolhido = [...realizados].sort((a, b) =>
+        String(b.updated_at || "").localeCompare(String(a.updated_at || "")),
+      )[0];
+      return [escolhido];
+    }
+    return grupo;
+  });
+};
+
+const ordenarFluxoOperacional = (registros: Registro[]) => {
+  const hoje = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
+  const faixa = (data: string) => !data ? 3 : data === hoje ? 0 : data > hoje ? 1 : 2;
+  return [...registros].sort((a, b) => {
+    const dataA = dataOperacionalLancamento(a);
+    const dataB = dataOperacionalLancamento(b);
+    const diferencaFaixa = faixa(dataA) - faixa(dataB);
+    if (diferencaFaixa !== 0) return diferencaFaixa;
+    if (faixa(dataA) === 1) return dataA.localeCompare(dataB);
+    const diferencaData = dataB.localeCompare(dataA);
+    if (diferencaData !== 0) return diferencaData;
+    return String(b.updated_at || b.created_at || "").localeCompare(
+      String(a.updated_at || a.created_at || ""),
+    );
+  });
+};
+
 const Field = ({
   label,
   children,
@@ -223,10 +278,14 @@ export const Financeiro = () => {
   const [buscaFluxo, setBuscaFluxo] = useState("");
   const [filtroSituacaoFluxo, setFiltroSituacaoFluxo] = useState("todos");
   const [paginaFluxo, setPaginaFluxo] = useState(1);
+  const lancamentosOperacionais = useMemo(
+    () => consolidarConflitosPagamento(lancamentos),
+    [lancamentos],
+  );
 
   const lancamentosFluxo = useMemo(() => {
     const termo = buscaFluxo.trim().toLowerCase();
-    if (!termo) return lancamentos;
+    if (!termo) return lancamentosOperacionais;
     const campos = [
       "numero",
       "descricao",
@@ -242,25 +301,25 @@ export const Financeiro = () => {
       "valor_previsto",
       "valor_realizado",
     ];
-    return lancamentos.filter((l: Registro) =>
+    return lancamentosOperacionais.filter((l: Registro) =>
       campos.some(
         (campo) =>
           l[campo] != null && String(l[campo]).toLowerCase().includes(termo),
       ),
     );
-  }, [lancamentos, buscaFluxo]);
+  }, [lancamentosOperacionais, buscaFluxo]);
   const resumoFluxo = useMemo(() => {
     const valor = (lancamento: Registro) =>
       Number(lancamento.valor_realizado ?? lancamento.valor_previsto ?? 0) || 0;
     const grupos: Record<string, Registro[]> = {
-      todos: lancamentos,
-      previstos: lancamentos.filter(
+      todos: lancamentosOperacionais,
+      previstos: lancamentosOperacionais.filter(
         (l) =>
           !["pago", "conciliado", "cancelado", "programado"].includes(l.status),
       ),
-      programados: lancamentos.filter((l) => l.status === "programado"),
-      pagos: lancamentos.filter((l) => l.status === "pago"),
-      conciliados: lancamentos.filter((l) => l.status === "conciliado"),
+      programados: lancamentosOperacionais.filter((l) => l.status === "programado"),
+      pagos: lancamentosOperacionais.filter((l) => l.status === "pago"),
+      conciliados: lancamentosOperacionais.filter((l) => l.status === "conciliado"),
     };
     return Object.fromEntries(
       Object.entries(grupos).map(([chave, itens]) => [
@@ -271,21 +330,21 @@ export const Financeiro = () => {
         },
       ]),
     ) as Record<string, { quantidade: number; valor: number }>;
-  }, [lancamentos]);
+  }, [lancamentosOperacionais]);
   const lancamentosFluxoVisiveis = useMemo(() => {
     if (filtroSituacaoFluxo === "previstos") {
-      return lancamentosFluxo.filter(
+      return ordenarFluxoOperacional(lancamentosFluxo.filter(
         (l) =>
           !["pago", "conciliado", "cancelado", "programado"].includes(l.status),
-      );
+      ));
     }
     if (filtroSituacaoFluxo === "programados")
-      return lancamentosFluxo.filter((l) => l.status === "programado");
+      return ordenarFluxoOperacional(lancamentosFluxo.filter((l) => l.status === "programado"));
     if (filtroSituacaoFluxo === "pagos")
-      return lancamentosFluxo.filter((l) => l.status === "pago");
+      return ordenarFluxoOperacional(lancamentosFluxo.filter((l) => l.status === "pago"));
     if (filtroSituacaoFluxo === "conciliados")
-      return lancamentosFluxo.filter((l) => l.status === "conciliado");
-    return lancamentosFluxo;
+      return ordenarFluxoOperacional(lancamentosFluxo.filter((l) => l.status === "conciliado"));
+    return ordenarFluxoOperacional(lancamentosFluxo);
   }, [lancamentosFluxo, filtroSituacaoFluxo]);
   const totalPaginasFluxo = Math.max(
     1,
@@ -439,7 +498,7 @@ export const Financeiro = () => {
         (supabase as any)
           .from("financeiro_lancamentos")
           .select("*")
-          .order("data_prevista", { ascending: true, nullsFirst: false })
+          .order("updated_at", { ascending: false, nullsFirst: false })
           .limit(1000),
         (supabase as any)
           .from("pedidos_compra")
@@ -727,35 +786,23 @@ export const Financeiro = () => {
     const semValor = abertas.filter(
       (n) => n.valor_estimado == null || n.estimativa_incompleta,
     );
-    const aguardandoVencimento = lancamentos.filter(
+    const aguardandoVencimento = lancamentosOperacionais.filter(
       (l) => l.status === "aguardando_vencimento",
     ).length;
-    const saidasPrevistas = lancamentos
+    const saidasPrevistas = lancamentosOperacionais
       .filter(
         (l) =>
           l.tipo === "saida" &&
           !["cancelado", "pago", "conciliado"].includes(l.status),
       )
       .reduce((soma, l) => soma + Number(l.valor_previsto || 0), 0);
-    /*
-     * A coluna "Saldo do Dia" da Página54 é o consolidado oficial da base.
-     * As posições por banco servem para detalhamento e conferência; quando
-     * houver divergência entre a soma das contas e o consolidado, o cartão
-     * precisa reproduzir o valor oficial informado pela planilha.
-     */
-    const possuiSaldoDiaOriginal = Boolean(
-      ultimoSaldoDia?.data_posicao_original,
-    );
-    const saldoBancario = possuiSaldoDiaOriginal
-      ? moedaOriginalParaNumero(ultimoSaldoDia?.saldo_dia_original)
-      : (ultimaPosicaoBancaria?.saldo ?? 0);
+    // O saldo da Visão Geral vem das posições individualizadas por banco
+    // importadas da V2, e não da coluna consolidada "Saldo do Dia".
+    const saldoBancario = ultimaPosicaoBancaria?.saldo ?? 0;
     const saldoGerencial = moedaOriginalParaNumero(
       ultimoSaldoRealizado?.saldo_original,
     );
-    const ultimoDia =
-      ultimoSaldoDia?.data_posicao_original ||
-      ultimaPosicaoBancaria?.data ||
-      null;
+    const ultimoDia = ultimaPosicaoBancaria?.data || null;
     return {
       abertas: abertas.length,
       semValor: semValor.length,
@@ -767,8 +814,7 @@ export const Financeiro = () => {
     };
   }, [
     necessidades,
-    lancamentos,
-    ultimoSaldoDia,
+    lancamentosOperacionais,
     ultimoSaldoRealizado,
     ultimaPosicaoBancaria,
   ]);
@@ -1812,7 +1858,7 @@ export const Financeiro = () => {
                       <TableHead>Projeto / Centro</TableHead>
                       <TableHead className="text-right">Débito</TableHead>
                       <TableHead className="text-right">Crédito</TableHead>
-                      {podeAprovar && <TableHead>Última ação</TableHead>}
+                      <TableHead>Última ação</TableHead>
                       {podeGerenciar && <TableHead></TableHead>}
                     </TableRow>
                   </TableHeader>
@@ -1894,32 +1940,24 @@ export const Financeiro = () => {
                                 ? moeda(l.valor_realizado ?? l.valor_previsto)
                                 : "—"}
                             </TableCell>
-                            {podeAprovar && (
-                              <TableCell>
-                                {(() => {
-                                  const a = ultimoAtorLancamento(l.id);
-                                  return a ? (
-                                    <div className="text-xs">
-                                      <div className="font-medium">
-                                        {a.usuario_nome || "Usuário"}
-                                      </div>
-                                      <div className="text-muted-foreground">
-                                        {String(a.acao || "").replace(
-                                          /_/g,
-                                          " ",
-                                        )}{" "}
-                                        ·{" "}
-                                        {new Date(a.created_at).toLocaleString(
-                                          "pt-BR",
-                                        )}
-                                      </div>
+                            <TableCell>
+                              {(() => {
+                                const a = ultimoAtorLancamento(l.id);
+                                return a ? (
+                                  <div className="text-xs">
+                                    <div className="font-medium">
+                                      {a.usuario_nome || "Usuário"}
                                     </div>
-                                  ) : (
-                                    "—"
-                                  );
-                                })()}
-                              </TableCell>
-                            )}
+                                    <div className="text-muted-foreground">
+                                      {String(a.acao || "").replace(/_/g, " ")} ·{" "}
+                                      {new Date(a.created_at).toLocaleString("pt-BR")}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  "—"
+                                );
+                              })()}
+                            </TableCell>
                             {podeGerenciar && (
                               <TableCell className="text-right">
                                 {l.tipo === "saida" &&
