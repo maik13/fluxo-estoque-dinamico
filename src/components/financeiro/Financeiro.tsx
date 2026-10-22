@@ -990,26 +990,22 @@ export const Financeiro = () => {
     if (!rc || !pcForm.fornecedor.trim() || !pcForm.descricao.trim())
       return toast.error("Selecione a RC e informe fornecedor e descrição.");
     try {
-      const { error } = await (supabase as any)
-        .from("financeiro_pedidos_compra_formais")
-        .insert({
-          requisicao_compra_id: rc.id,
-          necessidade_id: rc.pn_origem_id || null,
-          fornecedor: pcForm.fornecedor.trim(),
-          fornecedor_identificacao: pcForm.identificacao || null,
-          fornecedor_contato: pcForm.contato || null,
-          descricao: pcForm.descricao.trim(),
-          valor_itens: Number(pcForm.valorItens || 0),
-          frete_custos_adicionais: Number(pcForm.frete || 0),
-          condicao_pagamento: pcForm.condicao || null,
-          prazo_entrega: pcForm.prazo || null,
-          local_entrega: pcForm.local || null,
-        });
+      const { data: pcId, error } = await (supabase as any).rpc(
+        "almoxarifado_transformar_rc_em_pc_v2",
+        {
+          p_rc_id: rc.id,
+          p_fornecedor: pcForm.fornecedor.trim(),
+          p_fornecedor_identificacao: pcForm.identificacao || null,
+          p_fornecedor_contato: pcForm.contato || null,
+          p_descricao: pcForm.descricao.trim(),
+          p_valor_itens: Number(pcForm.valorItens || 0),
+          p_frete: Number(pcForm.frete || 0),
+          p_condicao: pcForm.condicao || null,
+          p_prazo: pcForm.prazo || null,
+          p_local: pcForm.local || null,
+        },
+      );
       if (error) throw error;
-      await (supabase as any)
-        .from("pedidos_compra")
-        .update({ status_financeiro_rc: "convertida_em_pc" })
-        .eq("id", rc.id);
       setDialogPc(false);
       setPcForm({
         rcId: "",
@@ -1023,7 +1019,13 @@ export const Financeiro = () => {
         prazo: "",
         local: "",
       });
-      toast.success("PC formal criado.");
+      const pcCriado = await (supabase as any)
+        .from("financeiro_pedidos_compra_formais")
+        .select("numero")
+        .eq("id", pcId)
+        .single();
+      if (pcCriado.error) throw pcCriado.error;
+      toast.success(`RC-${String(rc.numero).padStart(4, "0")} transformada em PC-${String(pcCriado.data.numero).padStart(4, "0")}.`);
       await carregar();
     } catch (error) {
       console.error(error);
@@ -2636,13 +2638,13 @@ export const Financeiro = () => {
                     <DialogTrigger asChild>
                       <Button size="sm">
                         <Plus className="mr-2 h-4 w-4" />
-                        Novo PC
+                        Transformar RC em PC
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-3xl">
                       <DialogHeader>
                         <DialogTitle>
-                          Formulário PC — Pedido de Compra Formal
+                          Transformar RC em Pedido de Compra
                         </DialogTitle>
                       </DialogHeader>
                       <LegendaDoFluxoFinanceiro contexto="O PC representa o compromisso aprovado com o fornecedor. CNPJ é a identificação fiscal do fornecedor." />
@@ -2650,9 +2652,18 @@ export const Financeiro = () => {
                         <Field label="RC de origem">
                           <Select
                             value={pcForm.rcId}
-                            onValueChange={(v) =>
-                              setPcForm({ ...pcForm, rcId: v })
-                            }
+                            onValueChange={(v) => {
+                              const rcOrigem = rcs.find((item) => item.id === v);
+                              setPcForm({
+                                ...pcForm,
+                                rcId: v,
+                                fornecedor: rcOrigem?.fornecedores_consultados || pcForm.fornecedor,
+                                descricao: rcOrigem?.especificacao_tecnica || rcOrigem?.observacoes || pcForm.descricao,
+                                valorItens: rcOrigem?.valor_estimado_cotado == null ? pcForm.valorItens : String(rcOrigem.valor_estimado_cotado),
+                                frete: rcOrigem?.frete_custos_adicionais == null ? pcForm.frete : String(rcOrigem.frete_custos_adicionais),
+                                condicao: rcOrigem?.condicao_pagamento || pcForm.condicao,
+                              });
+                            }}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione a RC" />
@@ -2660,9 +2671,7 @@ export const Financeiro = () => {
                             <SelectContent>
                               {rcs
                                 .filter(
-                                  (r) =>
-                                    r.status_financeiro_rc !==
-                                    "convertida_em_pc",
+                                  (r) => r.status_financeiro_rc === "aprovada",
                                 )
                                 .map((r) => (
                                   <SelectItem key={r.id} value={r.id}>
@@ -2771,7 +2780,7 @@ export const Financeiro = () => {
                           Cancelar
                         </Button>
                         <Button onClick={() => void criarPc()}>
-                          Criar PC formal
+                          Transformar RC em PC
                         </Button>
                       </DialogFooter>
                     </DialogContent>
