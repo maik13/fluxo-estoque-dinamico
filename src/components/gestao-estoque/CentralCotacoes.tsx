@@ -679,24 +679,20 @@ export function CentralCotacoes() {
   };
 
   const converterEmPn = async (cotacao: Cotacao) => {
-    if (cotacao.solicitacao_id && cotacao.status !== 'escolhida') {
-      toast.error('Escolha esta proposta no processo de cotação antes de converter em PN.');
-      return;
-    }
-
     if (!confirm(`Converter a cotação #${cotacao.numero} em PN?`)) return;
     try {
-      const { data, error } = await (supabase as any).rpc('cotacao_converter_em_pn_v1', {
+      const { data, error } = await (supabase as any).rpc('cotacao_converter_em_pn_integrada_v1', {
         p_cotacao_id: cotacao.id,
       });
       if (error) throw error;
-      if (cotacao.solicitacao_id) {
-        await (supabase.from as any)('cotacao_solicitacoes')
-          .update({ status: 'encerrada', updated_at: new Date().toISOString() })
-          .eq('id', cotacao.solicitacao_id);
-      }
 
-      toast.success('PN criada a partir da cotação. Processo de cotação encerrado.');
+      const { data: pnCriada, error: pnError } = await (supabase.from as any)('financeiro_necessidades')
+        .select('id, numero')
+        .eq('id', data)
+        .single();
+      if (pnError || !pnCriada) throw pnError || new Error('PN não localizada após a conversão.');
+
+      toast.success(`PN-${String(pnCriada.numero).padStart(4, '0')} criada e disponível no Financeiro.`);
       await carregar();
       setProcessoSolicitacaoOpen(false);
       return data;
