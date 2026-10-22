@@ -190,7 +190,13 @@ const dataPt = (value?: string | null) => {
 const toInput = (value?: number | null) => (value === null || value === undefined ? '' : String(value).replace('.', ','));
 const fromInput = (value: string) => {
   if (!value.trim()) return null;
-  const n = Number(value.replace(/\./g, '').replace(',', '.'));
+  const texto = value.trim().replace(/\s/g, '');
+  const normalizado = texto.includes(',')
+    ? texto.replace(/\./g, '').replace(',', '.')
+    : /^\d{1,3}(\.\d{3})+$/.test(texto)
+      ? texto.replace(/\./g, '')
+      : texto;
+  const n = Number(normalizado);
   return Number.isFinite(n) ? n : null;
 };
 
@@ -1197,7 +1203,7 @@ export function CentralCotacoes() {
   };
 
   useEffect(() => {
-    if (form.tipo !== 'insumo' || itens.length === 0) return;
+    if (form.tipo !== 'insumo' || (itens.length === 0 && !form.valor_subtotal && !form.valor_total)) return;
     const subtotal = itens.reduce((soma, item) => soma + Number(item.valor_total || 0), 0);
     const total = subtotal + Number(fromInput(form.valor_frete) || 0)
       + Number(fromInput(form.valor_impostos) || 0) - Number(fromInput(form.valor_desconto) || 0);
