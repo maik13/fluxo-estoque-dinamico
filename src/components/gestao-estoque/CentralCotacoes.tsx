@@ -18,6 +18,8 @@ import {
   ArrowRightLeft,
   X,
   Trash2,
+  Download,
+  Save,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
@@ -114,6 +116,7 @@ type CotacaoItem = {
 type Solicitacao = {
   id: string;
   numero: number;
+  criado_por: string | null;
   titulo: string;
   tipo: CotacaoTipo;
   status: string;
@@ -132,6 +135,9 @@ type Solicitacao = {
   cubagem_m3?: number | null;
   volumes?: number | null;
   created_at: string;
+  editada_em?: string | null;
+  editada_por?: string | null;
+  editada_por_nome?: string | null;
 };
 
 type SolicitacaoItem = {
@@ -221,7 +227,7 @@ const emptyForm = {
 
 export function CentralCotacoes() {
   const { user } = useAuth();
-  const { userProfile } = usePermissions();
+  const { userProfile, hasPermission, isAdmin, isEstoquista } = usePermissions();
   const { obterEstoque } = useEstoqueContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -250,6 +256,15 @@ export function CentralCotacoes() {
   const [itensSolicitacao, setItensSolicitacao] = useState<SolicitacaoItem[]>([]);
   const [carregandoProcesso, setCarregandoProcesso] = useState(false);
   const [solicitacaoImportacaoId, setSolicitacaoImportacaoId] = useState<string | null>(null);
+  const [editandoSolicitacao, setEditandoSolicitacao] = useState(false);
+  const [salvandoSolicitacao, setSalvandoSolicitacao] = useState(false);
+  const [edicaoSolicitacao, setEdicaoSolicitacao] = useState<{
+    titulo: string;
+    projeto_centro_custo: string;
+    data_necessaria: string;
+    observacoes: string;
+    itens: Array<{ id: string; descricao: string; quantidade: string; unidade: string; observacoes: string }>;
+  } | null>(null);
   const [solicitacaoForm, setSolicitacaoForm] = useState({
     titulo: '',
     tipo: 'insumo' as CotacaoTipo,
@@ -793,6 +808,215 @@ export function CentralCotacoes() {
     window.setTimeout(() => fileInputRef.current?.click(), 0);
   };
 
+  const podeEditarSolicitacao = (solicitacao: Solicitacao) => {
+    const podeGerenciar = isAdmin() || isEstoquista() || hasPermission('compras.pedidos.criar');
+    if (['encerrada', 'cancelada'].includes(solicitacao.status)) return false;
+    if (podeGerenciar) return true;
+    return solicitacao.criado_por === user?.id && solicitacao.status === 'solicitada';
+  };
+
+  const iniciarEdicaoSolicitacao = () => {
+    if (!solicitacaoSelecionada || !podeEditarSolicitacao(solicitacaoSelecionada)) return;
+    setEdicaoSolicitacao({
+      titulo: solicitacaoSelecionada.titulo,
+      projeto_centro_custo: solicitacaoSelecionada.projeto_centro_custo || '',
+      data_necessaria: solicitacaoSelecionada.data_necessaria || solicitacaoSelecionada.data_limite || '',
+      observacoes: solicitacaoSelecionada.observacoes || '',
+      itens: itensSolicitacao.map((item) => ({
+        id: item.id,
+        descricao: item.descricao,
+        quantidade: item.quantidade === null ? '' : String(item.quantidade),
+        unidade: item.unidade || '',
+        observacoes: item.observacoes || '',
+      })),
+    });
+    setEditandoSolicitacao(true);
+  };
+
+  const salvarEdicaoSolicitacao = async () => {
+    if (!solicitacaoSelecionada || !edicaoSolicitacao) return;
+    if (!edicaoSolicitacao.titulo.trim() || !edicaoSolicitacao.data_necessaria) {
+      toast.error('Informe o título e a data de necessidade.');
+      return;
+    }
+    if (edicaoSolicitacao.itens.some((item) => !item.descricao.trim() || !item.unidade.trim() || Number(item.quantidade) <= 0)) {
+      toast.error('Preencha material, quantidade e unidade de todos os itens.');
+      return;
+    }
+
+    setSalvandoSolicitacao(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)('editar_cotacao_solicitacao_v1', {
+        p_solicitacao_id: solicitacaoSelecionada.id,
+        p_titulo: edicaoSolicitacao.titulo.trim(),
+        p_projeto_centro_custo: edicaoSolicitacao.projeto_centro_custo.trim() || null,
+        p_data_necessaria: edicaoSolicitacao.data_necessaria,
+        p_observacoes: edicaoSolicitacao.observacoes.trim() || null,
+        p_itens: edicaoSolicitacao.itens.map((item) => ({
+          id: item.id,
+          descricao: item.descricao.trim(),
+          quantidade: Number(item.quantidade),
+          unidade: item.unidade.trim(),
+          observacoes: item.observacoes.trim() || null,
+        })),
+      });
+      if (error) throw error;
+
+      const atualizada = data as Solicitacao;
+      setSolicitacaoSelecionada((atual) => atual ? { ...atual, ...atualizada } : atualizada);
+      setItensSolicitacao((atuais) => atuais.map((item) => {
+        const editado = edicaoSolicitacao.itens.find((registro) => registro.id === item.id);
+        return editado ? {
+          ...item,
+          descricao: editado.descricao.trim(),
+          quantidade: Number(editado.quantidade),
+          unidade: editado.unidade.trim(),
+          observacoes: editado.observacoes.trim() || null,
+        } : item;
+      }));
+      setSolicitacoes((atuais) => atuais.map((item) => item.id === atualizada.id ? { ...item, ...atualizada } : item));
+      setEditandoSolicitacao(false);
+      setEdicaoSolicitacao(null);
+      toast.success('Solicitação editada. A alteração foi registrada no histórico.');
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível editar a solicitação.');
+    } finally {
+      setSalvandoSolicitacao(false);
+    }
+  };
+
+  const carregarLogoPdf = async () => {
+    try {
+      const { data: arquivos } = await supabase.storage.from('branding').list('', { limit: 20 });
+      const arquivo = arquivos?.find((item) => /^logo\./i.test(item.name)) || arquivos?.[0];
+      if (!arquivo) return null;
+      const { data } = supabase.storage.from('branding').getPublicUrl(arquivo.name);
+      const resposta = await fetch(data.publicUrl);
+      if (!resposta.ok) return null;
+      const blob = await resposta.blob();
+      return await new Promise<string>((resolve, reject) => {
+        const leitor = new FileReader();
+        leitor.onload = () => resolve(String(leitor.result));
+        leitor.onerror = () => reject(leitor.error);
+        leitor.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  const baixarPdfSolicitacao = async (solicitacao: Solicitacao) => {
+    try {
+      const [{ default: jsPDF }, { default: autoTable }, logo] = await Promise.all([
+        import('jspdf'), import('jspdf-autotable'), carregarLogoPdf(),
+      ]);
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const verdeEscuro: [number, number, number] = [18, 82, 67];
+      const verde: [number, number, number] = [29, 126, 96];
+      const numero = `SOL-${String(solicitacao.numero).padStart(4, '0')}`;
+      const quantidadeTotal = itensSolicitacao.reduce((soma, item) => soma + Number(item.quantidade || 0), 0);
+
+      doc.setFillColor(...verdeEscuro);
+      doc.rect(0, 0, 210, 34, 'F');
+      if (logo) {
+        try {
+          const props = doc.getImageProperties(logo);
+          const largura = Math.min(42, 18 * (props.width / props.height));
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(12, 6, largura + 8, 22, 2, 2, 'F');
+          doc.addImage(logo, props.fileType, 16, 8, largura, 18);
+        } catch { /* O nome Bambusa abaixo mantém o cabeçalho identificável. */ }
+      }
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      if (!logo) doc.text('BAMBUSA', 14, 20);
+      doc.text('SOLICITAÇÃO DE COTAÇÃO', 196, 14, { align: 'right' });
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(numero, 196, 21, { align: 'right' });
+      doc.text(`Emitido em ${new Date().toLocaleString('pt-BR')}`, 196, 27, { align: 'right' });
+
+      const dados = [
+        ['Solicitante', solicitacao.criado_por_nome || 'Usuário'],
+        ['Login Bambusa', solicitacao.criado_por_email || 'Não informado'],
+        ['Data da solicitação', new Date(solicitacao.created_at).toLocaleString('pt-BR')],
+        ['Data de necessidade', dataPt(solicitacao.data_necessaria || solicitacao.data_limite)],
+        ['Projeto / centro de custo', solicitacao.projeto_centro_custo || 'Não informado'],
+        ['Situação', solicitacaoStatusLabels[solicitacao.status] || solicitacao.status],
+      ];
+      doc.setTextColor(...verdeEscuro);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('DADOS DA SOLICITAÇÃO', 14, 43);
+      dados.forEach(([rotulo, valor], indice) => {
+        const x = 14 + (indice % 2) * 92;
+        const y = 48 + Math.floor(indice / 2) * 14;
+        doc.setFillColor(246, 249, 248);
+        doc.roundedRect(x, y, 88, 11, 1.5, 1.5, 'F');
+        doc.setFontSize(7);
+        doc.setTextColor(90, 100, 105);
+        doc.setFont('helvetica', 'bold');
+        doc.text(rotulo.toUpperCase(), x + 3, y + 4);
+        doc.setFontSize(9);
+        doc.setTextColor(30, 40, 45);
+        doc.setFont('helvetica', 'normal');
+        doc.text(doc.splitTextToSize(String(valor), 81)[0], x + 3, y + 8.5);
+      });
+
+      doc.setFillColor(232, 246, 240);
+      doc.roundedRect(14, 92, 182, 13, 1.5, 1.5, 'F');
+      doc.setTextColor(...verdeEscuro);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${itensSolicitacao.length} ${itensSolicitacao.length === 1 ? 'item solicitado' : 'itens solicitados'}`, 19, 100);
+      doc.text(`Quantidade total: ${quantidadeTotal.toLocaleString('pt-BR', { maximumFractionDigits: 3 })}`, 191, 100, { align: 'right' });
+
+      autoTable(doc, {
+        startY: 110,
+        margin: { left: 14, right: 14, bottom: 22 },
+        head: [['#', 'Código', 'Material', 'Quantidade', 'Un.', 'Observação']],
+        body: itensSolicitacao.map((item, index) => [
+          index + 1, item.codigo_item || '-', item.descricao,
+          item.quantidade === null ? '-' : Number(item.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 3 }),
+          item.unidade || '-', item.observacoes || '-',
+        ]),
+        theme: 'grid',
+        styles: { font: 'helvetica', fontSize: 8, cellPadding: 2.4, valign: 'middle', lineColor: [221, 226, 224], lineWidth: 0.2 },
+        headStyles: { fillColor: verde, textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 249] },
+        columnStyles: { 0: { cellWidth: 9 }, 1: { cellWidth: 24 }, 2: { cellWidth: 61 }, 3: { cellWidth: 25, halign: 'right' }, 4: { cellWidth: 14 }, 5: { cellWidth: 49 } },
+      });
+
+      const finalY = (doc as typeof doc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 110;
+      if (solicitacao.observacoes) {
+        const y = finalY > 245 ? 30 : finalY + 12;
+        if (finalY > 245) doc.addPage();
+        doc.setTextColor(...verdeEscuro);
+        doc.setFont('helvetica', 'bold');
+        doc.text('OBSERVAÇÕES DO SOLICITANTE', 14, y);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(40, 50, 55);
+        doc.text(doc.splitTextToSize(solicitacao.observacoes, 182), 14, y + 5);
+      }
+      const paginas = doc.getNumberOfPages();
+      for (let pagina = 1; pagina <= paginas; pagina += 1) {
+        doc.setPage(pagina);
+        doc.setDrawColor(220, 225, 223);
+        doc.line(14, 284, 196, 284);
+        doc.setFontSize(7);
+        doc.setTextColor(110, 120, 118);
+        doc.text('Bambusa - Documento gerado pelo sistema de gestão', 14, 289);
+        doc.text(`Página ${pagina} de ${paginas}`, 196, 289, { align: 'right' });
+      }
+      doc.save(`${numero.toLowerCase()}-solicitacao.pdf`);
+      toast.success('PDF da solicitação baixado.');
+    } catch (error) {
+      console.error(error);
+      toast.error('Não foi possível gerar o PDF da solicitação.');
+    }
+  };
+
   const escolherProposta = async (solicitacao: Solicitacao, cotacao: Cotacao) => {
     if (!['confirmada', 'escolhida'].includes(cotacao.status)) {
       toast.error('Confirme a cotação antes de escolhê-la.');
@@ -1204,14 +1428,24 @@ export function CentralCotacoes() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={processoSolicitacaoOpen} onOpenChange={setProcessoSolicitacaoOpen}>
+      <Dialog open={processoSolicitacaoOpen} onOpenChange={(aberto) => {
+        setProcessoSolicitacaoOpen(aberto);
+        if (!aberto) { setEditandoSolicitacao(false); setEdicaoSolicitacao(null); }
+      }}>
         <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {solicitacaoSelecionada
-                ? `SOL-${String(solicitacaoSelecionada.numero).padStart(4, '0')} · ${solicitacaoSelecionada.titulo}`
-                : 'Processo de cotação'}
-            </DialogTitle>
+            <div className="flex flex-wrap items-center justify-between gap-3 pr-8">
+              <DialogTitle>
+                {solicitacaoSelecionada
+                  ? `SOL-${String(solicitacaoSelecionada.numero).padStart(4, '0')} · ${solicitacaoSelecionada.titulo}`
+                  : 'Processo de cotação'}
+              </DialogTitle>
+              {solicitacaoSelecionada?.editada_em && (
+                <Badge variant="secondary">
+                  Editada em {new Date(solicitacaoSelecionada.editada_em).toLocaleString('pt-BR')}
+                </Badge>
+              )}
+            </div>
             <DialogDescription>
               Pedido original preservado. As propostas abaixo pertencem a esta mesma solicitação.
             </DialogDescription>
@@ -1219,6 +1453,12 @@ export function CentralCotacoes() {
 
           {solicitacaoSelecionada && (
             <div className="space-y-5">
+              {editandoSolicitacao && edicaoSolicitacao && (
+                <div className="space-y-1 rounded-lg border p-4">
+                  <Label>Título da solicitação</Label>
+                  <Input value={edicaoSolicitacao.titulo} onChange={(e) => setEdicaoSolicitacao((atual) => atual ? { ...atual, titulo: e.target.value } : atual)} />
+                </div>
+              )}
               <div className="grid gap-3 rounded-lg border bg-muted/20 p-4 md:grid-cols-4">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Solicitante</p>
@@ -1229,11 +1469,15 @@ export function CentralCotacoes() {
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Data da necessidade</p>
-                  <p className="font-medium">{dataPt(solicitacaoSelecionada.data_necessaria || solicitacaoSelecionada.data_limite)}</p>
+                  {editandoSolicitacao && edicaoSolicitacao
+                    ? <Input type="date" className="mt-1" value={edicaoSolicitacao.data_necessaria} onChange={(e) => setEdicaoSolicitacao((atual) => atual ? { ...atual, data_necessaria: e.target.value } : atual)} />
+                    : <p className="font-medium">{dataPt(solicitacaoSelecionada.data_necessaria || solicitacaoSelecionada.data_limite)}</p>}
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Projeto / centro de custo</p>
-                  <p className="font-medium">{solicitacaoSelecionada.projeto_centro_custo || 'Não informado'}</p>
+                  {editandoSolicitacao && edicaoSolicitacao
+                    ? <Input className="mt-1" value={edicaoSolicitacao.projeto_centro_custo} onChange={(e) => setEdicaoSolicitacao((atual) => atual ? { ...atual, projeto_centro_custo: e.target.value } : atual)} />
+                    : <p className="font-medium">{solicitacaoSelecionada.projeto_centro_custo || 'Não informado'}</p>}
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Situação</p>
@@ -1261,10 +1505,26 @@ export function CentralCotacoes() {
                       {itensSolicitacao.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell>{item.codigo_item || '—'}</TableCell>
-                          <TableCell className="font-medium">{item.descricao}</TableCell>
-                          <TableCell className="text-right">{item.quantidade ?? '—'}</TableCell>
-                          <TableCell>{item.unidade || '—'}</TableCell>
-                          <TableCell>{item.observacoes || '—'}</TableCell>
+                          <TableCell className="font-medium">
+                            {editandoSolicitacao && edicaoSolicitacao
+                              ? <Input value={edicaoSolicitacao.itens.find((registro) => registro.id === item.id)?.descricao || ''} onChange={(e) => setEdicaoSolicitacao((atual) => atual ? { ...atual, itens: atual.itens.map((registro) => registro.id === item.id ? { ...registro, descricao: e.target.value } : registro) } : atual)} />
+                              : item.descricao}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {editandoSolicitacao && edicaoSolicitacao
+                              ? <Input type="number" min="0.01" step="0.01" className="ml-auto w-24" value={edicaoSolicitacao.itens.find((registro) => registro.id === item.id)?.quantidade || ''} onChange={(e) => setEdicaoSolicitacao((atual) => atual ? { ...atual, itens: atual.itens.map((registro) => registro.id === item.id ? { ...registro, quantidade: e.target.value } : registro) } : atual)} />
+                              : item.quantidade ?? '—'}
+                          </TableCell>
+                          <TableCell>
+                            {editandoSolicitacao && edicaoSolicitacao
+                              ? <Input className="w-20" value={edicaoSolicitacao.itens.find((registro) => registro.id === item.id)?.unidade || ''} onChange={(e) => setEdicaoSolicitacao((atual) => atual ? { ...atual, itens: atual.itens.map((registro) => registro.id === item.id ? { ...registro, unidade: e.target.value } : registro) } : atual)} />
+                              : item.unidade || '—'}
+                          </TableCell>
+                          <TableCell>
+                            {editandoSolicitacao && edicaoSolicitacao
+                              ? <Input value={edicaoSolicitacao.itens.find((registro) => registro.id === item.id)?.observacoes || ''} onChange={(e) => setEdicaoSolicitacao((atual) => atual ? { ...atual, itens: atual.itens.map((registro) => registro.id === item.id ? { ...registro, observacoes: e.target.value } : registro) } : atual)} />
+                              : item.observacoes || '—'}
+                          </TableCell>
                         </TableRow>
                       ))}
                       {itensSolicitacao.length === 0 && (
@@ -1285,15 +1545,41 @@ export function CentralCotacoes() {
                 </div>
               )}
 
-              {solicitacaoSelecionada.observacoes && (
+              {(solicitacaoSelecionada.observacoes || editandoSolicitacao) && (
                 <div className="rounded-lg border p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Observações do solicitante</p>
-                  <p className="mt-1 whitespace-pre-wrap text-sm">{solicitacaoSelecionada.observacoes}</p>
+                  {editandoSolicitacao && edicaoSolicitacao
+                    ? <Textarea className="mt-2" value={edicaoSolicitacao.observacoes} onChange={(e) => setEdicaoSolicitacao((atual) => atual ? { ...atual, observacoes: e.target.value } : atual)} />
+                    : <p className="mt-1 whitespace-pre-wrap text-sm">{solicitacaoSelecionada.observacoes}</p>}
                 </div>
               )}
 
-              {!['encerrada', 'cancelada'].includes(solicitacaoSelecionada.status) && (
-                <div className="flex flex-wrap gap-2">
+              {solicitacaoSelecionada.editada_em && (
+                <p className="text-xs text-muted-foreground">
+                  Última edição: {new Date(solicitacaoSelecionada.editada_em).toLocaleString('pt-BR')}
+                  {solicitacaoSelecionada.editada_por_nome ? ` por ${solicitacaoSelecionada.editada_por_nome}` : ''}.
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => void baixarPdfSolicitacao(solicitacaoSelecionada)}>
+                  <Download className="mr-2 h-4 w-4" /> Baixar PDF
+                </Button>
+                {!editandoSolicitacao && podeEditarSolicitacao(solicitacaoSelecionada) && (
+                  <Button variant="outline" onClick={iniciarEdicaoSolicitacao}>
+                    <Pencil className="mr-2 h-4 w-4" /> Editar solicitação
+                  </Button>
+                )}
+                {editandoSolicitacao && (
+                  <>
+                    <Button variant="outline" disabled={salvandoSolicitacao} onClick={() => { setEditandoSolicitacao(false); setEdicaoSolicitacao(null); }}>Cancelar edição</Button>
+                    <Button disabled={salvandoSolicitacao} onClick={() => void salvarEdicaoSolicitacao()}>
+                      <Save className="mr-2 h-4 w-4" /> {salvandoSolicitacao ? 'Salvando...' : 'Salvar alterações'}
+                    </Button>
+                  </>
+                )}
+                {!editandoSolicitacao && !['encerrada', 'cancelada'].includes(solicitacaoSelecionada.status) && (
+                  <>
                   <Button onClick={() => void abrirNovaCotacaoDaSolicitacao(solicitacaoSelecionada)}>
                     <Plus className="mr-2 h-4 w-4" /> Nova cotação para esta solicitação
                   </Button>
@@ -1303,8 +1589,9 @@ export function CentralCotacoes() {
                   <Button variant="outline" onClick={() => importarPdfDaSolicitacao(solicitacaoSelecionada)}>
                     <Upload className="mr-2 h-4 w-4" /> Importar PDF para esta solicitação
                   </Button>
-                </div>
-              )}
+                  </>
+                )}
+              </div>
 
               <div className="rounded-lg border">
                 <div className="border-b px-4 py-3">

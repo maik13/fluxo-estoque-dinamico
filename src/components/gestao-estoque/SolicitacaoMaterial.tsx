@@ -1068,7 +1068,7 @@ export const SolicitacaoMaterial = () => {
 
       {/* Dialog Listar Solicitações */}
       <Dialog open={dialogoListar} onOpenChange={setDialogoListar}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[96vw] sm:w-full max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardList className="h-5 w-5 text-amber-400" />
@@ -1090,17 +1090,17 @@ export const SolicitacaoMaterial = () => {
           ) : solicitacoes.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">Nenhuma solicitação encontrada</p>
           ) : (
-            <Table>
+            <Table className="w-full table-fixed text-xs">
               <TableHeader>
                 <TableRow>
                   <TableHead>Nº</TableHead>
-                  <TableHead>Solicitante</TableHead>
-                  <TableHead>Itens</TableHead>
-                  <TableHead>Local de Origem</TableHead>
-                  <TableHead>Data necessária</TableHead>
-                  <TableHead>Data</TableHead>
+                  <TableHead className="w-[18%]">Solicitante</TableHead>
+                  <TableHead className="w-[8%]">Itens</TableHead>
+                  <TableHead className="hidden xl:table-cell">Local de Origem</TableHead>
+                  <TableHead className="w-[12%]">Necessidade</TableHead>
+                  <TableHead className="hidden lg:table-cell">Criada em</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="min-w-[250px]">Ações</TableHead>
+                  <TableHead className="w-[190px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1109,12 +1109,12 @@ export const SolicitacaoMaterial = () => {
                     <TableCell className="font-mono">#{sol.numero}</TableCell>
                     <TableCell>{sol.solicitante_nome}</TableCell>
                     <TableCell>{sol.itens.length} item(ns)</TableCell>
-                    <TableCell>{sol.local_origem || '-'}</TableCell>
+                    <TableCell className="hidden xl:table-cell">{sol.local_origem || '-'}</TableCell>
                     <TableCell>{sol.data_necessidade ? format(new Date(`${sol.data_necessidade}T12:00:00`), "dd/MM/yyyy", { locale: ptBR }) : '—'}</TableCell>
-                    <TableCell>{format(new Date(sol.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</TableCell>
+                    <TableCell className="hidden lg:table-cell">{format(new Date(sol.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</TableCell>
                     <TableCell>{getStatusBadge(sol.status)}</TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="grid grid-cols-2 gap-1">
                         <Button variant="ghost" size="icon" title="Visualizar solicitação" onClick={() => { setSolicitacaoSelecionada(sol); setLocalOrigemEdicaoId(sol.local_origem_id || ''); setModoEdicaoSolicitacao(false); setEdicaoSolicitacao(null); setDialogoDetalhes(true); }}>
                           <Eye className="h-4 w-4" />
                         </Button>
