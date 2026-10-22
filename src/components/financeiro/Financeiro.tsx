@@ -166,12 +166,12 @@ const consolidarConflitosPagamento = (registros: Registro[]) => {
 };
 
 const ordenarFluxoOperacional = (registros: Registro[]) => {
-  const hoje = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  const agora = new Date();
+  const hoje = [
+    agora.getFullYear(),
+    String(agora.getMonth() + 1).padStart(2, "0"),
+    String(agora.getDate()).padStart(2, "0"),
+  ].join("-");
 
   const faixa = (data: string) => !data ? 3 : data === hoje ? 0 : data > hoje ? 1 : 2;
   return [...registros].sort((a, b) => {
@@ -666,6 +666,10 @@ export const Financeiro = () => {
   useEffect(() => {
     setPaginaFluxo(1);
   }, [buscaFluxo, filtroSituacaoFluxo]);
+
+  useEffect(() => {
+    if (abaFinanceiro === "fluxo") setPaginaFluxo(1);
+  }, [abaFinanceiro, lancamentosOperacionais]);
 
   const contaNome = (id?: string | null) =>
     contas.find((c) => c.id === id)?.nome || "—";
