@@ -1040,9 +1040,13 @@ export function CentralCotacoes() {
         .single();
       if (solicitacaoError) throw solicitacaoError;
 
-      toast.success('Proposta escolhida. Ela já pode ser convertida em PN.');
+      const { error: pnError } = await (supabase as any).rpc('cotacao_converter_em_pn_v1', {
+        p_cotacao_id: cotacao.id,
+      });
+      if (pnError) throw pnError;
+      toast.success('Proposta aprovada e PN disponibilizada no Almoxarifado.');
       await carregar();
-      await abrirProcessoSolicitacao((solicitacaoAtualizada || solicitacao) as Solicitacao);
+      setProcessoSolicitacaoOpen(false);
     } catch (error: any) {
       console.error(error);
       toast.error(error?.message || 'Não foi possível escolher a proposta.');

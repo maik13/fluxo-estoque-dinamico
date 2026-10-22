@@ -23,6 +23,7 @@ import { Transferencia } from './Transferencia';
 import { SolicitacaoMaterial } from './SolicitacaoMaterial';
 import { PrevisoesNecessidadeAlmoxarifado } from './PrevisoesNecessidadeAlmoxarifado';
 import { PedidoCompra } from './PedidoCompra';
+import { PedidosCompraFormaisAlmoxarifado } from './PedidosCompraFormaisAlmoxarifado';
 import { SolicitarOrcamento } from './SolicitarOrcamento';
 import { Badge } from '@/components/ui/badge';
 
@@ -903,6 +904,7 @@ export const MenuPrincipal = ({
         {/* PN e a mesma fila operacional de RC permanecem visíveis no Almoxarifado. */}
         {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && <PrevisoesNecessidadeAlmoxarifado />}
         {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && <PedidoCompra />}
+        {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && <PedidosCompraFormaisAlmoxarifado />}
 
         {/* BOTÃO SAÍDA */}
         {canRegistrarSaida() && <Dialog open={dialogoSaida} onOpenChange={(aberto) => {
