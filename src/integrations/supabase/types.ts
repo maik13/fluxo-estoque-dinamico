@@ -8059,6 +8059,7 @@ export type Database = {
         Row: {
           created_at: string
           destino_atendimento: string
+          especificacao: string | null
           id: string
           item_id: string | null
           item_snapshot: Json | null
@@ -8071,6 +8072,7 @@ export type Database = {
         Insert: {
           created_at?: string
           destino_atendimento?: string
+          especificacao?: string | null
           id?: string
           item_id?: string | null
           item_snapshot?: Json | null
@@ -8083,6 +8085,7 @@ export type Database = {
         Update: {
           created_at?: string
           destino_atendimento?: string
+          especificacao?: string | null
           id?: string
           item_id?: string | null
           item_snapshot?: Json | null
@@ -9322,6 +9325,15 @@ export type Database = {
           p_local_utilizacao_id: string
           p_movimento_id: string
           p_quantidade: number
+        }
+        Returns: Json
+      }
+      editar_solicitacao_material_pendente_v1: {
+        Args: {
+          p_data_necessidade: string
+          p_itens: Json
+          p_observacoes: string | null
+          p_solicitacao_material_id: string
         }
         Returns: Json
       }

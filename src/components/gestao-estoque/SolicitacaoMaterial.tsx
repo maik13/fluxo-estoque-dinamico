@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { ClipboardList, Plus, Trash2, Eye, Printer, FileText, Check, X, ChevronsUpDown, Send, ArrowRight, Pencil } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Eye, Printer, FileText, Check, X, ChevronsUpDown, Send, ArrowRight, Pencil, Save } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -59,6 +59,7 @@ interface SolicitacaoMaterialCompleta {
     nome_item: string;
     quantidade: number;
     unidade: string;
+    especificacao?: string;
     item_snapshot?: any;
     observacoes?: string;
     destino_atendimento?: 'estoque' | 'pn';
@@ -78,6 +79,7 @@ export const SolicitacaoMaterial = () => {
   const [quantidadeItem, setQuantidadeItem] = useState('');
   const [nomeItemCustom, setNomeItemCustom] = useState('');
   const [unidadeCustom, setUnidadeCustom] = useState('un');
+  const [especificacaoItem, setEspecificacaoItem] = useState('');
   const [obsItem, setObsItem] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoMaterialCompleta[]>([]);
@@ -88,8 +90,13 @@ export const SolicitacaoMaterial = () => {
   const [localOrigemNome, setLocalOrigemNome] = useState<string>('');
   const [localOrigemEdicaoId, setLocalOrigemEdicaoId] = useState<string>('');
   const [salvandoLocalOrigem, setSalvandoLocalOrigem] = useState(false);
-  // itemId → quantidade editada pelo estoque (antes de converter em retirada)
-  const [quantidadesEditadas, setQuantidadesEditadas] = useState<Record<string, number>>({});
+  const [modoEdicaoSolicitacao, setModoEdicaoSolicitacao] = useState(false);
+  const [salvandoEdicaoSolicitacao, setSalvandoEdicaoSolicitacao] = useState(false);
+  const [edicaoSolicitacao, setEdicaoSolicitacao] = useState<{
+    observacoes: string;
+    data_necessidade: string;
+    itens: Array<{ id: string; nome_item: string; especificacao: string; quantidade: string; unidade: string; observacoes: string }>;
+  } | null>(null);
 
   const { obterEstoque } = useEstoqueContext();
   const { user, loading: authLoading } = useAuth();
@@ -229,6 +236,7 @@ export const SolicitacaoMaterial = () => {
         especificacao: item.especificacao,
         fotoUrl: item.fotoUrl
       },
+      especificacao: especificacaoItem || item.especificacao || undefined,
       observacoes: obsItem || undefined,
       isCustom: false
     }]);
@@ -236,6 +244,7 @@ export const SolicitacaoMaterial = () => {
     setPopoverAberto(false);
     setBusca('');
     setQuantidadeItem('');
+    setEspecificacaoItem('');
     setObsItem('');
     toast.success('Item adicionado');
   };
@@ -256,6 +265,7 @@ export const SolicitacaoMaterial = () => {
       nome_item: nomeItemCustom.trim(),
       quantidade,
       unidade: unidadeCustom,
+      especificacao: especificacaoItem || undefined,
       observacoes: obsItem || undefined,
       isCustom: true
     }]);
@@ -263,6 +273,7 @@ export const SolicitacaoMaterial = () => {
     setNomeItemCustom('');
     setQuantidadeItem('');
     setUnidadeCustom('un');
+    setEspecificacaoItem('');
     setObsItem('');
     toast.success('Item avulso adicionado; será encaminhado para PN após a aprovação.');
   };
@@ -279,6 +290,7 @@ export const SolicitacaoMaterial = () => {
     setQuantidadeItem('');
     setNomeItemCustom('');
     setUnidadeCustom('un');
+    setEspecificacaoItem('');
     setObsItem('');
     setLocalOrigemId('');
     setLocalOrigemNome('');
@@ -338,6 +350,7 @@ export const SolicitacaoMaterial = () => {
         nome_item: item.nome_item,
         quantidade: item.quantidade,
         unidade: item.unidade,
+        especificacao: item.especificacao || item.item_snapshot?.especificacao || null,
         item_snapshot: item.item_snapshot || null,
         observacoes: item.observacoes || null
       }));
@@ -363,6 +376,7 @@ export const SolicitacaoMaterial = () => {
           nome_item: item.nome_item,
           quantidade: item.quantidade,
           unidade: item.unidade,
+          especificacao: item.especificacao || undefined,
           item_snapshot: item.item_snapshot || undefined,
           observacoes: item.observacoes || undefined,
         })),
@@ -476,42 +490,97 @@ export const SolicitacaoMaterial = () => {
     }
   };
 
-  const salvarQuantidadeItem = async (itemId: string, novaQuantidade: number) => {
-    if (novaQuantidade <= 0) {
-      toast.error('A quantidade deve ser maior que zero');
+  const podeEditarSolicitacao = (solicitacao: SolicitacaoMaterialCompleta) =>
+    solicitacao.status === 'pendente' && (solicitacao.solicitante_id === user?.id || canManageStock());
+
+  const iniciarEdicaoSolicitacao = (solicitacao: SolicitacaoMaterialCompleta) => {
+    setEdicaoSolicitacao({
+      observacoes: solicitacao.observacoes || '',
+      data_necessidade: solicitacao.data_necessidade || '',
+      itens: solicitacao.itens.map((item) => ({
+        id: item.id,
+        nome_item: item.nome_item,
+        especificacao: item.especificacao || item.item_snapshot?.especificacao || '',
+        quantidade: String(item.quantidade),
+        unidade: item.unidade,
+        observacoes: item.observacoes || '',
+      })),
+    });
+    setModoEdicaoSolicitacao(true);
+  };
+
+  const atualizarItemEdicao = (index: number, campo: string, valor: string) => {
+    setEdicaoSolicitacao((atual) => atual ? {
+      ...atual,
+      itens: atual.itens.map((item, posicao) => posicao === index ? { ...item, [campo]: valor } : item),
+    } : atual);
+  };
+
+  const salvarEdicaoSolicitacao = async () => {
+    if (!solicitacaoSelecionada || !edicaoSolicitacao) return;
+    if (!podeEditarSolicitacao(solicitacaoSelecionada)) {
+      toast.error('Esta solicitação não pode mais ser editada');
       return;
     }
+    if (!edicaoSolicitacao.data_necessidade) {
+      toast.error('Informe a data de necessidade');
+      return;
+    }
+    if (edicaoSolicitacao.itens.some((item) => !item.nome_item.trim() || !item.unidade.trim() || !Number.isFinite(Number(item.quantidade)) || Number(item.quantidade) <= 0)) {
+      toast.error('Preencha nome, unidade e quantidade válida de todos os materiais');
+      return;
+    }
+
+    setSalvandoEdicaoSolicitacao(true);
     try {
-      const { error } = await supabase
-        .from('solicitacao_material_itens')
-        .update({ quantidade: novaQuantidade })
-        .eq('id', itemId);
+      const itensAtualizados = edicaoSolicitacao.itens.map((item) => ({
+        id: item.id,
+        nome_item: item.nome_item.trim(),
+        especificacao: item.especificacao.trim() || null,
+        quantidade: Number(item.quantidade),
+        unidade: item.unidade.trim(),
+        observacoes: item.observacoes.trim() || null,
+      }));
+      const { error } = await supabase.rpc('editar_solicitacao_material_pendente_v1', {
+        p_solicitacao_material_id: solicitacaoSelecionada.id,
+        p_observacoes: edicaoSolicitacao.observacoes.trim() || null,
+        p_data_necessidade: edicaoSolicitacao.data_necessidade,
+        p_itens: itensAtualizados,
+      });
       if (error) throw error;
 
-      // Atualiza o estado local da solicitação selecionada
-      setSolicitacaoSelecionada(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          itens: prev.itens.map(i =>
-            i.id === itemId ? { ...i, quantidade: novaQuantidade } : i
-          ),
-        };
-      });
-      setSolicitacoes(prev =>
-        prev.map(s => ({
-          ...s,
-          itens: s.itens.map(i =>
-            i.id === itemId ? { ...i, quantidade: novaQuantidade } : i
-          ),
-        }))
-      );
-
-      setQuantidadesEditadas(prev => ({ ...prev, [itemId]: novaQuantidade }));
-      toast.success('Quantidade atualizada!');
+      const proxima: SolicitacaoMaterialCompleta = {
+        ...solicitacaoSelecionada,
+        observacoes: edicaoSolicitacao.observacoes.trim() || undefined,
+        data_necessidade: edicaoSolicitacao.data_necessidade,
+        updated_at: new Date().toISOString(),
+        itens: solicitacaoSelecionada.itens.map((item) => {
+          const editado = itensAtualizados.find((atual) => atual.id === item.id)!;
+          return {
+            ...item,
+            nome_item: editado.nome_item,
+            especificacao: editado.especificacao || undefined,
+            quantidade: editado.quantidade,
+            unidade: editado.unidade,
+            observacoes: editado.observacoes || undefined,
+            item_snapshot: item.item_snapshot ? {
+              ...item.item_snapshot,
+              nome: editado.nome_item,
+              especificacao: editado.especificacao || '',
+            } : item.item_snapshot,
+          };
+        }),
+      };
+      setSolicitacaoSelecionada(proxima);
+      setSolicitacoes((atuais) => atuais.map((sol) => sol.id === proxima.id ? proxima : sol));
+      setModoEdicaoSolicitacao(false);
+      setEdicaoSolicitacao(null);
+      toast.success('Solicitação atualizada com histórico preservado');
     } catch (error) {
-      console.error('Erro ao salvar quantidade:', error);
-      toast.error('Não foi possível salvar a quantidade');
+      console.error('Erro ao editar solicitação:', error);
+      toast.error(formatarErroSupabase(error, 'Não foi possível editar a solicitação'));
+    } finally {
+      setSalvandoEdicaoSolicitacao(false);
     }
   };
 
@@ -619,6 +688,7 @@ export const SolicitacaoMaterial = () => {
         nome_item: item.nome_item,
         quantidade: item.quantidade,
         unidade: item.unidade,
+        especificacao: item.especificacao || null,
         item_snapshot: item.item_snapshot || null,
         observacoes: item.observacoes || null,
       }));
@@ -741,12 +811,13 @@ export const SolicitacaoMaterial = () => {
           ${sol.data_aprovacao ? `<div class="info-item"><div class="info-label">Data Aprovação</div>${format(new Date(sol.data_aprovacao), "dd/MM/yyyy HH:mm", { locale: ptBR })}</div>` : ''}
         </div>
         <table>
-          <thead><tr><th>#</th><th>Item</th><th>Qtd</th><th>Unidade</th><th>Tipo</th><th>Obs</th></tr></thead>
+          <thead><tr><th>#</th><th>Item</th><th>Especificação</th><th>Qtd</th><th>Unidade</th><th>Tipo</th><th>Obs</th></tr></thead>
           <tbody>
             ${sol.itens.map((item, i) => `
               <tr>
                 <td>${i + 1}</td>
                 <td>${item.nome_item}${item.item_id && item.item_snapshot?.codigoBarras ? '<br><small style="color:#888">Cód: ' + item.item_snapshot.codigoBarras + '</small>' : ''}</td>
+                <td>${item.especificacao || item.item_snapshot?.especificacao || '-'}</td>
                 <td>${item.quantidade}</td>
                 <td>${item.unidade}</td>
                 <td>${item.item_id ? 'Estoque' : 'Avulso'}</td>
@@ -789,6 +860,7 @@ export const SolicitacaoMaterial = () => {
         const tableData = sol.itens.map((item, i) => [
           i + 1,
           item.item_id && item.item_snapshot?.codigoBarras ? `${item.nome_item}\nCód: ${item.item_snapshot.codigoBarras}` : item.nome_item,
+          item.especificacao || item.item_snapshot?.especificacao || '-',
           item.quantidade,
           item.unidade,
           item.item_id ? 'Estoque' : 'Avulso',
@@ -797,7 +869,7 @@ export const SolicitacaoMaterial = () => {
 
         (doc as any).autoTable({
           startY,
-          head: [['#', 'Item', 'Qtd', 'Unidade', 'Tipo', 'Obs']],
+          head: [['#', 'Item', 'Especificação', 'Qtd', 'Unidade', 'Tipo', 'Obs']],
           body: tableData,
           theme: 'grid',
           headStyles: { fillColor: [26, 82, 118] }
@@ -885,7 +957,7 @@ export const SolicitacaoMaterial = () => {
                     <TableCell>{getStatusBadge(sol.status)}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => { setSolicitacaoSelecionada(sol); setQuantidadesEditadas({}); setLocalOrigemEdicaoId(sol.local_origem_id || ''); setDialogoDetalhes(true); }}>
+                        <Button variant="ghost" size="icon" title="Visualizar solicitação" onClick={() => { setSolicitacaoSelecionada(sol); setLocalOrigemEdicaoId(sol.local_origem_id || ''); setModoEdicaoSolicitacao(false); setEdicaoSolicitacao(null); setDialogoDetalhes(true); }}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => imprimirSolicitacao(sol)}>
@@ -946,24 +1018,38 @@ export const SolicitacaoMaterial = () => {
       </Dialog>
 
       {/* Dialog Detalhes da Solicitação */}
-      <Dialog open={dialogoDetalhes} onOpenChange={setDialogoDetalhes}>
+      <Dialog open={dialogoDetalhes} onOpenChange={(aberto) => { setDialogoDetalhes(aberto); if (!aberto) { setModoEdicaoSolicitacao(false); setEdicaoSolicitacao(null); } }}>
         <DialogContent className="w-[95vw] sm:w-full max-w-3xl max-h-[90vh] overflow-y-auto">
           {solicitacaoSelecionada && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  📋 Solicitação #{solicitacaoSelecionada.numero}
-                  {getStatusBadge(solicitacaoSelecionada.status)}
-                </DialogTitle>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <DialogTitle className="flex items-center gap-2">
+                    📋 Solicitação #{solicitacaoSelecionada.numero}
+                    {getStatusBadge(solicitacaoSelecionada.status)}
+                  </DialogTitle>
+                  {podeEditarSolicitacao(solicitacaoSelecionada) && !modoEdicaoSolicitacao && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => iniciarEdicaoSolicitacao(solicitacaoSelecionada)}>
+                      <Pencil className="mr-2 h-4 w-4" /> Editar solicitação
+                    </Button>
+                  )}
+                </div>
               </DialogHeader>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div><span className="text-muted-foreground">Solicitante:</span> {solicitacaoSelecionada.solicitante_nome}</div>
                 <div><span className="text-muted-foreground">Data:</span> {format(new Date(solicitacaoSelecionada.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</div>
-                <div><span className="text-muted-foreground">Data necessária:</span> {solicitacaoSelecionada.data_necessidade ? format(new Date(`${solicitacaoSelecionada.data_necessidade}T12:00:00`), "dd/MM/yyyy", { locale: ptBR }) : 'Não informada'}</div>
-                {solicitacaoSelecionada.observacoes && (
+                <div>
+                  <span className="text-muted-foreground">Data necessária:</span>{' '}
+                  {modoEdicaoSolicitacao && edicaoSolicitacao
+                    ? <Input type="date" className="mt-1" value={edicaoSolicitacao.data_necessidade} onChange={(e) => setEdicaoSolicitacao((atual) => atual ? { ...atual, data_necessidade: e.target.value } : atual)} />
+                    : solicitacaoSelecionada.data_necessidade ? format(new Date(`${solicitacaoSelecionada.data_necessidade}T12:00:00`), "dd/MM/yyyy", { locale: ptBR }) : 'Não informada'}
+                </div>
+                {modoEdicaoSolicitacao && edicaoSolicitacao ? (
+                  <div className="col-span-2 space-y-1"><Label>Observações gerais</Label><Textarea value={edicaoSolicitacao.observacoes} onChange={(e) => setEdicaoSolicitacao((atual) => atual ? { ...atual, observacoes: e.target.value } : atual)} /></div>
+                ) : solicitacaoSelecionada.observacoes ? (
                   <div className="col-span-2"><span className="text-muted-foreground">Observações:</span> {solicitacaoSelecionada.observacoes}</div>
-                )}
+                ) : null}
                 {solicitacaoSelecionada.aprovado_por_nome && (
                   <div><span className="text-muted-foreground">Aprovado por:</span> {solicitacaoSelecionada.aprovado_por_nome}</div>
                 )}
@@ -1004,6 +1090,7 @@ export const SolicitacaoMaterial = () => {
                     <TableHead>#</TableHead>
                     <TableHead>Foto</TableHead>
                     <TableHead>Item</TableHead>
+                    <TableHead>Especificação</TableHead>
                     <TableHead>Qtd</TableHead>
                     <TableHead>Unidade</TableHead>
                     <TableHead>Destino</TableHead>
@@ -1015,12 +1102,7 @@ export const SolicitacaoMaterial = () => {
                     const vaiParaCompra = solicitacaoSelecionada.status === 'pendente'
                       ? itemVaiParaCompra({ ...item, isCustom: !item.item_id })
                       : item.destino_atendimento === 'pn';
-                    const foiEditado = quantidadesEditadas[item.id] !== undefined;
-                    // Após aprovada, a quantidade não pode mudar sem uma nova conferência
-                    // atômica de saldo e de encaminhamento para PN.
-                    const podeEditar = canManageStock() &&
-                      solicitacaoSelecionada.status === 'pendente' &&
-                      !!item.item_id;
+                    const itemEdicao = edicaoSolicitacao?.itens[i];
 
                     return (
                       <TableRow key={item.id}>
@@ -1029,54 +1111,26 @@ export const SolicitacaoMaterial = () => {
                           <ItemFotoMiniatura fotoUrl={item.item_snapshot?.fotoUrl} nome={item.nome_item} />
                         </TableCell>
                         <TableCell className="font-medium">
-                          <div className="flex items-center gap-1">
-                            {item.nome_item}
-                            {foiEditado && (
-                              <span title="Quantidade editada pelo estoque">
-                                <Pencil className="h-3 w-3 text-amber-400 flex-shrink-0" aria-hidden="true" />
-                              </span>
-                            )}
-                          </div>
+                          {modoEdicaoSolicitacao && itemEdicao ? <Input value={itemEdicao.nome_item} onChange={(e) => atualizarItemEdicao(i, 'nome_item', e.target.value)} /> : <div className="flex items-center gap-1">{item.nome_item}</div>}
                           {item.item_id && item.item_snapshot?.codigoBarras && (
                             <span className="block text-xs text-muted-foreground">Cód: {item.item_snapshot.codigoBarras}</span>
                           )}
                         </TableCell>
                         <TableCell>
-                          {podeEditar ? (
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="number"
-                                min={1}
-                                defaultValue={item.quantidade}
-                                className="w-20 h-7 text-sm px-2"
-                                onBlur={(e) => {
-                                  const nova = Number(e.target.value);
-                                  if (nova !== item.quantidade) {
-                                    salvarQuantidadeItem(item.id, nova);
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    const nova = Number((e.target as HTMLInputElement).value);
-                                    if (nova !== item.quantidade) {
-                                      salvarQuantidadeItem(item.id, nova);
-                                    }
-                                    (e.target as HTMLInputElement).blur();
-                                  }
-                                }}
-                              />
-                            </div>
-                          ) : (
-                            <span>{item.quantidade}</span>
-                          )}
+                          {modoEdicaoSolicitacao && itemEdicao
+                            ? <Input value={itemEdicao.especificacao} onChange={(e) => atualizarItemEdicao(i, 'especificacao', e.target.value)} placeholder="Medida, material, acabamento..." />
+                            : item.especificacao || item.item_snapshot?.especificacao || '-'}
                         </TableCell>
-                        <TableCell>{item.unidade}</TableCell>
+                        <TableCell>
+                          {modoEdicaoSolicitacao && itemEdicao ? <Input type="number" min="0.01" step="0.01" className="w-24" value={itemEdicao.quantidade} onChange={(e) => atualizarItemEdicao(i, 'quantidade', e.target.value)} /> : <span>{item.quantidade}</span>}
+                        </TableCell>
+                        <TableCell>{modoEdicaoSolicitacao && itemEdicao ? <Input className="w-20" value={itemEdicao.unidade} onChange={(e) => atualizarItemEdicao(i, 'unidade', e.target.value)} /> : item.unidade}</TableCell>
                         <TableCell>
                           <Badge variant={vaiParaCompra ? 'secondary' : 'default'}>
                             {vaiParaCompra ? 'Previsão de Necessidade (PN)' : 'Estoque'}
                           </Badge>
                         </TableCell>
-                        <TableCell>{item.observacoes || '-'}</TableCell>
+                        <TableCell>{modoEdicaoSolicitacao && itemEdicao ? <Input value={itemEdicao.observacoes} onChange={(e) => atualizarItemEdicao(i, 'observacoes', e.target.value)} /> : item.observacoes || '-'}</TableCell>
                       </TableRow>
                     );
                   })}
@@ -1094,12 +1148,20 @@ export const SolicitacaoMaterial = () => {
                   </Button>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {solicitacaoSelecionada.status === 'pendente' && solicitacaoSelecionada.solicitante_id === user?.id && (
+                  {modoEdicaoSolicitacao && (
+                    <>
+                      <Button variant="outline" disabled={salvandoEdicaoSolicitacao} onClick={() => { setModoEdicaoSolicitacao(false); setEdicaoSolicitacao(null); }}>Cancelar edição</Button>
+                      <Button disabled={salvandoEdicaoSolicitacao} onClick={() => void salvarEdicaoSolicitacao()}>
+                        <Save className="mr-2 h-4 w-4" /> {salvandoEdicaoSolicitacao ? 'Salvando...' : 'Salvar alterações'}
+                      </Button>
+                    </>
+                  )}
+                  {!modoEdicaoSolicitacao && solicitacaoSelecionada.status === 'pendente' && solicitacaoSelecionada.solicitante_id === user?.id && (
                     <Button variant="outline" className="gap-1 flex-1 sm:flex-none" onClick={() => abrirAdicaoItens(solicitacaoSelecionada)}>
                       <Plus className="h-4 w-4 shrink-0" /> <span className="truncate">Adicionar itens</span>
                     </Button>
                   )}
-                  {canManageStock() && solicitacaoSelecionada.status === 'pendente' && (
+                  {!modoEdicaoSolicitacao && canManageStock() && solicitacaoSelecionada.status === 'pendente' && (
                     <>
                       <Button variant="outline" className="text-red-400 border-red-400/30 flex-1 sm:flex-none" onClick={() => rejeitarSolicitacao(solicitacaoSelecionada.id)}>
                         <X className="h-4 w-4 mr-1 shrink-0" /> <span className="truncate">Rejeitar</span>
@@ -1109,7 +1171,7 @@ export const SolicitacaoMaterial = () => {
                       </Button>
                     </>
                   )}
-                  {canManageStock() && solicitacaoSelecionada.status === 'aprovada' && (
+                  {!modoEdicaoSolicitacao && canManageStock() && solicitacaoSelecionada.status === 'aprovada' && (
                     <Button
                       className="gap-1 bg-primary hover:bg-primary/90 flex-1 sm:flex-none"
                       disabled={!solicitacaoSelecionada.local_origem_id || !solicitacaoSelecionada.local_origem}
@@ -1119,7 +1181,7 @@ export const SolicitacaoMaterial = () => {
                       <ArrowRight className="h-4 w-4 shrink-0" /> <span className="truncate">Converter em Retirada</span>
                     </Button>
                   )}
-                  {isAdmin() && (
+                  {!modoEdicaoSolicitacao && isAdmin() && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="destructive" className="gap-1">
@@ -1271,9 +1333,15 @@ export const SolicitacaoMaterial = () => {
               </Button>
             </div>
 
-            <div>
-              <Label>Observação do item (opcional)</Label>
-              <Input value={obsItem} onChange={(e) => setObsItem(e.target.value)} placeholder="Ex: urgente, especificação..." />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label>Especificação do material</Label>
+                <Input value={especificacaoItem} onChange={(e) => setEspecificacaoItem(e.target.value)} placeholder="Ex: seção, comprimento, espécie, acabamento..." />
+              </div>
+              <div>
+                <Label>Observação do item (opcional)</Label>
+                <Input value={obsItem} onChange={(e) => setObsItem(e.target.value)} placeholder="Ex: urgente, referência de uso..." />
+              </div>
             </div>
 
             <Separator />
@@ -1287,6 +1355,7 @@ export const SolicitacaoMaterial = () => {
                     <TableRow>
                       <TableHead>Foto</TableHead>
                       <TableHead>Item</TableHead>
+                      <TableHead>Especificação</TableHead>
                       <TableHead>Qtd</TableHead>
                       <TableHead>Unidade</TableHead>
                       <TableHead>Destino</TableHead>
@@ -1309,6 +1378,7 @@ export const SolicitacaoMaterial = () => {
                               <span className="block text-xs text-muted-foreground">Cód: {item.item_snapshot.codigoBarras}</span>
                             )}
                           </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{item.especificacao || item.item_snapshot?.especificacao || '-'}</TableCell>
                           <TableCell>{item.quantidade}</TableCell>
                           <TableCell>{item.unidade}</TableCell>
                           <TableCell>
