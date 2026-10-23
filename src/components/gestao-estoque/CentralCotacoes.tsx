@@ -268,6 +268,7 @@ export function CentralCotacoes() {
   const [itensSolicitacao, setItensSolicitacao] = useState<SolicitacaoItem[]>([]);
   const [carregandoProcesso, setCarregandoProcesso] = useState(false);
   const [solicitacaoImportacaoIds, setSolicitacaoImportacaoIds] = useState<string[]>([]);
+  const [cotacaoImportacaoId, setCotacaoImportacaoId] = useState<string | null>(null);
   const [editandoSolicitacao, setEditandoSolicitacao] = useState(false);
   const [salvandoSolicitacao, setSalvandoSolicitacao] = useState(false);
   const [edicaoSolicitacao, setEdicaoSolicitacao] = useState<{
@@ -497,7 +498,11 @@ export function CentralCotacoes() {
     }
   };
 
-  const importarPdf = async (file?: File, solicitacaoIds: string[] = []) => {
+  const importarPdf = async (
+    file?: File,
+    solicitacaoIds: string[] = [],
+    cotacaoExistenteId: string | null = null,
+  ) => {
     if (!file || !user?.id) return;
     if (file.type !== 'application/pdf') {
       toast.error('Selecione um arquivo PDF.');
@@ -510,28 +515,41 @@ export function CentralCotacoes() {
 
     setImportando(true);
     try {
-      const { data: created, error: createError } = await (supabase.from as any)('cotacoes')
-        .insert({
-          tipo: 'global',
-          status: 'em_validacao',
-          origem_cadastro: 'pdf',
-          leitura_status: 'pendente',
-          arquivo_nome: file.name,
-          arquivo_mime: file.type,
-          criado_por: user.id,
-          criado_por_nome: userProfile?.nome || user.email || 'Usuário',
-          solicitacao_id: solicitacaoIds[0] || null,
-        })
-        .select('*')
-        .single();
+      const operacao = cotacaoExistenteId
+        ? (supabase.from as any)('cotacoes')
+          .update({
+            status: 'em_validacao',
+            origem_cadastro: 'pdf',
+            leitura_status: 'pendente',
+            arquivo_nome: file.name,
+            arquivo_mime: file.type,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', cotacaoExistenteId)
+        : (supabase.from as any)('cotacoes')
+          .insert({
+            tipo: 'global',
+            status: 'em_validacao',
+            origem_cadastro: 'pdf',
+            leitura_status: 'pendente',
+            arquivo_nome: file.name,
+            arquivo_mime: file.type,
+            criado_por: user.id,
+            criado_por_nome: userProfile?.nome || user.email || 'Usuário',
+            solicitacao_id: solicitacaoIds[0] || null,
+          });
+
+      const { data: created, error: createError } = await operacao.select('*').single();
 
       if (createError) throw createError;
 
-      const { error: vinculosError } = await (supabase as any).rpc('cotacao_definir_solicitacoes_v1', {
-        p_cotacao_id: created.id,
-        p_solicitacao_ids: solicitacaoIds,
-      });
-      if (vinculosError) throw vinculosError;
+      if (!cotacaoExistenteId || solicitacaoIds.length > 0) {
+        const { error: vinculosError } = await (supabase as any).rpc('cotacao_definir_solicitacoes_v1', {
+          p_cotacao_id: created.id,
+          p_solicitacao_ids: solicitacaoIds,
+        });
+        if (vinculosError) throw vinculosError;
+      }
 
       const safeName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]+/g, '_');
       const path = `${user.id}/${created.id}/${Date.now()}_${safeName}`;
@@ -583,6 +601,7 @@ export function CentralCotacoes() {
       setImportando(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
       setSolicitacaoImportacaoIds([]);
+      setCotacaoImportacaoId(null);
     }
   };
 
@@ -837,8 +856,15 @@ export function CentralCotacoes() {
   };
 
   const importarPdfDaSolicitacao = (solicitacao: Solicitacao) => {
+    setCotacaoImportacaoId(null);
     setSolicitacaoImportacaoIds([solicitacao.id]);
     setProcessoSolicitacaoOpen(false);
+    window.setTimeout(() => fileInputRef.current?.click(), 0);
+  };
+
+  const importarPdfNaCotacao = (cotacao: Cotacao) => {
+    setCotacaoImportacaoId(cotacao.id);
+    setSolicitacaoImportacaoIds(cotacao.solicitacao_ids || []);
     window.setTimeout(() => fileInputRef.current?.click(), 0);
   };
 
@@ -1130,6 +1156,7 @@ export function CentralCotacoes() {
     cutoff.setDate(cutoff.getDate() - Number(periodoDias));
 
     return cotacoes.filter((cotacao) => {
+      if (!cotacao.arquivo_path) return false;
       if (tipoFiltro !== 'todos' && cotacao.tipo !== tipoFiltro) return false;
       if (veiculoFiltro !== 'todos' && cotacao.tipo_veiculo !== veiculoFiltro) return false;
       if (new Date(cotacao.created_at) < cutoff) return false;
@@ -1157,6 +1184,11 @@ export function CentralCotacoes() {
     );
     return !possuiPdfVinculado;
   }), [solicitacoes, cotacoes]);
+
+  const cotacoesSemPdf = useMemo(
+    () => cotacoes.filter((cotacao) => !cotacao.arquivo_path),
+    [cotacoes],
+  );
 
   const veiculosDisponiveis = useMemo(() => {
     const padrao = ['CARRETA', 'TRUCK', 'TOCO', 'VUC', 'BITREM', 'RODOTREM', 'UTILITÁRIO', 'FIORINO'];
@@ -1252,7 +1284,7 @@ export function CentralCotacoes() {
         type="file"
         accept="application/pdf"
         className="hidden"
-        onChange={(event) => void importarPdf(event.target.files?.[0], solicitacaoImportacaoIds)}
+        onChange={(event) => void importarPdf(event.target.files?.[0], solicitacaoImportacaoIds, cotacaoImportacaoId)}
       />
 
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -1263,7 +1295,11 @@ export function CentralCotacoes() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importando}>
+          <Button variant="outline" onClick={() => {
+            setCotacaoImportacaoId(null);
+            setSolicitacaoImportacaoIds([]);
+            fileInputRef.current?.click();
+          }} disabled={importando}>
             {importando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
             Importar PDF
           </Button>
@@ -1289,7 +1325,7 @@ export function CentralCotacoes() {
       <Tabs defaultValue="solicitacoes">
         <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="historico">Consulta histórica</TabsTrigger>
-          <TabsTrigger value="solicitacoes">Solicitações ({solicitacoesFila.length})</TabsTrigger>
+          <TabsTrigger value="solicitacoes">Solicitações ({solicitacoesFila.length + cotacoesSemPdf.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="historico" className="mt-4 space-y-4">
@@ -1432,7 +1468,7 @@ export function CentralCotacoes() {
                 <Plus className="mr-2 h-4 w-4" /> Nova solicitação
               </Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
               <div className="overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
@@ -1502,6 +1538,49 @@ export function CentralCotacoes() {
                   </TableBody>
                 </Table>
               </div>
+              {cotacoesSemPdf.length > 0 && (
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="font-semibold">Cotações aguardando orçamento</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Registros já iniciados que ainda não possuem PDF. Ao anexar, saem desta fila e entram na consulta histórica.
+                    </p>
+                  </div>
+                  <div className="overflow-x-auto rounded-lg border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nº</TableHead><TableHead>Data</TableHead><TableHead>Tipo</TableHead><TableHead>Fornecedor</TableHead><TableHead>Descrição / trajeto</TableHead><TableHead>Projeto</TableHead><TableHead className="text-right">Ação</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {cotacoesSemPdf.map((cotacao) => (
+                          <TableRow key={cotacao.id} className="bg-amber-500/5">
+                            <TableCell className="font-semibold text-amber-500">Cotação #{cotacao.numero}</TableCell>
+                            <TableCell>{dataPt(cotacao.data_cotacao || cotacao.created_at)}</TableCell>
+                            <TableCell>{tipoLabels[cotacao.tipo]}</TableCell>
+                            <TableCell>{cotacao.fornecedor_nome || 'Não informado'}</TableCell>
+                            <TableCell>{cotacao.origem_frete && cotacao.destino_frete
+                              ? `${cotacao.origem_frete} → ${cotacao.destino_frete}`
+                              : cotacao.descricao || 'Não informado'}</TableCell>
+                            <TableCell>{cotacao.projeto_centro_custo || 'Sem projeto'}</TableCell>
+                            <TableCell>
+                              <div className="flex justify-end gap-2">
+                                <Button size="sm" variant="outline" onClick={() => void abrirEdicao(cotacao)}>
+                                  <Pencil className="mr-2 h-4 w-4" /> Abrir / editar
+                                </Button>
+                                <Button size="sm" onClick={() => importarPdfNaCotacao(cotacao)} disabled={importando}>
+                                  <Upload className="mr-2 h-4 w-4" /> Anexar orçamento
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

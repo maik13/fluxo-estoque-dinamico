@@ -27,13 +27,17 @@ export const useSolicitacoesCotacaoPendentes = ({ enabled }: Options) => {
 
     setLoading(true);
     try {
-      const { data, error } = await (supabase as any).rpc(
-        'contar_solicitacoes_cotacao_pendentes_v1',
-      );
+      const [{ data, error }, { count: cotacoesSemPdf, error: cotacoesError }] = await Promise.all([
+        (supabase as any).rpc('contar_solicitacoes_cotacao_pendentes_v1'),
+        (supabase.from as any)('cotacoes')
+          .select('id', { count: 'exact', head: true })
+          .is('arquivo_path', null),
+      ]);
 
       if (error) throw error;
+      if (cotacoesError) throw cotacoesError;
 
-      const atual = Number(data ?? 0);
+      const atual = Number(data ?? 0) + Number(cotacoesSemPdf ?? 0);
       const anterior = previousCountRef.current;
       setPendentesCount(atual);
 
