@@ -1468,8 +1468,8 @@ export function CentralCotacoes() {
                 <Plus className="mr-2 h-4 w-4" /> Nova solicitação
               </Button>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="overflow-x-auto rounded-lg border">
+            <CardContent className="flex flex-col gap-6">
+              <div className="order-2 overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1539,7 +1539,7 @@ export function CentralCotacoes() {
                 </Table>
               </div>
               {cotacoesSemPdf.length > 0 && (
-                <div className="space-y-3">
+                <div className="order-1 space-y-3">
                   <div>
                     <h3 className="font-semibold">Cotações aguardando orçamento</h3>
                     <p className="text-sm text-muted-foreground">
