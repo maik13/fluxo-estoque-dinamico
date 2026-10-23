@@ -287,8 +287,8 @@ export function CentralCotacoes() {
     observacoes: '',
   });
 
-  const carregar = async () => {
-    setLoading(true);
+  const carregar = async (exibirLoading = true) => {
+    if (exibirLoading) setLoading(true);
     try {
       const [{ data: cotacoesData, error: cotacoesError }, { data: solicitacoesData, error: solicitacoesError }, { data: vinculosData, error: vinculosError }] =
         await Promise.all([
@@ -316,7 +316,7 @@ export function CentralCotacoes() {
       console.error(error);
       toast.error('Não foi possível carregar a Central de Cotações.');
     } finally {
-      setLoading(false);
+      if (exibirLoading) setLoading(false);
     }
   };
 
@@ -489,7 +489,10 @@ export function CentralCotacoes() {
 
       toast.success(confirmar ? 'Cotação confirmada e vinculada ao processo.' : 'Cotação salva.');
       setEditorOpen(false);
-      await carregar();
+      // O salvamento termina quando a gravação foi confirmada pelo banco. A
+      // recarga da listagem é secundária e não pode transformar lentidão da
+      // página em uma falsa mensagem de erro ao salvar.
+      void carregar(false);
     } catch (error: any) {
       console.error(error);
       toast.error(error?.message || 'Não foi possível salvar a cotação.');
@@ -1141,7 +1144,7 @@ export function CentralCotacoes() {
         fornecedores_solicitados: '',
         observacoes: '',
       });
-      await carregar();
+      void carregar(false);
     } catch (error: any) {
       console.error(error);
       toast.error(error?.message || 'Não foi possível criar a solicitação.');
@@ -1468,8 +1471,8 @@ export function CentralCotacoes() {
                 <Plus className="mr-2 h-4 w-4" /> Nova solicitação
               </Button>
             </CardHeader>
-            <CardContent className="flex flex-col gap-6">
-              <div className="order-2 overflow-x-auto rounded-lg border">
+            <CardContent>
+              <div className="overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1532,55 +1535,37 @@ export function CentralCotacoes() {
                         </TableRow>
                       );
                     })}
-                    {solicitacoesFila.length === 0 && (
+                    {cotacoesSemPdf.map((cotacao) => (
+                      <TableRow key={`cotacao-${cotacao.id}`} className="bg-amber-500/5">
+                        <TableCell className="font-semibold text-amber-500">COT-{String(cotacao.numero).padStart(4, '0')}</TableCell>
+                        <TableCell>
+                          <div className="font-medium">{cotacao.descricao || cotacao.fornecedor_nome || 'Cotação aguardando orçamento'}</div>
+                          <div className="text-xs text-muted-foreground">{cotacao.projeto_centro_custo || 'Sem projeto vinculado'}</div>
+                        </TableCell>
+                        <TableCell>{cotacao.fornecedor_nome || 'Não informado'}</TableCell>
+                        <TableCell>{tipoLabels[cotacao.tipo]}</TableCell>
+                        <TableCell>{dataPt(cotacao.data_cotacao || cotacao.created_at)}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">Aguardando PDF</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end gap-2">
+                            <Button size="sm" variant="outline" onClick={() => void abrirEdicao(cotacao)}>
+                              <Pencil className="mr-2 h-4 w-4" /> Abrir / editar
+                            </Button>
+                            <Button size="sm" onClick={() => importarPdfNaCotacao(cotacao)} disabled={importando}>
+                              <Upload className="mr-2 h-4 w-4" /> Anexar orçamento
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {solicitacoesFila.length === 0 && cotacoesSemPdf.length === 0 && (
                       <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Nenhuma solicitação aguardando orçamento em PDF.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
               </div>
-              {cotacoesSemPdf.length > 0 && (
-                <div className="order-1 space-y-3">
-                  <div>
-                    <h3 className="font-semibold">Cotações aguardando orçamento</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Registros já iniciados que ainda não possuem PDF. Ao anexar, saem desta fila e entram na consulta histórica.
-                    </p>
-                  </div>
-                  <div className="overflow-x-auto rounded-lg border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nº</TableHead><TableHead>Data</TableHead><TableHead>Tipo</TableHead><TableHead>Fornecedor</TableHead><TableHead>Descrição / trajeto</TableHead><TableHead>Projeto</TableHead><TableHead className="text-right">Ação</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {cotacoesSemPdf.map((cotacao) => (
-                          <TableRow key={cotacao.id} className="bg-amber-500/5">
-                            <TableCell className="font-semibold text-amber-500">Cotação #{cotacao.numero}</TableCell>
-                            <TableCell>{dataPt(cotacao.data_cotacao || cotacao.created_at)}</TableCell>
-                            <TableCell>{tipoLabels[cotacao.tipo]}</TableCell>
-                            <TableCell>{cotacao.fornecedor_nome || 'Não informado'}</TableCell>
-                            <TableCell>{cotacao.origem_frete && cotacao.destino_frete
-                              ? `${cotacao.origem_frete} → ${cotacao.destino_frete}`
-                              : cotacao.descricao || 'Não informado'}</TableCell>
-                            <TableCell>{cotacao.projeto_centro_custo || 'Sem projeto'}</TableCell>
-                            <TableCell>
-                              <div className="flex justify-end gap-2">
-                                <Button size="sm" variant="outline" onClick={() => void abrirEdicao(cotacao)}>
-                                  <Pencil className="mr-2 h-4 w-4" /> Abrir / editar
-                                </Button>
-                                <Button size="sm" onClick={() => importarPdfNaCotacao(cotacao)} disabled={importando}>
-                                  <Upload className="mr-2 h-4 w-4" /> Anexar orçamento
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
         </TabsContent>
