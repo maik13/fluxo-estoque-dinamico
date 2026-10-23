@@ -27,13 +27,13 @@ export const useSolicitacoesCotacaoPendentes = ({ enabled }: Options) => {
 
     setLoading(true);
     try {
-      const { count, error } = await (supabase.from as any)('cotacao_solicitacoes')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'solicitada');
+      const { data, error } = await (supabase as any).rpc(
+        'contar_solicitacoes_cotacao_pendentes_v1',
+      );
 
       if (error) throw error;
 
-      const atual = count ?? 0;
+      const atual = Number(data ?? 0);
       const anterior = previousCountRef.current;
       setPendentesCount(atual);
 
@@ -80,6 +80,16 @@ export const useSolicitacoesCotacaoPendentes = ({ enabled }: Options) => {
         () => {
           void carregarPendentes(true);
         },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'cotacoes' },
+        () => void carregarPendentes(false),
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'cotacao_solicitacoes_vinculos' },
+        () => void carregarPendentes(false),
       )
       .subscribe();
 

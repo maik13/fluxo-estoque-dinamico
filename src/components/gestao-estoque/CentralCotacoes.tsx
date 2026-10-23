@@ -486,13 +486,6 @@ export function CentralCotacoes() {
         if (error) throw error;
       }
 
-      if (form.solicitacao_ids.length > 0) {
-        await (supabase.from as any)('cotacao_solicitacoes')
-          .update({ status: 'em_analise', updated_at: new Date().toISOString() })
-          .in('id', form.solicitacao_ids)
-          .in('status', ['solicitada', 'aguardando_propostas']);
-      }
-
       toast.success(confirmar ? 'Cotação confirmada e vinculada ao processo.' : 'Cotação salva.');
       setEditorOpen(false);
       await carregar();
@@ -569,6 +562,7 @@ export function CentralCotacoes() {
           .update({ status: 'em_analise', updated_at: new Date().toISOString() })
           .in('id', solicitacaoIds)
           .in('status', ['solicitada', 'aguardando_propostas']);
+        window.dispatchEvent(new CustomEvent('cotacao-solicitacao-atualizada'));
       }
 
       await carregar();
@@ -1155,6 +1149,15 @@ export function CentralCotacoes() {
     });
   }, [busca, cotacoes, tipoFiltro, veiculoFiltro, periodoDias]);
 
+  const solicitacoesFila = useMemo(() => solicitacoes.filter((solicitacao) => {
+    if (['encerrada', 'cancelada'].includes(solicitacao.status)) return false;
+    const possuiPdfVinculado = cotacoes.some((cotacao) =>
+      Boolean(cotacao.arquivo_path)
+      && (cotacao.solicitacao_ids || []).includes(solicitacao.id)
+    );
+    return !possuiPdfVinculado;
+  }), [solicitacoes, cotacoes]);
+
   const veiculosDisponiveis = useMemo(() => {
     const padrao = ['CARRETA', 'TRUCK', 'TOCO', 'VUC', 'BITREM', 'RODOTREM', 'UTILITÁRIO', 'FIORINO'];
     const existentes = cotacoes
@@ -1283,10 +1286,10 @@ export function CentralCotacoes() {
         <Card><CardHeader className="pb-2"><CardDescription>Convertidas em PN</CardDescription><CardTitle className="text-2xl">{kpis.pn}</CardTitle></CardHeader></Card>
       </div>
 
-      <Tabs defaultValue="historico">
+      <Tabs defaultValue="solicitacoes">
         <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="historico">Consulta histórica</TabsTrigger>
-          <TabsTrigger value="solicitacoes">Solicitações</TabsTrigger>
+          <TabsTrigger value="solicitacoes">Solicitações ({solicitacoesFila.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="historico" className="mt-4 space-y-4">
@@ -1418,9 +1421,16 @@ export function CentralCotacoes() {
 
         <TabsContent value="solicitacoes" className="mt-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Solicitações de cotação</CardTitle>
-              <CardDescription>Registre o que precisa ser cotado antes de receber os orçamentos.</CardDescription>
+            <CardHeader className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+              <div>
+                <CardTitle className="text-lg">Solicitações de cotação</CardTitle>
+                <CardDescription>
+                  Fila ativa. A solicitação permanece aqui até receber um orçamento em PDF.
+                </CardDescription>
+              </div>
+              <Button onClick={() => setSolicitacaoOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" /> Nova solicitação
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto rounded-lg border">
@@ -1431,7 +1441,7 @@ export function CentralCotacoes() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {solicitacoes.map((s) => {
+                    {solicitacoesFila.map((s) => {
                       const propostas = cotacoes.filter((cotacao) => (cotacao.solicitacao_ids || []).includes(s.id)).length;
                       return (
                         <TableRow key={s.id} className={s.status === 'solicitada' ? 'bg-amber-500/5' : undefined}>
@@ -1486,8 +1496,8 @@ export function CentralCotacoes() {
                         </TableRow>
                       );
                     })}
-                    {solicitacoes.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Nenhuma solicitação cadastrada.</TableCell></TableRow>
+                    {solicitacoesFila.length === 0 && (
+                      <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Nenhuma solicitação aguardando orçamento em PDF.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
