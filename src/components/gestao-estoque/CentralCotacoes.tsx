@@ -736,6 +736,7 @@ export function CentralCotacoes() {
       if (error) throw error;
 
       toast.success('Solicitação assumida pelo Almoxarifado.');
+      window.dispatchEvent(new CustomEvent('cotacao-solicitacao-atualizada'));
       await carregar();
       await abrirProcessoSolicitacao((data || solicitacao) as Solicitacao);
     } catch (error: any) {

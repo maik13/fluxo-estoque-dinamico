@@ -10,6 +10,7 @@ export const useSolicitacoesCotacaoPendentes = ({ enabled }: Options) => {
   const [pendentesCount, setPendentesCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const previousCountRef = useRef<number | null>(null);
+  const carregandoRef = useRef(false);
 
   const carregarPendentes = useCallback(async (notificarAumento: boolean) => {
     if (!enabled) {
@@ -18,6 +19,11 @@ export const useSolicitacoesCotacaoPendentes = ({ enabled }: Options) => {
       setLoading(false);
       return;
     }
+
+    // Realtime, foco da janela e o evento local podem ocorrer juntos. Uma única
+    // consulta é suficiente e evita contagens concorrentes fora de ordem.
+    if (carregandoRef.current) return;
+    carregandoRef.current = true;
 
     setLoading(true);
     try {
@@ -46,6 +52,7 @@ export const useSolicitacoesCotacaoPendentes = ({ enabled }: Options) => {
     } catch (error) {
       console.error('Erro ao carregar solicitações de orçamento pendentes:', error);
     } finally {
+      carregandoRef.current = false;
       setLoading(false);
     }
   }, [enabled]);
@@ -76,7 +83,25 @@ export const useSolicitacoesCotacaoPendentes = ({ enabled }: Options) => {
       )
       .subscribe();
 
+    const atualizarPorEventoLocal = () => void carregarPendentes(true);
+    const atualizarAoRetomar = () => {
+      if (document.visibilityState === 'visible') void carregarPendentes(false);
+    };
+
+    // O aviso não depende apenas do Realtime: permanece correto após retorno à
+    // aba, criação no mesmo navegador e eventuais interrupções de conexão.
+    window.addEventListener('cotacao-solicitacao-criada', atualizarPorEventoLocal);
+    window.addEventListener('cotacao-solicitacao-atualizada', atualizarPorEventoLocal);
+    window.addEventListener('focus', atualizarAoRetomar);
+    document.addEventListener('visibilitychange', atualizarAoRetomar);
+    const polling = window.setInterval(() => void carregarPendentes(false), 30_000);
+
     return () => {
+      window.removeEventListener('cotacao-solicitacao-criada', atualizarPorEventoLocal);
+      window.removeEventListener('cotacao-solicitacao-atualizada', atualizarPorEventoLocal);
+      window.removeEventListener('focus', atualizarAoRetomar);
+      document.removeEventListener('visibilitychange', atualizarAoRetomar);
+      window.clearInterval(polling);
       void supabase.removeChannel(channel);
     };
   }, [enabled, carregarPendentes]);
