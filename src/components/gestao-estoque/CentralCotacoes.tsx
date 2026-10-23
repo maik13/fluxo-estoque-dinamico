@@ -1575,7 +1575,7 @@ export function CentralCotacoes() {
         setProcessoSolicitacaoOpen(aberto);
         if (!aberto) { setEditandoSolicitacao(false); setEdicaoSolicitacao(null); }
       }}>
-        <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
+        <DialogContent className="max-h-[92vh] w-[96vw] max-w-[1500px] overflow-y-auto">
           <DialogHeader>
             <div className="flex flex-wrap items-center justify-between gap-3 pr-8">
               <DialogTitle>
@@ -1704,7 +1704,7 @@ export function CentralCotacoes() {
                 </p>
               )}
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 xl:flex-nowrap">
                 <Button variant="outline" onClick={() => void baixarPdfSolicitacao(solicitacaoSelecionada)}>
                   <Download className="mr-2 h-4 w-4" /> Baixar PDF
                 </Button>
@@ -1768,7 +1768,7 @@ export function CentralCotacoes() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="flex justify-end gap-1">
+                            <div className="flex justify-end gap-1 whitespace-nowrap">
                               <Button variant="ghost" size="sm" onClick={() => void abrirEdicao(cotacao)}>
                                 <Pencil className="mr-1 h-4 w-4" /> Abrir
                               </Button>
