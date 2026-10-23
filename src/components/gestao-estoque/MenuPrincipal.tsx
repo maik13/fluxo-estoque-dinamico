@@ -532,7 +532,7 @@ export const MenuPrincipal = ({
           </Button>
         </div>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
 
         {/* LINHA 1: Retirada, Devolução, Cadastro, Transferência, Entrada */}
         {canSolicitarMaterial() && <SolicitarMaterial />}
@@ -895,18 +895,12 @@ export const MenuPrincipal = ({
         {canTransferir() && <Transferencia />}
 
         {/* Registrar Entrada */}
-        {canRegistrarEntrada() && <div className="order-6"><RegistrarEntrada /></div>}
+        {canRegistrarEntrada() && <div className="order-6 [&>*]:h-full"><RegistrarEntrada /></div>}
 
-        {/* O fluxo de compras permanece junto e em uma única linha no desktop. */}
-        <div className="order-8 col-span-full grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 xl:grid-cols-4">
-          {userProfile?.ativo && <SolicitacaoMaterial />}
-          {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && <PrevisoesNecessidadeAlmoxarifado />}
-          {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && <PedidoCompra />}
-          {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && <PedidosCompraFormaisAlmoxarifado />}
-        </div>
+        {userProfile?.ativo && <div className="order-7 [&>*]:h-full"><SolicitacaoMaterial /></div>}
 
         {/* BOTÃO SAÍDA */}
-        {canRegistrarSaida() && <div className="order-7"><Dialog open={dialogoSaida} onOpenChange={(aberto) => {
+        {canRegistrarSaida() && <div className="order-8 [&>*]:h-full"><Dialog open={dialogoSaida} onOpenChange={(aberto) => {
           if (!aberto) {
             fecharDialogoSaida();
           } else {
@@ -1143,6 +1137,16 @@ export const MenuPrincipal = ({
             </form>
           </DialogContent>
         </Dialog></div>}
+
+        {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && (
+          <div className="order-9 [&>*]:h-full"><PrevisoesNecessidadeAlmoxarifado /></div>
+        )}
+        {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && (
+          <div className="order-10 [&>*]:h-full"><PedidoCompra /></div>
+        )}
+        {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && (
+          <div className="order-11 [&>*]:h-full"><PedidosCompraFormaisAlmoxarifado /></div>
+        )}
       </div>
 
     </div>
