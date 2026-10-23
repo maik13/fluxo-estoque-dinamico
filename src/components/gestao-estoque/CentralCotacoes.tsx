@@ -20,6 +20,9 @@ import {
   Trash2,
   Download,
   Save,
+  ShieldCheck,
+  ShieldX,
+  Send,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
@@ -97,6 +100,8 @@ type Cotacao = {
   leitura_status: string;
   leitura_erro: string | null;
   financeiro_necessidade_id: string | null;
+  aprovacao_status: 'pendente' | 'aprovada' | 'rejeitada' | null;
+  aprovacao_justificativa: string | null;
   solicitacao_id: string | null;
   solicitacao_ids?: string[];
   created_at: string;
@@ -236,7 +241,7 @@ const emptyForm = {
 
 export function CentralCotacoes() {
   const { user } = useAuth();
-  const { userProfile, hasPermission, isAdmin, isEstoquista } = usePermissions();
+  const { userProfile, hasPermission, isAdmin, isGestor, isEstoquista } = usePermissions();
   const { obterEstoque } = useEstoqueContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -695,6 +700,10 @@ export function CentralCotacoes() {
   };
 
   const converterEmPn = async (cotacao: Cotacao) => {
+    if (cotacao.aprovacao_status !== 'aprovada') {
+      toast.error('O orçamento precisa ser aprovado pelo gestor antes de virar PN.');
+      return;
+    }
     if (!confirm(`Converter a cotação #${cotacao.numero} em PN?`)) return;
     try {
       const { data, error } = await (supabase as any).rpc('cotacao_converter_em_pn_integrada_v1', {
@@ -717,6 +726,42 @@ export function CentralCotacoes() {
       toast.error(error?.message || 'Não foi possível converter a cotação em PN.');
     }
   };
+
+  const enviarParaAprovacao = async (cotacao: Cotacao) => {
+    try {
+      const { error } = await (supabase as any).rpc('cotacao_solicitar_aprovacao_v1', {
+        p_cotacao_id: cotacao.id,
+      });
+      if (error) throw error;
+      toast.success(`Cotação #${cotacao.numero} enviada para aprovação do gestor.`);
+      await carregar(false);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível enviar a cotação para aprovação.');
+    }
+  };
+
+  const decidirAprovacao = async (cotacao: Cotacao, aprovar: boolean) => {
+    const justificativa = aprovar
+      ? null
+      : window.prompt('Informe o motivo da rejeição deste orçamento:');
+    if (!aprovar && !justificativa?.trim()) return;
+    try {
+      const { error } = await (supabase as any).rpc('cotacao_decidir_aprovacao_v1', {
+        p_cotacao_id: cotacao.id,
+        p_aprovar: aprovar,
+        p_justificativa: justificativa,
+      });
+      if (error) throw error;
+      toast.success(aprovar ? 'Orçamento aprovado.' : 'Orçamento rejeitado.');
+      await carregar(false);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível registrar a decisão.');
+    }
+  };
+
+  const podeAprovarCotacao = isAdmin() || isGestor() || hasPermission('compras.pedidos.aprovar');
 
   const abrirProcessoSolicitacao = async (solicitacao: Solicitacao) => {
     setCarregandoProcesso(true);
@@ -1413,7 +1458,12 @@ export function CentralCotacoes() {
                           <TableCell>{cotacao.tipo === 'frete' ? (cotacao.tipo_veiculo || '—') : '—'}</TableCell>
                           <TableCell className="text-right font-medium">{moeda(cotacao.valor_total)}</TableCell>
                           <TableCell>
-                            <Badge variant={cotacao.status === 'rejeitada' ? 'destructive' : 'outline'}>{statusLabels[cotacao.status] || cotacao.status}</Badge>
+                            <div className="flex flex-col items-start gap-1">
+                              <Badge variant={cotacao.status === 'rejeitada' ? 'destructive' : 'outline'}>{statusLabels[cotacao.status] || cotacao.status}</Badge>
+                              {cotacao.aprovacao_status === 'pendente' && <Badge variant="secondary">Aguardando gestor</Badge>}
+                              {cotacao.aprovacao_status === 'aprovada' && <Badge className="bg-emerald-600">Orçamento aprovado</Badge>}
+                              {cotacao.aprovacao_status === 'rejeitada' && <Badge variant="destructive">Orçamento rejeitado</Badge>}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex justify-end gap-1">
@@ -1438,7 +1488,22 @@ export function CentralCotacoes() {
                                     : <Trash2 className="h-4 w-4 text-destructive" />}
                                 </Button>
                               )}
-                              {['confirmada', 'escolhida'].includes(cotacao.status) && !cotacao.financeiro_necessidade_id && (
+                              {cotacao.status === 'escolhida' && !cotacao.financeiro_necessidade_id && !['pendente', 'aprovada'].includes(cotacao.aprovacao_status || '') && (
+                                <Button variant="ghost" size="icon" onClick={() => void enviarParaAprovacao(cotacao)} title="Enviar para aprovação">
+                                  <Send className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {cotacao.aprovacao_status === 'pendente' && podeAprovarCotacao && (
+                                <>
+                                  <Button variant="ghost" size="icon" onClick={() => void decidirAprovacao(cotacao, true)} title="Aprovar orçamento">
+                                    <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" onClick={() => void decidirAprovacao(cotacao, false)} title="Rejeitar orçamento">
+                                    <ShieldX className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </>
+                              )}
+                              {cotacao.status === 'escolhida' && cotacao.aprovacao_status === 'aprovada' && !cotacao.financeiro_necessidade_id && (
                                 <Button variant="ghost" size="icon" onClick={() => void converterEmPn(cotacao)} title="Converter em PN">
                                   <ArrowRightLeft className="h-4 w-4" />
                                 </Button>
@@ -1763,9 +1828,19 @@ export function CentralCotacoes() {
                           <TableCell>{cotacao.prazo_dias ? `${cotacao.prazo_dias} dias` : '—'}</TableCell>
                           <TableCell className="text-right font-semibold">{moeda(cotacao.valor_total)}</TableCell>
                           <TableCell>
-                            <Badge variant={cotacao.status === 'rejeitada' ? 'destructive' : 'outline'}>
-                              {statusLabels[cotacao.status] || cotacao.status}
-                            </Badge>
+                            <div className="flex flex-col items-start gap-1">
+                              <Badge variant={cotacao.status === 'rejeitada' ? 'destructive' : 'outline'}>
+                                {statusLabels[cotacao.status] || cotacao.status}
+                              </Badge>
+                              {cotacao.aprovacao_status === 'pendente' && <Badge variant="secondary">Aguardando gestor</Badge>}
+                              {cotacao.aprovacao_status === 'aprovada' && <Badge className="bg-emerald-600">Aprovado</Badge>}
+                              {cotacao.aprovacao_status === 'rejeitada' && (
+                                <div>
+                                  <Badge variant="destructive">Rejeitado</Badge>
+                                  {cotacao.aprovacao_justificativa && <p className="mt-1 max-w-52 whitespace-normal text-xs text-destructive">{cotacao.aprovacao_justificativa}</p>}
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex justify-end gap-1 whitespace-nowrap">
@@ -1782,7 +1857,22 @@ export function CentralCotacoes() {
                                   Escolher
                                 </Button>
                               )}
-                              {cotacao.status === 'escolhida' && !cotacao.financeiro_necessidade_id && (
+                              {cotacao.status === 'escolhida' && !cotacao.financeiro_necessidade_id && !['pendente', 'aprovada'].includes(cotacao.aprovacao_status || '') && (
+                                <Button size="sm" onClick={() => void enviarParaAprovacao(cotacao)}>
+                                  <Send className="mr-1 h-4 w-4" /> Enviar para aprovação
+                                </Button>
+                              )}
+                              {cotacao.aprovacao_status === 'pendente' && podeAprovarCotacao && (
+                                <>
+                                  <Button size="sm" onClick={() => void decidirAprovacao(cotacao, true)}>
+                                    <ShieldCheck className="mr-1 h-4 w-4" /> Aprovar
+                                  </Button>
+                                  <Button size="sm" variant="destructive" onClick={() => void decidirAprovacao(cotacao, false)}>
+                                    <ShieldX className="mr-1 h-4 w-4" /> Rejeitar
+                                  </Button>
+                                </>
+                              )}
+                              {cotacao.status === 'escolhida' && cotacao.aprovacao_status === 'aprovada' && !cotacao.financeiro_necessidade_id && (
                                 <Button size="sm" onClick={() => void converterEmPn(cotacao)}>
                                   <ArrowRightLeft className="mr-1 h-4 w-4" /> Converter em PN
                                 </Button>
