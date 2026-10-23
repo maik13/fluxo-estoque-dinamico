@@ -254,75 +254,17 @@ export const EstoqueProvider = ({ children }: { children: React.ReactNode }) => 
     tipoOperacaoId,
     destinatario,
   ) => {
-    const item = estoque.buscarItemPorCodigo(codigoBarras);
-    if (!item || !item.ativo) {
-      toast({ title: 'Saída não permitida', description: !item ? 'Item não encontrado.' : 'O item está inativo.', variant: 'destructive' });
-      return false;
-    }
-
-    const estoqueInfo = obterEstoqueAtivoInfo();
-    let saldoBanco: number;
-    try {
-      saldoBanco = await obterSaldoConfirmado(item.id, estoqueInfo?.id ?? null);
-    } catch (error) {
-      console.error('Erro ao confirmar saldo antes da saída:', error);
-      toast({ title: 'Saldo não confirmado', description: 'Não foi possível confirmar a posição atual do item. Tente novamente.', variant: 'destructive' });
-      return false;
-    }
-    const saldoProjetado = await obterSaldoProjetado(item.id, estoqueInfo?.id ?? null, saldoBanco);
-    if (saldoProjetado < quantidade) {
-      toast({ title: 'Estoque insuficiente', description: `Saldo disponível/projetado: ${saldoProjetado} ${item.unidade}.`, variant: 'destructive' });
-      return false;
-    }
-    const categoriaFerramentaId = categorias.find(
-      (categoria) => categoria.ativo && categoria.nome === 'Ferramenta',
-    )?.id;
-    if (categoriaFerramentaId && item.categoriaId === categoriaFerramentaId && quantidade > 1) {
-      toast({ title: 'Quantidade inválida', description: 'Ferramentas devem ser retiradas individualmente.', variant: 'destructive' });
-      return false;
-    }
-
-    const saldoAposCliente = saldoProjetado - quantidade;
-    const result = await submitInventoryOperation('movement_insert', {
-      item_id: item.id,
-      tipo: 'SAIDA',
+    // A implementação operacional já valida item, saldo, ferramenta e grava o
+    // movimento. A confirmação remota adicional feita aqui duplicava esse
+    // trabalho e podia atingir statement timeout antes mesmo do lançamento.
+    return estoque.registrarSaida(
+      codigoBarras,
       quantidade,
-      expected_quantity_before: saldoProjetado,
-      quantity_after_client: saldoAposCliente,
-      estoque_id: estoqueInfo?.id ?? '',
-      include_legacy_null: isEstoqueAtivoPrincipal(),
-      observacoes: observacoes ?? '',
       responsavel,
-      tipo_operacao_id: tipoOperacaoId ?? '',
-      destinatario: destinatario ?? '',
-      item_snapshot: item,
-      occurred_at: new Date().toISOString(),
-    });
-
-    if (!result.ok) {
-      if (rpcOfflineInventarioIndisponivel(result.message)) {
-        return estoque.registrarSaida(
-          codigoBarras,
-          quantidade,
-          responsavel,
-          observacoes,
-          tipoOperacaoId,
-          destinatario,
-        );
-      }
-
-      toast({ title: result.status === 'conflict' ? 'Saída requer revisão' : 'Erro na saída', description: result.message || 'Não foi possível registrar a saída.', variant: 'destructive' });
-      return false;
-    }
-
-    if (result.queued) {
-      toast({ title: 'Saída protegida offline', description: 'A saída foi guardada neste dispositivo e será lançada automaticamente quando a conexão voltar.' });
-      return true;
-    }
-
-    await estoque.carregarDados(true);
-    toast({ title: 'Saída registrada!', description: `Saída de ${quantidade} ${item.unidade} de ${item.nome}.` });
-    return true;
+      observacoes,
+      tipoOperacaoId,
+      destinatario,
+    );
   };
 
   const value: EstoqueContextType = {

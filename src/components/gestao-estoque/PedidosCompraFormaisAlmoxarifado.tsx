@@ -62,13 +62,12 @@ export function PedidosCompraFormaisAlmoxarifado() {
   };
   return <>
     <Card role="button" tabIndex={0} className="cursor-pointer transition hover:border-primary/60" onClick={abrir} onKeyDown={e=>{if(e.key==='Enter')abrir();}}>
-      <CardHeader className="text-center"><ShoppingBag className="mx-auto mb-2 h-8 w-8 text-primary"/><CardTitle>Pedidos de Compra (PC)</CardTitle><CardDescription>Cotação → PN → RC → PC, preservando o mesmo processo</CardDescription></CardHeader>
+      <CardHeader className="text-center"><ShoppingBag className="mx-auto mb-2 h-8 w-8 text-primary"/><CardTitle>Pedido de Compra</CardTitle></CardHeader>
     </Card>
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
       <DialogHeader><DialogTitle>Pedidos de Compra formais</DialogTitle><DialogDescription>Documentos vinculados às requisições de compra aprovadas. Mesmos registros do Financeiro.</DialogDescription></DialogHeader>
       <div className="flex justify-end"><Button variant="outline" onClick={()=>void carregar()} disabled={loading}><RefreshCcw className="mr-2 h-4 w-4"/>Atualizar</Button></div>
       <div className="rounded-md border p-3 space-y-3">
-        <div className="flex flex-wrap items-center gap-2 text-sm"><span className="rounded bg-muted px-2 py-1">Cotação</span><span>→</span><span className="rounded bg-muted px-2 py-1">PN</span><span>→</span><span className="rounded bg-muted px-2 py-1">RC aprovada</span><span>→</span><span className="rounded bg-primary px-2 py-1 text-primary-foreground">PC</span></div>
         <div className="font-semibold flex gap-2 items-center"><Plus className="h-4 w-4"/>Transformar uma RC aprovada em PC</div>
         <Label htmlFor="rcPc">Documento de origem</Label>
         <select id="rcPc" className="w-full rounded-md border bg-background p-2" value={form.rcId} onChange={e=>{const rc=disponiveis.find(x=>x.id===e.target.value);setForm({...form,rcId:e.target.value,fornecedor:rc?.fornecedores_consultados||'',descricao:rc?.especificacao_tecnica||'',valorItens:rc?.valor_estimado_cotado==null?'':String(rc.valor_estimado_cotado),frete:rc?.frete_custos_adicionais==null?'':String(rc.frete_custos_adicionais),condicao:rc?.condicao_pagamento||''});}}>

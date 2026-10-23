@@ -541,7 +541,7 @@ export const MenuPrincipal = ({
           <Card
             onClick={onAbrirCotacoes}
             className={cn(
-              "relative cursor-pointer transition-all duration-300 hover:scale-105",
+              "relative order-5 cursor-pointer transition-all duration-300 hover:scale-105",
               solicitacoesCotacaoPendentesCount > 0
                 ? "animate-pulse border-amber-500/60 bg-amber-500/5 shadow-[0_0_0_1px_hsl(var(--warning)/0.15)] hover:border-amber-500"
                 : "border-violet-500/20 hover:border-violet-500/40",
@@ -895,19 +895,18 @@ export const MenuPrincipal = ({
         {canTransferir() && <Transferencia />}
 
         {/* Registrar Entrada */}
-        {canRegistrarEntrada() && <RegistrarEntrada />}
+        {canRegistrarEntrada() && <div className="order-6"><RegistrarEntrada /></div>}
 
-        {/* Solicitação de Material: disponível para todo usuário autenticado.
-            Aprovação, retirada e PN permanecem restritas ao Almoxarifado. */}
-        {userProfile?.ativo && <SolicitacaoMaterial />}
-
-        {/* PN e a mesma fila operacional de RC permanecem visíveis no Almoxarifado. */}
-        {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && <PrevisoesNecessidadeAlmoxarifado />}
-        {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && <PedidoCompra />}
-        {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && <PedidosCompraFormaisAlmoxarifado />}
+        {/* O fluxo de compras permanece junto e em uma única linha no desktop. */}
+        <div className="order-8 col-span-full grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 xl:grid-cols-4">
+          {userProfile?.ativo && <SolicitacaoMaterial />}
+          {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && <PrevisoesNecessidadeAlmoxarifado />}
+          {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && <PedidoCompra />}
+          {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado()) && <PedidosCompraFormaisAlmoxarifado />}
+        </div>
 
         {/* BOTÃO SAÍDA */}
-        {canRegistrarSaida() && <Dialog open={dialogoSaida} onOpenChange={(aberto) => {
+        {canRegistrarSaida() && <div className="order-7"><Dialog open={dialogoSaida} onOpenChange={(aberto) => {
           if (!aberto) {
             fecharDialogoSaida();
           } else {
@@ -1143,7 +1142,7 @@ export const MenuPrincipal = ({
               </div>
             </form>
           </DialogContent>
-        </Dialog>}
+        </Dialog></div>}
       </div>
 
     </div>
