@@ -141,10 +141,13 @@ export const SolicitacaoMaterial = () => {
     setLoadingSolicitacoes(true);
     try {
       const estoqueInfo = obterEstoqueAtivoInfo();
+      const inicioJanela = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
       let query = supabase
         .from('solicitacoes_material')
         .select('*')
-        .order('created_at', { ascending: false });
+        .or(`created_at.gte.${inicioJanela},status.in.(pendente,aprovada)`)
+        .order('created_at', { ascending: false })
+        .limit(500);
       if (estoqueInfo?.id) query = query.eq('estoque_id', estoqueInfo.id);
       if (!canManageStock() && user?.id) query = query.eq('solicitante_id', user.id);
       

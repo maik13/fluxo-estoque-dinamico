@@ -87,22 +87,21 @@ export const CalendarioFotosProducao = ({ filtros }: CalendarioFotosProducaoProp
         consulta = consulta.eq('local_tipo', filtros.local_tipo);
       }
 
-      const [
-        apontamentosResult,
-        anexosResult,
-        membrosResult,
-        tarefasResult,
-        locaisResult,
-      ] = await Promise.all([
-        consulta,
-        supabase.from('producao_apontamento_anexos').select('*'),
-        supabase.from('producao_apontamento_membros').select('*'),
+      const apontamentosResult = await consulta;
+      if (apontamentosResult.error) throw apontamentosResult.error;
+      const idsApontamentos = (apontamentosResult.data ?? []).map((item) => item.id);
+      const [anexosResult, membrosResult, tarefasResult, locaisResult] = await Promise.all([
+        idsApontamentos.length
+          ? supabase.from('producao_apontamento_anexos').select('*').in('apontamento_id', idsApontamentos)
+          : Promise.resolve({ data: [], error: null }),
+        idsApontamentos.length
+          ? supabase.from('producao_apontamento_membros').select('*').in('apontamento_id', idsApontamentos)
+          : Promise.resolve({ data: [], error: null }),
         supabase.from('producao_tarefas').select('*'),
         supabase.from('locais_utilizacao').select('*'),
       ]);
 
       const error =
-        apontamentosResult.error ??
         anexosResult.error ??
         membrosResult.error ??
         tarefasResult.error ??

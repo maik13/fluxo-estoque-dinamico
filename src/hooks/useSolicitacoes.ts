@@ -122,12 +122,17 @@ export const useSolicitacoes = () => {
       }
       const estoqueAtivoInfo = obterEstoqueAtivoInfo();
       const estoqueId = estoqueAtivoInfo?.id;
+      const inicioJanela = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
 
-      // Carregar solicitações filtradas por estoque
+      // A tela operacional recebe os últimos 20 dias e qualquer solicitação
+      // ainda pendente, mesmo que seja mais antiga. O histórico encerrado fica
+      // fora do caminho crítico e será buscado somente por filtro explícito.
       let solicitacoesQuery = supabase
         .from('solicitacoes')
         .select('*')
-        .order('data_solicitacao', { ascending: false });
+        .or(`data_solicitacao.gte.${inicioJanela},aceite_separador.eq.false,aceite_solicitante.eq.false`)
+        .order('data_solicitacao', { ascending: false })
+        .limit(500);
 
       if (estoqueId) {
         solicitacoesQuery = solicitacoesQuery.eq('estoque_id', estoqueId);

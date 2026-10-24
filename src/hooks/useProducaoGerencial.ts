@@ -291,23 +291,35 @@ export const useProducaoGerencial = () => {
       if (novosFiltros.tarefa_id) consultaApontamentos = consultaApontamentos.eq('tarefa_id', novosFiltros.tarefa_id);
       if (novosFiltros.status) consultaApontamentos = consultaApontamentos.eq('status', novosFiltros.status);
       if (novosFiltros.local_tipo) consultaApontamentos = consultaApontamentos.eq('local_tipo', novosFiltros.local_tipo);
-      const [apontamentosResult, vinculosResult, membrosResult, tarefasResult, materiaisResult, anexosResult, locaisResult, projetosResult, gruposResult, vinculosGruposResult] = await Promise.all([
+      const [apontamentosResult, membrosResult, tarefasResult, materiaisResult, locaisResult, projetosResult, gruposResult, vinculosGruposResult] = await Promise.all([
         carregarTodasPaginas((i, f) => consultaApontamentos.order('id').range(i, f)),
-        carregarTodasPaginas((i, f) => supabase.from('producao_apontamento_membros').select('*').order('id').range(i, f)),
         carregarTodasPaginas((i, f) => supabase.from('producao_membros').select('*').order('id').range(i, f)),
         carregarTodasPaginas((i, f) => supabase.from('producao_tarefas').select('*').order('id').range(i, f)),
         carregarTodasPaginas((i, f) => consultaMateriais.order('id').range(i, f)),
-        carregarTodasPaginas((i, f) => supabase.from('producao_apontamento_anexos').select('*').order('id').range(i, f)),
         carregarTodasPaginas((i, f) => supabase.from('locais_utilizacao').select('*').order('id').range(i, f)),
         carregarTodasPaginas((i, f) => supabase.from('producao_projetos').select('local_utilizacao_id').order('id').range(i, f)),
         carregarTodasPaginas((i, f) => supabase.from('almoxarifado_grupos').select('id,nome').eq('ativo', true).order('id').range(i, f)),
         carregarTodasPaginas((i, f) => supabase.from('almoxarifado_grupo_locais').select('grupo_id,local_utilizacao_id').order('local_utilizacao_id').range(i, f)),
       ]);
+      const idsBase = apontamentosResult.data.map((a) => a.id);
+      const vinculos: ApontamentoMembroRow[] = [];
+      const anexos: AnexoRow[] = [];
+      for (let offset = 0; offset < idsBase.length; offset += 150) {
+        const lote = idsBase.slice(offset, offset + 150);
+        const [vinculosLote, anexosLote] = await Promise.all([
+          supabase.from('producao_apontamento_membros').select('*').in('apontamento_id', lote),
+          supabase.from('producao_apontamento_anexos').select('*').in('apontamento_id', lote),
+        ]);
+        if (vinculosLote.error) throw vinculosLote.error;
+        if (anexosLote.error) throw anexosLote.error;
+        vinculos.push(...((vinculosLote.data ?? []) as ApontamentoMembroRow[]));
+        anexos.push(...((anexosLote.data ?? []) as AnexoRow[]));
+      }
       setGruposProjeto(gruposResult.data);
       const grupoPorLocal = new Map(vinculosGruposResult.data.map((v) => [v.local_utilizacao_id, v.grupo_id]));
-      const erroConsulta = apontamentosResult.error ?? vinculosResult.error ?? membrosResult.error ?? tarefasResult.error ?? materiaisResult.error ?? anexosResult.error ?? locaisResult.error;
+      const erroConsulta = apontamentosResult.error ?? membrosResult.error ?? tarefasResult.error ?? materiaisResult.error ?? locaisResult.error;
       if (erroConsulta) throw erroConsulta;
-      const todosVinculos = (vinculosResult.data ?? []) as ApontamentoMembroRow[];
+      const todosVinculos = vinculos;
       let apontamentos = apontamentosResult.data ?? [];
       if (novosFiltros.membro_id) { const ids = new Set(todosVinculos.filter((v) => v.membro_id === novosFiltros.membro_id).map((v) => v.apontamento_id)); apontamentos = apontamentos.filter((a) => ids.has(a.id)); }
       const locaisDoGrupo = novosFiltros.grupo_id ? new Set(locaisResult.data.filter((l) => grupoPorLocal.get(l.id) === novosFiltros.grupo_id).map((l) => l.id)) : null;
@@ -356,7 +368,7 @@ export const useProducaoGerencial = () => {
           });
         }
       }
-      const consolidados = consolidarIndicadores({ apontamentos, vinculosMembros, membros: membrosResult.data ?? [], tarefas: tarefasResult.data ?? [], materiais, anexos: (anexosResult.data ?? []).filter((a) => idsApontamentos.has(a.apontamento_id)), locais: locaisResult.data ?? [] });
+      const consolidados = consolidarIndicadores({ apontamentos, vinculosMembros, membros: membrosResult.data ?? [], tarefas: tarefasResult.data ?? [], materiais, anexos: anexos.filter((a) => idsApontamentos.has(a.apontamento_id)), locais: locaisResult.data ?? [] });
       setDadosConsolidados(consolidados); return consolidados;
     } catch (erro) {
       const mensagem = erro instanceof Error ? erro.message : erro && typeof erro === 'object' && 'message' in erro ? String(erro.message) : 'Não foi possível carregar os indicadores da Produção.';

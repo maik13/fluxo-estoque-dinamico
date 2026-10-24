@@ -158,7 +158,14 @@ export const useProducao = () => {
     try {
       let consulta = (supabase.from('producao_apontamentos') as any).select('*')
         .order('data', { ascending: false }).order('inicio', { ascending: false });
-      if (filtros.data_inicio) consulta = consulta.gte('data', filtros.data_inicio);
+      const temFiltroExplicito = Object.values(filtros).some(Boolean);
+      if (filtros.data_inicio) {
+        consulta = consulta.gte('data', filtros.data_inicio);
+      } else if (!temFiltroExplicito) {
+        const inicio = new Date();
+        inicio.setDate(inicio.getDate() - 19);
+        consulta = consulta.gte('data', inicio.toISOString().slice(0, 10));
+      }
       if (filtros.data_fim) consulta = consulta.lte('data', filtros.data_fim);
       if (filtros.projeto_local_id) consulta = consulta.eq('projeto_local_id', filtros.projeto_local_id);
       if (filtros.processo_id) consulta = consulta.eq('processo_id', filtros.processo_id);

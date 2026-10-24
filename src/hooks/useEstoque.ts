@@ -8,6 +8,8 @@ import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';
 import { itemEhFerramentaUnitaria } from '@/utils/itemClassification';
 import { carregarSaldosCompletos } from '@/services/estoque/carregarSaldosCompletos';
 
+const JANELA_OPERACIONAL_DIAS = 20;
+
 export const useEstoque = () => {
   const [itens, setItens] = useState<Item[]>([]);
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
@@ -389,7 +391,7 @@ export const useEstoque = () => {
     incluirSemEstoque = false,
   ) => {
     try {
-      const inicio = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const inicio = new Date(Date.now() - JANELA_OPERACIONAL_DIAS * 24 * 60 * 60 * 1000).toISOString();
       const pageSize = 500;
       let from = 0;
       let rows: any[] = [];
@@ -452,6 +454,77 @@ export const useEstoque = () => {
       }
     } catch (error) {
       console.error('Erro ao carregar movimentações recentes:', error);
+    }
+  };
+
+  const carregarHistoricoPeriodo = async (
+    dataInicio?: string | Date,
+    dataFim?: string | Date,
+    forcar = false,
+  ) => {
+    const estoqueAtivoInfo = obterEstoqueAtivoInfo();
+    const estoqueId = estoqueAtivoInfo?.id;
+    const incluirSemEstoque = isEstoqueAtivoPrincipal();
+    const inicio = dataInicio
+      ? new Date(dataInicio)
+      : new Date(Date.now() - JANELA_OPERACIONAL_DIAS * 24 * 60 * 60 * 1000);
+    const fim = dataFim ? new Date(dataFim) : new Date();
+    inicio.setHours(0, 0, 0, 0);
+    fim.setHours(23, 59, 59, 999);
+    const chave = `${estoqueId ?? 'sem-estoque'}:${inicio.toISOString()}:${fim.toISOString()}`;
+
+    if (!forcar && historicoCarregadoRef.current && historicoChaveRef.current === chave) return;
+    if (historicoLoadingRef.current) return;
+    historicoLoadingRef.current = true;
+    historicoChaveRef.current = chave;
+
+    try {
+      const pageSize = 500;
+      let from = 0;
+      let rows: any[] = [];
+      while (true) {
+        let query = supabase
+          .from('movements')
+          .select(`
+            id,item_id,tipo,quantidade,quantidade_anterior,quantidade_atual,user_id,
+            observacoes,data_hora,local_utilizacao_id,solicitacao_id,destinatario,
+            estoque_id,tipo_operacao_id,item_snapshot,
+            locais_utilizacao:local_utilizacao_id (nome),
+            solicitacoes:solicitacao_id (solicitante_nome, tipo_operacao)
+          `)
+          .gte('data_hora', inicio.toISOString())
+          .lte('data_hora', fim.toISOString())
+          .order('data_hora', { ascending: false })
+          .range(from, from + pageSize - 1);
+
+        if (estoqueId) {
+          query = incluirSemEstoque
+            ? query.or(`estoque_id.eq.${estoqueId},estoque_id.is.null`)
+            : query.eq('estoque_id', estoqueId);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        if (!data?.length) break;
+        rows = rows.concat(data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+
+      const { data: tiposOperacaoData, error: tiposOperacaoError } = await supabase
+        .from('tipos_operacao')
+        .select('id, nome');
+      if (tiposOperacaoError) throw tiposOperacaoError;
+      const tipos = new Map((tiposOperacaoData ?? []).map((op) => [op.id, op.nome]));
+
+      if (historicoChaveRef.current === chave) {
+        setMovimentacoes(rows.map((row) => mapearMovimentacao(row, tipos)));
+        historicoCarregadoRef.current = true;
+      }
+    } catch (error) {
+      console.error('Erro ao carregar movimentações do período:', error);
+    } finally {
+      historicoLoadingRef.current = false;
     }
   };
 
@@ -523,7 +596,7 @@ export const useEstoque = () => {
   };
 
   // Carrega catálogo e saldo atual sem baixar o histórico inteiro.
-  // A Home recebe somente os últimos 7 dias; telas analíticas pedem o histórico completo sob demanda.
+  // A Home recebe somente a janela operacional; históricos maiores são consultados por filtro.
   const carregarDados = async (forcar = false) => {
     if (isLoadingRef.current) return;
 
@@ -612,7 +685,7 @@ export const useEstoque = () => {
       setSaldosEstoque(novoMapaSaldos);
       setUltimasMovimentacoesEstoque(novoMapaUltimas);
 
-      // 3) Para a abertura da aplicação, somente os últimos 7 dias.
+      // 3) Para a abertura da aplicação, somente os últimos 20 dias.
       // O histórico completo deixou de fazer parte do caminho crítico da Home.
       void carregarMovimentacoesRecentes(estoqueId, incluirSemEstoque);
     } catch (error: any) {
@@ -1264,5 +1337,6 @@ const importarItensServidor = async (lista: Omit<Item, 'id' | 'codigoBarras'>[])
     registrarSaida,
     carregarDados,
     carregarHistoricoCompleto,
+    carregarHistoricoPeriodo,
   };
 };

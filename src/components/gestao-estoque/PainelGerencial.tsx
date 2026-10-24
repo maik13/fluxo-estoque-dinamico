@@ -26,7 +26,7 @@ interface ResponsavelPendente {
 }
 
 export const PainelGerencial = () => {
-  const { movimentacoes, carregarHistoricoCompleto } = useEstoqueContext();
+  const { movimentacoes, carregarHistoricoPeriodo } = useEstoqueContext();
   const { canViewBIProducao } = usePermissions();
   const { 
     locaisUtilizacao: locaisConfig, 
@@ -49,9 +49,9 @@ export const PainelGerencial = () => {
 
   useEffect(() => {
     if (visaoGerencial === 'almoxarifado') {
-      void carregarHistoricoCompleto();
+      void carregarHistoricoPeriodo(dataInicio || undefined, dataFim || undefined);
     }
-  }, [visaoGerencial]);
+  }, [visaoGerencial, dataInicio, dataFim]);
 
   // Preparar filtros para o hook
   const filtros: ConsolidacaoFiltros = useMemo(() => ({
@@ -171,7 +171,7 @@ export const PainelGerencial = () => {
     if (categoriaFiltro !== 'todos') partes.push(`Classificação: ${categoriaFiltro}`);
     if (grupoId !== 'todos') partes.push(`Grupo: ${gruposProjeto.find(g => g.id === grupoId)?.nome || 'Sem Grupo'}`);
     if (localId !== 'todos') partes.push(`Local: ${locaisConfig.find(l => l.id === localId)?.nome || 'Projeto'}`);
-    if (partes.length === 0) return 'Todo o período';
+    if (partes.length === 0) return 'Últimos 20 dias';
     return partes.join(' | ');
   };
 

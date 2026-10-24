@@ -256,7 +256,7 @@ export function CentralCotacoes() {
   const [busca, setBusca] = useState('');
   const [tipoFiltro, setTipoFiltro] = useState<'todos' | CotacaoTipo>('todos');
   const [veiculoFiltro, setVeiculoFiltro] = useState('todos');
-  const [periodoDias, setPeriodoDias] = useState('365');
+  const [periodoDias, setPeriodoDias] = useState('20');
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorCotacao, setEditorCotacao] = useState<Cotacao | null>(null);
@@ -295,15 +295,29 @@ export function CentralCotacoes() {
   const carregar = async (exibirLoading = true) => {
     if (exibirLoading) setLoading(true);
     try {
-      const [{ data: cotacoesData, error: cotacoesError }, { data: solicitacoesData, error: solicitacoesError }, { data: vinculosData, error: vinculosError }] =
-        await Promise.all([
-          (supabase.from as any)('cotacoes').select('*').order('created_at', { ascending: false }),
-          (supabase.from as any)('cotacao_solicitacoes').select('*').order('created_at', { ascending: false }),
-          (supabase.from as any)('cotacao_solicitacoes_vinculos').select('cotacao_id, solicitacao_id'),
-        ]);
+      const diasConsulta = Math.max(1, Math.min(Number(periodoDias) || 20, 3650));
+      const inicioJanela = new Date(Date.now() - diasConsulta * 24 * 60 * 60 * 1000).toISOString();
+      const [{ data: cotacoesData, error: cotacoesError }, { data: solicitacoesData, error: solicitacoesError }] = await Promise.all([
+        (supabase.from as any)('cotacoes')
+          .select('*')
+          .or(`created_at.gte.${inicioJanela},status.in.(rascunho,em_validacao,confirmada,escolhida)`)
+          .order('created_at', { ascending: false })
+          .limit(500),
+        (supabase.from as any)('cotacao_solicitacoes')
+          .select('*')
+          .or(`created_at.gte.${inicioJanela},status.in.(solicitada,aguardando_propostas,em_analise,escolhida)`)
+          .order('created_at', { ascending: false })
+          .limit(500),
+      ]);
 
       if (cotacoesError) throw cotacoesError;
       if (solicitacoesError) throw solicitacoesError;
+      const cotacaoIds = (cotacoesData || []).map((cotacao: Cotacao) => cotacao.id);
+      const { data: vinculosData, error: vinculosError } = cotacaoIds.length
+        ? await (supabase.from as any)('cotacao_solicitacoes_vinculos')
+            .select('cotacao_id, solicitacao_id')
+            .in('cotacao_id', cotacaoIds)
+        : { data: [], error: null };
       if (vinculosError) throw vinculosError;
 
       const idsPorCotacao = new Map<string, string[]>();
@@ -327,7 +341,7 @@ export function CentralCotacoes() {
 
   useEffect(() => {
     void carregar();
-  }, []);
+  }, [periodoDias]);
 
   const abrirManual = () => {
     setEditorCotacao(null);
@@ -1411,6 +1425,7 @@ export function CentralCotacoes() {
                 <Select value={periodoDias} onValueChange={setPeriodoDias}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="20">Últimos 20 dias</SelectItem>
                     <SelectItem value="30">Últimos 30 dias</SelectItem>
                     <SelectItem value="90">Últimos 90 dias</SelectItem>
                     <SelectItem value="365">Último ano</SelectItem>

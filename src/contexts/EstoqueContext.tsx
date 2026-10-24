@@ -241,7 +241,8 @@ export const EstoqueProvider = ({ children }: { children: React.ReactNode }) => 
       return true;
     }
 
-    await estoque.carregarDados(true);
+    // A movimentação chega ao estado local pelo canal Realtime. Não recarregamos
+    // catálogo e todos os saldos após cada entrada, evitando travar o operador.
     toast({ title: 'Entrada registrada!', description: `Entrada de ${quantidade} ${item.unidade} de ${item.nome}.` });
     return true;
   };

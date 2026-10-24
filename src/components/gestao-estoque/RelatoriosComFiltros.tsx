@@ -44,13 +44,13 @@ const filtrosIniciais: FiltrosRelatorio = {
 export const RelatoriosComFiltros = () => {
   const [dialogoAberto, setDialogoAberto] = useState(false);
   const [filtros, setFiltros] = useState<FiltrosRelatorio>(filtrosIniciais);
-  const { obterEstoque, movimentacoes, carregarHistoricoCompleto } = useEstoqueContext();
+  const { obterEstoque, movimentacoes, carregarHistoricoPeriodo } = useEstoqueContext();
 
   useEffect(() => {
     if (dialogoAberto) {
-      void carregarHistoricoCompleto();
+      void carregarHistoricoPeriodo(filtros.dataInicio || undefined, filtros.dataFim || undefined);
     }
-  }, [dialogoAberto]);
+  }, [dialogoAberto, filtros.dataInicio, filtros.dataFim]);
 
   const itensEstoque = obterEstoque();
   

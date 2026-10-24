@@ -21,11 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import React from 'react';
 
 export const VisaoProjetos = () => {
-  const { movimentacoes, carregarHistoricoCompleto, itens } = useEstoqueContext();
-
-  useEffect(() => {
-    void carregarHistoricoCompleto();
-  }, []);
+  const { movimentacoes, carregarHistoricoPeriodo, itens } = useEstoqueContext();
   const { 
     locaisUtilizacao: locaisConfig, 
     categorias, 
@@ -98,6 +94,10 @@ export const VisaoProjetos = () => {
   const [dialogoEncerrarOpen, setDialogoEncerrarOpen] = useState(false);
   const [itensParaEncerrar, setItensParaEncerrar] = useState<ItemAgrupado[]>([]);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+
+  useEffect(() => {
+    void carregarHistoricoPeriodo(filtroDataPendentesInicio, filtroDataPendentesFim);
+  }, [filtroDataPendentesInicio, filtroDataPendentesFim]);
 
   const getMovimentacoesItem = (item: ItemAgrupado) => {
     return movimentacoes.filter(m => {
@@ -340,7 +340,7 @@ export const VisaoProjetos = () => {
 
   const periodoSelecionado = filtroDataPendentesInicio || filtroDataPendentesFim
     ? `${filtroDataPendentesInicio ? format(filtroDataPendentesInicio, 'dd/MM/yyyy') : 'Início'} a ${filtroDataPendentesFim ? format(filtroDataPendentesFim, 'dd/MM/yyyy') : 'Hoje'}`
-    : 'Histórico completo';
+    : 'Últimos 20 dias';
 
   const formatarMoeda = (valor: number) =>
     valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });

@@ -61,6 +61,18 @@ interface PainelProducaoGerencialProps {
 }
 
 const TODOS = '__todos__';
+const dataIsoLocal = (data: Date) => {
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+};
+const hojePadrao = () => dataIsoLocal(new Date());
+const inicioPadrao = () => {
+  const data = new Date();
+  data.setDate(data.getDate() - 19);
+  return dataIsoLocal(data);
+};
 
 const numero = (valor: number) =>
   valor.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
@@ -102,8 +114,8 @@ export const PainelProducaoGerencial = ({
     listarMembrosProducao,
   } = useProducao();
   const [grupoId, setGrupoId] = useState(TODOS);
-  const [dataInicio, setDataInicio] = useState('');
-  const [dataFim, setDataFim] = useState('');
+  const [dataInicio, setDataInicio] = useState(inicioPadrao);
+  const [dataFim, setDataFim] = useState(hojePadrao);
   const [projetoId, setProjetoId] = useState(TODOS);
   const [tarefaId, setTarefaId] = useState(TODOS);
   const [membroId, setMembroId] = useState(TODOS);
@@ -141,7 +153,7 @@ export const PainelProducaoGerencial = ({
     void Promise.allSettled([
       listarTarefas(),
       listarMembrosProducao(),
-      carregar({}),
+      carregar({ data_inicio: inicioPadrao(), data_fim: hojePadrao() }),
     ]);
   }, [carregar, listarMembrosProducao, listarTarefas]);
 
@@ -163,14 +175,16 @@ export const PainelProducaoGerencial = ({
 
   const limparFiltros = () => {
     setGrupoId(TODOS);
-    setDataInicio('');
-    setDataFim('');
+    const inicio = inicioPadrao();
+    const fim = hojePadrao();
+    setDataInicio(inicio);
+    setDataFim(fim);
     setProjetoId(TODOS);
     setTarefaId(TODOS);
     setMembroId(TODOS);
     setStatus(TODOS);
     setLocalTipo(TODOS);
-    void carregar({});
+    void carregar({ data_inicio: inicio, data_fim: fim });
   };
 
   const totalFiltrosAplicados = Object.values(filtros).filter(Boolean).length;
