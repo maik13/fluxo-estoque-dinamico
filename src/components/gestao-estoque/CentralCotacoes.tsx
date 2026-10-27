@@ -1156,19 +1156,8 @@ export function CentralCotacoes() {
       });
       if (error) throw error;
 
-      const { data: solicitacaoAtualizada, error: solicitacaoError } = await (supabase.from as any)('cotacao_solicitacoes')
-        .select('*')
-        .eq('id', solicitacao.id)
-        .single();
-      if (solicitacaoError) throw solicitacaoError;
-
-      const { error: pnError } = await (supabase as any).rpc('cotacao_converter_em_pn_v1', {
-        p_cotacao_id: cotacao.id,
-      });
-      if (pnError) throw pnError;
-      toast.success('Proposta aprovada e PN disponibilizada no Almoxarifado.');
+      toast.success('Proposta escolhida. Envie o orçamento para aprovação do gestor.');
       await carregar();
-      setProcessoSolicitacaoOpen(false);
     } catch (error: any) {
       console.error(error);
       toast.error(error?.message || 'Não foi possível escolher a proposta.');

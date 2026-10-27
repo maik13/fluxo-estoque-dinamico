@@ -408,7 +408,10 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
       await carregar();
     } catch (error) {
       console.error("Erro ao formalizar RC no Almoxarifado:", error);
-      toast.error("Não foi possível formalizar esta RC no Almoxarifado.");
+      toast.error(
+        (error as any)?.message ||
+          "Não foi possível formalizar esta RC no Almoxarifado.",
+      );
     } finally {
       setPnEmFormalizacao(null);
     }
