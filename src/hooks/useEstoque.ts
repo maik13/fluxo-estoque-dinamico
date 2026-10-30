@@ -15,6 +15,7 @@ export const useEstoque = () => {
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
   const [saldosEstoque, setSaldosEstoque] = useState<Map<string, number>>(new Map());
   const [ultimasMovimentacoesEstoque, setUltimasMovimentacoesEstoque] = useState<Map<string, Movimentacao>>(new Map());
+  const [saldosCarregados, setSaldosCarregados] = useState(false);
   const [loading, setLoading] = useState(true);
   const { estoqueAtivo, obterEstoqueAtivoInfo, isEstoqueAtivoPrincipal, categorias } = useConfiguracoes();
   const { user } = useAuth();
@@ -71,6 +72,7 @@ export const useEstoque = () => {
       setMovimentacoes([]);
       setSaldosEstoque(new Map());
       setUltimasMovimentacoesEstoque(new Map());
+      setSaldosCarregados(false);
       setLoading(false);
     }
   }, [estoqueAtivo]);
@@ -653,37 +655,51 @@ export const useEstoque = () => {
         ativo: row.ativo ?? true,
       }));
 
-      // 2) Saldos e última movimentação calculados no servidor.
-      // O catálogo só é publicado junto com uma posição de saldo confirmada;
-      // ausência/falha de saldo nunca pode ser interpretada como estoque zero.
-      const saldosData = await carregarSaldosCompletos<{
-        item_id: string;
-        saldo_atual: number | string | null;
-        ultima_movimentacao: Movimentacao | null;
-      }>((inicio, limite) =>
-        (supabase as any)
-          .rpc(
-            'listar_saldos_estoque_paginados_v3',
-            {
-              p_estoque_id: estoqueId ?? null,
-              p_incluir_sem_estoque: incluirSemEstoque,
-              p_inicio: inicio,
-              p_limite: limite,
-            },
-          ),
-      );
-
-      const novoMapaSaldos = new Map<string, number>();
-      const novoMapaUltimas = new Map<string, Movimentacao>();
-      for (const row of (saldosData ?? [])) {
-        novoMapaSaldos.set(row.item_id, Number(row.saldo_atual ?? 0));
-        if (row.ultima_movimentacao) {
-          novoMapaUltimas.set(row.item_id, row.ultima_movimentacao as Movimentacao);
-        }
-      }
+      // O catálogo não depende do cálculo global de saldos. Se a confirmação
+      // de saldos estiver lenta, o usuário ainda precisa localizar e incluir o
+      // item na solicitação; operações que alteram estoque confirmam o saldo do
+      // item individualmente antes de gravar.
       setItens(itensMapped);
-      setSaldosEstoque(novoMapaSaldos);
-      setUltimasMovimentacoesEstoque(novoMapaUltimas);
+      setSaldosCarregados(false);
+
+      // 2) Saldos e última movimentação calculados no servidor. A confirmação
+      // acontece separadamente para nunca esconder o catálogo por timeout.
+      try {
+        const saldosData = await carregarSaldosCompletos<{
+          item_id: string;
+          saldo_atual: number | string | null;
+          ultima_movimentacao: Movimentacao | null;
+        }>((inicio, limite) =>
+          (supabase as any)
+            .rpc(
+              'listar_saldos_estoque_paginados_v3',
+              {
+                p_estoque_id: estoqueId ?? null,
+                p_incluir_sem_estoque: incluirSemEstoque,
+                p_inicio: inicio,
+                p_limite: limite,
+              },
+            ),
+        );
+
+        const novoMapaSaldos = new Map<string, number>();
+        const novoMapaUltimas = new Map<string, Movimentacao>();
+        for (const row of (saldosData ?? [])) {
+          novoMapaSaldos.set(row.item_id, Number(row.saldo_atual ?? 0));
+          if (row.ultima_movimentacao) {
+            novoMapaUltimas.set(row.item_id, row.ultima_movimentacao as Movimentacao);
+          }
+        }
+        setSaldosEstoque(novoMapaSaldos);
+        setUltimasMovimentacoesEstoque(novoMapaUltimas);
+        setSaldosCarregados(true);
+      } catch (saldoError: any) {
+        console.error('Erro ao confirmar saldos do estoque:', saldoError);
+        toast({
+          title: 'Catálogo carregado; saldos em atualização',
+          description: 'Os itens continuam disponíveis. O saldo será confirmado antes de qualquer entrada ou retirada.',
+        });
+      }
 
       // 3) Para a abertura da aplicação, somente os últimos 20 dias.
       // O histórico completo deixou de fazer parte do caminho crítico da Home.
@@ -853,9 +869,10 @@ export const useEstoque = () => {
         ...item,
         estoqueAtual: posicao.saldo,
         ultimaMovimentacao: posicao.ultima,
+        saldoConfirmado: saldosCarregados,
       };
     });
-  }, [itens, resolverPosicaoAtual]);
+  }, [itens, resolverPosicaoAtual, saldosCarregados]);
 
   // Obter estoque com quantidades atuais - agora retorna o cache
   const obterEstoque = useCallback((): EstoqueItem[] => {
@@ -962,8 +979,23 @@ const registrarEntrada = async (
       return false;
     }
 
-    const estoqueAnterior = calcularEstoqueAtual(item.id);
     const estoqueAtivoInfo = obterEstoqueAtivoInfo();
+    let estoqueAnterior = calcularEstoqueAtual(item.id);
+
+    // Se a carga global ainda estiver em andamento, confirma somente este item.
+    // Uma consulta pontual não pode ser substituída por saldo zero presumido.
+    if (!saldosCarregados) {
+      const { data: saldoData, error: saldoError } = await (supabase as any).rpc(
+        'obter_saldo_item_estoque_v1',
+        {
+          p_item_id: item.id,
+          p_estoque_id: estoqueAtivoInfo?.id ?? null,
+          p_incluir_sem_estoque: isEstoqueAtivoPrincipal(),
+        },
+      );
+      if (saldoError) throw saldoError;
+      estoqueAnterior = Number(saldoData ?? 0);
+    }
     let tipoOperacaoNome: string | undefined;
 
     if (tipoOperacaoId) {
@@ -1322,6 +1354,7 @@ const importarItensServidor = async (lista: Omit<Item, 'id' | 'codigoBarras'>[])
     itens,
     movimentacoes,
     loading,
+    saldosCarregados,
     estoqueAtivoInfo,
     incluirSemEstoqueAtivo,
     buscarItemPorCodigo,

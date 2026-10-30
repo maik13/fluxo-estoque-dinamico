@@ -208,6 +208,7 @@ export const SolicitacaoMaterial = () => {
 
     const itemEstoque = mapaEstoque.get(item.item_id);
     if (!itemEstoque) return true;
+    if (itemEstoque.saldoConfirmado === false) return false;
 
     return itemEstoque.estoqueAtual < item.quantidade;
   };
@@ -1474,7 +1475,9 @@ export const SolicitacaoMaterial = () => {
                                       )}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
-                                      Cód: {item.codigoBarras} • Estoque: {item.estoqueAtual} {item.unidade}
+                                      Cód: {item.codigoBarras} • {item.saldoConfirmado === false
+                                        ? 'Saldo sendo atualizado'
+                                        : `Estoque: ${item.estoqueAtual} ${item.unidade}`}
                                     </div>
                                   </div>
                                 </div>

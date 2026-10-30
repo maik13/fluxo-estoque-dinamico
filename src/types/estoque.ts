@@ -52,6 +52,8 @@ export interface Movimentacao {
 export interface EstoqueItem extends Item {
   ultimaMovimentacao?: Movimentacao;
   estoqueAtual: number;
+  /** Indica se o saldo exibido foi confirmado na leitura atual do servidor. */
+  saldoConfirmado?: boolean;
 }
 
 export type TipoMovimentacao = 'ENTRADA' | 'SAIDA' | 'CADASTRO';
