@@ -191,6 +191,15 @@ function contractLabel(type: string | null | undefined): string {
   }
 }
 
+function normalizeIdentityText(value: string | null | undefined): string {
+  return (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("pt-BR");
+}
+
 function observationForRow(row: DayRow): string {
   if (row.summary.incomplete) return "Registro incompleto";
   if (row.feriadoNome) return row.feriadoNome;
@@ -265,17 +274,47 @@ export default function ControlePontoEspelhoCorrigido() {
       const lastDay = getDaysInMonth(new Date(year, month - 1));
       const startDate = `${selectedMonth}-01`;
       const endDate = `${selectedMonth}-${String(lastDay).padStart(2, "0")}`;
-      const [entriesResponse, paidResponse] = await Promise.all([
-        db.from("rh_registros_ponto").select("*")
-          .eq("colaborador_id", selectedColaborador).gte("data", startDate).lte("data", endDate).order("data"),
-        db.from("rh_ponto_dias_pagos").select("*")
-          .eq("colaborador_id", selectedColaborador).gte("data", startDate).lte("data", endDate).order("data"),
-      ]);
+      const selectedParticipant = colaboradores.find((item) => item.id === selectedColaborador) || null;
+      let targetColaboradorId = selectedColaborador;
 
-      if (entriesResponse.error) throw entriesResponse.error;
+      // Cadastros importados da produção podem ter deixado um homônimo sem
+      // login ao lado do cadastro canônico usado pelo aparelho. Quando há um
+      // único homônimo vinculado a usuário, ele é a identidade correta.
+      if (selectedParticipant && !selectedParticipant.user_id) {
+        const linkedHomonyms = colaboradores.filter((item) =>
+          item.id !== selectedParticipant.id &&
+          Boolean(item.user_id) &&
+          normalizeIdentityText(item.nome) === normalizeIdentityText(selectedParticipant.nome)
+        );
+        if (linkedHomonyms.length === 1) targetColaboradorId = linkedHomonyms[0].id;
+      }
+
+      let entriesData: TimeEntry[] = [];
+      const snapshotResponse = await db.rpc("rh_get_espelho_ponto_admin_v1", {
+        p_colaborador_id: targetColaboradorId,
+        p_mes: startDate,
+      });
+
+      if (!snapshotResponse.error && snapshotResponse.data) {
+        const snapshot = snapshotResponse.data as {
+          resolved_colaborador_id?: string;
+          entries?: TimeEntry[];
+        };
+        targetColaboradorId = snapshot.resolved_colaborador_id || targetColaboradorId;
+        entriesData = Array.isArray(snapshot.entries) ? snapshot.entries : [];
+      } else {
+        // Compatibilidade enquanto a migração chega ao ambiente publicado.
+        const entriesResponse = await db.from("rh_registros_ponto").select("*")
+          .eq("colaborador_id", targetColaboradorId).gte("data", startDate).lte("data", endDate).order("data");
+        if (entriesResponse.error) throw entriesResponse.error;
+        entriesData = (entriesResponse.data || []) as TimeEntry[];
+      }
+
+      const paidResponse = await db.from("rh_ponto_dias_pagos").select("*")
+        .eq("colaborador_id", targetColaboradorId).gte("data", startDate).lte("data", endDate).order("data");
       if (paidResponse.error) throw paidResponse.error;
-      const collaborator = colaboradores.find((item) => item.id === selectedColaborador) || null;
-      setEntries((entriesResponse.data || []) as TimeEntry[]);
+      const collaborator = colaboradores.find((item) => item.id === targetColaboradorId) || selectedParticipant;
+      setEntries(entriesData);
       setPaidDays((paidResponse.data || []) as PaidDay[]);
       setColaboradorData(collaborator);
       setJornadaData(
@@ -283,6 +322,10 @@ export default function ControlePontoEspelhoCorrigido() {
           ? jornadas.find((item) => item.id === collaborator.jornada_id) || null
           : null,
       );
+      if (targetColaboradorId !== selectedColaborador) {
+        setSelectedColaborador(targetColaboradorId);
+        toast.info(`Espelho direcionado ao cadastro vinculado de ${collaborator?.nome || "colaborador"}.`);
+      }
     } catch (error) {
       console.error("Erro ao carregar registros do mês:", error);
       toast.error("Erro ao carregar os registros do mês");
