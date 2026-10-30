@@ -506,6 +506,18 @@ export function CentralCotacoes() {
         if (error) throw error;
       }
 
+      const possuiEvidenciaOrcamento = Boolean(
+        payload.origem_cadastro === 'link' && payload.url_origem,
+      );
+      if (possuiEvidenciaOrcamento && form.solicitacao_ids.length > 0) {
+        const { error: statusError } = await (supabase.from as any)('cotacao_solicitacoes')
+          .update({ status: 'em_analise', updated_at: new Date().toISOString() })
+          .in('id', form.solicitacao_ids)
+          .in('status', ['solicitada', 'aguardando_propostas']);
+        if (statusError) throw statusError;
+        window.dispatchEvent(new CustomEvent('cotacao-solicitacao-atualizada'));
+      }
+
       toast.success(confirmar ? 'Cotação confirmada e vinculada ao processo.' : 'Cotação salva.');
       setEditorOpen(false);
       // O salvamento termina quando a gravação foi confirmada pelo banco. A
@@ -1207,7 +1219,11 @@ export function CentralCotacoes() {
     cutoff.setDate(cutoff.getDate() - Number(periodoDias));
 
     return cotacoes.filter((cotacao) => {
-      if (!cotacao.arquivo_path) return false;
+      const possuiEvidencia = Boolean(
+        cotacao.arquivo_path
+        || (cotacao.origem_cadastro === 'link' && cotacao.url_origem?.trim()),
+      );
+      if (!possuiEvidencia) return false;
       if (tipoFiltro !== 'todos' && cotacao.tipo !== tipoFiltro) return false;
       if (veiculoFiltro !== 'todos' && cotacao.tipo_veiculo !== veiculoFiltro) return false;
       if (new Date(cotacao.created_at) < cutoff) return false;
@@ -1229,15 +1245,19 @@ export function CentralCotacoes() {
 
   const solicitacoesFila = useMemo(() => solicitacoes.filter((solicitacao) => {
     if (['encerrada', 'cancelada'].includes(solicitacao.status)) return false;
-    const possuiPdfVinculado = cotacoes.some((cotacao) =>
-      Boolean(cotacao.arquivo_path)
+    const possuiOrcamentoVinculado = cotacoes.some((cotacao) =>
+      Boolean(
+        cotacao.arquivo_path
+        || (cotacao.origem_cadastro === 'link' && cotacao.url_origem?.trim()),
+      )
       && (cotacao.solicitacao_ids || []).includes(solicitacao.id)
     );
-    return !possuiPdfVinculado;
+    return !possuiOrcamentoVinculado;
   }), [solicitacoes, cotacoes]);
 
   const cotacoesSemPdf = useMemo(
-    () => cotacoes.filter((cotacao) => !cotacao.arquivo_path),
+    () => cotacoes.filter((cotacao) => !cotacao.arquivo_path
+      && !(cotacao.origem_cadastro === 'link' && cotacao.url_origem?.trim())),
     [cotacoes],
   );
 
@@ -1533,7 +1553,7 @@ export function CentralCotacoes() {
               <div>
                 <CardTitle className="text-lg">Solicitações de cotação</CardTitle>
                 <CardDescription>
-                  Fila ativa. A solicitação permanece aqui até receber um orçamento em PDF.
+                  Fila ativa. A solicitação permanece aqui até receber um orçamento em PDF ou por link.
                 </CardDescription>
               </div>
               <Button onClick={() => setSolicitacaoOpen(true)}>
@@ -1630,7 +1650,7 @@ export function CentralCotacoes() {
                       </TableRow>
                     ))}
                     {solicitacoesFila.length === 0 && cotacoesSemPdf.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Nenhuma solicitação aguardando orçamento em PDF.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Nenhuma solicitação aguardando orçamento em PDF ou por link.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>

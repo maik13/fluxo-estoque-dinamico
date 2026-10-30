@@ -203,6 +203,23 @@ export const SolicitacaoMaterial = () => {
 
   const obterQuantidadeDigitada = () => Number(quantidadeItem.replace(',', '.'));
 
+  const montarItemCustomEmEdicao = (): ItemSolicitacaoMaterial | null => {
+    if (!nomeItemCustom.trim()) return null;
+    const quantidade = obterQuantidadeDigitada();
+    if (!Number.isFinite(quantidade) || quantidade <= 0) return null;
+
+    return {
+      nome_item: nomeItemCustom.trim(),
+      quantidade,
+      unidade: unidadeCustom,
+      especificacao: especificacaoItem || undefined,
+      observacoes: obsItem || undefined,
+      isCustom: true,
+    };
+  };
+
+  const itemCustomEmEdicaoValido = Boolean(montarItemCustomEmEdicao());
+
   const itemVaiParaCompra = (item: { item_id?: string; quantidade: number; isCustom?: boolean }) => {
     if (!item.item_id || item.isCustom) return true;
 
@@ -324,8 +341,15 @@ export const SolicitacaoMaterial = () => {
       return;
     }
 
-    if (itensLista.length === 0) {
-      toast.error('Adicione pelo menos um item');
+    const itemCustomEmEdicao = montarItemCustomEmEdicao();
+    const itensParaSalvar = itemCustomEmEdicao
+      ? [...itensLista, itemCustomEmEdicao]
+      : itensLista;
+
+    if (itensParaSalvar.length === 0) {
+      toast.error(nomeItemCustom.trim()
+        ? 'Informe uma quantidade válida maior que zero para o item preenchido'
+        : 'Adicione pelo menos um item');
       return;
     }
 
@@ -360,7 +384,7 @@ export const SolicitacaoMaterial = () => {
         throw solError ?? new Error('Não foi possível criar a solicitação');
       }
 
-      const itensInsert = itensLista.map(item => ({
+      const itensInsert = itensParaSalvar.map(item => ({
         solicitacao_material_id: solData.id,
         item_id: item.item_id || null,
         nome_item: item.nome_item,
@@ -694,14 +718,21 @@ export const SolicitacaoMaterial = () => {
   };
 
   const adicionarItensSolicitacao = async () => {
-    if (!solicitacaoParaAdicionar || itensLista.length === 0) {
-      toast.error('Adicione pelo menos um item');
+    const itemCustomEmEdicao = montarItemCustomEmEdicao();
+    const itensParaSalvar = itemCustomEmEdicao
+      ? [...itensLista, itemCustomEmEdicao]
+      : itensLista;
+
+    if (!solicitacaoParaAdicionar || itensParaSalvar.length === 0) {
+      toast.error(nomeItemCustom.trim()
+        ? 'Informe uma quantidade válida maior que zero para o item preenchido'
+        : 'Adicione pelo menos um item');
       return;
     }
 
     setEnviando(true);
     try {
-      const itens = itensLista.map(item => ({
+      const itens = itensParaSalvar.map(item => ({
         item_id: item.item_id || null,
         nome_item: item.nome_item,
         quantidade: item.quantidade,
@@ -1602,7 +1633,7 @@ export const SolicitacaoMaterial = () => {
               <Button 
                 type="submit" 
                 onClick={solicitacaoParaAdicionar ? adicionarItensSolicitacao : criarSolicitacao}
-                disabled={enviando || isInicializandoSolicitacao || itensLista.length === 0 || (!solicitacaoParaAdicionar && (!localOrigemId || !dataNecessidade))}
+                disabled={enviando || isInicializandoSolicitacao || (itensLista.length === 0 && !itemCustomEmEdicaoValido) || (!solicitacaoParaAdicionar && (!localOrigemId || !dataNecessidade))}
                 className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02]"
               >
                 {enviando ? 'Enviando...' : isInicializandoSolicitacao ? 'Carregando...' : solicitacaoParaAdicionar ? 'Adicionar à solicitação' : '🚀 Criar Solicitação'}
