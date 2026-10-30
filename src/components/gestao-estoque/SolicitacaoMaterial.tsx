@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -93,6 +93,7 @@ export const SolicitacaoMaterial = () => {
   const [salvandoLocalOrigem, setSalvandoLocalOrigem] = useState(false);
   const [modoEdicaoSolicitacao, setModoEdicaoSolicitacao] = useState(false);
   const [salvandoEdicaoSolicitacao, setSalvandoEdicaoSolicitacao] = useState(false);
+  const carregarSolicitacoesRef = useRef<() => Promise<void>>(async () => undefined);
   const [edicaoSolicitacao, setEdicaoSolicitacao] = useState<{
     observacoes: string;
     data_necessidade: string;
@@ -120,19 +121,18 @@ export const SolicitacaoMaterial = () => {
       .channel('solicitacoes-material-badge')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitacoes_material' }, () => {
         carregarPendentes();
+        if (dialogoListar) void carregarSolicitacoesRef.current();
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [user, dialogoListar]);
 
   const carregarPendentes = async () => {
-    const estoqueInfo = obterEstoqueAtivoInfo();
-    let query = supabase
+    const query = supabase
       .from('solicitacoes_material')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'pendente');
-    if (estoqueInfo?.id) query = query.eq('estoque_id', estoqueInfo.id);
     const { count } = await query;
     setPendentesCount(count || 0);
   };
@@ -140,7 +140,6 @@ export const SolicitacaoMaterial = () => {
   const carregarSolicitacoes = async () => {
     setLoadingSolicitacoes(true);
     try {
-      const estoqueInfo = obterEstoqueAtivoInfo();
       const inicioJanela = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
       let query = supabase
         .from('solicitacoes_material')
@@ -148,7 +147,6 @@ export const SolicitacaoMaterial = () => {
         .or(`created_at.gte.${inicioJanela},status.in.(pendente,aprovada)`)
         .order('created_at', { ascending: false })
         .limit(500);
-      if (estoqueInfo?.id) query = query.eq('estoque_id', estoqueInfo.id);
       if (!canManageStock() && user?.id) query = query.eq('solicitante_id', user.id);
       
       const { data, error } = await query;
@@ -190,6 +188,7 @@ export const SolicitacaoMaterial = () => {
       setLoadingSolicitacoes(false);
     }
   };
+  carregarSolicitacoesRef.current = carregarSolicitacoes;
 
   const itensFiltrados = useMemo(() => {
     // Mostrar todos os itens (inclusive sem saldo) — solicitação é usada para gerar compra
@@ -404,6 +403,8 @@ export const SolicitacaoMaterial = () => {
         toast.info('Itens avulsos ou sem saldo serão encaminhados para PN após a aprovação do Almoxarifado.');
       }
 
+      await carregarPendentes();
+      if (dialogoListar) await carregarSolicitacoes();
       setDialogoCriar(false);
       limparFormularioCriacao();
     } catch (error: any) {

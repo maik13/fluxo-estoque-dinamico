@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 
 type UseSolicitacoesMaterialPendentesOptions = {
   enabled: boolean;
@@ -12,7 +11,6 @@ export const useSolicitacoesMaterialPendentes = ({
 }: UseSolicitacoesMaterialPendentesOptions) => {
   const [pendentesCount, setPendentesCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const { estoqueAtivo } = useConfiguracoes();
   const previousCountRef = useRef<number | null>(null);
 
   const carregarPendentes = useCallback(
@@ -26,14 +24,10 @@ export const useSolicitacoesMaterialPendentes = ({
 
       setLoading(true);
       try {
-        let query = supabase
+        const query = supabase
           .from('solicitacoes_material')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'pendente');
-
-        if (estoqueAtivo) {
-          query = query.eq('estoque_id', estoqueAtivo);
-        }
 
         const { count, error } = await query;
         if (error) throw error;
@@ -48,7 +42,7 @@ export const useSolicitacoesMaterialPendentes = ({
           toast.info(
             novas === 1 ? 'Nova solicitação de material' : `${novas} novas solicitações de material`,
             {
-              description: `${atual} ${atual === 1 ? 'requisição pendente' : 'requisições pendentes'} no almoxarifado atual.`,
+              description: `${atual} ${atual === 1 ? 'requisição pendente' : 'requisições pendentes'} no sistema.`,
             },
           );
         }
@@ -60,7 +54,7 @@ export const useSolicitacoesMaterialPendentes = ({
         setLoading(false);
       }
     },
-    [enabled, estoqueAtivo],
+    [enabled],
   );
 
   useEffect(() => {
@@ -74,16 +68,14 @@ export const useSolicitacoesMaterialPendentes = ({
 
     void carregarPendentes(false);
 
-    const filter = estoqueAtivo ? `estoque_id=eq.${estoqueAtivo}` : undefined;
     const channel = supabase
-      .channel(`solicitacoes-material-pendentes-${estoqueAtivo ?? 'todos'}`)
+      .channel('solicitacoes-material-pendentes-todos')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'solicitacoes_material',
-          filter,
         },
         () => {
           void carregarPendentes(true);
@@ -94,7 +86,7 @@ export const useSolicitacoesMaterialPendentes = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [enabled, estoqueAtivo, carregarPendentes]);
+  }, [enabled, carregarPendentes]);
 
   return {
     pendentesCount,

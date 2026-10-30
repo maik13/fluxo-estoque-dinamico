@@ -14,7 +14,7 @@ export const useSolicitacoes = () => {
   const [loading, setLoading] = useState(true);
   const { user, loading: authLoading, forceReauth } = useAuth();
   const { userProfile } = usePermissions();
-  const { obterEstoqueAtivoInfo, estoqueAtivo, isEstoqueAtivoPrincipal, categorias } = useConfiguracoes();
+  const { obterEstoqueAtivoInfo, isEstoqueAtivoPrincipal, categorias } = useConfiguracoes();
   
   // Refs para controle de debounce e prevenção de duplicatas
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -58,13 +58,11 @@ export const useSolicitacoes = () => {
   useEffect(() => {
     if (!user) return;
 
-    const solicitacoesFilter = estoqueAtivo ? `estoque_id=eq.${estoqueAtivo}` : undefined;
-
     const solicitacoesChannel = supabase
       .channel('solicitacoes-changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'solicitacoes', filter: solicitacoesFilter },
+        { event: '*', schema: 'public', table: 'solicitacoes' },
         () => {
         carregarSolicitacoesDebounced();
         }
@@ -86,7 +84,7 @@ export const useSolicitacoes = () => {
       supabase.removeChannel(solicitacoesChannel);
       supabase.removeChannel(solicitacaoItensChannel);
     };
-  }, [user, estoqueAtivo, carregarSolicitacoesDebounced]);
+  }, [user, carregarSolicitacoesDebounced]);
 
   const isAuthRelatedError = (err: any) => {
     const msg = String(err?.message ?? '');
@@ -120,23 +118,17 @@ export const useSolicitacoes = () => {
         setSolicitacoes([]);
         return;
       }
-      const estoqueAtivoInfo = obterEstoqueAtivoInfo();
-      const estoqueId = estoqueAtivoInfo?.id;
       const inicioJanela = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
 
       // A tela operacional recebe os últimos 20 dias e qualquer solicitação
       // ainda pendente, mesmo que seja mais antiga. O histórico encerrado fica
       // fora do caminho crítico e será buscado somente por filtro explícito.
-      let solicitacoesQuery = supabase
+      const solicitacoesQuery = supabase
         .from('solicitacoes')
         .select('*')
         .or(`data_solicitacao.gte.${inicioJanela},aceite_separador.eq.false,aceite_solicitante.eq.false`)
         .order('data_solicitacao', { ascending: false })
         .limit(500);
-
-      if (estoqueId) {
-        solicitacoesQuery = solicitacoesQuery.eq('estoque_id', estoqueId);
-      }
 
       const { data: solicitacoesData, error: solicitacoesError } = await solicitacoesQuery;
 

@@ -53,8 +53,6 @@ export const TabelaMovimentacoes = () => {
   const { user } = useAuth();
   const { canEditMovements } = usePermissions();
   const {
-    estoqueAtivo,
-    estoques,
     categorias: categoriasConfig,
     tiposOperacao,
     locaisUtilizacao,
@@ -85,20 +83,6 @@ export const TabelaMovimentacoes = () => {
   const refreshTimerRef = useRef<number | null>(null);
   const requestSeqRef = useRef(0);
 
-  // Evita usar funções inline de useConfiguracoes como dependências da carga:
-  // elas mudam de identidade a cada render e podem disparar um loop de RPCs.
-  const estoqueAtivoInfo = useMemo(
-    () => estoques.find((e) => e.id === estoqueAtivo),
-    [estoques, estoqueAtivo],
-  );
-
-  const estoqueAtivoPrincipal = useMemo(() => {
-    const principal = estoques.find(
-      (e) => e.nome.trim().toLocaleLowerCase('pt-BR') === 'almoxarifado principal',
-    );
-    return Boolean(principal?.id && principal.id === estoqueAtivo);
-  }, [estoques, estoqueAtivo]);
-
   const categorias = useMemo(
     () => categoriasConfig
       .filter((categoria) => categoria.ativo)
@@ -121,15 +105,15 @@ export const TabelaMovimentacoes = () => {
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [buscaAplicada, filtroTipo, tipoVisualizacao, filtroOperacao, filtroDestino, filtroCategoria, filtroDataInicio, filtroDataFim, itensPorPagina, estoqueAtivo]);
+  }, [buscaAplicada, filtroTipo, tipoVisualizacao, filtroOperacao, filtroDestino, filtroCategoria, filtroDataInicio, filtroDataFim, itensPorPagina]);
 
   const montarParametros = useCallback((pagina: number, limite: number) => {
     const inicio = filtroDataInicio ? new Date(`${filtroDataInicio}T00:00:00-03:00`).toISOString() : null;
     const fim = filtroDataFim ? new Date(`${filtroDataFim}T23:59:59.999-03:00`).toISOString() : null;
 
     return {
-      p_estoque_id: estoqueAtivoInfo?.id ?? null,
-      p_incluir_sem_estoque: estoqueAtivoPrincipal,
+      p_estoque_id: null,
+      p_incluir_sem_estoque: true,
       p_pagina: pagina,
       p_limite: limite,
       p_busca: buscaAplicada || null,
@@ -143,10 +127,9 @@ export const TabelaMovimentacoes = () => {
       p_data_inicio: inicio,
       p_data_fim: fim,
     };
-  }, [estoqueAtivoInfo?.id, estoqueAtivoPrincipal, filtroDataInicio, filtroDataFim, buscaAplicada, filtroTipo, filtroOperacao, tipoVisualizacao, filtroDestino, categoriaSelecionadaId]);
+  }, [filtroDataInicio, filtroDataFim, buscaAplicada, filtroTipo, filtroOperacao, tipoVisualizacao, filtroDestino, categoriaSelecionadaId]);
 
   const carregarPagina = useCallback(async (silencioso = false) => {
-    if (!estoqueAtivo) return;
     const requestId = ++requestSeqRef.current;
     if (!silencioso) setLoading(true);
     setErro(null);
@@ -188,7 +171,7 @@ export const TabelaMovimentacoes = () => {
     } finally {
       if (requestId === requestSeqRef.current && !silencioso) setLoading(false);
     }
-  }, [estoqueAtivo, paginaAtual, itensPorPagina, montarParametros]);
+  }, [paginaAtual, itensPorPagina, montarParametros]);
 
   useEffect(() => {
     void carregarPagina();

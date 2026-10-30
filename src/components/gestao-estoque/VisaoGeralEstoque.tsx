@@ -304,11 +304,10 @@ export const VisaoGeralEstoque = ({ onAbrirEstoque, onAbrirMovimentacoes, onAbri
 
     const carregarContadores = async () => {
       if (podeVerSolicitacoes) {
-        let query = supabase
+        const query = supabase
           .from('solicitacoes_material')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'pendente');
-        if (estoqueId) query = query.eq('estoque_id', estoqueId);
         const { count, error } = await query;
         if (ativo) setPendentes(error ? null : count || 0);
       } else if (ativo) {
