@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format, getDay, getDaysInMonth, eachDayOfInterval, endOfMonth, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import * as XLSX from "xlsx";
@@ -11,6 +11,7 @@ import {
   Loader2,
   Moon,
   Printer,
+  RefreshCw,
   Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -219,6 +220,7 @@ export default function ControlePontoEspelhoCorrigido() {
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [colaboradorData, setColaboradorData] = useState<Colaborador | null>(null);
   const [jornadaData, setJornadaData] = useState<Jornada | null>(null);
+  const entriesRefreshRef = useRef<(showLoading?: boolean) => Promise<void>>(async () => undefined);
 
   useEffect(() => {
     void fetchInitialData();
@@ -256,8 +258,8 @@ export default function ControlePontoEspelhoCorrigido() {
     }
   };
 
-  const fetchEntriesForMonth = async () => {
-    setEntriesLoading(true);
+  const fetchEntriesForMonth = async (showLoading = true) => {
+    if (showLoading) setEntriesLoading(true);
     try {
       const [year, month] = selectedMonth.split("-").map(Number);
       const lastDay = getDaysInMonth(new Date(year, month - 1));
@@ -285,9 +287,49 @@ export default function ControlePontoEspelhoCorrigido() {
       console.error("Erro ao carregar registros do mês:", error);
       toast.error("Erro ao carregar os registros do mês");
     } finally {
-      setEntriesLoading(false);
+      if (showLoading) setEntriesLoading(false);
     }
   };
+
+  entriesRefreshRef.current = fetchEntriesForMonth;
+
+  useEffect(() => {
+    if (!selectedColaborador) return;
+
+    const refreshSilently = () => {
+      void entriesRefreshRef.current(false);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshSilently();
+    };
+
+    const channel = db
+      .channel(`rh-ponto-espelho-${selectedColaborador}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "rh_registros_ponto",
+          filter: `colaborador_id=eq.${selectedColaborador}`,
+        },
+        refreshSilently,
+      )
+      .subscribe();
+
+    window.addEventListener("focus", refreshSilently);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    const fallbackTimer = window.setInterval(() => {
+      if (document.visibilityState === "visible") refreshSilently();
+    }, 30_000);
+
+    return () => {
+      window.removeEventListener("focus", refreshSilently);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.clearInterval(fallbackTimer);
+      void db.removeChannel(channel);
+    };
+  }, [selectedColaborador, selectedMonth]);
 
   const selectedMonthDate = useMemo(() => {
     const [year, month] = selectedMonth.split("-").map(Number);
@@ -819,11 +861,12 @@ export default function ControlePontoEspelhoCorrigido() {
                   <Label>Colaborador</Label>
                   <Select value={selectedColaborador} onValueChange={setSelectedColaborador}>
                     <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                    <SelectContent>{colaboradores.map((item) => <SelectItem key={item.id} value={item.id}>{item.nome}</SelectItem>)}</SelectContent>
+                    <SelectContent>{colaboradores.map((item) => <SelectItem key={item.id} value={item.id}>{item.nome}{item.email ? ` — ${item.email}` : ""}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
+                <Button variant="outline" className="gap-2" disabled={!selectedColaborador || entriesLoading} onClick={() => void fetchEntriesForMonth()}><RefreshCw className="h-4 w-4" />Atualizar</Button>
                 <Button variant="outline" className="gap-2" disabled={!colaboradorData || entriesLoading} onClick={() => openPrintDialog(false)}><Printer className="h-4 w-4" />Imprimir</Button>
                 <Button variant="outline" className="gap-2" disabled={!colaboradorData || entriesLoading} onClick={() => openPrintDialog(true)}><FileText className="h-4 w-4" />PDF</Button>
                 <Button variant="outline" className="gap-2" disabled={!colaboradorData || entriesLoading} onClick={exportExcel}><FileSpreadsheet className="h-4 w-4" />Excel</Button>
