@@ -1385,7 +1385,11 @@ export const SolicitacaoMaterial = () => {
 
       {/* Dialog Criar Nova Solicitação */}
       <Dialog open={dialogoCriar} onOpenChange={(aberto) => aberto ? setDialogoCriar(true) : fecharFormularioSolicitacao()}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onEscapeKeyDown={(event) => event.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5" /> {solicitacaoParaAdicionar ? `Adicionar itens à Solicitação #${solicitacaoParaAdicionar.numero}` : 'Nova Solicitação de Material'}

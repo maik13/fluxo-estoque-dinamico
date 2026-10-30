@@ -426,7 +426,11 @@ export const SolicitarMaterial = () => {
           </Card>
         </DialogTrigger>
 
-        <DialogContent className="left-2 right-2 top-[5dvh] box-border w-auto max-w-[calc(100vw-1rem)] translate-x-0 translate-y-0 overflow-x-hidden p-4 lg:left-[50%] lg:right-auto lg:top-[50%] lg:w-full lg:max-w-4xl lg:translate-x-[-50%] lg:translate-y-[-50%] lg:p-6 max-h-[90dvh] overflow-y-auto">
+        <DialogContent
+          className="left-2 right-2 top-[5dvh] box-border w-auto max-w-[calc(100vw-1rem)] translate-x-0 translate-y-0 overflow-x-hidden p-4 lg:left-[50%] lg:right-auto lg:top-[50%] lg:w-full lg:max-w-4xl lg:translate-x-[-50%] lg:translate-y-[-50%] lg:p-6 max-h-[90dvh] overflow-y-auto"
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onEscapeKeyDown={(event) => event.preventDefault()}
+        >
           <DialogHeader className="min-w-0 pr-7">
             <DialogTitle className="truncate">Retirada de Material</DialogTitle>
           </DialogHeader>
