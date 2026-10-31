@@ -248,7 +248,6 @@ export const ProcessosProducaoHierarquico = ({
     catch { return 'cards'; }
   });
   const [projetosExpandidos, setProjetosExpandidos] = useState<Set<string>>(new Set());
-  const [etapasExpandidas, setEtapasExpandidas] = useState<Set<string>>(() => new Set());
   const [fotoPorOp, setFotoPorOp] = useState<Record<string, string>>({});
   const [busca, setBusca] = useState('');
   useEffect(() => {
@@ -1238,29 +1237,27 @@ export const ProcessosProducaoHierarquico = ({
                         const opsValidas = opsDaEtapa.filter((op) => op.status !== 'cancelada');
                         const concluidas = opsValidas.filter((op) => op.status === 'concluida').length;
                         const percentual = progressoEtapa(processo, opsDaEtapa);
-                        const chaveEtapa = processo.nome.trim().toLocaleLowerCase('pt-BR');
-                        const expandida = etapasExpandidas.has(processo.id);
-
                         return (
                           <div key={processo.id} className="px-5 py-3">
                             <button
                               type="button"
-                              aria-expanded={expandida}
-                              aria-controls={`ops-etapa-${processo.id}`}
-                              onClick={() => setEtapasExpandidas((atuais) => {
-                                const proximas = new Set(atuais);
-                                if (proximas.has(processo.id)) proximas.delete(processo.id);
-                                else proximas.add(processo.id);
-                                return proximas;
-                              })}
+                              aria-label={`Abrir ${processo.nome} de ${resumo.projeto.nome} para consultar ou inserir OP`}
+                              onClick={() => {
+                                setProjetoSelecionadoId(resumo.projeto.id);
+                                setProcessoSelecionadoId(processo.id);
+                                setOrdemSelecionadaId(null);
+                              }}
                               className="flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-left transition hover:border-primary/50 hover:bg-muted/30"
                             >
                               <div className="flex min-w-0 items-center gap-3">
-                                {expandida ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                                <ChevronRight className="h-4 w-4 shrink-0" />
                                 <div>
                                   <p className="font-semibold">{processo.nome}</p>
                                   <p className="mt-0.5 text-xs text-muted-foreground">
                                     {opsValidas.length} OP(s) · {concluidas} concluída(s) · {statusEtapaLabel[processo.status] ?? processo.status}
+                                  </p>
+                                  <p className="mt-1 text-xs font-medium text-primary">
+                                    Abrir etapa para consultar ou inserir OP
                                   </p>
                                 </div>
                               </div>
@@ -1271,43 +1268,6 @@ export const ProcessosProducaoHierarquico = ({
                                 <BarraProgresso valor={percentual} />
                               </div>
                             </button>
-
-                            {expandida && <div id={`ops-etapa-${processo.id}`}>{opsDaEtapa.length === 0 ? (
-                              <p className="mt-3 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
-                                Nenhuma OP emitida nesta etapa.
-                              </p>
-                            ) : (
-                              <div className="mt-3 space-y-2">
-                                {opsDaEtapa.map((op) => {
-                                  const progresso = op.status === 'cancelada' ? 0 : clampPercent(percentualExecucaoOp(op));
-                                  return (
-                                    <button
-                                      key={op.id}
-                                      type="button"
-                                      onClick={() => {
-                                        setEtapaGrupoSelecionada(chaveEtapa);
-                                        setOrdemSelecionadaId(op.id);
-                                      }}
-                                      className="flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition hover:border-primary/50 hover:bg-muted/30"
-                                    >
-                                      <div className="min-w-0 flex-1">
-                                        <p className="truncate text-sm font-medium">{formatarIdentificacaoOrdemProducao(op)}</p>
-                                        <p className="mt-0.5 text-xs text-muted-foreground">
-                                          Prevista: {formatarData(op.data_inicio_prevista)}{op.data_fim_prevista && op.data_fim_prevista !== op.data_inicio_prevista ? ` → ${formatarData(op.data_fim_prevista)}` : ''}
-                                        </p>
-                                      </div>
-                                      <div className="hidden w-28 shrink-0 space-y-1 sm:block">
-                                        <div className="flex justify-between text-xs text-muted-foreground">
-                                          <span>{statusOpLabel[op.status] ?? op.status}</span><span>{progresso}%</span>
-                                        </div>
-                                        <BarraProgresso valor={progresso} />
-                                      </div>
-                                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}</div>}
                           </div>
                         );
                       })}
