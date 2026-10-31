@@ -32,6 +32,7 @@ import { SecaoProducaoSegura } from './SecaoProducaoSegura';
 
 export const Producao = () => {
   const [abaAtiva, setAbaAtiva] = useState('etapas');
+  const [projetoParaAbrirId, setProjetoParaAbrirId] = useState<string | null>(null);
   const [contextoJornada, setContextoJornada] = useState<ContextoFechamentoJornadaOp | null>(null);
   const [versaoEtapas, setVersaoEtapas] = useState(0);
   const {
@@ -84,6 +85,12 @@ export const Producao = () => {
 
   const sincronizarProjetosEtapas = useCallback(() => {
     setVersaoEtapas((atual) => atual + 1);
+  }, []);
+
+  const abrirProjetoNaProducao = useCallback((projetoId: string) => {
+    setProjetoParaAbrirId(projetoId);
+    setVersaoEtapas((atual) => atual + 1);
+    setAbaAtiva('etapas');
   }, []);
 
   const trocarAba = useCallback(
@@ -166,7 +173,10 @@ export const Producao = () => {
           <PlanejamentoProducao />
         </TabsContent>
         <TabsContent value="projetos" className="mt-5">
-          <ProjetosProducao onProjetosAtualizados={sincronizarProjetosEtapas} />
+          <ProjetosProducao
+            onProjetosAtualizados={sincronizarProjetosEtapas}
+            onAbrirNaProducao={abrirProjetoNaProducao}
+          />
         </TabsContent>
         <TabsContent value="etapas" className="mt-5">
           <SecaoProducaoSegura
@@ -177,6 +187,7 @@ export const Producao = () => {
               key={versaoEtapas}
               tarefas={tarefas}
               membros={membrosProducao}
+              projetoInicialId={projetoParaAbrirId}
               estoqueAtivoId={estoqueAtivoId}
               estoqueAtivoNome={estoqueAtivo?.nome ?? null}
               onFecharJornada={abrirFechamentoJornada}

@@ -81,6 +81,7 @@ import {
 interface Props {
   tarefas: ProducaoTarefa[];
   membros: ProducaoMembro[];
+  projetoInicialId?: string | null;
   estoqueAtivoId?: string | null;
   estoqueAtivoNome?: string | null;
   onFecharJornada: (contexto: ContextoFechamentoJornadaOp) => void;
@@ -237,6 +238,7 @@ const progressoEtapa = (
 export const ProcessosProducaoHierarquico = ({
   tarefas,
   membros,
+  projetoInicialId = null,
   estoqueAtivoId = null,
   estoqueAtivoNome = null,
   onFecharJornada,
@@ -270,6 +272,14 @@ export const ProcessosProducaoHierarquico = ({
   const [ordemParaIniciar, setOrdemParaIniciar] = useState<ProducaoOrdemProducao | null>(null);
   const [alertaJornadaAberta, setAlertaJornadaAberta] = useState(false);
   const [podeExcluirOps, setPodeExcluirOps] = useState(false);
+
+  useEffect(() => {
+    if (!projetoInicialId) return;
+    setGrupoSelecionadoId(null);
+    setProcessoSelecionadoId(null);
+    setOrdemSelecionadaId(null);
+    setProjetoSelecionadoId(projetoInicialId);
+  }, [projetoInicialId]);
 
   const { isAdmin, canConfigurarProducao } = usePermissions();
   const { projetos, loading: loadingProjetos, listarProjetos } = useProjetosProducao();

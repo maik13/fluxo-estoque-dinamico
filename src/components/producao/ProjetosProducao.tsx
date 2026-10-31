@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Search, MapPin, Calendar, FolderOpen, CircleCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useProjetosProducao } from '@/hooks/useProjetosProducao';
 import { FormProjetoProducao } from './FormProjetoProducao';
@@ -12,9 +13,10 @@ import { ptBR } from 'date-fns/locale';
 
 interface Props {
   onProjetosAtualizados?: () => void;
+  onAbrirNaProducao?: (projetoId: string) => void;
 }
 
-export const ProjetosProducao = ({ onProjetosAtualizados }: Props) => {
+export const ProjetosProducao = ({ onProjetosAtualizados, onAbrirNaProducao }: Props) => {
   const [busca, setBusca] = useState('');
   const { projetos, loading, listarProjetos } = useProjetosProducao();
   const { canConfigurarProducao, isAdmin } = usePermissions();
@@ -148,10 +150,16 @@ export const ProjetosProducao = ({ onProjetosAtualizados }: Props) => {
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
-                <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onAbrirNaProducao?.(projeto.id)}
+                  aria-label={`Abrir etapas e OPs de ${projeto.nome}`}
+                >
                   <CircleCheck className="h-3.5 w-3.5 text-emerald-500" />
-                  Adicionado à Produção
-                </span>
+                  Abrir na Produção
+                </Button>
                 {isAdmin() && <ExcluirProjetoProducao projeto={projeto} onSuccess={atualizarProjetos} />}
                 {canConfigurarProducao() && (
                   <FormEditarProjetoProducao
