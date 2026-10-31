@@ -451,10 +451,15 @@ export const ProcessosProducaoHierarquico = ({
     }>();
 
     resumosProjetos.forEach((resumo) => {
-      const chave = resumo.projeto.group_id
-        ?? (resumo.projeto.cidade ? `cidade:${resumo.projeto.cidade.trim().toLocaleLowerCase('pt-BR')}` : `projeto:${resumo.projeto.id}`);
-      const nome = resumo.projeto.grupo_nome?.trim()
-        || resumo.projeto.cidade?.trim()
+      const cidade = resumo.projeto.cidade?.trim() || null;
+      // A navegação de Etapas começa pela cidade. O grupo/local (por exemplo,
+      // Pq do Japão) continua identificado dentro de cada peça, mas não pode
+      // retirar a peça do agrupamento da cidade à qual ela pertence.
+      const chave = cidade
+        ? `cidade:${cidade.toLocaleLowerCase('pt-BR')}`
+        : resumo.projeto.group_id ?? `projeto:${resumo.projeto.id}`;
+      const nome = cidade
+        || resumo.projeto.grupo_nome?.trim()
         || resumo.projeto.nome;
 
       const atual = mapa.get(chave) ?? {
@@ -501,6 +506,7 @@ export const ProcessosProducaoHierarquico = ({
       return [grupo.nome, grupo.cidade, ...grupo.projetos.flatMap((resumo) => [
         resumo.projeto.nome,
         resumo.projeto.cliente,
+        resumo.projeto.grupo_nome,
       ])]
         .filter(Boolean)
         .some((valor) => String(valor).toLocaleLowerCase('pt-BR').includes(termo));
@@ -1193,7 +1199,7 @@ export const ProcessosProducaoHierarquico = ({
           <div className="rounded-xl border bg-card p-5 shadow-sm">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Projeto</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cidade / projeto</p>
                 <h3 className="mt-1 text-xl font-semibold">{grupoSelecionado.nome}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {grupoSelecionado.projetos.length} peça(s) · {grupoSelecionado.ops.length} OP(s)
@@ -1359,7 +1365,7 @@ export const ProcessosProducaoHierarquico = ({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Projeto</p>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cidade / projeto</p>
                     <h4 className="mt-1 truncate text-lg font-semibold">{grupo.nome}</h4>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {grupo.projetos.length} peça(s) · {grupo.etapas.length} processo(s) · {grupo.ops.length} OP(s)
