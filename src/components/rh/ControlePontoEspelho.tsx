@@ -24,6 +24,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EditableTimeCell } from "@/components/ponto/EditableTimeCell";
 import { MonthYearPicker } from "@/components/ponto/MonthYearPicker";
 import { supabase } from "@/integrations/supabase/client";
+import { appControleSupabase } from "@/integrations/appcontrole/client";
+import { AppControleSessionGate } from "@/components/integracoes/AppControleSessionGate";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   DEFAULT_DAILY_MINUTES,
@@ -41,6 +43,8 @@ const db = supabase as any;
 
 interface Colaborador {
   id: string;
+  origem_id: string | null;
+  origem_sistema: string | null;
   nome: string;
   email: string | null;
   user_id: string | null;
@@ -101,6 +105,21 @@ interface Feriado {
 interface TimeEntry {
   id: string;
   colaborador_id: string;
+  data: string;
+  hora_entrada_1: string | null;
+  hora_saida_1: string | null;
+  hora_entrada_2: string | null;
+  hora_saida_2: string | null;
+  hora_entrada_3: string | null;
+  hora_saida_3: string | null;
+  observacao: string | null;
+  status: string;
+  source?: "fluxo" | "appcontrole";
+}
+
+interface AppControleTimeEntry {
+  id: string;
+  funcionario_id: string;
   data: string;
   hora_entrada_1: string | null;
   hora_saida_1: string | null;
@@ -209,7 +228,7 @@ function observationForRow(row: DayRow): string {
   return row.entry?.observacao || "";
 }
 
-export default function ControlePontoEspelhoCorrigido() {
+function ControlePontoEspelhoConteudo() {
   const { isAdmin, hasPermission, loading: permissionsLoading } = usePermissions();
   const isGestor = isAdmin() || hasPermission("ponto.gerenciar");
   const isPontoViewer =
@@ -301,19 +320,59 @@ export default function ControlePontoEspelhoCorrigido() {
           entries?: TimeEntry[];
         };
         targetColaboradorId = snapshot.resolved_colaborador_id || targetColaboradorId;
-        entriesData = Array.isArray(snapshot.entries) ? snapshot.entries : [];
+        entriesData = Array.isArray(snapshot.entries)
+          ? snapshot.entries.map((entry) => ({ ...entry, source: "fluxo" as const }))
+          : [];
       } else {
         // Compatibilidade enquanto a migração chega ao ambiente publicado.
         const entriesResponse = await db.from("rh_registros_ponto").select("*")
           .eq("colaborador_id", targetColaboradorId).gte("data", startDate).lte("data", endDate).order("data");
         if (entriesResponse.error) throw entriesResponse.error;
-        entriesData = (entriesResponse.data || []) as TimeEntry[];
+        entriesData = ((entriesResponse.data || []) as TimeEntry[])
+          .map((entry) => ({ ...entry, source: "fluxo" as const }));
       }
 
       const paidResponse = await db.from("rh_ponto_dias_pagos").select("*")
         .eq("colaborador_id", targetColaboradorId).gte("data", startDate).lte("data", endDate).order("data");
       if (paidResponse.error) throw paidResponse.error;
       const collaborator = colaboradores.find((item) => item.id === targetColaboradorId) || selectedParticipant;
+
+      // O aparelho oficial continua gravando o ponto no projeto App Controle.
+      // O cadastro importado preserva origem_id, que corresponde ao funcionario_id
+      // da origem. Esses registros têm precedência sobre a fotografia histórica do
+      // banco do Fluxo, evitando que batidas novas desapareçam do espelho.
+      const appControleColaboradorId = collaborator?.origem_id || collaborator?.id || targetColaboradorId;
+      const sourceResponse = await appControleSupabase
+        .from("time_entries")
+        .select("id,funcionario_id,data,hora_entrada_1,hora_saida_1,hora_entrada_2,hora_saida_2,hora_entrada_3,hora_saida_3,observacao,status")
+        .eq("funcionario_id", appControleColaboradorId)
+        .gte("data", startDate)
+        .lte("data", endDate)
+        .order("data");
+      if (sourceResponse.error) throw sourceResponse.error;
+
+      const sourceEntries = ((sourceResponse.data || []) as AppControleTimeEntry[]).map((entry) => ({
+        id: entry.id,
+        colaborador_id: targetColaboradorId,
+        data: entry.data,
+        hora_entrada_1: entry.hora_entrada_1,
+        hora_saida_1: entry.hora_saida_1,
+        hora_entrada_2: entry.hora_entrada_2,
+        hora_saida_2: entry.hora_saida_2,
+        hora_entrada_3: entry.hora_entrada_3,
+        hora_saida_3: entry.hora_saida_3,
+        observacao: entry.observacao,
+        status: entry.status,
+        source: "appcontrole" as const,
+      }));
+      if (sourceEntries.length > 0) {
+        const sourceDates = new Set(sourceEntries.map((entry) => entry.data));
+        entriesData = [
+          ...entriesData.filter((entry) => !sourceDates.has(entry.data)),
+          ...sourceEntries,
+        ].sort((a, b) => a.data.localeCompare(b.data));
+      }
+
       setEntries(entriesData);
       setPaidDays((paidResponse.data || []) as PaidDay[]);
       setColaboradorData(collaborator);
@@ -360,6 +419,22 @@ export default function ControlePontoEspelhoCorrigido() {
       )
       .subscribe();
 
+    const collaborator = colaboradores.find((item) => item.id === selectedColaborador);
+    const appControleColaboradorId = collaborator?.origem_id || collaborator?.id || selectedColaborador;
+    const appControleChannel = appControleSupabase
+      .channel(`appcontrole-ponto-espelho-${appControleColaboradorId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "time_entries",
+          filter: `funcionario_id=eq.${appControleColaboradorId}`,
+        },
+        refreshSilently,
+      )
+      .subscribe();
+
     window.addEventListener("focus", refreshSilently);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     const fallbackTimer = window.setInterval(() => {
@@ -371,8 +446,9 @@ export default function ControlePontoEspelhoCorrigido() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(fallbackTimer);
       void db.removeChannel(channel);
+      void appControleSupabase.removeChannel(appControleChannel);
     };
-  }, [selectedColaborador, selectedMonth]);
+  }, [selectedColaborador, selectedMonth, colaboradores]);
 
   const selectedMonthDate = useMemo(() => {
     const [year, month] = selectedMonth.split("-").map(Number);
@@ -683,15 +759,23 @@ export default function ControlePontoEspelhoCorrigido() {
     const entry = entriesByDate[dateStr];
     try {
       if (entry) {
-        const { error } = await supabase
-          .from("rh_registros_ponto")
-          .update({ [field]: newValue, status: "pendente", aprovado_por: null, aprovado_em: null } as any)
-          .eq("id", entry.id);
+        const response = entry.source === "appcontrole"
+          ? await appControleSupabase
+            .from("time_entries")
+            .update({ [field]: newValue, status: "pendente", aprovado_por: null, aprovado_em: null } as any)
+            .eq("id", entry.id)
+          : await supabase
+            .from("rh_registros_ponto")
+            .update({ [field]: newValue, status: "pendente", aprovado_por: null, aprovado_em: null } as any)
+            .eq("id", entry.id);
+        const { error } = response;
         if (error) throw error;
       } else {
         if (!selectedColaborador || !newValue) return;
-        const { error } = await db.from("rh_registros_ponto").insert({
-          colaborador_id: selectedColaborador,
+        const collaborator = colaboradores.find((item) => item.id === selectedColaborador);
+        const appControleColaboradorId = collaborator?.origem_id || collaborator?.id || selectedColaborador;
+        const { error } = await appControleSupabase.from("time_entries").insert({
+          funcionario_id: appControleColaboradorId,
           data: dateStr,
           [field]: newValue,
           status: "pendente",
@@ -1065,5 +1149,13 @@ export default function ControlePontoEspelhoCorrigido() {
           </Card>
         )}
       </div>
+  );
+}
+
+export default function ControlePontoEspelhoCorrigido() {
+  return (
+    <AppControleSessionGate moduleName="Controle de Ponto">
+      <ControlePontoEspelhoConteudo />
+    </AppControleSessionGate>
   );
 }
