@@ -99,6 +99,7 @@ export const NavegacaoLateralEstoque = ({
       'Almoxarifado',
       ...(showFinanceiro || showAcompanhamentoPedido || showGerencial || showProjetos ? ['Gestão'] : []),
       ...(showProducao || showPlanejamento2 || showImagensOP ? ['Produção'] : []),
+      ...(showMeuPonto || showControlePonto || showRHInformacoes ? ['RH'] : []),
     ]),
   );
 
@@ -246,12 +247,17 @@ export const NavegacaoLateralEstoque = ({
       section.items.some((item) => item.value === tabAtiva && item.visible !== false),
     );
 
-    if (!activeSection) return;
+    const rhLiberado = showMeuPonto || showControlePonto || showRHInformacoes;
+    if (!activeSection && !rhLiberado) return;
 
     setOpenSections((current) => {
-      if (current.has(activeSection.label)) return current;
+      const deveAbrirSecaoAtiva = activeSection && !current.has(activeSection.label);
+      const deveAbrirRH = rhLiberado && !current.has('RH');
+      if (!deveAbrirSecaoAtiva && !deveAbrirRH) return current;
+
       const next = new Set(current);
-      next.add(activeSection.label);
+      if (activeSection) next.add(activeSection.label);
+      if (rhLiberado) next.add('RH');
       return next;
     });
   }, [
