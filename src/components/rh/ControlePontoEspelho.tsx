@@ -25,7 +25,6 @@ import { EditableTimeCell } from "@/components/ponto/EditableTimeCell";
 import { MonthYearPicker } from "@/components/ponto/MonthYearPicker";
 import { supabase } from "@/integrations/supabase/client";
 import { appControleSupabase } from "@/integrations/appcontrole/client";
-import { AppControleSessionGate } from "@/components/integracoes/AppControleSessionGate";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   DEFAULT_DAILY_MINUTES,
@@ -246,6 +245,7 @@ function ControlePontoEspelhoConteudo() {
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [paidDays, setPaidDays] = useState<PaidDay[]>([]);
   const [paymentSaving, setPaymentSaving] = useState(false);
+  const [appControleConnected, setAppControleConnected] = useState(false);
   const [colaboradorData, setColaboradorData] = useState<Colaborador | null>(null);
   const [jornadaData, setJornadaData] = useState<Jornada | null>(null);
   const entriesRefreshRef = useRef<(showLoading?: boolean) => Promise<void>>(async () => undefined);
@@ -255,10 +255,27 @@ function ControlePontoEspelhoConteudo() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+
+    void appControleSupabase.auth.getSession().then(({ data }) => {
+      if (active) setAppControleConnected(Boolean(data.session));
+    });
+
+    const { data: listener } = appControleSupabase.auth.onAuthStateChange((_event, session) => {
+      if (active) setAppControleConnected(Boolean(session));
+    });
+
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
     if (selectedColaborador && colaboradores.length > 0) {
       void fetchEntriesForMonth();
     }
-  }, [selectedColaborador, selectedMonth, colaboradores, jornadas]);
+  }, [selectedColaborador, selectedMonth, colaboradores, jornadas, appControleConnected]);
 
   const fetchInitialData = async () => {
     setLoading(true);
@@ -341,36 +358,41 @@ function ControlePontoEspelhoConteudo() {
       // O cadastro importado preserva origem_id, que corresponde ao funcionario_id
       // da origem. Esses registros têm precedência sobre a fotografia histórica do
       // banco do Fluxo, evitando que batidas novas desapareçam do espelho.
-      const appControleColaboradorId = collaborator?.origem_id || collaborator?.id || targetColaboradorId;
-      const sourceResponse = await appControleSupabase
-        .from("time_entries")
-        .select("id,funcionario_id,data,hora_entrada_1,hora_saida_1,hora_entrada_2,hora_saida_2,hora_entrada_3,hora_saida_3,observacao,status")
-        .eq("funcionario_id", appControleColaboradorId)
-        .gte("data", startDate)
-        .lte("data", endDate)
-        .order("data");
-      if (sourceResponse.error) throw sourceResponse.error;
+      if (appControleConnected) {
+        const appControleColaboradorId = collaborator?.origem_id || collaborator?.id || targetColaboradorId;
+        const sourceResponse = await appControleSupabase
+          .from("time_entries")
+          .select("id,funcionario_id,data,hora_entrada_1,hora_saida_1,hora_entrada_2,hora_saida_2,hora_entrada_3,hora_saida_3,observacao,status")
+          .eq("funcionario_id", appControleColaboradorId)
+          .gte("data", startDate)
+          .lte("data", endDate)
+          .order("data");
 
-      const sourceEntries = ((sourceResponse.data || []) as AppControleTimeEntry[]).map((entry) => ({
-        id: entry.id,
-        colaborador_id: targetColaboradorId,
-        data: entry.data,
-        hora_entrada_1: entry.hora_entrada_1,
-        hora_saida_1: entry.hora_saida_1,
-        hora_entrada_2: entry.hora_entrada_2,
-        hora_saida_2: entry.hora_saida_2,
-        hora_entrada_3: entry.hora_entrada_3,
-        hora_saida_3: entry.hora_saida_3,
-        observacao: entry.observacao,
-        status: entry.status,
-        source: "appcontrole" as const,
-      }));
-      if (sourceEntries.length > 0) {
-        const sourceDates = new Set(sourceEntries.map((entry) => entry.data));
-        entriesData = [
-          ...entriesData.filter((entry) => !sourceDates.has(entry.data)),
-          ...sourceEntries,
-        ].sort((a, b) => a.data.localeCompare(b.data));
+        if (sourceResponse.error) {
+          console.warn("Complemento do App Controle indisponível; mantendo os registros oficiais do Fluxo.", sourceResponse.error);
+        } else {
+          const sourceEntries = ((sourceResponse.data || []) as AppControleTimeEntry[]).map((entry) => ({
+            id: entry.id,
+            colaborador_id: targetColaboradorId,
+            data: entry.data,
+            hora_entrada_1: entry.hora_entrada_1,
+            hora_saida_1: entry.hora_saida_1,
+            hora_entrada_2: entry.hora_entrada_2,
+            hora_saida_2: entry.hora_saida_2,
+            hora_entrada_3: entry.hora_entrada_3,
+            hora_saida_3: entry.hora_saida_3,
+            observacao: entry.observacao,
+            status: entry.status,
+            source: "appcontrole" as const,
+          }));
+          if (sourceEntries.length > 0) {
+            const sourceDates = new Set(sourceEntries.map((entry) => entry.data));
+            entriesData = [
+              ...entriesData.filter((entry) => !sourceDates.has(entry.data)),
+              ...sourceEntries,
+            ].sort((a, b) => a.data.localeCompare(b.data));
+          }
+        }
       }
 
       setEntries(entriesData);
@@ -421,19 +443,21 @@ function ControlePontoEspelhoConteudo() {
 
     const collaborator = colaboradores.find((item) => item.id === selectedColaborador);
     const appControleColaboradorId = collaborator?.origem_id || collaborator?.id || selectedColaborador;
-    const appControleChannel = appControleSupabase
-      .channel(`appcontrole-ponto-espelho-${appControleColaboradorId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "time_entries",
-          filter: `funcionario_id=eq.${appControleColaboradorId}`,
-        },
-        refreshSilently,
-      )
-      .subscribe();
+    const appControleChannel = appControleConnected
+      ? appControleSupabase
+          .channel(`appcontrole-ponto-espelho-${appControleColaboradorId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "time_entries",
+              filter: `funcionario_id=eq.${appControleColaboradorId}`,
+            },
+            refreshSilently,
+          )
+          .subscribe()
+      : null;
 
     window.addEventListener("focus", refreshSilently);
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -446,9 +470,9 @@ function ControlePontoEspelhoConteudo() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(fallbackTimer);
       void db.removeChannel(channel);
-      void appControleSupabase.removeChannel(appControleChannel);
+      if (appControleChannel) void appControleSupabase.removeChannel(appControleChannel);
     };
-  }, [selectedColaborador, selectedMonth, colaboradores]);
+  }, [selectedColaborador, selectedMonth, colaboradores, appControleConnected]);
 
   const selectedMonthDate = useMemo(() => {
     const [year, month] = selectedMonth.split("-").map(Number);
@@ -1153,9 +1177,5 @@ function ControlePontoEspelhoConteudo() {
 }
 
 export default function ControlePontoEspelhoCorrigido() {
-  return (
-    <AppControleSessionGate moduleName="Controle de Ponto">
-      <ControlePontoEspelhoConteudo />
-    </AppControleSessionGate>
-  );
+  return <ControlePontoEspelhoConteudo />;
 }
