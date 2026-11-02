@@ -26,6 +26,7 @@ import { CampoDescricaoComVoz } from './CampoDescricaoComVoz';
 import {
   editarOrdemProducao,
   formatarNumeroOrdemProducao,
+  renomearOrdemProducao,
   regularizarEstimativaEsforcoOrdemProducao,
 } from '@/hooks/useOrdensProducao';
 import { supabase } from '@/integrations/supabase/client';
@@ -73,7 +74,9 @@ export const FormEditarOrdemProducao = ({
     useState<ProducaoPrioridade>('normal');
   const [descricao, setDescricao] = useState('');
   const [instrucoes, setInstrucoes] = useState('');
+  const [nomeOp, setNomeOp] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [renomeando, setRenomeando] = useState(false);
   const [reclassificando, setReclassificando] = useState(false);
   const [etapas, setEtapas] = useState<EtapaDestino[]>([]);
   const [etapaSelecionada, setEtapaSelecionada] = useState(ordem.processo_id);
@@ -114,15 +117,51 @@ export const FormEditarOrdemProducao = ({
     setPrioridade(ordem.prioridade);
     setDescricao(ordem.descricao ?? '');
     setInstrucoes(ordem.instrucoes ?? '');
+    setNomeOp(ordem.tarefa_nome_snapshot ?? '');
     setEtapaSelecionada(ordem.processo_id);
   };
 
   const alterarAbertura = (open: boolean) => {
-    if (salvando || reclassificando) return;
+    if (salvando || reclassificando || renomeando) return;
     setAberto(open);
     if (open) {
       preencher();
       void carregarEtapas();
+    }
+  };
+
+  const salvarNome = async () => {
+    const nomeNormalizado = nomeOp.trim().replace(/\s+/g, ' ');
+
+    if (!nomeNormalizado) {
+      toast.error('Informe o novo nome da OP.');
+      return;
+    }
+
+    if (nomeNormalizado.length > 200) {
+      toast.error('O nome da OP deve ter no máximo 200 caracteres.');
+      return;
+    }
+
+    if (nomeNormalizado === (ordem.tarefa_nome_snapshot ?? '').trim()) {
+      toast.info('O nome da OP não foi alterado.');
+      return;
+    }
+
+    setRenomeando(true);
+    try {
+      await renomearOrdemProducao(ordem.id, nomeNormalizado);
+      await onSuccess();
+      setNomeOp(nomeNormalizado);
+      toast.success(
+        `${formatarNumeroOrdemProducao(ordem.numero)} renomeada sem alterar seus vínculos.`,
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Não foi possível alterar o nome da OP.',
+      );
+    } finally {
+      setRenomeando(false);
     }
   };
 
@@ -309,6 +348,34 @@ export const FormEditarOrdemProducao = ({
             <p><strong>Produção confirmada:</strong> {formatarQuantidade(Number(ordem.quantidade_realizada))} {ordem.unidade_medida ?? ''}</p>
           </div>
 
+          <div className="space-y-3 rounded-lg border p-4">
+            <div>
+              <Label htmlFor={`nome-op-${ordem.id}`}>Nome exibido da OP</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Altera somente o texto mostrado depois do número da OP. Projeto, etapa, processo, apontamentos e vínculos serão preservados.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id={`nome-op-${ordem.id}`}
+                value={nomeOp}
+                onChange={(event) => setNomeOp(event.target.value)}
+                maxLength={200}
+                placeholder="Informe o nome da OP"
+                disabled={renomeando}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void salvarNome()}
+                disabled={renomeando || salvando || reclassificando || !nomeOp.trim()}
+              >
+                {renomeando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Pencil className="mr-2 h-4 w-4" />}
+                Salvar nome
+              </Button>
+            </div>
+          </div>
+
           {reclassificavel && (
             <div className="rounded-lg border p-4 space-y-3">
               <div>
@@ -328,7 +395,7 @@ export const FormEditarOrdemProducao = ({
                 type="button"
                 variant="secondary"
                 onClick={alterarEtapa}
-                disabled={reclassificando || etapaSelecionada === ordem.processo_id}
+                disabled={reclassificando || renomeando || etapaSelecionada === ordem.processo_id}
               >
                 {reclassificando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRightLeft className="mr-2 h-4 w-4" />}
                 Alterar etapa e sincronizar histórico
@@ -369,7 +436,7 @@ export const FormEditarOrdemProducao = ({
                 type="button"
                 variant="secondary"
                 onClick={() => void salvarEstimativaLegada()}
-                disabled={salvando || reclassificando}
+                disabled={salvando || reclassificando || renomeando}
               >
                 {salvando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Pencil className="mr-2 h-4 w-4" />}
                 Salvar estimativa de esforço
@@ -438,9 +505,9 @@ export const FormEditarOrdemProducao = ({
           )}
 
           <DialogFooter className="sticky -bottom-6 -mx-6 border-t bg-background px-6 py-4">
-            <Button type="button" variant="outline" onClick={() => setAberto(false)} disabled={salvando || reclassificando}>Voltar</Button>
+            <Button type="button" variant="outline" onClick={() => setAberto(false)} disabled={salvando || reclassificando || renomeando}>Voltar</Button>
             {editavelPlanejamento && (
-              <Button type="submit" disabled={salvando || reclassificando}>
+              <Button type="submit" disabled={salvando || reclassificando || renomeando}>
                 {salvando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Pencil className="mr-2 h-4 w-4" />}
                 Salvar alterações da OP
               </Button>

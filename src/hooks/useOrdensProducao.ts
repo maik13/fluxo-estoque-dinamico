@@ -114,6 +114,22 @@ export const regularizarEstimativaEsforcoOrdemProducao = async (
   }
 };
 
+export const renomearOrdemProducao = async (
+  ordemProducaoId: string,
+  novoNome: string,
+) => {
+  const { error } = await (supabase.rpc as any)('renomear_ordem_producao_v1', {
+    p_ordem_producao_id: ordemProducaoId,
+    p_novo_nome: novoNome,
+  });
+
+  if (error) {
+    throw erro(error, 'Não foi possível alterar o nome desta OP.');
+  }
+
+  notificarOrdensProducaoAlteradas();
+};
+
 export const notificarOrdensProducaoAlteradas = () => {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event(EVENTO_ORDENS_ALTERADAS));
