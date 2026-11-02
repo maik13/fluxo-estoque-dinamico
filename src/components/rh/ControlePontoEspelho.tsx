@@ -385,6 +385,17 @@ function ControlePontoEspelhoConteudo() {
             status: entry.status,
             source: "appcontrole" as const,
           }));
+
+          if (isGestor && sourceResponse.data && sourceResponse.data.length > 0) {
+            const syncResponse = await db.rpc("rh_sincronizar_registros_appcontrole_v1", {
+              p_colaborador_id: targetColaboradorId,
+              p_registros: sourceResponse.data,
+            });
+            if (syncResponse.error) {
+              console.warn("Não foi possível persistir o complemento do App Controle no Fluxo.", syncResponse.error);
+            }
+          }
+
           if (sourceEntries.length > 0) {
             const sourceDates = new Set(sourceEntries.map((entry) => entry.data));
             entriesData = [
