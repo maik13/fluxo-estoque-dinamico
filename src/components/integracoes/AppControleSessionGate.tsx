@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { KeyRound, Loader2, ShieldCheck } from "lucide-react";
+import { KeyRound, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { appControleSupabase } from "@/integrations/appcontrole/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -20,6 +20,8 @@ export function AppControleSessionGate({ children, moduleName }: Props) {
   const [appSession, setAppSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+  const [sendingRecovery, setSendingRecovery] = useState(false);
+  const [recoverySent, setRecoverySent] = useState(false);
   const [email, setEmail] = useState(fluxoSession?.user?.email || "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -74,9 +76,37 @@ export function AppControleSessionGate({ children, moduleName }: Props) {
       if (signInError) throw signInError;
       setPassword("");
     } catch (err: any) {
-      setError(err?.message || "Não foi possível conectar ao App Controle.");
+      const message = err?.message || "Não foi possível conectar ao App Controle.";
+      setError(
+        /invalid login credentials/i.test(message)
+          ? "A senha informada não corresponde à conta do App Controle. Redefina a senha abaixo e depois conecte novamente."
+          : message,
+      );
     } finally {
       setConnecting(false);
+    }
+  };
+
+  const sendPasswordRecovery = async () => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setError("Informe o e-mail da conta do App Controle.");
+      return;
+    }
+
+    setError("");
+    setRecoverySent(false);
+    setSendingRecovery(true);
+    try {
+      const { error: recoveryError } = await appControleSupabase.auth.resetPasswordForEmail(
+        normalizedEmail,
+      );
+      if (recoveryError) throw recoveryError;
+      setRecoverySent(true);
+    } catch (err: any) {
+      setError(err?.message || "Não foi possível enviar a recuperação de senha do App Controle.");
+    } finally {
+      setSendingRecovery(false);
     }
   };
 
@@ -134,9 +164,28 @@ export function AppControleSessionGate({ children, moduleName }: Props) {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+            {recoverySent && (
+              <Alert>
+                <Mail className="h-4 w-4" />
+                <AlertTitle>E-mail enviado</AlertTitle>
+                <AlertDescription>
+                  Abra o e-mail de recuperação, defina a senha do App Controle e depois volte para conectar uma única vez.
+                </AlertDescription>
+              </Alert>
+            )}
             <Button type="submit" className="w-full" disabled={connecting}>
               {connecting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
               Conectar uma vez
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => void sendPasswordRecovery()}
+              disabled={connecting || sendingRecovery}
+            >
+              {sendingRecovery ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+              Redefinir senha do App Controle
             </Button>
           </form>
         </CardContent>
