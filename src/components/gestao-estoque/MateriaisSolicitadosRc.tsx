@@ -33,7 +33,7 @@ interface SolicitacaoInfo {
 interface DadosOrigem {
   solicitacao: SolicitacaoInfo | null;
   itensSolicitacao: ItemSolicitacaoEntrada[];
-  pn: (PnEntrada & { justificativa: string | null }) | null;
+  pn: (PnEntrada & { justificativa: string | null; solicitacao_material_id: string | null }) | null;
   itensPn: ItemPnEntrada[];
   itemSolicitacaoDaPn: ItemSolicitacaoEntrada | null;
   outrasRcsMesmaSolicitacao: number;
