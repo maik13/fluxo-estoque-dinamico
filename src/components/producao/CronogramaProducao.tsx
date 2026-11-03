@@ -568,7 +568,7 @@ export const CronogramaProducao = () => {
   };
 
   const iniciarEdicaoBarra = (
-    event: ReactPointerEvent<HTMLDivElement>,
+    event: ReactPointerEvent<HTMLElement>,
     linha: LinhaOp,
     tipo: TipoEdicaoBarra,
   ) => {
