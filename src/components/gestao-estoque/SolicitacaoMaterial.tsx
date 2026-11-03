@@ -35,6 +35,7 @@ interface ItemSolicitacaoMaterial {
   unidade: string;
   item_snapshot?: any;
   observacoes?: string;
+  especificacao?: string | null;
   isCustom: boolean;
 }
 

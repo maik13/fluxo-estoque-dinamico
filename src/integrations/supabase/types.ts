@@ -2115,62 +2115,237 @@ export type Database = {
           },
         ]
       }
+      cotacao_solicitacao_edicoes_auditoria: {
+        Row: {
+          dados_anteriores: Json
+          dados_novos: Json
+          editado_em: string
+          editado_por: string
+          editado_por_nome: string
+          id: string
+          solicitacao_id: string
+        }
+        Insert: {
+          dados_anteriores: Json
+          dados_novos: Json
+          editado_em?: string
+          editado_por: string
+          editado_por_nome: string
+          id?: string
+          solicitacao_id: string
+        }
+        Update: {
+          dados_anteriores?: Json
+          dados_novos?: Json
+          editado_em?: string
+          editado_por?: string
+          editado_por_nome?: string
+          id?: string
+          solicitacao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotacao_solicitacao_edicoes_auditoria_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "cotacao_solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cotacao_solicitacao_itens: {
+        Row: {
+          codigo_item: string | null
+          created_at: string
+          descricao: string
+          id: string
+          item_id: string | null
+          observacoes: string | null
+          ordem: number
+          quantidade: number | null
+          solicitacao_id: string
+          unidade: string | null
+        }
+        Insert: {
+          codigo_item?: string | null
+          created_at?: string
+          descricao: string
+          id?: string
+          item_id?: string | null
+          observacoes?: string | null
+          ordem?: number
+          quantidade?: number | null
+          solicitacao_id: string
+          unidade?: string | null
+        }
+        Update: {
+          codigo_item?: string | null
+          created_at?: string
+          descricao?: string
+          id?: string
+          item_id?: string | null
+          observacoes?: string | null
+          ordem?: number
+          quantidade?: number | null
+          solicitacao_id?: string
+          unidade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotacao_solicitacao_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacao_solicitacao_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacao_solicitacao_itens_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "cotacao_solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cotacao_solicitacoes: {
         Row: {
           created_at: string
           criado_por: string | null
+          criado_por_email: string | null
           criado_por_nome: string | null
+          criado_por_perfil: string | null
+          cubagem_m3: number | null
           data_limite: string | null
+          data_necessaria: string | null
+          destino_frete: string | null
+          editada_em: string | null
+          editada_por: string | null
+          editada_por_nome: string | null
           fornecedores_solicitados: string | null
           id: string
           numero: number
           observacoes: string | null
+          origem_frete: string | null
+          peso_kg: number | null
+          prioridade: string
           projeto_centro_custo: string | null
           status: string
           tipo: string
           titulo: string
           updated_at: string
+          volumes: number | null
         }
         Insert: {
           created_at?: string
           criado_por?: string | null
+          criado_por_email?: string | null
           criado_por_nome?: string | null
+          criado_por_perfil?: string | null
+          cubagem_m3?: number | null
           data_limite?: string | null
+          data_necessaria?: string | null
+          destino_frete?: string | null
+          editada_em?: string | null
+          editada_por?: string | null
+          editada_por_nome?: string | null
           fornecedores_solicitados?: string | null
           id?: string
           numero?: number
           observacoes?: string | null
+          origem_frete?: string | null
+          peso_kg?: number | null
+          prioridade?: string
           projeto_centro_custo?: string | null
           status?: string
           tipo: string
           titulo: string
           updated_at?: string
+          volumes?: number | null
         }
         Update: {
           created_at?: string
           criado_por?: string | null
+          criado_por_email?: string | null
           criado_por_nome?: string | null
+          criado_por_perfil?: string | null
+          cubagem_m3?: number | null
           data_limite?: string | null
+          data_necessaria?: string | null
+          destino_frete?: string | null
+          editada_em?: string | null
+          editada_por?: string | null
+          editada_por_nome?: string | null
           fornecedores_solicitados?: string | null
           id?: string
           numero?: number
           observacoes?: string | null
+          origem_frete?: string | null
+          peso_kg?: number | null
+          prioridade?: string
           projeto_centro_custo?: string | null
           status?: string
           tipo?: string
           titulo?: string
           updated_at?: string
+          volumes?: number | null
         }
         Relationships: []
       }
+      cotacao_solicitacoes_vinculos: {
+        Row: {
+          cotacao_id: string
+          created_at: string
+          solicitacao_id: string
+        }
+        Insert: {
+          cotacao_id: string
+          created_at?: string
+          solicitacao_id: string
+        }
+        Update: {
+          cotacao_id?: string
+          created_at?: string
+          solicitacao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotacao_solicitacoes_vinculos_cotacao_id_fkey"
+            columns: ["cotacao_id"]
+            isOneToOne: false
+            referencedRelation: "cotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacao_solicitacoes_vinculos_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "cotacao_solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cotacoes: {
         Row: {
+          aprovacao_justificativa: string | null
+          aprovacao_solicitada_em: string | null
+          aprovacao_solicitada_por: string | null
+          aprovacao_status: string | null
+          aprovado_em: string | null
+          aprovado_por: string | null
           arquivo_mime: string | null
           arquivo_nome: string | null
           arquivo_path: string | null
           condicao_pagamento: string | null
           confirmado_em: string | null
           confirmado_por: string | null
+          consultado_em: string | null
           created_at: string
           criado_por: string | null
           criado_por_nome: string | null
@@ -2192,6 +2367,7 @@ export type Database = {
           origem_cadastro: string
           origem_frete: string | null
           peso_kg: number | null
+          plataforma_origem: string | null
           prazo_dias: number | null
           projeto_centro_custo: string | null
           solicitacao_id: string | null
@@ -2200,6 +2376,7 @@ export type Database = {
           tipo: string
           tipo_veiculo: string | null
           updated_at: string
+          url_origem: string | null
           validade_data: string | null
           validade_dias: number | null
           valor_desconto: number | null
@@ -2210,12 +2387,19 @@ export type Database = {
           volumes: number | null
         }
         Insert: {
+          aprovacao_justificativa?: string | null
+          aprovacao_solicitada_em?: string | null
+          aprovacao_solicitada_por?: string | null
+          aprovacao_status?: string | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
           arquivo_mime?: string | null
           arquivo_nome?: string | null
           arquivo_path?: string | null
           condicao_pagamento?: string | null
           confirmado_em?: string | null
           confirmado_por?: string | null
+          consultado_em?: string | null
           created_at?: string
           criado_por?: string | null
           criado_por_nome?: string | null
@@ -2237,6 +2421,7 @@ export type Database = {
           origem_cadastro?: string
           origem_frete?: string | null
           peso_kg?: number | null
+          plataforma_origem?: string | null
           prazo_dias?: number | null
           projeto_centro_custo?: string | null
           solicitacao_id?: string | null
@@ -2245,6 +2430,7 @@ export type Database = {
           tipo: string
           tipo_veiculo?: string | null
           updated_at?: string
+          url_origem?: string | null
           validade_data?: string | null
           validade_dias?: number | null
           valor_desconto?: number | null
@@ -2255,12 +2441,19 @@ export type Database = {
           volumes?: number | null
         }
         Update: {
+          aprovacao_justificativa?: string | null
+          aprovacao_solicitada_em?: string | null
+          aprovacao_solicitada_por?: string | null
+          aprovacao_status?: string | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
           arquivo_mime?: string | null
           arquivo_nome?: string | null
           arquivo_path?: string | null
           condicao_pagamento?: string | null
           confirmado_em?: string | null
           confirmado_por?: string | null
+          consultado_em?: string | null
           created_at?: string
           criado_por?: string | null
           criado_por_nome?: string | null
@@ -2282,6 +2475,7 @@ export type Database = {
           origem_cadastro?: string
           origem_frete?: string | null
           peso_kg?: number | null
+          plataforma_origem?: string | null
           prazo_dias?: number | null
           projeto_centro_custo?: string | null
           solicitacao_id?: string | null
@@ -2290,6 +2484,7 @@ export type Database = {
           tipo?: string
           tipo_veiculo?: string | null
           updated_at?: string
+          url_origem?: string | null
           validade_data?: string | null
           validade_dias?: number | null
           valor_desconto?: number | null
@@ -2886,6 +3081,79 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "financeiro_necessidade_historico_necessidade_id_fkey"
+            columns: ["necessidade_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_necessidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financeiro_necessidade_itens: {
+        Row: {
+          created_at: string
+          descricao: string
+          especificacao: string | null
+          id: string
+          item_id: string | null
+          item_snapshot: Json
+          necessidade_id: string
+          ordem: number
+          origem: string
+          quantidade: number
+          unidade: string
+          updated_at: string
+          valor_total_estimado: number | null
+          valor_unitario_estimado: number | null
+        }
+        Insert: {
+          created_at?: string
+          descricao: string
+          especificacao?: string | null
+          id?: string
+          item_id?: string | null
+          item_snapshot?: Json
+          necessidade_id: string
+          ordem: number
+          origem: string
+          quantidade: number
+          unidade: string
+          updated_at?: string
+          valor_total_estimado?: number | null
+          valor_unitario_estimado?: number | null
+        }
+        Update: {
+          created_at?: string
+          descricao?: string
+          especificacao?: string | null
+          id?: string
+          item_id?: string | null
+          item_snapshot?: Json
+          necessidade_id?: string
+          ordem?: number
+          origem?: string
+          quantidade?: number
+          unidade?: string
+          updated_at?: string
+          valor_total_estimado?: number | null
+          valor_unitario_estimado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_necessidade_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_necessidade_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items_catalogo_oficial_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_necessidade_itens_necessidade_id_fkey"
             columns: ["necessidade_id"]
             isOneToOne: false
             referencedRelation: "financeiro_necessidades"
@@ -5444,7 +5712,22 @@ export type Database = {
           updated_at?: string
           valor_hora?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "producao_membros_rh_colaborador_id_fkey"
+            columns: ["rh_colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "rh_colaboradores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producao_membros_rh_colaborador_id_fkey"
+            columns: ["rh_colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "rh_colaboradores_operacionais_v"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       producao_necessidades_fabricacao: {
         Row: {
@@ -5696,6 +5979,53 @@ export type Database = {
             columns: ["tarefa_id"]
             isOneToOne: false
             referencedRelation: "producao_tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producao_op_recursos_planejados: {
+        Row: {
+          classificacao: string
+          criado_em: string
+          disponibilidade_maxima: number | null
+          fonte: string
+          id: string
+          ordem_producao_id: string
+          recurso: string
+          recurso_uid: number
+          task_uid: number
+          unidades_planejadas: number
+        }
+        Insert: {
+          classificacao: string
+          criado_em?: string
+          disponibilidade_maxima?: number | null
+          fonte: string
+          id?: string
+          ordem_producao_id: string
+          recurso: string
+          recurso_uid: number
+          task_uid: number
+          unidades_planejadas: number
+        }
+        Update: {
+          classificacao?: string
+          criado_em?: string
+          disponibilidade_maxima?: number | null
+          fonte?: string
+          id?: string
+          ordem_producao_id?: string
+          recurso?: string
+          recurso_uid?: number
+          task_uid?: number
+          unidades_planejadas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producao_op_recursos_planejados_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "producao_ordens_producao"
             referencedColumns: ["id"]
           },
         ]
@@ -7494,6 +7824,63 @@ export type Database = {
         }
         Relationships: []
       }
+      rh_colaborador_faixas_custo: {
+        Row: {
+          ativo: boolean
+          colaborador_id: string
+          created_at: string
+          dias_semana: number[]
+          hora_fim: string
+          hora_inicio: string
+          id: string
+          nome: string
+          prioridade: number
+          updated_at: string
+          valor_hora: number
+        }
+        Insert: {
+          ativo?: boolean
+          colaborador_id: string
+          created_at?: string
+          dias_semana?: number[]
+          hora_fim: string
+          hora_inicio: string
+          id?: string
+          nome: string
+          prioridade?: number
+          updated_at?: string
+          valor_hora: number
+        }
+        Update: {
+          ativo?: boolean
+          colaborador_id?: string
+          created_at?: string
+          dias_semana?: number[]
+          hora_fim?: string
+          hora_inicio?: string
+          id?: string
+          nome?: string
+          prioridade?: number
+          updated_at?: string
+          valor_hora?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_colaborador_faixas_custo_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "rh_colaboradores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rh_colaborador_faixas_custo_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "rh_colaboradores_operacionais_v"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rh_colaboradores: {
         Row: {
           ativo: boolean
@@ -7600,6 +7987,111 @@ export type Database = {
             columns: ["jornada_id"]
             isOneToOne: false
             referencedRelation: "rh_jornadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rh_contextos_auditoria: {
+        Row: {
+          administrativo_anterior: boolean
+          administrativo_novo: boolean
+          alterado_por: string | null
+          ativo_anterior: boolean | null
+          ativo_novo: boolean | null
+          colaborador_id: string
+          created_at: string
+          id: string
+          origem: string
+          pista_anterior: boolean
+          pista_novo: boolean
+          ponto_anterior: boolean
+          ponto_novo: boolean
+        }
+        Insert: {
+          administrativo_anterior: boolean
+          administrativo_novo: boolean
+          alterado_por?: string | null
+          ativo_anterior?: boolean | null
+          ativo_novo?: boolean | null
+          colaborador_id: string
+          created_at?: string
+          id?: string
+          origem?: string
+          pista_anterior: boolean
+          pista_novo: boolean
+          ponto_anterior: boolean
+          ponto_novo: boolean
+        }
+        Update: {
+          administrativo_anterior?: boolean
+          administrativo_novo?: boolean
+          alterado_por?: string | null
+          ativo_anterior?: boolean | null
+          ativo_novo?: boolean | null
+          colaborador_id?: string
+          created_at?: string
+          id?: string
+          origem?: string
+          pista_anterior?: boolean
+          pista_novo?: boolean
+          ponto_anterior?: boolean
+          ponto_novo?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_contextos_auditoria_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "rh_colaboradores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rh_contextos_auditoria_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "rh_colaboradores_operacionais_v"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rh_faixas_custo_auditoria: {
+        Row: {
+          alterado_por: string | null
+          colaborador_id: string
+          created_at: string
+          faixas_anteriores: Json
+          faixas_novas: Json
+          id: string
+        }
+        Insert: {
+          alterado_por?: string | null
+          colaborador_id: string
+          created_at?: string
+          faixas_anteriores?: Json
+          faixas_novas?: Json
+          id?: string
+        }
+        Update: {
+          alterado_por?: string | null
+          colaborador_id?: string
+          created_at?: string
+          faixas_anteriores?: Json
+          faixas_novas?: Json
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_faixas_custo_auditoria_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "rh_colaboradores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rh_faixas_custo_auditoria_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "rh_colaboradores_operacionais_v"
             referencedColumns: ["id"]
           },
         ]
@@ -8051,6 +8543,41 @@ export type Database = {
             columns: ["solicitacao_id"]
             isOneToOne: false
             referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitacao_material_edicoes_auditoria: {
+        Row: {
+          dados_anteriores: Json
+          dados_novos: Json
+          editado_em: string
+          editado_por: string
+          id: string
+          solicitacao_material_id: string
+        }
+        Insert: {
+          dados_anteriores: Json
+          dados_novos: Json
+          editado_em?: string
+          editado_por?: string
+          id?: string
+          solicitacao_material_id: string
+        }
+        Update: {
+          dados_anteriores?: Json
+          dados_novos?: Json
+          editado_em?: string
+          editado_por?: string
+          id?: string
+          solicitacao_material_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacao_material_edicoes_audit_solicitacao_material_id_fkey"
+            columns: ["solicitacao_material_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes_material"
             referencedColumns: ["id"]
           },
         ]
@@ -8915,15 +9442,12 @@ export type Database = {
       }
     }
     Functions: {
-      cancelar_ordem_producao_v1: {
-        Args: { p_justificativa: string; p_ordem_producao_id: string }
-        Returns: undefined
-      }
       adicionar_itens_solicitacao_material: {
         Args: { p_itens: Json; p_solicitacao_id: string }
         Returns: {
           created_at: string
           destino_atendimento: string
+          especificacao: string | null
           id: string
           item_id: string | null
           item_snapshot: Json | null
@@ -8958,6 +9482,32 @@ export type Database = {
         }
         Returns: Json
       }
+      almoxarifado_formalizar_pc_v1: {
+        Args: {
+          p_condicao?: string
+          p_descricao: string
+          p_fornecedor: string
+          p_frete?: number
+          p_rc_id: string
+          p_valor_itens: number
+        }
+        Returns: string
+      }
+      almoxarifado_transformar_rc_em_pc_v2: {
+        Args: {
+          p_condicao?: string
+          p_descricao?: string
+          p_fornecedor?: string
+          p_fornecedor_contato?: string
+          p_fornecedor_identificacao?: string
+          p_frete?: number
+          p_local?: string
+          p_prazo?: string
+          p_rc_id: string
+          p_valor_itens?: number
+        }
+        Returns: string
+      }
       aprovar_solicitacao_material_com_pns: {
         Args: { p_itens_ids: string[]; p_solicitacao_material_id: string }
         Returns: {
@@ -8990,6 +9540,15 @@ export type Database = {
           unidade: string
         }[]
       }
+      calcular_custo_faixas_rh: {
+        Args: {
+          p_colaborador_id: string
+          p_fim: string
+          p_inicio: string
+          p_valor_hora_padrao: number
+        }
+        Returns: Json
+      }
       can_create_items: { Args: never; Returns: boolean }
       can_manage_inventory: { Args: never; Returns: boolean }
       cancelar_apontamento_producao: {
@@ -8998,6 +9557,10 @@ export type Database = {
       }
       cancelar_necessidade_fabricacao_v1: {
         Args: { p_necessidade_id: string }
+        Returns: undefined
+      }
+      cancelar_ordem_producao_v1: {
+        Args: { p_justificativa: string; p_ordem_producao_id: string }
         Returns: undefined
       }
       cancelar_ordem_vazia_producao_admin: {
@@ -9063,13 +9626,160 @@ export type Database = {
         Returns: Json
       }
       contar_mensagens_nao_lidas_v1: { Args: never; Returns: number }
+      contar_solicitacoes_cotacao_pendentes_v1: { Args: never; Returns: number }
       converter_solicitacao_material_retirada_v1: {
         Args: { p_solicitacao_material_id: string }
         Returns: Json
       }
+      cotacao_converter_em_pn_integrada_v1: {
+        Args: { p_cotacao_id: string }
+        Returns: string
+      }
       cotacao_converter_em_pn_v1: {
         Args: { p_cotacao_id: string }
         Returns: string
+      }
+      cotacao_decidir_aprovacao_v1: {
+        Args: {
+          p_aprovar: boolean
+          p_cotacao_id: string
+          p_justificativa?: string
+        }
+        Returns: {
+          aprovacao_justificativa: string | null
+          aprovacao_solicitada_em: string | null
+          aprovacao_solicitada_por: string | null
+          aprovacao_status: string | null
+          aprovado_em: string | null
+          aprovado_por: string | null
+          arquivo_mime: string | null
+          arquivo_nome: string | null
+          arquivo_path: string | null
+          condicao_pagamento: string | null
+          confirmado_em: string | null
+          confirmado_por: string | null
+          consultado_em: string | null
+          created_at: string
+          criado_por: string | null
+          criado_por_nome: string | null
+          cubagem_m3: number | null
+          data_cotacao: string | null
+          descricao: string | null
+          destino_frete: string | null
+          financeiro_necessidade_id: string | null
+          fornecedor_cnpj: string | null
+          fornecedor_contato: string | null
+          fornecedor_endereco: string | null
+          fornecedor_nome: string | null
+          id: string
+          leitura_erro: string | null
+          leitura_json: Json
+          leitura_status: string
+          numero: number
+          numero_proposta: string | null
+          origem_cadastro: string
+          origem_frete: string | null
+          peso_kg: number | null
+          plataforma_origem: string | null
+          prazo_dias: number | null
+          projeto_centro_custo: string | null
+          solicitacao_id: string | null
+          status: string
+          texto_extraido: string | null
+          tipo: string
+          tipo_veiculo: string | null
+          updated_at: string
+          url_origem: string | null
+          validade_data: string | null
+          validade_dias: number | null
+          valor_desconto: number | null
+          valor_frete: number | null
+          valor_impostos: number | null
+          valor_subtotal: number | null
+          valor_total: number | null
+          volumes: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cotacoes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cotacao_definir_solicitacoes_v1: {
+        Args: { p_cotacao_id: string; p_solicitacao_ids: string[] }
+        Returns: number
+      }
+      cotacao_escolher_proposta_multi_v1: {
+        Args: { p_cotacao_id: string }
+        Returns: string
+      }
+      cotacao_escolher_proposta_v1: {
+        Args: { p_cotacao_id: string }
+        Returns: string
+      }
+      cotacao_solicitar_aprovacao_v1: {
+        Args: { p_cotacao_id: string }
+        Returns: {
+          aprovacao_justificativa: string | null
+          aprovacao_solicitada_em: string | null
+          aprovacao_solicitada_por: string | null
+          aprovacao_status: string | null
+          aprovado_em: string | null
+          aprovado_por: string | null
+          arquivo_mime: string | null
+          arquivo_nome: string | null
+          arquivo_path: string | null
+          condicao_pagamento: string | null
+          confirmado_em: string | null
+          confirmado_por: string | null
+          consultado_em: string | null
+          created_at: string
+          criado_por: string | null
+          criado_por_nome: string | null
+          cubagem_m3: number | null
+          data_cotacao: string | null
+          descricao: string | null
+          destino_frete: string | null
+          financeiro_necessidade_id: string | null
+          fornecedor_cnpj: string | null
+          fornecedor_contato: string | null
+          fornecedor_endereco: string | null
+          fornecedor_nome: string | null
+          id: string
+          leitura_erro: string | null
+          leitura_json: Json
+          leitura_status: string
+          numero: number
+          numero_proposta: string | null
+          origem_cadastro: string
+          origem_frete: string | null
+          peso_kg: number | null
+          plataforma_origem: string | null
+          prazo_dias: number | null
+          projeto_centro_custo: string | null
+          solicitacao_id: string | null
+          status: string
+          texto_extraido: string | null
+          tipo: string
+          tipo_veiculo: string | null
+          updated_at: string
+          url_origem: string | null
+          validade_data: string | null
+          validade_dias: number | null
+          valor_desconto: number | null
+          valor_frete: number | null
+          valor_impostos: number | null
+          valor_subtotal: number | null
+          valor_total: number | null
+          volumes: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cotacoes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       create_visualizador_message_thread: {
         Args: {
@@ -9282,6 +9992,30 @@ export type Database = {
         Returns: Json
       }
       criar_perfil_acesso: { Args: { p_tipo_usuario: string }; Returns: string }
+      criar_previsao_necessidade_almoxarifado: {
+        Args: {
+          p_data_necessidade?: string
+          p_descricao: string
+          p_especificacao?: string
+          p_justificativa?: string
+          p_projeto_centro_custo?: string
+          p_quantidade?: number
+          p_unidade?: string
+          p_urgencia?: string
+          p_valor_estimado?: number
+        }
+        Returns: string
+      }
+      criar_previsao_necessidade_almoxarifado_lote: {
+        Args: {
+          p_data_necessidade?: string
+          p_itens: Json
+          p_justificativa?: string
+          p_projeto_centro_custo?: string
+          p_urgencia?: string
+        }
+        Returns: string
+      }
       criar_processo_producao: {
         Args: {
           p_codigo?: string
@@ -9324,21 +10058,54 @@ export type Database = {
         }
         Returns: undefined
       }
-      usuario_pode_excluir_op_v1: { Args: never; Returns: boolean }
+      editar_cotacao_solicitacao_v1: {
+        Args: {
+          p_data_necessaria: string
+          p_itens: Json
+          p_observacoes: string
+          p_projeto_centro_custo: string
+          p_solicitacao_id: string
+          p_titulo: string
+        }
+        Returns: {
+          created_at: string
+          criado_por: string | null
+          criado_por_email: string | null
+          criado_por_nome: string | null
+          criado_por_perfil: string | null
+          cubagem_m3: number | null
+          data_limite: string | null
+          data_necessaria: string | null
+          destino_frete: string | null
+          editada_em: string | null
+          editada_por: string | null
+          editada_por_nome: string | null
+          fornecedores_solicitados: string | null
+          id: string
+          numero: number
+          observacoes: string | null
+          origem_frete: string | null
+          peso_kg: number | null
+          prioridade: string
+          projeto_centro_custo: string | null
+          status: string
+          tipo: string
+          titulo: string
+          updated_at: string
+          volumes: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cotacao_solicitacoes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       editar_movimentacao_v1: {
         Args: {
           p_local_utilizacao_id: string
           p_movimento_id: string
           p_quantidade: number
-        }
-        Returns: Json
-      }
-      editar_solicitacao_material_pendente_v1: {
-        Args: {
-          p_data_necessidade: string
-          p_itens: Json
-          p_observacoes: string | null
-          p_solicitacao_material_id: string
         }
         Returns: Json
       }
@@ -9395,6 +10162,54 @@ export type Database = {
           p_tarefa_id?: string
         }
         Returns: undefined
+      }
+      editar_previsao_necessidade_almoxarifado_v1: {
+        Args: {
+          p_data_necessidade?: string
+          p_itens: Json
+          p_justificativa?: string
+          p_necessidade_id: string
+          p_projeto_centro_custo?: string
+          p_urgencia?: string
+        }
+        Returns: string
+      }
+      editar_solicitacao_material_pendente_v1: {
+        Args: {
+          p_data_necessidade: string
+          p_itens: Json
+          p_observacoes: string
+          p_solicitacao_material_id: string
+        }
+        Returns: {
+          aprovado_por_id: string | null
+          aprovado_por_nome: string | null
+          created_at: string
+          data_aprovacao: string | null
+          data_limite_separacao: string | null
+          data_necessidade: string | null
+          estoque_id: string | null
+          id: string
+          local_origem: string | null
+          local_origem_id: string | null
+          numero: number
+          observacoes: string | null
+          ordem_producao_id: string | null
+          origem_modulo: string | null
+          processo_id: string | null
+          producao_projeto_id: string | null
+          solicitacao_retirada_id: string | null
+          solicitante_id: string
+          solicitante_nome: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "solicitacoes_material"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       enviar_necessidade_fabricacao_v1: {
         Args: {
@@ -9595,6 +10410,10 @@ export type Database = {
       ignorar_programacao_planejamento_v1: {
         Args: { p_agenda_id: string }
         Returns: undefined
+      }
+      importar_ops_reais_msproject_natal_v24: {
+        Args: { p_atividades: Json }
+        Returns: Json
       }
       incorporar_materiais_pcp_op: {
         Args: { p_ordem_producao_id: string }
@@ -10075,6 +10894,19 @@ export type Database = {
           ultima_movimentacao: Json
         }[]
       }
+      listar_saldos_estoque_paginados_v3: {
+        Args: {
+          p_estoque_id?: string
+          p_incluir_sem_estoque?: boolean
+          p_inicio?: number
+          p_limite?: number
+        }
+        Returns: {
+          item_id: string
+          saldo_atual: number
+          ultima_movimentacao: Json
+        }[]
+      }
       listar_saldos_estoque_v1: {
         Args: { p_estoque_id?: string; p_incluir_sem_estoque?: boolean }
         Returns: {
@@ -10141,6 +10973,14 @@ export type Database = {
           quantidade_realizada: number
           total_apontamentos: number
         }[]
+      }
+      obter_saldo_item_estoque_v1: {
+        Args: {
+          p_estoque_id?: string
+          p_incluir_sem_estoque?: boolean
+          p_item_id: string
+        }
+        Returns: number
       }
       ordem_producao_e_pintura_v1: {
         Args: { p_ordem_producao_id: string }
@@ -10241,6 +11081,10 @@ export type Database = {
       }
       remover_componente_planejamento_v1: {
         Args: { p_composicao_id: string }
+        Returns: undefined
+      }
+      renomear_ordem_producao_v1: {
+        Args: { p_novo_nome: string; p_ordem_producao_id: string }
         Returns: undefined
       }
       resolver_divergencia_planejamento_v1: {
@@ -10379,6 +11223,35 @@ export type Database = {
           p_pista_ativo: boolean
           p_rh_ativo: boolean
         }
+        Returns: undefined
+      }
+      rh_set_colaborador_contextos_v2: {
+        Args: {
+          p_administrativo_ativo: boolean
+          p_colaborador_id: string
+          p_controla_ponto: boolean
+          p_origem?: string
+          p_pista_ativo: boolean
+        }
+        Returns: undefined
+      }
+      rh_set_colaborador_contextos_v3: {
+        Args: {
+          p_administrativo_ativo: boolean
+          p_ativo: boolean
+          p_colaborador_id: string
+          p_controla_ponto: boolean
+          p_origem?: string
+          p_pista_ativo: boolean
+        }
+        Returns: undefined
+      }
+      rh_sincronizar_registros_appcontrole_v1: {
+        Args: { p_colaborador_id: string; p_registros: Json }
+        Returns: number
+      }
+      rh_substituir_faixas_custo: {
+        Args: { p_colaborador_id: string; p_faixas: Json }
         Returns: undefined
       }
       rh_update_colaborador_fields: {
@@ -10567,6 +11440,7 @@ export type Database = {
         Args: { p_user_id?: string }
         Returns: boolean
       }
+      usuario_pode_excluir_op_v1: { Args: never; Returns: boolean }
       usuario_tem_permissao_producao: {
         Args: { p_permissao: string }
         Returns: boolean
