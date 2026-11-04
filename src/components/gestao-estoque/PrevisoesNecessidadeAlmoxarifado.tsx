@@ -161,6 +161,7 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
   >({});
   const [rcPorId, setRcPorId] = useState<Record<string, RequisicaoCompra>>({});
   const [catalogo, setCatalogo] = useState<ItemEstoque[]>([]);
+  const [buscaPn, setBuscaPn] = useState("");
   const [buscaItem, setBuscaItem] = useState("");
   const [formulario, setFormulario] = useState(formularioInicial);
   const [linhas, setLinhas] = useState<LinhaFormulario[]>([]);
@@ -432,6 +433,27 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
       .slice(0, 12);
   }, [buscaItem, catalogo]);
 
+  const pnsFiltradas = useMemo(() => {
+    const termo = buscaPn.trim().toLocaleLowerCase("pt-BR");
+    if (!termo) return pns;
+
+    return pns.filter((pn) => {
+      const rc = pn.requisicao_compra_id ? rcPorId[pn.requisicao_compra_id] : undefined;
+      const campos = [
+        `pn-${String(pn.numero).padStart(4, "0")}`,
+        String(pn.numero),
+        pn.status,
+        statusPn[pn.status],
+        pn.descricao,
+        pn.projeto_centro_custo,
+        pn.data_necessidade,
+        rc ? `rc-${String(rc.numero).padStart(4, "0")}` : "",
+        ...(linhasPorPn[pn.id] ?? []).flatMap((item) => [item.descricao, item.unidade, item.origem]),
+      ];
+      return campos.filter(Boolean).some((campo) => String(campo).toLocaleLowerCase("pt-BR").includes(termo));
+    });
+  }, [buscaPn, linhasPorPn, pns, rcPorId]);
+
   return (
     <>
       <Card
@@ -469,7 +491,17 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
               </Button>
             )}
           </DialogHeader>
-          <div className="flex justify-end">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full sm:max-w-md">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                value={buscaPn}
+                onChange={(event) => setBuscaPn(event.target.value)}
+                placeholder="Buscar por PN, item, projeto, status ou RC..."
+                aria-label="Buscar previsões de necessidade"
+              />
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -488,6 +520,10 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
             <p className="py-8 text-center text-muted-foreground">
               Nenhuma PN do Almoxarifado encontrada.
             </p>
+          ) : pnsFiltradas.length === 0 ? (
+            <p className="py-8 text-center text-muted-foreground">
+              Nenhuma PN encontrada para “{buscaPn}”.
+            </p>
           ) : (
             <div className="overflow-x-auto rounded-md border">
               <Table>
@@ -503,7 +539,7 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pns.map((pn) => {
+                  {pnsFiltradas.map((pn) => {
                     const rc = pn.requisicao_compra_id
                       ? rcPorId[pn.requisicao_compra_id]
                       : undefined;
