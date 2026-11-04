@@ -191,24 +191,17 @@ export const SolicitacaoMaterial = () => {
   };
   carregarSolicitacoesRef.current = carregarSolicitacoes;
 
-  // Ferramentas temporariamente indisponíveis permanecem cadastradas no
-  // Almoxarifado, mas não são oferecidas na pesquisa do solicitante.
-  const ferramentaIndisponivel = (item: EstoqueItem) =>
-    (itemEhFerramenta(item, categorias) ||
-      String((item as any).tipoItem ?? (item as any).tipo_item ?? '').trim().toLowerCase() === 'ferramenta') &&
-    (item.saldoConfirmado === false || (item.estoqueAtual ?? 0) <= 0);
-
+  // Ferramentas continuam visíveis mesmo em uso ou sem saldo: a decisão de
+  // retirada cabe ao Almoxarifado, jamais à geração automática de PN.
   const itensFiltrados = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
+    if (!busca) return itensEstoque.slice(0, 50);
+    const termo = busca.toLowerCase();
     return itensEstoque.filter(item =>
-      !ferramentaIndisponivel(item) && (
-        !termo ||
-        item.nome.toLowerCase().includes(termo) ||
-        item.codigoBarras.toString().includes(termo) ||
-        item.marca?.toLowerCase().includes(termo)
-      )
+      item.nome.toLowerCase().includes(termo) ||
+      item.codigoBarras.toString().includes(termo) ||
+      item.marca?.toLowerCase().includes(termo)
     ).slice(0, 50);
-  }, [busca, itensEstoque, categorias]);
+  }, [busca, itensEstoque]);
 
   const obterQuantidadeDigitada = () => Number(quantidadeItem.replace(',', '.'));
 
@@ -246,10 +239,6 @@ export const SolicitacaoMaterial = () => {
   };
 
   const adicionarItemEstoque = (item: EstoqueItem) => {
-    if (ferramentaIndisponivel(item)) {
-      toast.error('Ferramenta indisponível. Aguarde sua devolução ao Almoxarifado.');
-      return;
-    }
     if (itensLista.find(i => i.item_id === item.id) || solicitacaoParaAdicionar?.itens.some(i => i.item_id === item.id)) {
       toast.error('Este item já foi adicionado');
       return;
@@ -1351,7 +1340,7 @@ export const SolicitacaoMaterial = () => {
                         <TableCell>{modoEdicaoSolicitacao && itemEdicao ? <Input className="w-20" value={itemEdicao.unidade} onChange={(e) => atualizarItemEdicao(i, 'unidade', e.target.value)} /> : item.unidade}</TableCell>
                         <TableCell>
                           <Badge variant={vaiParaCompra ? 'secondary' : 'default'}>
-                            {vaiParaCompra ? 'Previsão de Necessidade (PN)' : 'Estoque'}
+                            {vaiParaCompra ? 'Previsão de Necessidade (PN)' : item.item_id && itemEhFerramenta(mapaEstoque.get(item.item_id), categorias) ? 'Ferramenta — Almoxarifado' : 'Estoque'}
                           </Badge>
                         </TableCell>
                         <TableCell>{modoEdicaoSolicitacao && itemEdicao ? <Input value={itemEdicao.observacoes} onChange={(e) => atualizarItemEdicao(i, 'observacoes', e.target.value)} /> : item.observacoes || '-'}</TableCell>
