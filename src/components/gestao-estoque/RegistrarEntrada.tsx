@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowUp, Plus, Trash2 } from 'lucide-react';
+import { PackageOpen, Plus, Trash2 } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -177,7 +177,7 @@ export const RegistrarEntrada = () => {
         <Card className="action-card action-card--blue">
           <CardHeader className="action-card__content text-center">
             <div className="action-card__icon">
-              <ArrowUp className="h-8 w-8" />
+              <PackageOpen className="h-8 w-8" />
             </div>
             <CardTitle className="action-card__title">Entrada</CardTitle>
             <p className="action-card__description mt-2 text-sm">

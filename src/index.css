@@ -220,16 +220,17 @@
   .action-card__title { color: rgb(var(--action-deep)); }
   .action-card__description { color: rgb(var(--action-deep) / 0.72); }
 
-  .action-card--emerald { --action: 16 185 129; --action-deep: 5 150 105; }
-  .action-card--teal { --action: 20 184 166; --action-deep: 13 148 136; }
-  .action-card--violet { --action: 139 92 246; --action-deep: 109 40 217; }
-  .action-card--cyan { --action: 6 182 212; --action-deep: 8 145 178; }
-  .action-card--blue { --action: 59 130 246; --action-deep: 37 99 235; }
-  .action-card--indigo { --action: 99 102 241; --action-deep: 79 70 229; }
-  .action-card--amber { --action: 245 158 11; --action-deep: 217 119 6; }
-  .action-card--orange { --action: 249 115 22; --action-deep: 234 88 12; }
-  .action-card--rose { --action: 244 63 94; --action-deep: 225 29 72; }
-  .action-card--fuchsia { --action: 217 70 239; --action-deep: 192 38 211; }
+  .action-card--emerald { --action: 5 150 105; --action-deep: 4 120 87; }
+  .action-card--teal { --action: 13 148 136; --action-deep: 15 118 110; }
+  .action-card--violet { --action: 109 40 217; --action-deep: 91 33 182; }
+  .action-card--slate { --action: 71 85 105; --action-deep: 51 65 85; }
+  .action-card--cyan { --action: 14 116 144; --action-deep: 21 94 117; }
+  .action-card--blue { --action: 29 78 216; --action-deep: 30 64 175; }
+  .action-card--indigo { --action: 67 56 202; --action-deep: 55 48 163; }
+  .action-card--amber { --action: 180 83 9; --action-deep: 146 64 14; }
+  .action-card--orange { --action: 194 65 12; --action-deep: 154 52 18; }
+  .action-card--rose { --action: 190 24 93; --action-deep: 159 18 57; }
+  .action-card--fuchsia { --action: 190 24 93; --action-deep: 157 23 77; }
 
   /* Custom scrollbar */
   ::-webkit-scrollbar        { width: 6px; height: 6px; }

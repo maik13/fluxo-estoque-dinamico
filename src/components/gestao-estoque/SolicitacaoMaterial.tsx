@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { ClipboardList, Plus, Trash2, Eye, Printer, FileText, Check, X, ChevronsUpDown, Send, ArrowRight, Pencil, Save } from 'lucide-react';
+import { ClipboardList, FileText, Plus, Trash2, Eye, Printer, Check, X, ChevronsUpDown, Send, ArrowRight, Pencil, Save } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -1091,7 +1091,7 @@ export const SolicitacaoMaterial = () => {
       >
         <CardHeader className="action-card__content text-center">
           <div className="action-card__icon">
-            <ClipboardList className="h-8 w-8 text-white" />
+            <FileText className="h-8 w-8 text-white" />
           </div>
           <CardTitle className="action-card__title">Solicitação de Material</CardTitle>
           <CardDescription className="action-card__description">

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Package, Plus, ArrowUp, ArrowDown, Scan, Check, ChevronsUpDown, FileBarChart, Send, Copy, X, MessageCircle, ReceiptText } from 'lucide-react';
+import { PackagePlus, PackageMinus, FileSearch, Check, Copy, X, MessageCircle } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { Item, EstoqueItem } from '@/types/estoque';
@@ -566,7 +566,7 @@ export const MenuPrincipal = ({
             )}
             <CardHeader className="action-card__content text-center">
               <div className="action-card__icon">
-                <ReceiptText className="h-8 w-8" />
+                <FileSearch className="h-8 w-8" />
               </div>
               <CardTitle className="action-card__title">
                 Cotação
@@ -594,7 +594,7 @@ export const MenuPrincipal = ({
             )}>
               <CardHeader className="action-card__content text-center">
                 <div className="action-card__icon">
-                  <Plus className="h-8 w-8" />
+                  <PackagePlus className="h-8 w-8" />
                 </div>
                 <CardTitle className="action-card__title">
                   Cadastrar Item
@@ -903,7 +903,7 @@ export const MenuPrincipal = ({
             )}>
               <CardHeader className="action-card__content text-center">
                 <div className="action-card__icon">
-                  <ArrowDown className="h-8 w-8" />
+                  <PackageMinus className="h-8 w-8" />
                 </div>
                 <CardTitle className="action-card__title">Saída</CardTitle>
                 <CardDescription className="action-card__description">

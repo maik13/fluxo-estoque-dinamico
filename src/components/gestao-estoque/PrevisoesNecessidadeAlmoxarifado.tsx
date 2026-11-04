@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import {
-  ClipboardList,
+  CalendarClock,
   PackagePlus,
   Pencil,
   Plus,
@@ -462,7 +462,7 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
       >
         <CardHeader className="action-card__content text-center">
           <div className="action-card__icon">
-            <ClipboardList className="h-8 w-8 text-white" />
+            <CalendarClock className="h-8 w-8 text-white" />
           </div>
           <CardTitle className="action-card__title">
             Previsões de Necessidade (PN) — visão unificada

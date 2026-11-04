@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
-import { ShoppingBag, Plus, RefreshCcw } from 'lucide-react';
+import { FileSignature, Plus, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -62,7 +62,7 @@ export function PedidosCompraFormaisAlmoxarifado() {
   };
   return <>
     <Card role="button" tabIndex={0} className="action-card action-card--fuchsia" onClick={abrir} onKeyDown={e=>{if(e.key==='Enter')abrir();}}>
-      <CardHeader className="action-card__content text-center"><div className="action-card__icon"><ShoppingBag className="h-8 w-8"/></div><CardTitle className="action-card__title">Pedidos de Compra (PC)</CardTitle><CardDescription className="action-card__description">Acompanhe e formalize os pedidos de compra aprovados</CardDescription></CardHeader>
+      <CardHeader className="action-card__content text-center"><div className="action-card__icon"><FileSignature className="h-8 w-8"/></div><CardTitle className="action-card__title">Pedidos de Compra (PC)</CardTitle><CardDescription className="action-card__description">Acompanhe e formalize os pedidos de compra aprovados</CardDescription></CardHeader>
     </Card>
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
       <DialogHeader><DialogTitle>Pedidos de Compra formais</DialogTitle><DialogDescription>Documentos vinculados às requisições de compra aprovadas. Mesmos registros do Financeiro.</DialogDescription></DialogHeader>

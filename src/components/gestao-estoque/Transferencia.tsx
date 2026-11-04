@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeftRight, Plus, Trash2 } from 'lucide-react';
+import { Truck, Plus, Trash2 } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import { useAuth } from '@/hooks/useAuth';
@@ -240,10 +240,10 @@ export const Transferencia = () => {
       if (!open) resetarFormulario();
     }}>
       <DialogTrigger asChild>
-        <Card className="action-card action-card--violet">
+        <Card className="action-card action-card--slate">
           <CardHeader className="action-card__content text-center">
             <div className="action-card__icon">
-              <ArrowLeftRight className="h-8 w-8" />
+              <Truck className="h-8 w-8" />
             </div>
             <CardTitle className="action-card__title">Transferência</CardTitle>
             <p className="action-card__description mt-2 text-sm">

@@ -10,7 +10,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Plus, Check, ChevronsUpDown, Eye, Trash2, CheckCircle, Ban, AlertTriangle, Pencil, Save } from 'lucide-react';
+import { FileCheck2, Plus, Check, ChevronsUpDown, Eye, Trash2, CheckCircle, Ban, AlertTriangle, Pencil, Save } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -546,7 +546,7 @@ export const PedidoCompra = ({ somenteConsulta = false }: PedidoCompraProps) => 
     <>
       <Card className={cn('action-card action-card--cyan', !podeMovimentar && 'cursor-not-allowed opacity-60')} onClick={() => { if (!podeMovimentar) return; setDialogoConsulta(true); void carregarPedidos(); }}>
         <CardHeader className="action-card__content text-center">
-          <div className="action-card__icon"><ShoppingCart className="h-8 w-8" /></div>
+          <div className="action-card__icon"><FileCheck2 className="h-8 w-8" /></div>
           <CardTitle className="action-card__title">Requisições de Compra (RC)</CardTitle>
           <CardDescription className="action-card__description">Acompanhe a mesma fila de RCs exibida no Financeiro</CardDescription>
         </CardHeader>
