@@ -126,12 +126,18 @@ const findLine = (lines: string[], pattern: RegExp) =>
   lines.find((line) => pattern.test(line)) || null;
 
 const valueFromLabeledLine = (lines: string[], label: RegExp) => {
-  for (const line of lines) {
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
     const match = line.match(label);
     if (!match) continue;
     const rest = clean(line.slice((match.index || 0) + match[0].length).replace(/^\s*[:\-]\s*/, ""));
     if (rest && rest.length <= 140 && !/(?:CNPJ|Cidade|Data\/Hora|Validade|Usuário|Página|Telefone|Fax)\s*:/i.test(rest)) {
       return rest;
+    }
+    // Muitos PDFs trazem o rótulo numa célula e o conteúdo na linha seguinte.
+    const next = clean(lines[index + 1]);
+    if (next && next.length <= 180 && !/^(?:CNPJ|Cidade|Data\/Hora|Validade|Usuário|Página|Telefone|Fax)\s*:/i.test(next)) {
+      return next;
     }
   }
   return null;
@@ -159,21 +165,46 @@ const section = (text: string, start: RegExp, end?: RegExp) => {
   return endMatch?.index !== undefined ? after.slice(0, endMatch.index) : after;
 };
 
+const unidadeItem = "un|und|unid|pc|pç|peça|peca|kg|g|m|m2|m²|m3|m³|lt|l|cx|pct|rolo|rl";
+const valorBr = "(?:R\\$\\s*)?\\d{1,3}(?:\\.\\d{3})*(?:,\\d{2,4})?|(?:R\\$\\s*)?\\d+(?:,\\d{2,4})?";
+
 const parseItems = (lines: string[]): ParsedItem[] => {
   const items: ParsedItem[] = [];
-  const lineRegex = /^(.{3,}?)\s+(\d+(?:[.,]\d+)?)\s*(un|und|unid|pc|pç|kg|g|m|m2|m²|m3|m³|lt|l|cx|pct|rolo|rl)\s+(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{2,4})?|\d+(?:,\d{2,4})?)\s+(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{2})|\d+(?:,\d{2}))$/i;
+  const lineRegex = new RegExp(`^(.{3,}?)\\s+(\\d+(?:[.,]\\d+)?)\\s*(${unidadeItem})\\s+(${valorBr})\\s+(${valorBr})$`, "i");
+  const lineWithoutUnitRegex = new RegExp(`^(.{3,}?)\\s+(\\d+(?:[.,]\\d+)?)\\s+(${valorBr})\\s+(${valorBr})$`, "i");
+  const detailsRegex = /^(?:especifica[cç][aã]o|espec\.?|marca|modelo|cor|medidas?|dimens[oõ]es|observa[cç][aã]o)\s*[:\-]/i;
 
-  for (const line of lines) {
-    const m = line.match(lineRegex);
+  for (let index = 0; index < lines.length; index++) {
+    let line = lines[index];
+    // Alguns fornecedores quebram a descrição da tabela exatamente antes das colunas numéricas.
+    if (index + 1 < lines.length && !line.match(/\d+(?:[.,]\d+)?\s*(?:un|und|kg|m|l)\b/i)) {
+      const joined = `${line} ${lines[index + 1]}`;
+      if (lineRegex.test(joined) || lineWithoutUnitRegex.test(joined)) {
+        line = joined;
+        index += 1;
+      }
+    }
+    const m = line.match(lineRegex) || line.match(lineWithoutUnitRegex);
     if (!m) continue;
-    const descricao = m[1].trim();
+    let descricao = m[1].trim();
     if (/subtotal|total|frete|desconto|imposto/i.test(descricao)) continue;
+    const hasUnit = m.length === 6;
+    const unitIndex = hasUnit ? 3 : -1;
+    const unit = hasUnit ? m[unitIndex] : "UN";
+    const unitPriceIndex = hasUnit ? 4 : 3;
+    const totalIndex = hasUnit ? 5 : 4;
+
+    // Mantém o detalhamento que o fornecedor colocou abaixo do item, em vez de descartá-lo.
+    while (index + 1 < lines.length && detailsRegex.test(lines[index + 1])) {
+      descricao = `${descricao} — ${lines[index + 1]}`;
+      index += 1;
+    }
     items.push({
       descricao,
       quantidade: decimal(m[2]),
-      unidade: m[3],
-      valor_unitario: money(m[4]),
-      valor_total: money(m[5]),
+      unidade: unit,
+      valor_unitario: money(m[unitPriceIndex]),
+      valor_total: money(m[totalIndex]),
     });
     if (items.length >= 100) break;
   }
@@ -197,7 +228,8 @@ const parseDocument = (lines: string[], fileName: string) => {
     .filter((v): v is string => Boolean(v));
   const fornecedorCnpj = cnpjCandidates[0] || null;
 
-  const streetLine = lines.slice(0, 20).find((line) =>
+  const addressLabel = valueFromLabeledLine(lines, /(?:Endere[cç]o|End\.?|Logradouro)/i);
+  const streetLine = addressLabel || lines.slice(0, 28).find((line) =>
     /\b(?:Rua|R\.|Avenida|Av\.|Rodovia|Estrada|Alameda|Travessa)\b/i.test(line)
   ) || null;
   const addressNumber = beforeRemetente.match(/\bN[ºo°.]?\s*:\s*(\d{1,8})\b/i)?.[1] || null;
@@ -232,9 +264,8 @@ const parseDocument = (lines: string[], fileName: string) => {
   const diasValidade = flat.match(/Validade\s*[:\-]?\s*(\d{1,3})\s*dias?/i);
   if (diasValidade) validadeDias = Number(diasValidade[1]);
 
-  const explicitCondition =
-    valueFromLabeledLine(lines, /Condi[cç][aã]o de pagamento/i);
-  const paymentSentence = flat.match(/PAGAMENTO\s+(.{3,140}?)(?=\s+(?:PRAZO|SE\s+HOUVER|REENTREGA|DEVOLU[CÇ][AÃ]O|SEGURO)\b|[.]\s|$)/i);
+  const explicitCondition = valueFromLabeledLine(lines, /(?:Condi[cç][aã]o|Forma) de pagamento/i);
+  const paymentSentence = flat.match(/PAGAMENTO\s*[:\-]?\s*(.{3,180}?)(?=\s+(?:PRAZO|SE\s+HOUVER|REENTREGA|DEVOLU[CÇ][AÃ]O|SEGURO|VALIDADE)\b|[.]\s|$)/i);
   const condicaoPagamento = clean(explicitCondition || (paymentSentence ? `PAGAMENTO ${paymentSentence[1]}` : null));
 
   let origemFrete: string | null = null;
@@ -304,7 +335,7 @@ const parseDocument = (lines: string[], fileName: string) => {
   }
 
   if (valorTotal === null) {
-    const totalCandidates = [...flat.matchAll(/(?:valor\s+total|total\s+(?:geral|da proposta|do or[cç]amento)?|total)\s*[:\-]?\s*(R\$\s*[\d.]+,\d{2})/gi)]
+    const totalCandidates = [...flat.matchAll(/(?:valor\s+(?:total|final)|total\s+(?:geral|da proposta|do or[cç]amento|a pagar)?|total)\s*[:\-]?\s*(R\$\s*[\d.]+,\d{2}|\d{1,3}(?:\.\d{3})*,\d{2})/gi)]
       .map((m) => money(m[1]))
       .filter((v): v is number => v !== null);
     valorTotal = totalCandidates.at(-1) ?? null;
