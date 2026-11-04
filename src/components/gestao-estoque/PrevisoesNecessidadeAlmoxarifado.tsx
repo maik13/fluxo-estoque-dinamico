@@ -457,17 +457,17 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
   return (
     <>
       <Card
-        className="cursor-pointer border-amber-500/30 bg-gradient-to-br from-amber-950/20 to-orange-950/20 shadow-sm transition-all duration-300 hover:scale-105 hover:border-amber-400"
+        className="cursor-pointer border-sky-500/35 bg-gradient-to-br from-sky-950/25 to-indigo-950/25 shadow-sm transition-all duration-300 hover:scale-105 hover:border-sky-400"
         onClick={abrir}
       >
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 shadow-lg shadow-sky-500/20">
             <ClipboardList className="h-8 w-8 text-white" />
           </div>
-          <CardTitle className="text-amber-400">
+          <CardTitle className="text-sky-400">
             Previsões de Necessidade (PN) — visão unificada
           </CardTitle>
-          <CardDescription className="text-amber-500/70">
+          <CardDescription className="text-sky-300/70">
             Consulte todas as PNs do sistema, formalize a RC e acompanhe o fluxo
           </CardDescription>
         </CardHeader>
