@@ -11,7 +11,7 @@ import {
   type ItemRcEntrada,
   type ItemSolicitacaoEntrada,
   type PnEntrada,
-} from './materiaisSolicitadosRc';
+} from './montarMateriaisSolicitadosRc';
 
 interface PedidoRef {
   id: string;

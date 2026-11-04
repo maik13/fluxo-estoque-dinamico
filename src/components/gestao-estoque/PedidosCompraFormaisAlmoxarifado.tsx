@@ -15,7 +15,7 @@ type Pc = {id:string;numero:number;requisicao_compra_id:string;fornecedor:string
 const formVazio = {rcId:'',fornecedor:'',descricao:'',valorItens:'',frete:'',condicao:''};
 const moeda = (n:number|null|undefined) => n == null ? '—' : new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n));
 
-export function PedidosCompraFormaisAlmoxarifado() {
+export function PedidosCompraFormaisAlmoxarifado({ somenteConsulta = false }: { somenteConsulta?: boolean }) {
   const [open,setOpen] = useState(false);
   const [loading,setLoading] = useState(false);
   const [saving,setSaving] = useState(false);
@@ -67,7 +67,7 @@ export function PedidosCompraFormaisAlmoxarifado() {
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
       <DialogHeader><DialogTitle>Pedidos de Compra formais</DialogTitle><DialogDescription>Documentos vinculados às requisições de compra aprovadas. Mesmos registros do Financeiro.</DialogDescription></DialogHeader>
       <div className="flex justify-end"><Button variant="outline" onClick={()=>void carregar()} disabled={loading}><RefreshCcw className="mr-2 h-4 w-4"/>Atualizar</Button></div>
-      <div className="rounded-md border p-3 space-y-3">
+      {!somenteConsulta && <div className="rounded-md border p-3 space-y-3">
         <div className="font-semibold flex gap-2 items-center"><Plus className="h-4 w-4"/>Transformar uma RC aprovada em PC</div>
         <Label htmlFor="rcPc">Documento de origem</Label>
         <select id="rcPc" className="w-full rounded-md border bg-background p-2" value={form.rcId} onChange={e=>{const rc=disponiveis.find(x=>x.id===e.target.value);setForm({...form,rcId:e.target.value,fornecedor:rc?.fornecedores_consultados||'',descricao:rc?.especificacao_tecnica||'',valorItens:rc?.valor_estimado_cotado==null?'':String(rc.valor_estimado_cotado),frete:rc?.frete_custos_adicionais==null?'':String(rc.frete_custos_adicionais),condicao:rc?.condicao_pagamento||''});}}>
@@ -81,7 +81,7 @@ export function PedidosCompraFormaisAlmoxarifado() {
           <div className="sm:col-span-2"><Label>Condição de pagamento</Label><Input value={form.condicao} onChange={e=>setForm({...form,condicao:e.target.value})}/></div>
         </div>
         <Button onClick={()=>void criar()} disabled={saving||!disponiveis.length}>{saving?'Transformando...':'Transformar RC em PC'}</Button>
-      </div>
+      </div>}
       <Table><TableHeader><TableRow><TableHead>PC</TableHead><TableHead>RC de origem</TableHead><TableHead>Fornecedor</TableHead><TableHead>Descrição</TableHead><TableHead>Total</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
       <TableBody>{pcs.map(pc=>{const rc=rcs.find(item=>item.id===pc.requisicao_compra_id);return <TableRow key={pc.id}><TableCell>PC-{String(pc.numero).padStart(4,'0')}</TableCell><TableCell>{rc?`RC-${String(rc.numero).padStart(4,'0')}`:'—'}</TableCell><TableCell>{pc.fornecedor}</TableCell><TableCell>{pc.descricao}</TableCell><TableCell>{moeda(pc.valor_total)}</TableCell><TableCell>{pc.status}</TableCell></TableRow>;})}{!pcs.length&&<TableRow><TableCell colSpan={6} className="text-center">Nenhum PC formal transformado a partir de RC.</TableCell></TableRow>}</TableBody></Table>
     </DialogContent></Dialog>

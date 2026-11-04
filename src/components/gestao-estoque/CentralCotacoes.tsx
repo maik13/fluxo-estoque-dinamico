@@ -241,7 +241,7 @@ const emptyForm = {
 
 export function CentralCotacoes() {
   const { user } = useAuth();
-  const { userProfile, hasPermission, isAdmin, isGestor, isEstoquista } = usePermissions();
+  const { userProfile, hasPermission, isAdmin, isGestor, isEstoquista, canAccessFinanceiro } = usePermissions();
   const { obterEstoque } = useEstoqueContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -291,6 +291,8 @@ export function CentralCotacoes() {
     fornecedores_solicitados: '',
     observacoes: '',
   });
+  const podeGerenciarCotacoes = isAdmin() || isGestor() || isEstoquista() || hasPermission('compras.pedidos.criar');
+  const somenteConsulta = canAccessFinanceiro() && !podeGerenciarCotacoes;
 
   const carregar = async (exibirLoading = true) => {
     if (exibirLoading) setLoading(true);
@@ -1366,6 +1368,7 @@ export function CentralCotacoes() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {!somenteConsulta && <>
           <Button variant="outline" onClick={() => {
             setCotacaoImportacaoId(null);
             setSolicitacaoImportacaoIds([]);
@@ -1380,6 +1383,7 @@ export function CentralCotacoes() {
           <Button variant="outline" onClick={abrirManual}>
             <Plus className="mr-2 h-4 w-4" /> Nova cotação
           </Button>
+          </>}
           <Button variant="ghost" size="icon" onClick={() => void carregar()} title="Atualizar">
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -1556,9 +1560,9 @@ export function CentralCotacoes() {
                   Fila ativa. A solicitação permanece aqui até receber um orçamento em PDF ou por link.
                 </CardDescription>
               </div>
-              <Button onClick={() => setSolicitacaoOpen(true)}>
+              {!somenteConsulta && <Button onClick={() => setSolicitacaoOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" /> Nova solicitação
-              </Button>
+              </Button>}
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto rounded-lg border">
