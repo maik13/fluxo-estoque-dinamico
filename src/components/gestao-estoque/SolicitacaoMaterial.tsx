@@ -25,7 +25,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { ItemFotoMiniatura } from './ItemFotoMiniatura';
-import { itemEhFerramentaUnitaria } from '@/utils/itemClassification';
+import { itemEhFerramenta, itemEhFerramentaUnitaria } from '@/utils/itemClassification';
 import { formatarErroSupabase } from '@/utils/supabaseError';
 
 interface ItemSolicitacaoMaterial {
@@ -191,8 +191,9 @@ export const SolicitacaoMaterial = () => {
   };
   carregarSolicitacoesRef.current = carregarSolicitacoes;
 
+  // Ferramentas continuam visíveis mesmo em uso ou sem saldo: a decisão de
+  // retirada cabe ao Almoxarifado, jamais à geração automática de PN.
   const itensFiltrados = useMemo(() => {
-    // Mostrar todos os itens (inclusive sem saldo) — solicitação é usada para gerar compra
     if (!busca) return itensEstoque.slice(0, 50);
     const termo = busca.toLowerCase();
     return itensEstoque.filter(item =>
@@ -226,6 +227,8 @@ export const SolicitacaoMaterial = () => {
 
     const itemEstoque = mapaEstoque.get(item.item_id);
     if (!itemEstoque) return true;
+    if (itemEhFerramenta(itemEstoque, categorias) ||
+      String((itemEstoque as any).tipoItem ?? (itemEstoque as any).tipo_item ?? '').trim().toLowerCase() === 'ferramenta') return false;
     if (itemEstoque.saldoConfirmado === false) return false;
 
     return itemEstoque.estoqueAtual < item.quantidade;
@@ -1337,7 +1340,7 @@ export const SolicitacaoMaterial = () => {
                         <TableCell>{modoEdicaoSolicitacao && itemEdicao ? <Input className="w-20" value={itemEdicao.unidade} onChange={(e) => atualizarItemEdicao(i, 'unidade', e.target.value)} /> : item.unidade}</TableCell>
                         <TableCell>
                           <Badge variant={vaiParaCompra ? 'secondary' : 'default'}>
-                            {vaiParaCompra ? 'Previsão de Necessidade (PN)' : 'Estoque'}
+                            {vaiParaCompra ? 'Previsão de Necessidade (PN)' : item.item_id && itemEhFerramenta(mapaEstoque.get(item.item_id), categorias) ? 'Ferramenta — Almoxarifado' : 'Estoque'}
                           </Badge>
                         </TableCell>
                         <TableCell>{modoEdicaoSolicitacao && itemEdicao ? <Input value={itemEdicao.observacoes} onChange={(e) => atualizarItemEdicao(i, 'observacoes', e.target.value)} /> : item.observacoes || '-'}</TableCell>
@@ -1478,7 +1481,7 @@ export const SolicitacaoMaterial = () => {
                         <CommandGroup>
                           {itensFiltrados.map(item => {
                             const quantidade = obterQuantidadeDigitada();
-                            const vaiParaCompra = Number.isFinite(quantidade) && quantidade > 0 && item.estoqueAtual < quantidade;
+                            const vaiParaCompra = Number.isFinite(quantidade) && quantidade > 0 && !itemEhFerramenta(item, categorias) && item.estoqueAtual < quantidade;
 
                             return (
                               <CommandItem
