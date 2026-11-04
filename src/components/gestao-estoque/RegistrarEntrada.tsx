@@ -174,13 +174,13 @@ export const RegistrarEntrada = () => {
       if (!open) resetarFormulario();
     }}>
       <DialogTrigger asChild>
-        <Card className="cursor-pointer hover:scale-105 transition-all duration-300 border-info/20 hover:border-info/40">
-          <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 bg-info/10 rounded-full flex items-center justify-center mb-4">
-              <ArrowUp className="h-8 w-8 text-info" />
+        <Card className="action-card action-card--blue">
+          <CardHeader className="action-card__content text-center">
+            <div className="action-card__icon">
+              <ArrowUp className="h-8 w-8" />
             </div>
-            <CardTitle className="text-info">Entrada</CardTitle>
-            <p className="text-sm text-info/80 mt-2">
+            <CardTitle className="action-card__title">Entrada</CardTitle>
+            <p className="action-card__description mt-2 text-sm">
               Registrar entrada de materiais
             </p>
           </CardHeader>

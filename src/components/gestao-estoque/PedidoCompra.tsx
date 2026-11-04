@@ -544,11 +544,11 @@ export const PedidoCompra = ({ somenteConsulta = false }: PedidoCompraProps) => 
 
   return (
     <>
-      <Card className={cn('cursor-pointer hover:scale-105 transition-all duration-300', podeMovimentar ? 'border-blue-500/30 hover:border-blue-400 bg-gradient-to-br from-blue-950/20 to-indigo-950/20 shadow-sm' : 'border-muted/20 hover:border-muted/40 opacity-60')} onClick={() => { if (!podeMovimentar) return; setDialogoConsulta(true); void carregarPedidos(); }}>
-        <CardHeader className="text-center">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mb-4 shadow-lg"><ShoppingCart className="h-8 w-8 text-white" /></div>
-          <CardTitle className="text-blue-400">Requisições de Compra (RC)</CardTitle>
-          <CardDescription className="text-blue-500/70">Acompanhe a mesma fila de RCs exibida no Financeiro</CardDescription>
+      <Card className={cn('action-card action-card--cyan', !podeMovimentar && 'cursor-not-allowed opacity-60')} onClick={() => { if (!podeMovimentar) return; setDialogoConsulta(true); void carregarPedidos(); }}>
+        <CardHeader className="action-card__content text-center">
+          <div className="action-card__icon"><ShoppingCart className="h-8 w-8" /></div>
+          <CardTitle className="action-card__title">Requisições de Compra (RC)</CardTitle>
+          <CardDescription className="action-card__description">Acompanhe a mesma fila de RCs exibida no Financeiro</CardDescription>
         </CardHeader>
       </Card>
 

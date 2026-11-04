@@ -1083,19 +1083,18 @@ export const SolicitacaoMaterial = () => {
     <>
       {/* Botão no Menu Principal */}
       <Card
-        className="group cursor-pointer hover:scale-105 transition-all duration-300 border-amber-500/30 hover:border-amber-400 bg-gradient-to-br from-amber-950/20 to-orange-950/20 shadow-sm relative overflow-hidden"
+        className="action-card action-card--orange group"
         onClick={() => {
           setDialogoListar(true);
           carregarSolicitacoes();
         }}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-        <CardHeader className="text-center relative z-10">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
+        <CardHeader className="action-card__content text-center">
+          <div className="action-card__icon">
             <ClipboardList className="h-8 w-8 text-white" />
           </div>
-          <CardTitle className="text-amber-400">Solicitação de Material</CardTitle>
-          <CardDescription className="text-amber-500/70">
+          <CardTitle className="action-card__title">Solicitação de Material</CardTitle>
+          <CardDescription className="action-card__description">
             Solicite itens do estoque ou itens não cadastrados. O Almoxarifado define retirada ou PN.
           </CardDescription>
           {pendentesCount > 0 && canManageStock() && (

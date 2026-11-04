@@ -413,13 +413,13 @@ export const SolicitarMaterial = () => {
         if (!open) resetarFormulario();
       }}>
         <DialogTrigger asChild>
-          <Card className="cursor-pointer hover:scale-105 transition-all duration-300 border-green-500/30 hover:border-green-400 bg-gradient-to-br from-green-950/20 to-emerald-950/20">
-            <CardHeader className="text-center">
-              <div className="mx-auto w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
+          <Card className="action-card action-card--emerald">
+            <CardHeader className="action-card__content text-center">
+              <div className="action-card__icon">
                 <Package className="h-8 w-8 text-white" />
               </div>
-              <CardTitle className="text-green-400 text-lg">Retirada de Material</CardTitle>
-              <p className="text-sm text-green-500/80 mt-2">
+              <CardTitle className="action-card__title text-lg">Retirada de Material</CardTitle>
+              <p className="action-card__description mt-2 text-sm">
                 Solicite materiais do estoque para aprovação
               </p>
             </CardHeader>

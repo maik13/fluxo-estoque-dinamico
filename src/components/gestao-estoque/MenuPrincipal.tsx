@@ -541,10 +541,10 @@ export const MenuPrincipal = ({
           <Card
             onClick={onAbrirCotacoes}
             className={cn(
-              "relative order-5 cursor-pointer transition-all duration-300 hover:scale-105",
+              "action-card action-card--amber order-5",
               solicitacoesCotacaoPendentesCount > 0
-                ? "animate-pulse border-amber-500/60 bg-amber-500/5 shadow-[0_0_0_1px_hsl(var(--warning)/0.15)] hover:border-amber-500"
-                : "border-violet-500/20 hover:border-violet-500/40",
+                ? "border-amber-500/70"
+                : "",
             )}
             role="button"
             tabIndex={0}
@@ -564,20 +564,14 @@ export const MenuPrincipal = ({
                 {solicitacoesCotacaoPendentesCount > 99 ? '99+' : solicitacoesCotacaoPendentesCount}
               </Badge>
             )}
-            <CardHeader className="text-center">
-              <div className={cn(
-                "mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full",
-                solicitacoesCotacaoPendentesCount > 0 ? "bg-amber-500/15" : "bg-violet-500/10",
-              )}>
-                <ReceiptText className={cn(
-                  "h-8 w-8",
-                  solicitacoesCotacaoPendentesCount > 0 ? "text-amber-500" : "text-violet-500",
-                )} />
+            <CardHeader className="action-card__content text-center">
+              <div className="action-card__icon">
+                <ReceiptText className="h-8 w-8" />
               </div>
-              <CardTitle className={solicitacoesCotacaoPendentesCount > 0 ? "text-amber-500" : "text-violet-500"}>
+              <CardTitle className="action-card__title">
                 Cotação
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="action-card__description">
                 {solicitacoesCotacaoPendentesCount > 0
                   ? `${solicitacoesCotacaoPendentesCount} ${solicitacoesCotacaoPendentesCount === 1 ? 'solicitação aguarda' : 'solicitações aguardam'} atendimento`
                   : 'Abrir a Central de Cotações do Almoxarifado'}
@@ -595,22 +589,17 @@ export const MenuPrincipal = ({
         {canCreateItems() && <Dialog open={dialogoCadastro} onOpenChange={handleDialogoCadastroChange}>
           <DialogTrigger asChild>
             <Card className={cn(
-              "cursor-pointer hover:scale-105 transition-all duration-300",
-              podeUsarCadastro 
-                ? "border-success/20 hover:border-success/40" 
-                : "border-muted/20 hover:border-muted/40 opacity-60"
+              "action-card action-card--violet",
+              !podeUsarCadastro && "cursor-not-allowed opacity-60"
             )}>
-              <CardHeader className="text-center">
-                <div className={cn(
-                  "mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4",
-                  podeUsarCadastro ? "bg-success/10" : "bg-muted/10"
-                )}>
-                  <Plus className={cn("h-8 w-8", podeUsarCadastro ? "text-success" : "text-muted-foreground")} />
+              <CardHeader className="action-card__content text-center">
+                <div className="action-card__icon">
+                  <Plus className="h-8 w-8" />
                 </div>
-                <CardTitle className={cn(podeUsarCadastro ? "text-success" : "text-muted-foreground")}>
+                <CardTitle className="action-card__title">
                   Cadastrar Item
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="action-card__description">
                   {podeUsarCadastro 
                     ? "Cadastrar novos materiais no estoque"
                     : "Disponível apenas no Estoque Principal"
@@ -909,17 +898,15 @@ export const MenuPrincipal = ({
         }}>
           <DialogTrigger asChild>
             <Card className={cn(
-              "cursor-pointer hover:scale-105 transition-all duration-300",
-              podeMovimentar 
-                ? "border-warning/20 hover:border-warning/40" 
-                : "border-muted/20 hover:border-muted/40 opacity-60"
+              "action-card action-card--rose",
+              !podeMovimentar && "cursor-not-allowed opacity-60"
             )}>
-              <CardHeader className="text-center">
-                <div className="mx-auto w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center mb-4">
-                  <ArrowDown className="h-8 w-8 text-warning" />
+              <CardHeader className="action-card__content text-center">
+                <div className="action-card__icon">
+                  <ArrowDown className="h-8 w-8" />
                 </div>
-                <CardTitle className="text-warning">Saída</CardTitle>
-                <CardDescription>
+                <CardTitle className="action-card__title">Saída</CardTitle>
+                <CardDescription className="action-card__description">
                   Registrar saída de materiais
                 </CardDescription>
               </CardHeader>

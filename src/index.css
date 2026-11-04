@@ -164,6 +164,73 @@
   .glow-amber:hover  { box-shadow: var(--shadow-amber); }
   .glow-red:hover    { box-shadow: var(--shadow-red); }
 
+  /* Cards de ação: uma mesma linguagem visual, com identidade por função. */
+  .action-card {
+    --action: 16 185 129;
+    --action-deep: 5 150 105;
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    cursor: pointer;
+    border-color: rgb(var(--action) / 0.35);
+    background:
+      radial-gradient(circle at 88% 8%, rgb(var(--action) / 0.20), transparent 36%),
+      linear-gradient(145deg, rgb(var(--action) / 0.13), hsl(var(--card)) 62%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 10px 22px rgb(15 23 42 / 0.10);
+    transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+  }
+
+  .action-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(135deg, rgb(255 255 255 / 0.14), transparent 38%);
+    pointer-events: none;
+  }
+
+  .action-card:hover {
+    transform: translateY(-5px);
+    border-color: rgb(var(--action) / 0.72);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.24), 0 18px 34px rgb(var(--action) / 0.20);
+  }
+
+  .action-card__content { position: relative; z-index: 1; }
+
+  .action-card__icon {
+    display: flex;
+    width: 4rem;
+    height: 4rem;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    border: 1px solid rgb(255 255 255 / 0.28);
+    border-radius: 1.15rem;
+    color: white;
+    background: linear-gradient(145deg, rgb(var(--action)), rgb(var(--action-deep)));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.34), 0 10px 18px rgb(var(--action) / 0.28);
+    transition: transform 220ms ease, box-shadow 220ms ease;
+  }
+
+  .action-card:hover .action-card__icon {
+    transform: translateY(-2px) rotate(-3deg);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.40), 0 14px 24px rgb(var(--action) / 0.36);
+  }
+
+  .action-card__title { color: rgb(var(--action-deep)); }
+  .action-card__description { color: rgb(var(--action-deep) / 0.72); }
+
+  .action-card--emerald { --action: 16 185 129; --action-deep: 5 150 105; }
+  .action-card--teal { --action: 20 184 166; --action-deep: 13 148 136; }
+  .action-card--violet { --action: 139 92 246; --action-deep: 109 40 217; }
+  .action-card--cyan { --action: 6 182 212; --action-deep: 8 145 178; }
+  .action-card--blue { --action: 59 130 246; --action-deep: 37 99 235; }
+  .action-card--indigo { --action: 99 102 241; --action-deep: 79 70 229; }
+  .action-card--amber { --action: 245 158 11; --action-deep: 217 119 6; }
+  .action-card--orange { --action: 249 115 22; --action-deep: 234 88 12; }
+  .action-card--rose { --action: 244 63 94; --action-deep: 225 29 72; }
+  .action-card--fuchsia { --action: 217 70 239; --action-deep: 192 38 211; }
+
   /* Custom scrollbar */
   ::-webkit-scrollbar        { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track  { background: hsl(var(--muted)); border-radius: 4px; }

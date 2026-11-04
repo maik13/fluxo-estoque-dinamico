@@ -240,13 +240,13 @@ export const Transferencia = () => {
       if (!open) resetarFormulario();
     }}>
       <DialogTrigger asChild>
-        <Card className="cursor-pointer hover:scale-105 transition-all duration-300 border-primary/20 hover:border-primary/40">
-          <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-              <ArrowLeftRight className="h-8 w-8 text-primary" />
+        <Card className="action-card action-card--violet">
+          <CardHeader className="action-card__content text-center">
+            <div className="action-card__icon">
+              <ArrowLeftRight className="h-8 w-8" />
             </div>
-            <CardTitle className="text-primary">Transferência</CardTitle>
-            <p className="text-sm text-primary/80 mt-2">
+            <CardTitle className="action-card__title">Transferência</CardTitle>
+            <p className="action-card__description mt-2 text-sm">
               Transferir itens entre estoques
             </p>
           </CardHeader>
