@@ -25,7 +25,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { ItemFotoMiniatura } from './ItemFotoMiniatura';
-import { itemEhFerramentaUnitaria } from '@/utils/itemClassification';
+import { itemEhFerramenta, itemEhFerramentaUnitaria } from '@/utils/itemClassification';
 import { formatarErroSupabase } from '@/utils/supabaseError';
 
 interface ItemSolicitacaoMaterial {
@@ -191,16 +191,24 @@ export const SolicitacaoMaterial = () => {
   };
   carregarSolicitacoesRef.current = carregarSolicitacoes;
 
+  // Ferramentas temporariamente indisponíveis permanecem cadastradas no
+  // Almoxarifado, mas não são oferecidas na pesquisa do solicitante.
+  const ferramentaIndisponivel = (item: EstoqueItem) =>
+    (itemEhFerramenta(item, categorias) ||
+      String((item as any).tipoItem ?? (item as any).tipo_item ?? '').trim().toLowerCase() === 'ferramenta') &&
+    (item.saldoConfirmado === false || (item.estoqueAtual ?? 0) <= 0);
+
   const itensFiltrados = useMemo(() => {
-    // Mostrar todos os itens (inclusive sem saldo) — solicitação é usada para gerar compra
-    if (!busca) return itensEstoque.slice(0, 50);
-    const termo = busca.toLowerCase();
+    const termo = busca.trim().toLowerCase();
     return itensEstoque.filter(item =>
-      item.nome.toLowerCase().includes(termo) ||
-      item.codigoBarras.toString().includes(termo) ||
-      item.marca?.toLowerCase().includes(termo)
+      !ferramentaIndisponivel(item) && (
+        !termo ||
+        item.nome.toLowerCase().includes(termo) ||
+        item.codigoBarras.toString().includes(termo) ||
+        item.marca?.toLowerCase().includes(termo)
+      )
     ).slice(0, 50);
-  }, [busca, itensEstoque]);
+  }, [busca, itensEstoque, categorias]);
 
   const obterQuantidadeDigitada = () => Number(quantidadeItem.replace(',', '.'));
 
@@ -226,6 +234,8 @@ export const SolicitacaoMaterial = () => {
 
     const itemEstoque = mapaEstoque.get(item.item_id);
     if (!itemEstoque) return true;
+    if (itemEhFerramenta(itemEstoque, categorias) ||
+      String((itemEstoque as any).tipoItem ?? (itemEstoque as any).tipo_item ?? '').trim().toLowerCase() === 'ferramenta') return false;
     if (itemEstoque.saldoConfirmado === false) return false;
 
     return itemEstoque.estoqueAtual < item.quantidade;
@@ -236,6 +246,10 @@ export const SolicitacaoMaterial = () => {
   };
 
   const adicionarItemEstoque = (item: EstoqueItem) => {
+    if (ferramentaIndisponivel(item)) {
+      toast.error('Ferramenta indisponível. Aguarde sua devolução ao Almoxarifado.');
+      return;
+    }
     if (itensLista.find(i => i.item_id === item.id) || solicitacaoParaAdicionar?.itens.some(i => i.item_id === item.id)) {
       toast.error('Este item já foi adicionado');
       return;
@@ -1478,7 +1492,7 @@ export const SolicitacaoMaterial = () => {
                         <CommandGroup>
                           {itensFiltrados.map(item => {
                             const quantidade = obterQuantidadeDigitada();
-                            const vaiParaCompra = Number.isFinite(quantidade) && quantidade > 0 && item.estoqueAtual < quantidade;
+                            const vaiParaCompra = Number.isFinite(quantidade) && quantidade > 0 && !itemEhFerramenta(item, categorias) && item.estoqueAtual < quantidade;
 
                             return (
                               <CommandItem
