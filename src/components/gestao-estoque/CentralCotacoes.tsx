@@ -1364,7 +1364,7 @@ export function CentralCotacoes() {
         <div>
           <h2 className="text-2xl font-semibold">Central de Cotações</h2>
           <p className="text-sm text-muted-foreground">
-            PDFs, lançamentos manuais, solicitações e histórico pesquisável. Só entra no Financeiro quando virar PN.
+            PDF salvo fica em Cotação. Fluxo: confirmar → escolher proposta → aprovar → converter em PN → formalizar RC.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -2156,6 +2156,9 @@ export function CentralCotacoes() {
           )}
 
           <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+            <div className="w-full rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+              <strong className="text-foreground">Próxima etapa:</strong> salvar o PDF não cria PN. Confirme o orçamento; depois escolha a proposta no processo, envie para aprovação e, quando aprovada, use <strong className="text-foreground">Converter em PN</strong>.
+            </div>
             {editorCotacao && editorCotacao.status !== 'convertida_pn' && !editorCotacao.financeiro_necessidade_id && (
               <Button
                 variant="destructive"
@@ -2172,7 +2175,7 @@ export function CentralCotacoes() {
             <Button variant="outline" onClick={() => setEditorOpen(false)}>Cancelar</Button>
             <Button variant="outline" onClick={() => void salvarCotacao(false)} disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar rascunho'}</Button>
             <Button onClick={() => void salvarCotacao(true)} disabled={salvando}>
-              <CheckCircle2 className="mr-2 h-4 w-4" /> Confirmar e salvar
+              <CheckCircle2 className="mr-2 h-4 w-4" /> Confirmar orçamento
             </Button>
           </div>
         </DialogContent>

@@ -162,6 +162,7 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
   const [rcPorId, setRcPorId] = useState<Record<string, RequisicaoCompra>>({});
   const [catalogo, setCatalogo] = useState<ItemEstoque[]>([]);
   const [buscaPn, setBuscaPn] = useState("");
+  const [mostrarCanceladas, setMostrarCanceladas] = useState(false);
   const [buscaItem, setBuscaItem] = useState("");
   const [formulario, setFormulario] = useState(formularioInicial);
   const [linhas, setLinhas] = useState<LinhaFormulario[]>([]);
@@ -435,9 +436,12 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
 
   const pnsFiltradas = useMemo(() => {
     const termo = buscaPn.trim().toLocaleLowerCase("pt-BR");
-    if (!termo) return pns;
+    const pnsVisiveis = mostrarCanceladas
+      ? pns
+      : pns.filter((pn) => pn.status !== "cancelado");
+    if (!termo) return pnsVisiveis;
 
-    return pns.filter((pn) => {
+    return pnsVisiveis.filter((pn) => {
       const rc = pn.requisicao_compra_id ? rcPorId[pn.requisicao_compra_id] : undefined;
       const campos = [
         `pn-${String(pn.numero).padStart(4, "0")}`,
@@ -452,7 +456,7 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
       ];
       return campos.filter(Boolean).some((campo) => String(campo).toLocaleLowerCase("pt-BR").includes(termo));
     });
-  }, [buscaPn, linhasPorPn, pns, rcPorId]);
+  }, [buscaPn, linhasPorPn, mostrarCanceladas, pns, rcPorId]);
 
   return (
     <>
@@ -502,15 +506,24 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
                 aria-label="Buscar previsões de necessidade"
               />
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void carregar()}
-              disabled={carregando}
-            >
-              <RefreshCcw className="mr-2 h-4 w-4" />
-              Atualizar
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMostrarCanceladas((valor) => !valor)}
+              >
+                {mostrarCanceladas ? "Ocultar canceladas" : "Ver canceladas"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void carregar()}
+                disabled={carregando}
+              >
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                Atualizar
+              </Button>
+            </div>
           </div>
           {carregando ? (
             <p className="py-8 text-center text-muted-foreground">
