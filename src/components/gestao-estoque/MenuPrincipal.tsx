@@ -51,8 +51,8 @@ export const MenuPrincipal = ({
   const { 
     canCreateItems, 
     canManageStock, 
-    canAccessFinanceiro,
     canCriarPrevisaoNecessidadeAlmoxarifado,
+    canViewPurchaseFlow,
     canSolicitarMaterial, 
     canDevolverMaterial, 
     canRegistrarEntrada, 
@@ -165,8 +165,8 @@ export const MenuPrincipal = ({
   const estoqueAtivoInfo = obterEstoqueAtivoInfo();
   const podeUsarCadastro = canCreateItems();
   const podeMovimentar = canManageStock();
-  const podeVisualizarFinanceiro = canAccessFinanceiro();
-  const podeOperarCotacoes = podeVisualizarFinanceiro || isAdmin() || isGestor() || isEstoquista();
+  const podeVisualizarFluxoCompras = canViewPurchaseFlow();
+  const podeOperarCotacoes = isAdmin() || isGestor() || isEstoquista();
 
   // Buscar próximo código disponível quando o dialog de cadastro abrir
   useEffect(() => {
@@ -1127,13 +1127,13 @@ export const MenuPrincipal = ({
           </DialogContent>
         </Dialog></div>}
 
-        {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado() || podeVisualizarFinanceiro) && (
+        {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado() || podeVisualizarFluxoCompras) && (
           <div className="order-9 [&>*]:h-full"><PrevisoesNecessidadeAlmoxarifado /></div>
         )}
-        {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado() || podeVisualizarFinanceiro) && (
+        {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado() || podeVisualizarFluxoCompras) && (
           <div className="order-10 [&>*]:h-full"><PedidoCompra somenteConsulta={!canManageStock()} /></div>
         )}
-        {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado() || podeVisualizarFinanceiro) && (
+        {(canManageStock() || canCriarPrevisaoNecessidadeAlmoxarifado() || podeVisualizarFluxoCompras) && (
           <div className="order-11 [&>*]:h-full"><PedidosCompraFormaisAlmoxarifado somenteConsulta={!canManageStock()} /></div>
         )}
       </div>

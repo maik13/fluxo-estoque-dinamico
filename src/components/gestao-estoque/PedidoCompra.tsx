@@ -128,7 +128,7 @@ type PedidoCompraProps = {
 export const PedidoCompra = ({ somenteConsulta = false }: PedidoCompraProps) => {
   const { obterEstoque } = useEstoqueContext();
   const { user } = useAuth();
-  const { userProfile, canManageStock, canAccessFinanceiro } = usePermissions();
+  const { userProfile, canManageStock, canViewPurchaseFlow } = usePermissions();
   const { obterEstoqueAtivoInfo } = useConfiguracoes();
 
   const [dialogoNovoPedido, setDialogoNovoPedido] = useState(false);
@@ -186,7 +186,7 @@ export const PedidoCompra = ({ somenteConsulta = false }: PedidoCompraProps) => 
 
   const itensEstoque = obterEstoque();
   const podeMovimentar = canManageStock();
-  const podeVisualizar = podeMovimentar || canAccessFinanceiro();
+  const podeVisualizar = podeMovimentar || canViewPurchaseFlow();
 
   const itensFiltrados = useMemo(() => {
     const base = itensEstoque.slice();

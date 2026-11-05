@@ -140,17 +140,23 @@ export const usePermissions = () => {
   }, []);
 
   const carregarPermissoesEfetivas = useCallback(async (tipoUsuario: string) => {
-    const { data, error } = await (supabase as any).rpc('obter_minhas_permissoes');
+    const [{ data, error }, { data: podeVisualizarFluxoCompras, error: erroFluxoCompras }] = await Promise.all([
+      (supabase as any).rpc('obter_minhas_permissoes'),
+      (supabase as any).rpc('pode_visualizar_fluxo_compras'),
+    ]);
 
     // Uma falha de consulta não pode reabrir acessos negados individualmente.
-    if (error) {
+    if (error || erroFluxoCompras) {
       console.error('Erro ao consultar permissões efetivas:', error);
       setPermissoesEfetivas({});
       setPermissoesDinamicas(DEFAULT_PERMISSIONS);
       return;
     }
 
-    const mapa = (data && typeof data === 'object' ? data : {}) as MapaPermissoes;
+    const mapa = {
+      ...(data && typeof data === 'object' ? data : {}),
+      'compras.fluxo.visualizar': Boolean(podeVisualizarFluxoCompras),
+    } as MapaPermissoes;
     setPermissoesEfetivas(mapa);
     setPermissoesDinamicas(mapaParaLegado(mapa));
   }, [carregarPermissoesLegadas]);
@@ -248,6 +254,7 @@ export const usePermissions = () => {
   const canPedidoCompra = () => hasPermission('compras.pedidos.criar') || permissoesDinamicas.pode_pedido_compra;
   const canSolicitacaoMaterial = () => hasPermission('estoque.solicitacoes.gerenciar') || permissoesDinamicas.pode_solicitacao_material;
   const canCriarPrevisaoNecessidadeAlmoxarifado = () => isAdmin() || isEstoquista();
+  const canViewPurchaseFlow = () => isAdmin() || hasPermission('compras.fluxo.visualizar');
   const canEditMovements = () => hasPermission('estoque.movimentacoes.editar') || permissoesDinamicas.pode_editar_movimentacoes;
   const canAccessManagerial = () => isAdmin() || hasPermission('gerencial.visualizar') || permissoesDinamicas.pode_acessar_gerencial;
   const canAccessProjects = () => isAdmin() || hasPermission('projetos.visualizar') || permissoesDinamicas.pode_acessar_projetos;
@@ -290,6 +297,7 @@ export const usePermissions = () => {
     canPedidoCompra,
     canSolicitacaoMaterial,
     canCriarPrevisaoNecessidadeAlmoxarifado,
+    canViewPurchaseFlow,
     canEditMovements,
     canAccessManagerial,
     canAccessProjects,
