@@ -234,11 +234,21 @@ const parseRentalItems = (lines: string[]): ParsedItem[] => {
 
     const beforePrice = clean(line.slice(0, unitMatch.index)) || "";
     const quantityMatch = beforePrice.match(/^(.*?)(?:\s+(?:qtde|quantidade)\s*:?\s*)?(\d+(?:[.,]\d+)?)\s*$/i);
-    if (!quantityMatch) continue;
+    const detailsAroundItem = lines.slice(index, index + 4).join(" ");
+    const quantityFromDetails = detailsAroundItem.match(/quantidade\s*:?\s*(\d+(?:[.,]\d+)?)/i);
 
-    const descricao = clean(quantityMatch[1].replace(/^[+|•\-\s]+/, ""));
-    const quantidade = decimal(quantityMatch[2]);
+    // Há fornecedores que exibem a quantidade na linha do código, abaixo da
+    // descrição. Nesse caso, preservamos a descrição e buscamos a quantidade
+    // naquela linha, em vez de descartar a peça do orçamento.
+    const descricaoBase = quantityMatch?.[1] || beforePrice;
+    const quantidade = decimal(quantityMatch?.[2] || quantityFromDetails?.[1]);
+    let descricao = clean(descricaoBase.replace(/^[+|•\-\s]+/, ""));
     if (!descricao || quantidade === null || /^(?:descri[cç][aã]o|produto|item)$/i.test(descricao)) continue;
+
+    const codigo = detailsAroundItem.match(/c[oó]digo\s*:\s*([A-Z0-9][A-Z0-9.\-/]+)/i)?.[1];
+    if (codigo && !descricao.toLocaleLowerCase("pt-BR").includes(`código ${codigo}`.toLocaleLowerCase("pt-BR"))) {
+      descricao = `${descricao} — Código ${codigo}`;
+    }
 
     let valorTotal: number | null = null;
     for (let offset = 0; offset <= 3 && index + offset < lines.length; offset++) {
