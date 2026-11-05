@@ -104,6 +104,7 @@ type Cotacao = {
   aprovacao_justificativa: string | null;
   solicitacao_id: string | null;
   solicitacao_ids?: string[];
+  pn_numero?: number | null;
   created_at: string;
 };
 
@@ -172,6 +173,7 @@ const statusLabels: Record<string, string> = {
   escolhida: 'Escolhida',
   rejeitada: 'Rejeitada',
   convertida_pn: 'Convertida em PN',
+  encerrada_sem_pn: 'Encerrada sem PN',
 };
 
 const solicitacaoStatusLabels: Record<string, string> = {
@@ -315,12 +317,23 @@ export function CentralCotacoes() {
       if (cotacoesError) throw cotacoesError;
       if (solicitacoesError) throw solicitacoesError;
       const cotacaoIds = (cotacoesData || []).map((cotacao: Cotacao) => cotacao.id);
-      const { data: vinculosData, error: vinculosError } = cotacaoIds.length
-        ? await (supabase.from as any)('cotacao_solicitacoes_vinculos')
-            .select('cotacao_id, solicitacao_id')
-            .in('cotacao_id', cotacaoIds)
-        : { data: [], error: null };
+      const pnIds = (cotacoesData || [])
+        .map((cotacao: Cotacao) => cotacao.financeiro_necessidade_id)
+        .filter((id: string | null): id is string => Boolean(id));
+      const [{ data: vinculosData, error: vinculosError }, { data: pnsData, error: pnsError }] = await Promise.all([
+        cotacaoIds.length
+          ? (supabase.from as any)('cotacao_solicitacoes_vinculos')
+              .select('cotacao_id, solicitacao_id')
+              .in('cotacao_id', cotacaoIds)
+          : Promise.resolve({ data: [], error: null }),
+        pnIds.length
+          ? (supabase.from as any)('financeiro_necessidades')
+              .select('id, numero')
+              .in('id', pnIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
       if (vinculosError) throw vinculosError;
+      if (pnsError) throw pnsError;
 
       const idsPorCotacao = new Map<string, string[]>();
       for (const vinculo of vinculosData || []) {
@@ -328,9 +341,11 @@ export function CentralCotacoes() {
         ids.push(vinculo.solicitacao_id);
         idsPorCotacao.set(vinculo.cotacao_id, ids);
       }
+      const numeroPnPorId = new Map((pnsData || []).map((pn: { id: string; numero: number }) => [pn.id, pn.numero]));
       setCotacoes((cotacoesData || []).map((cotacao: Cotacao) => ({
         ...cotacao,
         solicitacao_ids: idsPorCotacao.get(cotacao.id) || (cotacao.solicitacao_id ? [cotacao.solicitacao_id] : []),
+        pn_numero: cotacao.financeiro_necessidade_id ? numeroPnPorId.get(cotacao.financeiro_necessidade_id) || null : null,
       })) as Cotacao[]);
       setSolicitacoes((solicitacoesData || []) as Solicitacao[]);
     } catch (error: any) {
@@ -752,6 +767,24 @@ export function CentralCotacoes() {
     } catch (error: any) {
       console.error(error);
       toast.error(error?.message || 'Não foi possível converter a cotação em PN.');
+    }
+  };
+
+  const finalizarSemPn = async (cotacao: Cotacao) => {
+    if (cotacao.aprovacao_status !== 'aprovada') {
+      toast.error('A proposta precisa ser aprovada antes de decidir não gerar PN.');
+      return;
+    }
+    if (!confirm(`Finalizar a cotação #${cotacao.numero} sem gerar PN? O orçamento e a solicitação permanecerão no histórico.`)) return;
+    try {
+      const { error } = await (supabase as any).rpc('cotacao_encerrar_sem_pn_v1', { p_cotacao_id: cotacao.id });
+      if (error) throw error;
+      toast.success(`Cotação #${cotacao.numero} encerrada sem PN. O vínculo com a solicitação foi preservado.`);
+      await carregar();
+      setProcessoSolicitacaoOpen(false);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível encerrar a cotação sem PN.');
     }
   };
 
@@ -1285,6 +1318,20 @@ export function CentralCotacoes() {
     [cotacoes, solicitacaoSelecionada],
   );
 
+  const rastreabilidade = (cotacao: Cotacao) => {
+    const ids = cotacao.solicitacao_ids?.length
+      ? cotacao.solicitacao_ids
+      : cotacao.solicitacao_id ? [cotacao.solicitacao_id] : [];
+    const solicitacoesVinculadas = ids
+      .map((id) => solicitacoes.find((solicitacao) => solicitacao.id === id))
+      .filter((solicitacao): solicitacao is Solicitacao => Boolean(solicitacao))
+      .map((solicitacao) => `SOL-${String(solicitacao.numero).padStart(4, '0')}`);
+    return {
+      solicitacoes: solicitacoesVinculadas.length ? solicitacoesVinculadas.join(', ') : 'Cotação avulsa',
+      pn: cotacao.pn_numero ? `PN-${String(cotacao.pn_numero).padStart(4, '0')}` : null,
+    };
+  };
+
   const itensCatalogo = useMemo(
     () => (obterEstoque() ?? []).filter((item) => item.ativo !== false),
     [obterEstoque],
@@ -1458,6 +1505,7 @@ export function CentralCotacoes() {
                       <TableRow>
                         <TableHead>Data</TableHead>
                         <TableHead>Tipo</TableHead>
+                        <TableHead>Rastreabilidade</TableHead>
                         <TableHead>Fornecedor</TableHead>
                         <TableHead>Origem / descrição</TableHead>
                         <TableHead>Destino / projeto</TableHead>
@@ -1468,13 +1516,23 @@ export function CentralCotacoes() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {resultados.map((cotacao) => (
+                      {resultados.map((cotacao) => {
+                        const vinculo = rastreabilidade(cotacao);
+                        return (
                         <TableRow key={cotacao.id}>
                           <TableCell>{dataPt(cotacao.data_cotacao || cotacao.created_at)}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               {cotacao.tipo === 'frete' ? <Truck className="h-4 w-4" /> : cotacao.tipo === 'insumo' ? <Package className="h-4 w-4" /> : <Globe2 className="h-4 w-4" />}
                               {tipoLabels[cotacao.tipo]}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1 text-xs">
+                              <div className="font-semibold text-foreground">{vinculo.solicitacoes}</div>
+                              <div className={vinculo.pn ? 'font-semibold text-emerald-700' : 'text-muted-foreground'}>
+                                {vinculo.pn || 'Ainda sem PN'}
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -1539,9 +1597,10 @@ export function CentralCotacoes() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                       {resultados.length === 0 && (
-                        <TableRow><TableCell colSpan={9} className="py-10 text-center text-muted-foreground">Nenhuma cotação encontrada.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={10} className="py-10 text-center text-muted-foreground">Nenhuma cotação encontrada.</TableCell></TableRow>
                       )}
                     </TableBody>
                   </Table>
@@ -1832,7 +1891,7 @@ export function CentralCotacoes() {
               <div className="rounded-lg border">
                 <div className="border-b px-4 py-3">
                   <p className="font-medium">Propostas vinculadas</p>
-                  <p className="text-xs text-muted-foreground">Compare as propostas, confirme os dados e escolha a que será utilizada.</p>
+                  <p className="text-xs text-muted-foreground">Esta solicitação mantém o mesmo número até a decisão final: gerar PN ou encerrar sem PN.</p>
                 </div>
                 <div className="overflow-x-auto">
                   <Table>
@@ -1901,10 +1960,19 @@ export function CentralCotacoes() {
                                 </>
                               )}
                               {cotacao.status === 'escolhida' && cotacao.aprovacao_status === 'aprovada' && !cotacao.financeiro_necessidade_id && (
-                                <Button size="sm" onClick={() => void converterEmPn(cotacao)}>
-                                  <ArrowRightLeft className="mr-1 h-4 w-4" /> Converter em PN
-                                </Button>
+                                <>
+                                  <Button size="sm" onClick={() => void converterEmPn(cotacao)}>
+                                    <ArrowRightLeft className="mr-1 h-4 w-4" /> Gerar PN
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => void finalizarSemPn(cotacao)}>
+                                    Finalizar sem PN
+                                  </Button>
+                                </>
                               )}
+                              {cotacao.status === 'convertida_pn' && (
+                                <Badge className="bg-emerald-600">{cotacao.pn_numero ? `Gerou PN-${String(cotacao.pn_numero).padStart(4, '0')}` : 'PN gerada'}</Badge>
+                              )}
+                              {cotacao.status === 'encerrada_sem_pn' && <Badge variant="secondary">Encerrada sem PN</Badge>}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -2157,7 +2225,7 @@ export function CentralCotacoes() {
 
           <div className="flex flex-wrap items-center gap-2 border-t pt-4">
             <div className="w-full rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
-              <strong className="text-foreground">Próxima etapa:</strong> salvar o PDF não cria PN. Confirme o orçamento; depois escolha a proposta no processo, envie para aprovação e, quando aprovada, use <strong className="text-foreground">Converter em PN</strong>.
+              <strong className="text-foreground">Fluxo preservado:</strong> salvar o PDF mantém o vínculo com a <strong className="text-foreground">SOL</strong>. Depois de confirmar, escolha a proposta e envie para aprovação. No processo da solicitação aprovada, a decisão fica explícita: <strong className="text-foreground">Gerar PN</strong> ou <strong className="text-foreground">Finalizar sem PN</strong>.
             </div>
             {editorCotacao && editorCotacao.status !== 'convertida_pn' && !editorCotacao.financeiro_necessidade_id && (
               <Button
