@@ -145,17 +145,23 @@ export const usePermissions = () => {
       (supabase as any).rpc('pode_visualizar_fluxo_compras'),
     ]);
 
-    // Uma falha de consulta não pode reabrir acessos negados individualmente.
-    if (error || erroFluxoCompras) {
+    // A permissão-base é a fonte de verdade. A consulta adicional do fluxo de
+    // compras pode ainda não existir durante uma atualização do banco; nesse
+    // caso, ela não pode apagar todos os acessos que o usuário já possuía.
+    if (error) {
       console.error('Erro ao consultar permissões efetivas:', error);
       setPermissoesEfetivas({});
       setPermissoesDinamicas(DEFAULT_PERMISSIONS);
       return;
     }
 
+    if (erroFluxoCompras) {
+      console.warn('Permissão específica do fluxo de compras indisponível; mantendo os demais acessos.', erroFluxoCompras);
+    }
+
     const mapa = {
       ...(data && typeof data === 'object' ? data : {}),
-      'compras.fluxo.visualizar': Boolean(podeVisualizarFluxoCompras),
+      'compras.fluxo.visualizar': erroFluxoCompras ? false : Boolean(podeVisualizarFluxoCompras),
     } as MapaPermissoes;
     setPermissoesEfetivas(mapa);
     setPermissoesDinamicas(mapaParaLegado(mapa));

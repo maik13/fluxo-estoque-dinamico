@@ -167,6 +167,7 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
   const [formulario, setFormulario] = useState(formularioInicial);
   const [linhas, setLinhas] = useState<LinhaFormulario[]>([]);
   const [pnEmFormalizacao, setPnEmFormalizacao] = useState<string | null>(null);
+  const [pnEmCancelamento, setPnEmCancelamento] = useState<string | null>(null);
   const [pnEmEdicao, setPnEmEdicao] = useState<PrevisaoNecessidade | null>(null);
 
   const carregar = async () => {
@@ -419,6 +420,31 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
     }
   };
 
+  const cancelarPn = async (pn: PrevisaoNecessidade) => {
+    if (pn.requisicao_compra_id) {
+      toast.error("Esta PN já possui RC. Cancele a RC antes para preservar o histórico do fluxo.");
+      return;
+    }
+    if (!confirm(`Cancelar a PN-${String(pn.numero).padStart(4, "0")}? Ela deixará de aparecer na fila ativa, mas ficará preservada no histórico.`)) return;
+
+    setPnEmCancelamento(pn.id);
+    try {
+      const { error } = await (supabase as any)
+        .from("financeiro_necessidades")
+        .update({ status: "cancelado", updated_at: new Date().toISOString() })
+        .eq("id", pn.id)
+        .neq("status", "cancelado");
+      if (error) throw error;
+      toast.success(`PN-${String(pn.numero).padStart(4, "0")} cancelada. O registro permanece no histórico.`);
+      await carregar();
+    } catch (error) {
+      console.error("Erro ao cancelar PN:", error);
+      toast.error((error as any)?.message || "Não foi possível cancelar a PN.");
+    } finally {
+      setPnEmCancelamento(null);
+    }
+  };
+
   const itensFiltrados = useMemo(() => {
     const termo = buscaItem.trim().toLocaleLowerCase("pt-BR");
     return catalogo
@@ -635,6 +661,16 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
                                     {pnEmFormalizacao === pn.id
                                       ? "Criando RC..."
                                       : "Formalizar RC"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => void cancelarPn(pn)}
+                                    disabled={pnEmCancelamento === pn.id}
+                                  >
+                                    <Trash2 className="mr-1 h-3.5 w-3.5" />
+                                    {pnEmCancelamento === pn.id ? "Cancelando..." : "Cancelar PN"}
                                   </Button>
                                 </div>
                               ) : (
