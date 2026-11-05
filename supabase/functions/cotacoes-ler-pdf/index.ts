@@ -70,6 +70,8 @@ const classify = (text: string) => {
   ].filter((x) => t.includes(x)).length;
   const insumoScore = [
     "valor unitário",
+    "valor equipamento",
+    "valor do equipamento",
     "quantidade",
     "unidade",
     "produto",
@@ -78,7 +80,7 @@ const classify = (text: string) => {
   ].filter((x) => t.includes(x)).length;
 
   if (freteScore >= 2 && freteScore > insumoScore) return "frete";
-  if (insumoScore >= 2) return "insumo";
+  if (insumoScore >= 2 || /orçamento completo|condições comerciais/i.test(text)) return "insumo";
   return "global";
 };
 
@@ -211,6 +213,56 @@ const parseItems = (lines: string[]): ParsedItem[] => {
   return items;
 };
 
+// Alguns locadores não usam uma tabela convencional. No orçamento da Casa do
+// Construtor, por exemplo, a quantidade fica ao fim do nome do equipamento e
+// o preço unitário e o total aparecem em células separadas, em duas linhas.
+const parseRentalItems = (lines: string[]): ParsedItem[] => {
+  const items: ParsedItem[] = [];
+  const valuePattern = `${valorBr}`;
+  const unitPriceRegex = new RegExp(
+    `valor\\s+unit[aá]rio(?:\\s+(?:do\\s+)?equipamento)?\\s*:\\s*(${valuePattern})`,
+    "i",
+  );
+  const totalValueRegex = new RegExp(
+    `valor\\s+(?:(?:do\\s+)?equipamento(?:\\(s\\))?|total)\\s*:\\s*(${valuePattern})`,
+    "i",
+  );
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    const unitMatch = line.match(unitPriceRegex);
+    if (!unitMatch?.index && unitMatch?.index !== 0) continue;
+
+    const beforePrice = clean(line.slice(0, unitMatch.index)) || "";
+    const quantityMatch = beforePrice.match(/^(.*?)(?:\s+(?:qtde|quantidade)\s*:?\s*)?(\d+(?:[.,]\d+)?)\s*$/i);
+    if (!quantityMatch) continue;
+
+    const descricao = clean(quantityMatch[1].replace(/^[+|•\-\s]+/, ""));
+    const quantidade = decimal(quantityMatch[2]);
+    if (!descricao || quantidade === null || /^(?:descri[cç][aã]o|produto|item)$/i.test(descricao)) continue;
+
+    let valorTotal: number | null = null;
+    for (let offset = 0; offset <= 3 && index + offset < lines.length; offset++) {
+      const candidate = lines[index + offset];
+      const match = candidate.match(totalValueRegex);
+      if (match) {
+        valorTotal = money(match[1]);
+        break;
+      }
+    }
+
+    items.push({
+      descricao,
+      quantidade,
+      unidade: "UN",
+      valor_unitario: money(unitMatch[1]),
+      valor_total: valorTotal,
+    });
+    if (items.length >= 100) break;
+  }
+
+  return items;
+};
+
 const parseDocument = (lines: string[], fileName: string) => {
   const text = lines.join("\n");
   const flat = lines.join(" ").replace(/\s+/g, " ");
@@ -221,7 +273,8 @@ const parseDocument = (lines: string[], fileName: string) => {
 
   const companyLine =
     lines.slice(0, 18).find((line) => /\b(?:LTDA|EIRELI|S\/?A|ME)\b/i.test(line)) ||
-    valueFromLabeledLine(lines, /(?:Fornecedor|Empresa|Transportadora|Raz[aã]o Social)/i);
+    valueFromLabeledLine(lines, /(?:Fornecedor|Empresa|Transportadora|Raz[aã]o Social)/i) ||
+    lines.slice(0, 18).find((line) => /\bcasa\s+do\s+construtor\b/i.test(line));
 
   const cnpjCandidates = [...beforeRemetente.matchAll(/\b(?:\d[.\/-]?){14,18}\b/g)]
     .map((m) => normalizeCnpj(m[0]))
@@ -248,6 +301,10 @@ const parseDocument = (lines: string[], fileName: string) => {
     || valueFromLabeledLine(lines, /N[uú]mero da Proposta/i)
     || valueFromLabeledLine(lines, /N[ºo°.]?\s*Proposta/i);
 
+  if (!numeroProposta) {
+    numeroProposta = flat.match(/N[uú]mero\s*[-:]\s*(\d{2,12})/i)?.[1] || null;
+  }
+
   if (!numeroProposta || !/[0-9]/.test(numeroProposta)) {
     numeroProposta =
       fileName.match(/(?:COTA(?:Ç|C)[AÃ]O|PROPOSTA)[-_\s]*(\d{2,12})/i)?.[1]
@@ -256,17 +313,22 @@ const parseDocument = (lines: string[], fileName: string) => {
 
   const dataCotacao =
     findDateNearLabel(lines, /Data\/Hora/i)
-    || findDateNearLabel(lines, /Data da Cota[cç][aã]o/i)
+    || findDateNearLabel(lines, /Data d[ao] (?:Cota[cç][aã]o|Or[cç]amento)/i)
     || findDateNearLabel(lines, /Emiss[aã]o/i);
 
   const validadeData = findDateNearLabel(lines, /Validade/i);
   let validadeDias: number | null = null;
-  const diasValidade = flat.match(/Validade\s*[:\-]?\s*(\d{1,3})\s*dias?/i);
+  const diasValidade = flat.match(/Validade(?:\s+do\s+or[cç]amento)?\s*[:\-]?\s*(\d{1,3})\s*dias?/i);
   if (diasValidade) validadeDias = Number(diasValidade[1]);
 
   const explicitCondition = valueFromLabeledLine(lines, /(?:Condi[cç][aã]o|Forma) de pagamento/i);
   const paymentSentence = flat.match(/PAGAMENTO\s*[:\-]?\s*(.{3,180}?)(?=\s+(?:PRAZO|SE\s+HOUVER|REENTREGA|DEVOLU[CÇ][AÃ]O|SEGURO|VALIDADE)\b|[.]\s|$)/i);
-  const condicaoPagamento = clean(explicitCondition || (paymentSentence ? `PAGAMENTO ${paymentSentence[1]}` : null));
+  const periodoLocacao = flat.match(/\b(Di[aá]rio|Semanal|Quinzenal|Mensal)\b/i)?.[1];
+  const condicaoPagamento = clean(
+    explicitCondition
+      || (paymentSentence ? `PAGAMENTO ${paymentSentence[1]}` : null)
+      || (periodoLocacao ? `Locação ${periodoLocacao.toLowerCase()} (conforme orçamento)` : null),
+  );
 
   let origemFrete: string | null = null;
   let destinoFrete: string | null = null;
@@ -345,7 +407,8 @@ const parseDocument = (lines: string[], fileName: string) => {
     section(flat, /Informa[cç][oõ]es adicionais|Observa[cç][aã]o/i).slice(0, 1500)
   );
 
-  const itens = tipo === "insumo" ? parseItems(lines) : [];
+  const itensPadrao = tipo === "insumo" ? parseItems(lines) : [];
+  const itens = itensPadrao.length > 0 ? itensPadrao : parseRentalItems(lines);
 
   const identificados = {
     fornecedor_nome: companyLine || null,
