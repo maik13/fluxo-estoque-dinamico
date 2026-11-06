@@ -1615,6 +1615,23 @@ export function CentralCotacoes() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
+                <p className="font-semibold">Fluxo para gerar a PN (Previsão de Necessidade)</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                  <Badge variant="outline">1. Confirmar dados</Badge>
+                  <span className="text-muted-foreground">→</span>
+                  <Badge variant="outline">2. Selecionar orçamento</Badge>
+                  <span className="text-muted-foreground">→</span>
+                  <Badge variant="outline">3. Enviar ao gestor</Badge>
+                  <span className="text-muted-foreground">→</span>
+                  <Badge variant="outline">4. Gestor aprova</Badge>
+                  <span className="text-muted-foreground">→</span>
+                  <Badge className="bg-emerald-600">5. Gerar PN</Badge>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Os botões disponíveis para cada etapa aparecem na coluna Ações da própria cotação.
+                </p>
+              </div>
               <div className="grid gap-3 md:grid-cols-[1fr_180px_180px_180px]">
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -1674,6 +1691,9 @@ export function CentralCotacoes() {
                     <TableBody>
                       {resultados.map((cotacao) => {
                         const vinculo = rastreabilidade(cotacao);
+                        const solicitacaoVinculada = solicitacoes.find((solicitacao) =>
+                          (cotacao.solicitacao_ids || []).includes(solicitacao.id)
+                        );
                         return (
                         <TableRow key={cotacao.id}>
                           <TableCell>{dataPt(cotacao.data_cotacao || cotacao.created_at)}</TableCell>
@@ -1708,7 +1728,7 @@ export function CentralCotacoes() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex justify-end gap-1">
+                            <div className="flex flex-wrap justify-end gap-1">
                               {cotacao.arquivo_path && (
                                 <Button variant="ghost" size="icon" onClick={() => void abrirPdf(cotacao)} title="Ver PDF">
                                   <FileText className="h-4 w-4" />
@@ -1730,24 +1750,33 @@ export function CentralCotacoes() {
                                     : <Trash2 className="h-4 w-4 text-destructive" />}
                                 </Button>
                               )}
+                              {cotacao.status === 'confirmada' && solicitacaoVinculada && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => void escolherProposta(solicitacaoVinculada, cotacao)}
+                                >
+                                  <CheckCircle2 className="mr-1 h-4 w-4" /> Selecionar orçamento
+                                </Button>
+                              )}
                               {cotacao.status === 'escolhida' && !cotacao.financeiro_necessidade_id && !['pendente', 'aprovada'].includes(cotacao.aprovacao_status || '') && (
-                                <Button variant="ghost" size="icon" onClick={() => void enviarParaAprovacao(cotacao)} title="Enviar para aprovação">
-                                  <Send className="h-4 w-4" />
+                                <Button size="sm" onClick={() => void enviarParaAprovacao(cotacao)}>
+                                  <Send className="mr-1 h-4 w-4" /> Enviar ao gestor
                                 </Button>
                               )}
                               {cotacao.aprovacao_status === 'pendente' && podeAprovarCotacao && (
                                 <>
-                                  <Button variant="ghost" size="icon" onClick={() => void decidirAprovacao(cotacao, true)} title="Aprovar orçamento">
-                                    <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                                  <Button size="sm" onClick={() => void decidirAprovacao(cotacao, true)}>
+                                    <ShieldCheck className="mr-1 h-4 w-4" /> Aprovar orçamento
                                   </Button>
-                                  <Button variant="ghost" size="icon" onClick={() => void decidirAprovacao(cotacao, false)} title="Rejeitar orçamento">
-                                    <ShieldX className="h-4 w-4 text-destructive" />
+                                  <Button variant="destructive" size="sm" onClick={() => void decidirAprovacao(cotacao, false)}>
+                                    <ShieldX className="mr-1 h-4 w-4" /> Rejeitar
                                   </Button>
                                 </>
                               )}
                               {cotacao.status === 'escolhida' && cotacao.aprovacao_status === 'aprovada' && !cotacao.financeiro_necessidade_id && (
-                                <Button variant="ghost" size="icon" onClick={() => void converterEmPn(cotacao)} title="Converter em PN">
-                                  <ArrowRightLeft className="h-4 w-4" />
+                                <Button size="sm" onClick={() => void converterEmPn(cotacao)}>
+                                  <ArrowRightLeft className="mr-1 h-4 w-4" /> Gerar PN
                                 </Button>
                               )}
                             </div>
