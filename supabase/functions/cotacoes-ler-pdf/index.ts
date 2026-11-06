@@ -488,7 +488,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { cotacao_id } = await req.json();
+    const { cotacao_id, ocr_text } = await req.json();
     if (!cotacao_id) throw new Error("cotacao_id obrigatório");
 
     const { data: cotacao, error: cotacaoError } = await userClient
@@ -528,21 +528,31 @@ Deno.serve(async (req: Request) => {
       allLines.push(...pageLines, "");
     }
 
-    const lines = allLines
-      .map((line) => line.replace(/\u0000/g, "").trim())
+    let lines = allLines
+      .map((line) => line.split("\u0000").join("").trim())
       .filter(Boolean);
 
-    const text = lines.join("\n").trim();
+    let text = lines.join("\n").trim();
+    let ocrAplicado = false;
     if (!text) {
-      await userClient.from("cotacoes").update({
-        leitura_status: "sem_texto",
-        leitura_erro: "O PDF não possui camada de texto. Preencha manualmente ou use OCR.",
-        texto_extraido: null,
-      }).eq("id", cotacao_id);
+      if (typeof ocr_text !== "string" || !ocr_text.trim()) {
+        await userClient.from("cotacoes").update({
+          leitura_status: "sem_texto",
+          leitura_erro: "PDF digitalizado detectado. Aguardando leitura automática por OCR.",
+          texto_extraido: null,
+        }).eq("id", cotacao_id);
 
-      return new Response(JSON.stringify({ status: "sem_texto" }), {
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
+        return new Response(JSON.stringify({ status: "sem_texto", requer_ocr: true }), {
+          headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+
+      text = ocr_text.trim().slice(0, 200000);
+      lines = text
+        .split(/\r?\n/)
+        .map((line: string) => line.split("\u0000").join("").trim())
+        .filter(Boolean);
+      ocrAplicado = true;
     }
 
     const parsed = parseDocument(lines, cotacao.arquivo_nome || "");
@@ -569,7 +579,7 @@ Deno.serve(async (req: Request) => {
       valor_frete: parsed.valor_frete,
       valor_total: parsed.valor_total,
       texto_extraido: text.slice(0, 200000),
-      leitura_json: parsed,
+      leitura_json: { ...parsed, ocr_aplicado: ocrAplicado },
       leitura_status: "concluida",
       leitura_erro: null,
       status: "em_validacao",
@@ -597,7 +607,7 @@ Deno.serve(async (req: Request) => {
       if (itemError) console.error("Erro ao salvar itens extraídos:", itemError);
     }
 
-    return new Response(JSON.stringify({ status: "concluida", parsed }), {
+    return new Response(JSON.stringify({ status: "concluida", parsed, ocr_aplicado: ocrAplicado }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (error: any) {

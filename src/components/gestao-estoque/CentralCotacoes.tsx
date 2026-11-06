@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
+import { createWorker } from 'tesseract.js';
 import {
   FileText,
   Upload,
@@ -28,6 +31,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
+import { parseCotacaoDocumento } from '@/lib/cotacaoPdfParser';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -196,6 +200,58 @@ const dataPt = (value?: string | null) => {
   return date.length === 3 ? `${date[2]}/${date[1]}/${date[0]}` : value;
 };
 
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+
+const renderizarPdfParaOcr = async (arquivo: Blob) => {
+  const pdf = await pdfjsLib.getDocument({ data: await arquivo.arrayBuffer() }).promise;
+  const imagens: string[] = [];
+  let tamanhoTotal = 0;
+  const limitePaginas = Math.min(pdf.numPages, 8);
+
+  for (let paginaNumero = 1; paginaNumero <= limitePaginas; paginaNumero += 1) {
+    const pagina = await pdf.getPage(paginaNumero);
+    const viewportBase = pagina.getViewport({ scale: 1 });
+    const escala = Math.min(2, 1400 / Math.max(viewportBase.width, 1));
+    const viewport = pagina.getViewport({ scale: escala });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const contexto = canvas.getContext('2d', { alpha: false });
+    if (!contexto) throw new Error('Não foi possível preparar a página do PDF para leitura.');
+
+    contexto.fillStyle = '#ffffff';
+    contexto.fillRect(0, 0, canvas.width, canvas.height);
+    await pagina.render({ canvasContext: contexto, viewport }).promise;
+    const imagem = canvas.toDataURL('image/jpeg', 0.78);
+
+    // Mantém o corpo da requisição em um tamanho seguro para a função de OCR.
+    if (imagens.length > 0 && tamanhoTotal + imagem.length > 8_000_000) break;
+    imagens.push(imagem);
+    tamanhoTotal += imagem.length;
+    pagina.cleanup();
+  }
+
+  if (imagens.length === 0) throw new Error('O PDF não possui páginas que possam ser lidas.');
+  return imagens;
+};
+
+const extrairTextoOcrLocal = async (imagens: string[]) => {
+  const worker = await createWorker('por+eng');
+  try {
+    const paginas: string[] = [];
+    for (let indice = 0; indice < imagens.length; indice += 1) {
+      const resultado = await worker.recognize(imagens[indice]);
+      const texto = resultado.data.text?.trim();
+      if (texto) paginas.push(texto);
+    }
+    const textoCompleto = paginas.join('\n\n').trim();
+    if (!textoCompleto) throw new Error('O OCR local não reconheceu texto no documento.');
+    return textoCompleto;
+  } finally {
+    await worker.terminate();
+  }
+};
+
 const toInput = (value?: number | null) => (value === null || value === undefined ? '' : String(value).replace('.', ','));
 const fromInput = (value: string) => {
   if (!value.trim()) return null;
@@ -253,6 +309,7 @@ export function CentralCotacoes() {
   const [importando, setImportando] = useState(false);
   const [reprocessandoId, setReprocessandoId] = useState<string | null>(null);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
+  const [excluindoSolicitacaoId, setExcluindoSolicitacaoId] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   const [busca, setBusca] = useState('');
@@ -549,6 +606,66 @@ export function CentralCotacoes() {
     }
   };
 
+  const executarLeituraPdf = async (cotacaoId: string, arquivo: Blob, arquivoNome = 'orcamento.pdf') => {
+    const { error: leituraError } = await supabase.functions.invoke('cotacoes-ler-pdf', {
+      body: { cotacao_id: cotacaoId },
+    });
+    if (leituraError) throw leituraError;
+
+    const primeiraLeitura = await (supabase.from as any)('cotacoes')
+      .select('*')
+      .eq('id', cotacaoId)
+      .single();
+    if (primeiraLeitura.error) throw primeiraLeitura.error;
+    let refreshed = primeiraLeitura.data;
+
+    if (refreshed.leitura_status === 'sem_texto') {
+      toast.info('PDF digitalizado detectado. Fazendo a leitura local por OCR...');
+      const ocrImages = await renderizarPdfParaOcr(arquivo);
+      const ocrText = await extrairTextoOcrLocal(ocrImages);
+      const linhas = ocrText
+        .split(/\r?\n/)
+        .map((linha) => linha.split('\u0000').join('').trim())
+        .filter(Boolean);
+      const parsed = parseCotacaoDocumento(linhas, arquivoNome);
+      const { itens: itensExtraidos, diagnostico, ...camposExtraidos } = parsed;
+
+      const { error: updateOcrError } = await (supabase.from as any)('cotacoes')
+        .update({
+          ...camposExtraidos,
+          texto_extraido: ocrText.slice(0, 200000),
+          leitura_json: { ...parsed, diagnostico, ocr_aplicado: true },
+          leitura_status: 'concluida',
+          leitura_erro: null,
+          status: 'em_validacao',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', cotacaoId);
+      if (updateOcrError) throw updateOcrError;
+
+      const { error: deleteItensError } = await (supabase.from as any)('cotacao_itens')
+        .delete()
+        .eq('cotacao_id', cotacaoId);
+      if (deleteItensError) throw deleteItensError;
+
+      if (itensExtraidos.length > 0) {
+        const { error: insertItensError } = await (supabase.from as any)('cotacao_itens').insert(
+          itensExtraidos.map((item, ordem) => ({ ...item, cotacao_id: cotacaoId, ordem })),
+        );
+        if (insertItensError) throw insertItensError;
+      }
+
+      const resultadoOcr = await (supabase.from as any)('cotacoes')
+        .select('*')
+        .eq('id', cotacaoId)
+        .single();
+      if (resultadoOcr.error) throw resultadoOcr.error;
+      refreshed = resultadoOcr.data;
+    }
+
+    return refreshed as Cotacao;
+  };
+
   const importarPdf = async (
     file?: File,
     solicitacaoIds: string[] = [],
@@ -615,16 +732,7 @@ export function CentralCotacoes() {
         .eq('id', created.id);
       if (updateError) throw updateError;
 
-      const { error: fnError } = await supabase.functions.invoke('cotacoes-ler-pdf', {
-        body: { cotacao_id: created.id },
-      });
-      if (fnError) throw fnError;
-
-      const { data: refreshed, error: refreshError } = await (supabase.from as any)('cotacoes')
-        .select('*')
-        .eq('id', created.id)
-        .single();
-      if (refreshError) throw refreshError;
+      const refreshed = await executarLeituraPdf(created.id, file, file.name);
 
       if (solicitacaoIds.length > 0) {
         await (supabase.from as any)('cotacao_solicitacoes')
@@ -640,10 +748,10 @@ export function CentralCotacoes() {
         solicitacao_ids: solicitacaoIds,
       });
 
-      if (refreshed.leitura_status === 'sem_texto') {
-        toast.warning('PDF sem camada de texto. Preencha os dados manualmente.');
+      if (refreshed.leitura_status !== 'concluida') {
+        toast.error(refreshed.leitura_erro || 'O leitor não conseguiu concluir a extração do PDF.');
       } else {
-        toast.success('PDF lido. Confira os dados antes de confirmar.');
+        toast.success('PDF lido automaticamente. Confira os dados extraídos antes de confirmar.');
       }
     } catch (error: any) {
       console.error(error);
@@ -664,20 +772,20 @@ export function CentralCotacoes() {
 
     setReprocessandoId(cotacao.id);
     try {
-      const { error: fnError } = await supabase.functions.invoke('cotacoes-ler-pdf', {
-        body: { cotacao_id: cotacao.id },
-      });
-      if (fnError) throw fnError;
+      const { data: arquivo, error: downloadError } = await supabase.storage
+        .from('cotacoes-documentos')
+        .download(cotacao.arquivo_path);
+      if (downloadError || !arquivo) throw downloadError || new Error('Não foi possível baixar o PDF para reprocessar.');
 
-      const { data: refreshed, error: refreshError } = await (supabase.from as any)('cotacoes')
-        .select('*')
-        .eq('id', cotacao.id)
-        .single();
-      if (refreshError) throw refreshError;
+      const refreshed = await executarLeituraPdf(cotacao.id, arquivo, cotacao.arquivo_nome || 'orcamento.pdf');
 
       await carregar();
-      await abrirEdicao(refreshed as Cotacao);
-      toast.success('PDF reprocessado com o leitor atualizado. Confira os campos.');
+      await abrirEdicao(refreshed);
+      if (refreshed.leitura_status === 'concluida') {
+        toast.success('PDF reprocessado e lido automaticamente. Confira os campos.');
+      } else {
+        toast.error(refreshed.leitura_erro || 'Não foi possível extrair os dados do PDF.');
+      }
     } catch (error: any) {
       console.error(error);
       toast.error(error?.message || 'Não foi possível reprocessar o PDF.');
@@ -739,6 +847,51 @@ export function CentralCotacoes() {
       toast.error(error?.message || 'Não foi possível excluir a cotação.');
     } finally {
       setExcluindoId(null);
+    }
+  };
+
+  const podeExcluirSolicitacao = (solicitacao: Solicitacao) =>
+    podeGerenciarCotacoes
+    || (solicitacao.criado_por === user?.id && solicitacao.status === 'solicitada');
+
+  const excluirSolicitacao = async (solicitacao: Solicitacao) => {
+    const numero = `SOL-${String(solicitacao.numero).padStart(4, '0')}`;
+    const confirmou = window.confirm(
+      `Excluir ${numero} — ${solicitacao.titulo}?\n\n` +
+      'Ela sairá da fila ativa, mas o registro e a auditoria serão preservados.'
+    );
+    if (!confirmou) return;
+
+    setExcluindoSolicitacaoId(solicitacao.id);
+    try {
+      const { error } = await (supabase as any).rpc('cotacao_cancelar_solicitacao_v1', {
+        p_solicitacao_id: solicitacao.id,
+        p_motivo: 'Exclusão solicitada pela Central de Cotações',
+      });
+      if (error) {
+        const funcaoAindaNaoPublicada = error.code === 'PGRST202'
+          || /cotacao_cancelar_solicitacao_v1|schema cache|does not exist/i.test(error.message || '');
+        if (!funcaoAindaNaoPublicada) throw error;
+
+        const { error: fallbackError } = await (supabase.from as any)('cotacao_solicitacoes')
+          .update({ status: 'cancelada', updated_at: new Date().toISOString() })
+          .eq('id', solicitacao.id)
+          .neq('status', 'encerrada');
+        if (fallbackError) throw fallbackError;
+      }
+
+      if (solicitacaoSelecionada?.id === solicitacao.id) {
+        setProcessoSolicitacaoOpen(false);
+        setSolicitacaoSelecionada(null);
+      }
+      window.dispatchEvent(new CustomEvent('cotacao-solicitacao-atualizada'));
+      toast.success(`${numero} excluída da fila ativa; o registro histórico foi preservado.`);
+      await carregar(false);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível excluir a solicitação.');
+    } finally {
+      setExcluindoSolicitacaoId(null);
     }
   };
 
@@ -1682,6 +1835,19 @@ export function CentralCotacoes() {
                                   <Eye className="mr-2 h-4 w-4" /> Abrir processo
                                 </Button>
                               )}
+                              {podeExcluirSolicitacao(s) && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => void excluirSolicitacao(s)}
+                                  disabled={excluindoSolicitacaoId === s.id}
+                                  title="Excluir solicitação"
+                                >
+                                  {excluindoSolicitacaoId === s.id
+                                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                                    : <Trash2 className="h-4 w-4 text-destructive" />}
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -1885,6 +2051,18 @@ export function CentralCotacoes() {
                     <Upload className="mr-2 h-4 w-4" /> Importar PDF para esta solicitação
                   </Button>
                   </>
+                )}
+                {!editandoSolicitacao && podeExcluirSolicitacao(solicitacaoSelecionada) && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => void excluirSolicitacao(solicitacaoSelecionada)}
+                    disabled={excluindoSolicitacaoId === solicitacaoSelecionada.id}
+                  >
+                    {excluindoSolicitacaoId === solicitacaoSelecionada.id
+                      ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      : <Trash2 className="mr-2 h-4 w-4" />}
+                    Excluir solicitação
+                  </Button>
                 )}
               </div>
 

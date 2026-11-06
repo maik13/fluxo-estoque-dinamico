@@ -166,7 +166,7 @@ export const MenuPrincipal = ({
   const podeUsarCadastro = canCreateItems();
   const podeMovimentar = canManageStock();
   const podeVisualizarFluxoCompras = canViewPurchaseFlow();
-  const podeOperarCotacoes = isAdmin() || isGestor() || isEstoquista();
+  const podeOperarCotacoes = isAdmin() || isGestor() || isEstoquista() || hasPermission('compras.pedidos.criar');
 
   // Buscar próximo código disponível quando o dialog de cadastro abrir
   useEffect(() => {
