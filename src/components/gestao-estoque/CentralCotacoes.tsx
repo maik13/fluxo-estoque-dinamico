@@ -850,11 +850,14 @@ export function CentralCotacoes() {
     }
   };
 
-  const podeExcluirSolicitacao = (solicitacao: Solicitacao) =>
-    podeGerenciarCotacoes
-    || (solicitacao.criado_por === user?.id && solicitacao.status === 'solicitada');
+  const podeExcluirSolicitacao = (_solicitacao: Solicitacao) =>
+    isAdmin() || isGestor() || isEstoquista();
 
   const excluirSolicitacao = async (solicitacao: Solicitacao) => {
+    if (!podeExcluirSolicitacao(solicitacao)) {
+      toast.error('Somente almoxarifes, gestores e administradores podem excluir solicitações.');
+      return;
+    }
     const numero = `SOL-${String(solicitacao.numero).padStart(4, '0')}`;
     const confirmou = window.confirm(
       `Excluir ${numero} — ${solicitacao.titulo}?\n\n` +
