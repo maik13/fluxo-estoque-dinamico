@@ -351,6 +351,7 @@ export function CentralCotacoes() {
     observacoes: '',
   });
   const podeGerenciarCotacoes = isAdmin() || isGestor() || isEstoquista() || hasPermission('compras.pedidos.criar');
+  const podeExcluirCotacoes = isAdmin() || isGestor() || isEstoquista();
   const somenteConsulta = canAccessFinanceiro() && !podeGerenciarCotacoes;
 
   const carregar = async (exibirLoading = true) => {
@@ -848,6 +849,10 @@ export function CentralCotacoes() {
   };
 
   const excluirCotacao = async (cotacao: Cotacao) => {
+    if (!podeExcluirCotacoes) {
+      toast.error('Somente almoxarifes, gestores e administradores podem excluir cotações.');
+      return;
+    }
     if (cotacao.status === 'convertida_pn' || cotacao.financeiro_necessidade_id) {
       toast.error('Esta cotação já foi convertida em PN e não pode ser excluída.');
       return;
@@ -892,7 +897,7 @@ export function CentralCotacoes() {
   };
 
   const podeExcluirSolicitacao = (_solicitacao: Solicitacao) =>
-    isAdmin() || isGestor() || isEstoquista();
+    podeExcluirCotacoes;
 
   const excluirSolicitacao = async (solicitacao: Solicitacao) => {
     if (!podeExcluirSolicitacao(solicitacao)) {
@@ -1788,7 +1793,7 @@ export function CentralCotacoes() {
                               <Button variant="ghost" size="icon" onClick={() => void abrirEdicao(cotacao)} title="Abrir / editar">
                                 <Pencil className="h-4 w-4" />
                               </Button>
-                              {cotacao.status !== 'convertida_pn' && !cotacao.financeiro_necessidade_id && (
+                              {podeExcluirCotacoes && cotacao.status !== 'convertida_pn' && !cotacao.financeiro_necessidade_id && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -1957,6 +1962,19 @@ export function CentralCotacoes() {
                             <Button size="sm" onClick={() => importarPdfNaCotacao(cotacao)} disabled={importando}>
                               <Upload className="mr-2 h-4 w-4" /> Anexar orçamento
                             </Button>
+                            {podeExcluirCotacoes && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => void excluirCotacao(cotacao)}
+                                disabled={excluindoId === cotacao.id}
+                              >
+                                {excluindoId === cotacao.id
+                                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  : <Trash2 className="mr-2 h-4 w-4" />}
+                                Excluir
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -2488,7 +2506,7 @@ export function CentralCotacoes() {
             <div className="w-full rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
               <strong className="text-foreground">Fluxo preservado:</strong> salvar o PDF mantém o vínculo com a <strong className="text-foreground">SOL</strong>. Depois de confirmar, escolha a proposta e envie para aprovação. No processo da solicitação aprovada, a decisão fica explícita: <strong className="text-foreground">Gerar PN</strong> ou <strong className="text-foreground">Finalizar sem PN</strong>.
             </div>
-            {editorCotacao && editorCotacao.status !== 'convertida_pn' && !editorCotacao.financeiro_necessidade_id && (
+            {podeExcluirCotacoes && editorCotacao && editorCotacao.status !== 'convertida_pn' && !editorCotacao.financeiro_necessidade_id && (
               <Button
                 variant="destructive"
                 onClick={() => void excluirCotacao(editorCotacao)}
