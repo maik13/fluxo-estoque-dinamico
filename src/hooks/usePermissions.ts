@@ -258,6 +258,7 @@ export const usePermissions = () => {
   const canTransferir = () => hasPermission('estoque.movimentacoes.transferir') || permissoesDinamicas.pode_transferir;
   const canRegistrarSaida = () => hasPermission('estoque.movimentacoes.saida') || permissoesDinamicas.pode_registrar_saida;
   const canPedidoCompra = () => hasPermission('compras.pedidos.criar') || permissoesDinamicas.pode_pedido_compra;
+  const canDeletePurchaseDocuments = () => isAdmin() || hasPermission('compras.documentos.excluir');
   const canSolicitacaoMaterial = () => hasPermission('estoque.solicitacoes.gerenciar') || permissoesDinamicas.pode_solicitacao_material;
   const canCriarPrevisaoNecessidadeAlmoxarifado = () => isAdmin() || isEstoquista();
   const canViewPurchaseFlow = () => isAdmin() || hasPermission('compras.fluxo.visualizar');
@@ -301,6 +302,7 @@ export const usePermissions = () => {
     canTransferir,
     canRegistrarSaida,
     canPedidoCompra,
+    canDeletePurchaseDocuments,
     canSolicitacaoMaterial,
     canCriarPrevisaoNecessidadeAlmoxarifado,
     canViewPurchaseFlow,

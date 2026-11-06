@@ -23,6 +23,7 @@ export const PERMISSOES_EXISTENTES: PermissaoExistenteDefinicao[] = [
   ['pode_editar_movimentacoes','estoque.movimentacoes.editar','Estoque','Movimentações','Editar movimentações','Permite corrigir movimentações existentes.',100],
   ['pode_solicitacao_material','estoque.solicitacoes.gerenciar','Estoque','Solicitações e Compras','Solicitação de Material','Libera o cartão laranja Solicitação de Material, usado para solicitar itens, inclusive itens sem saldo ou ainda não cadastrados, e encaminhá-los ao fluxo de compras.',110],
   ['pode_pedido_compra','compras.pedidos.gerenciar','Compras','Solicitações e Compras','Pedido de compra','Permite acessar e gerenciar pedidos de compra.',120],
+  ['pode_excluir_documentos_compra','compras.documentos.excluir','Compras','Solicitações e Compras','Excluir PN, RC e PC','Permite excluir de forma auditada documentos do fluxo de compras.',125],
   ['pode_apontar_producao','producao.apontamentos.criar','Produção','Produção','Apontar Produção','Permite criar apontamentos de Produção.',130],
   ['pode_conferir_producao','producao.apontamentos.conferir','Produção','Produção','Conferir Produção','Permite conferir ou cancelar apontamentos.',140],
   ['pode_ver_bi_producao','producao.bi.visualizar','Gerencial','BI Produção','Ver somente BI Produção','Libera exclusivamente o BI Produção dentro do Gerencial, sem liberar o Gerencial de Almoxarifado nem o módulo Produção.',150],

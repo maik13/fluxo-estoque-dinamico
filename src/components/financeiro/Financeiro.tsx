@@ -12,6 +12,7 @@ import {
   RefreshCcw,
   Search,
   Settings,
+  Trash2,
   TrendingDown,
   WalletCards,
 } from "lucide-react";
@@ -230,6 +231,7 @@ export const Financeiro = () => {
     canProgramFinanceiro,
     canConciliarFinanceiro,
     canViewFinanceiroReports,
+    canDeletePurchaseDocuments,
   } = usePermissions();
 
   const podeGerenciar = canManageFinanceiro();
@@ -393,6 +395,7 @@ export const Financeiro = () => {
   const [dialogConciliacao, setDialogConciliacao] = useState(false);
   const [dialogCategoria, setDialogCategoria] = useState(false);
   const [dialogSubcategoria, setDialogSubcategoria] = useState(false);
+  const [documentoEmExclusao, setDocumentoEmExclusao] = useState<string | null>(null);
   const [selecionado, setSelecionado] = useState<Registro | null>(null);
 
   const [pnForm, setPnForm] = useState({
@@ -1032,6 +1035,27 @@ export const Financeiro = () => {
       toast.error(
         "Erro ao criar PC. Verifique se esta RC já possui PC formal.",
       );
+    }
+  };
+
+  const excluirDocumentoCompra = async (tipo: "pn" | "rc" | "pc", registro: Registro) => {
+    const rotulo = `${tipo.toUpperCase()}-${String(registro.numero).padStart(4, "0")}`;
+    if (!window.confirm(`Excluir ${rotulo}? A ação será auditada e não será permitida se houver pagamento ou documento posterior ativo.`)) return;
+    setDocumentoEmExclusao(`${tipo}:${registro.id}`);
+    try {
+      const { error } = await (supabase as any).rpc("compras_excluir_documento_v1", {
+        p_tipo: tipo,
+        p_documento_id: registro.id,
+        p_motivo: `Exclusão solicitada no módulo Financeiro (${rotulo})`,
+      });
+      if (error) throw error;
+      if (tipo === "rc") setDialogRc(false);
+      toast.success(`${rotulo} excluído com auditoria.`);
+      await carregar();
+    } catch (error: any) {
+      toast.error(error?.message || `Não foi possível excluir ${rotulo}.`);
+    } finally {
+      setDocumentoEmExclusao(null);
     }
   };
 
@@ -2277,13 +2301,14 @@ export const Financeiro = () => {
                       <TableHead className="text-right">
                         Valor estimado
                       </TableHead>
+                      {canDeletePurchaseDocuments() && <TableHead>Ações</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {necessidadesVisiveis.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={8}
+                          colSpan={canDeletePurchaseDocuments() ? 9 : 8}
                           className="py-8 text-center text-muted-foreground"
                         >
                           Nenhuma PN.
@@ -2330,6 +2355,14 @@ export const Financeiro = () => {
                               moeda(n.valor_estimado)
                             )}
                           </TableCell>
+                          {canDeletePurchaseDocuments() && (
+                            <TableCell>
+                              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => void excluirDocumentoCompra("pn", n)} disabled={documentoEmExclusao === `pn:${n.id}`}>
+                                <Trash2 className="mr-1 h-4 w-4" />
+                                {documentoEmExclusao === `pn:${n.id}` ? "Excluindo..." : "Excluir PN"}
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))
                     )}
@@ -2375,7 +2408,7 @@ export const Financeiro = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      rcs.map((r) => (
+                      rcs.filter((r) => r.status !== "cancelado").map((r) => (
                         <TableRow key={r.id}>
                           <TableCell className="font-medium">
                             RC-{String(r.numero).padStart(4, "0")}
@@ -2396,13 +2429,21 @@ export const Financeiro = () => {
                             {moeda(r.valor_estimado_cotado)}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => abrirRc(r)}
-                            >
-                              Abrir formulário
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => abrirRc(r)}
+                              >
+                                Abrir formulário
+                              </Button>
+                              {canDeletePurchaseDocuments() && (
+                                <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => void excluirDocumentoCompra("rc", r)} disabled={documentoEmExclusao === `rc:${r.id}`}>
+                                  <Trash2 className="mr-1 h-4 w-4" />
+                                  {documentoEmExclusao === `rc:${r.id}` ? "Excluindo..." : "Excluir RC"}
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -2610,6 +2651,12 @@ export const Financeiro = () => {
                   </div>
                 </div>
                 <DialogFooter>
+                  {selecionado && canDeletePurchaseDocuments() && (
+                    <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => void excluirDocumentoCompra("rc", selecionado)} disabled={documentoEmExclusao === `rc:${selecionado.id}`}>
+                      <Trash2 className="mr-1 h-4 w-4" />
+                      {documentoEmExclusao === `rc:${selecionado.id}` ? "Excluindo..." : "Excluir RC"}
+                    </Button>
+                  )}
                   <Button variant="outline" onClick={() => setDialogRc(false)}>
                     Fechar
                   </Button>
@@ -2799,13 +2846,14 @@ export const Financeiro = () => {
                       <TableHead className="text-right">Frete</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead>Aprovação Mauro</TableHead>
+                      {canDeletePurchaseDocuments() && <TableHead>Ações</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {pcs.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={8}
+                          colSpan={canDeletePurchaseDocuments() ? 9 : 8}
                           className="py-8 text-center text-muted-foreground"
                         >
                           Nenhum PC formal criado.
@@ -2840,6 +2888,14 @@ export const Financeiro = () => {
                                 ? "Pendente"
                                 : "—"}
                           </TableCell>
+                          {canDeletePurchaseDocuments() && (
+                            <TableCell>
+                              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => void excluirDocumentoCompra("pc", pc)} disabled={documentoEmExclusao === `pc:${pc.id}`}>
+                                <Trash2 className="mr-1 h-4 w-4" />
+                                {documentoEmExclusao === `pc:${pc.id}` ? "Excluindo..." : "Excluir PC"}
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))
                     )}

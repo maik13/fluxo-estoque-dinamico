@@ -149,7 +149,10 @@ const dataPt = (valor?: string | null) =>
       })();
 
 export const PrevisoesNecessidadeAlmoxarifado = () => {
-  const { canCriarPrevisaoNecessidadeAlmoxarifado } = usePermissions();
+  const {
+    canCriarPrevisaoNecessidadeAlmoxarifado,
+    canDeletePurchaseDocuments,
+  } = usePermissions();
   const [aberto, setAberto] = useState(false);
   const [dialogCriacao, setDialogCriacao] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -168,6 +171,7 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
   const [linhas, setLinhas] = useState<LinhaFormulario[]>([]);
   const [pnEmFormalizacao, setPnEmFormalizacao] = useState<string | null>(null);
   const [pnEmCancelamento, setPnEmCancelamento] = useState<string | null>(null);
+  const [pnEmExclusao, setPnEmExclusao] = useState<string | null>(null);
   const [pnEmEdicao, setPnEmEdicao] = useState<PrevisaoNecessidade | null>(null);
 
   const carregar = async () => {
@@ -292,6 +296,26 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
     setBuscaItem("");
     setDialogCriacao(true);
     void carregarCatalogo();
+  };
+
+  const excluirPn = async (pn: PrevisaoNecessidade) => {
+    if (!window.confirm(
+      `Excluir a PN-${String(pn.numero).padStart(4, "0")}? A ação será auditada e só será concluída se não houver pagamento ou documento posterior ativo.`,
+    )) return;
+    setPnEmExclusao(pn.id);
+    try {
+      const { error } = await (supabase as any).rpc(
+        "compras_excluir_documento_v1",
+        { p_tipo: "pn", p_documento_id: pn.id, p_motivo: "Exclusão solicitada na tela de Previsões de Necessidade" },
+      );
+      if (error) throw error;
+      toast.success(`PN-${String(pn.numero).padStart(4, "0")} excluída com auditoria.`);
+      await carregar();
+    } catch (error: any) {
+      toast.error(error?.message || "Não foi possível excluir a PN.");
+    } finally {
+      setPnEmExclusao(null);
+    }
   };
   const adicionarItemEstoque = (item: ItemEstoque) => {
     if (linhas.some((linha) => linha.itemId === item.id))
@@ -636,14 +660,28 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
                         </TableCell>
                         <TableCell>
                           {rc ? (
-                            <div>
-                              <Badge variant="secondary">
-                                RC-{String(rc.numero).padStart(4, "0")}
-                              </Badge>
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                {statusRc[rc.status_financeiro_rc || ""] ??
-                                  rc.status_financeiro_rc}
+                            <div className="space-y-2">
+                              <div>
+                                <Badge variant="secondary">
+                                  RC-{String(rc.numero).padStart(4, "0")}
+                                </Badge>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                  {statusRc[rc.status_financeiro_rc || ""] ??
+                                    rc.status_financeiro_rc}
+                                </div>
                               </div>
+                              {canDeletePurchaseDocuments() && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => void excluirPn(pn)}
+                                  disabled={pnEmExclusao === pn.id}
+                                >
+                                  <Trash2 className="mr-1 h-3.5 w-3.5" />
+                                  {pnEmExclusao === pn.id ? "Excluindo..." : "Excluir PN"}
+                                </Button>
+                              )}
                             </div>
                           ) : (
                             <div className="space-y-1">
@@ -672,6 +710,18 @@ export const PrevisoesNecessidadeAlmoxarifado = () => {
                                     <Trash2 className="mr-1 h-3.5 w-3.5" />
                                     {pnEmCancelamento === pn.id ? "Cancelando..." : "Cancelar PN"}
                                   </Button>
+                                  {canDeletePurchaseDocuments() && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-destructive hover:text-destructive"
+                                      onClick={() => void excluirPn(pn)}
+                                      disabled={pnEmExclusao === pn.id}
+                                    >
+                                      <Trash2 className="mr-1 h-3.5 w-3.5" />
+                                      {pnEmExclusao === pn.id ? "Excluindo..." : "Excluir PN"}
+                                    </Button>
+                                  )}
                                 </div>
                               ) : (
                                 <span className="text-sm text-muted-foreground">

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
-import { FileSignature, Plus, RefreshCcw } from 'lucide-react';
+import { FileSignature, Plus, RefreshCcw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { usePermissions } from '@/hooks/usePermissions';
 
 type Rc = {id:string;numero:number;status_financeiro_rc:string;pn_origem_id:string|null;valor_estimado_cotado:number|null;frete_custos_adicionais:number|null;fornecedores_consultados:string|null;especificacao_tecnica:string|null;condicao_pagamento:string|null;projeto_centro_custo:string|null;};
 type Pc = {id:string;numero:number;requisicao_compra_id:string;fornecedor:string;descricao:string;valor_total:number;status:string;};
@@ -16,9 +17,11 @@ const formVazio = {rcId:'',fornecedor:'',descricao:'',valorItens:'',frete:'',con
 const moeda = (n:number|null|undefined) => n == null ? '—' : new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n));
 
 export function PedidosCompraFormaisAlmoxarifado({ somenteConsulta = false }: { somenteConsulta?: boolean }) {
+  const { canDeletePurchaseDocuments } = usePermissions();
   const [open,setOpen] = useState(false);
   const [loading,setLoading] = useState(false);
   const [saving,setSaving] = useState(false);
+  const [deleting,setDeleting] = useState<string|null>(null);
   const [rcs,setRcs] = useState<Rc[]>([]);
   const [pcs,setPcs] = useState<Pc[]>([]);
   const [form,setForm] = useState(formVazio);
@@ -27,7 +30,7 @@ export function PedidosCompraFormaisAlmoxarifado({ somenteConsulta = false }: { 
     try {
       const [r,p]=await Promise.all([
         (supabase as any).from('pedidos_compra').select('id,numero,status_financeiro_rc,pn_origem_id,valor_estimado_cotado,frete_custos_adicionais,fornecedores_consultados,especificacao_tecnica,condicao_pagamento,projeto_centro_custo').order('numero',{ascending:false}).limit(1000),
-        (supabase as any).from('financeiro_pedidos_compra_formais').select('id,numero,requisicao_compra_id,fornecedor,descricao,valor_total,status').order('numero',{ascending:false}).limit(1000),
+        (supabase as any).from('financeiro_pedidos_compra_formais').select('id,numero,requisicao_compra_id,fornecedor,descricao,valor_total,status').neq('status','cancelado').order('numero',{ascending:false}).limit(1000),
       ]);
       if (r.error) throw r.error;
       if (p.error) throw p.error;
@@ -60,6 +63,19 @@ export function PedidosCompraFormaisAlmoxarifado({ somenteConsulta = false }: { 
     }catch(e:any){toast.error(e?.message||'Não foi possível formalizar o PC.');}
     finally{setSaving(false);}
   };
+  const excluir=async(pc:Pc)=>{
+    if(!window.confirm(`Excluir o PC-${String(pc.numero).padStart(4,'0')}? A ação será auditada e não será permitida se houver pagamento ou liquidação.`)) return;
+    setDeleting(pc.id);
+    try{
+      const {error}=await (supabase as any).rpc('compras_excluir_documento_v1',{
+        p_tipo:'pc',p_documento_id:pc.id,p_motivo:'Exclusão solicitada na tela de Pedidos de Compra',
+      });
+      if(error) throw error;
+      toast.success(`PC-${String(pc.numero).padStart(4,'0')} excluído com auditoria.`);
+      await carregar();
+    }catch(e:any){toast.error(e?.message||'Não foi possível excluir o PC.');}
+    finally{setDeleting(null);}
+  };
   return <>
     <Card role="button" tabIndex={0} className="action-card action-card--fuchsia" onClick={abrir} onKeyDown={e=>{if(e.key==='Enter')abrir();}}>
       <CardHeader className="action-card__content text-center"><div className="action-card__icon"><FileSignature className="h-8 w-8"/></div><CardTitle className="action-card__title">Pedidos de Compra (PC)</CardTitle><CardDescription className="action-card__description">Acompanhe e formalize os pedidos de compra aprovados</CardDescription></CardHeader>
@@ -82,8 +98,8 @@ export function PedidosCompraFormaisAlmoxarifado({ somenteConsulta = false }: { 
         </div>
         <Button onClick={()=>void criar()} disabled={saving||!disponiveis.length}>{saving?'Transformando...':'Transformar RC em PC'}</Button>
       </div>}
-      <Table><TableHeader><TableRow><TableHead>PC</TableHead><TableHead>RC de origem</TableHead><TableHead>Fornecedor</TableHead><TableHead>Descrição</TableHead><TableHead>Total</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-      <TableBody>{pcs.map(pc=>{const rc=rcs.find(item=>item.id===pc.requisicao_compra_id);return <TableRow key={pc.id}><TableCell>PC-{String(pc.numero).padStart(4,'0')}</TableCell><TableCell>{rc?`RC-${String(rc.numero).padStart(4,'0')}`:'—'}</TableCell><TableCell>{pc.fornecedor}</TableCell><TableCell>{pc.descricao}</TableCell><TableCell>{moeda(pc.valor_total)}</TableCell><TableCell>{pc.status}</TableCell></TableRow>;})}{!pcs.length&&<TableRow><TableCell colSpan={6} className="text-center">Nenhum PC formal transformado a partir de RC.</TableCell></TableRow>}</TableBody></Table>
+      <Table><TableHeader><TableRow><TableHead>PC</TableHead><TableHead>RC de origem</TableHead><TableHead>Fornecedor</TableHead><TableHead>Descrição</TableHead><TableHead>Total</TableHead><TableHead>Status</TableHead><TableHead>Ações</TableHead></TableRow></TableHeader>
+      <TableBody>{pcs.map(pc=>{const rc=rcs.find(item=>item.id===pc.requisicao_compra_id);return <TableRow key={pc.id}><TableCell>PC-{String(pc.numero).padStart(4,'0')}</TableCell><TableCell>{rc?`RC-${String(rc.numero).padStart(4,'0')}`:'—'}</TableCell><TableCell>{pc.fornecedor}</TableCell><TableCell>{pc.descricao}</TableCell><TableCell>{moeda(pc.valor_total)}</TableCell><TableCell>{pc.status}</TableCell><TableCell>{canDeletePurchaseDocuments()&&<Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={()=>void excluir(pc)} disabled={deleting===pc.id}><Trash2 className="mr-1 h-4 w-4"/>{deleting===pc.id?'Excluindo...':'Excluir PC'}</Button>}</TableCell></TableRow>;})}{!pcs.length&&<TableRow><TableCell colSpan={7} className="text-center">Nenhum PC formal transformado a partir de RC.</TableCell></TableRow>}</TableBody></Table>
     </DialogContent></Dialog>
   </>;
 }
