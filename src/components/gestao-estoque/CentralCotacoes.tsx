@@ -1446,6 +1446,16 @@ export function CentralCotacoes() {
     return !possuiOrcamentoVinculado;
   }), [solicitacoes, cotacoes]);
 
+  const solicitacoesVinculaveis = useMemo(
+    () => solicitacoes.filter((solicitacao) => !['cancelada', 'encerrada'].includes(solicitacao.status)),
+    [solicitacoes],
+  );
+
+  const quantidadeSolicitacoesAtivasSelecionadas = useMemo(() => {
+    const idsAtivos = new Set(solicitacoesVinculaveis.map((solicitacao) => solicitacao.id));
+    return form.solicitacao_ids.filter((id) => idsAtivos.has(id)).length;
+  }, [form.solicitacao_ids, solicitacoesVinculaveis]);
+
   const cotacoesSemPdf = useMemo(
     () => cotacoes.filter((cotacao) => !cotacao.arquivo_path
       && !(cotacao.origem_cadastro === 'link' && cotacao.url_origem?.trim())),
@@ -2287,7 +2297,7 @@ export function CentralCotacoes() {
             <div className="md:col-span-3">
               <Label>Solicitações atendidas por este orçamento</Label>
               <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-md border p-3">
-                {solicitacoes.map((s) => {
+                {solicitacoesVinculaveis.map((s) => {
                   const selecionada = form.solicitacao_ids.includes(s.id);
                   return (
                     <label key={s.id} className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted/50">
@@ -2307,12 +2317,12 @@ export function CentralCotacoes() {
                     </label>
                   );
                 })}
-                {solicitacoes.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma solicitação disponível.</p>}
+                {solicitacoesVinculaveis.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma solicitação disponível.</p>}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {form.solicitacao_ids.length === 0
+                {quantidadeSolicitacoesAtivasSelecionadas === 0
                   ? 'Sem solicitação vinculada.'
-                  : `${form.solicitacao_ids.length} solicitação(ões) atendida(s) pelo mesmo orçamento/PDF.`}
+                  : `${quantidadeSolicitacoesAtivasSelecionadas} solicitação(ões) ativa(s) atendida(s) pelo mesmo orçamento/PDF.`}
               </p>
             </div>
           </div>
