@@ -606,11 +606,18 @@ export function CentralCotacoes() {
     }
   };
 
-  const executarLeituraPdf = async (cotacaoId: string, arquivo: Blob, arquivoNome = 'orcamento.pdf') => {
-    const { error: leituraError } = await supabase.functions.invoke('cotacoes-ler-pdf', {
-      body: { cotacao_id: cotacaoId },
-    });
-    if (leituraError) throw leituraError;
+  const executarLeituraPdf = async (
+    cotacaoId: string,
+    arquivo: Blob,
+    arquivoNome = 'orcamento.pdf',
+    forcarOcrLocal = false,
+  ) => {
+    if (!forcarOcrLocal) {
+      const { error: leituraError } = await supabase.functions.invoke('cotacoes-ler-pdf', {
+        body: { cotacao_id: cotacaoId },
+      });
+      if (leituraError) throw leituraError;
+    }
 
     const primeiraLeitura = await (supabase.from as any)('cotacoes')
       .select('*')
@@ -619,48 +626,60 @@ export function CentralCotacoes() {
     if (primeiraLeitura.error) throw primeiraLeitura.error;
     let refreshed = primeiraLeitura.data;
 
-    if (refreshed.leitura_status === 'sem_texto') {
-      toast.info('PDF digitalizado detectado. Fazendo a leitura local por OCR...');
-      const ocrImages = await renderizarPdfParaOcr(arquivo);
-      const ocrText = await extrairTextoOcrLocal(ocrImages);
-      const linhas = ocrText
-        .split(/\r?\n/)
-        .map((linha) => linha.split('\u0000').join('').trim())
-        .filter(Boolean);
-      const parsed = parseCotacaoDocumento(linhas, arquivoNome);
-      const { itens: itensExtraidos, diagnostico, ...camposExtraidos } = parsed;
-
-      const { error: updateOcrError } = await (supabase.from as any)('cotacoes')
-        .update({
-          ...camposExtraidos,
-          texto_extraido: ocrText.slice(0, 200000),
-          leitura_json: { ...parsed, diagnostico, ocr_aplicado: true },
-          leitura_status: 'concluida',
-          leitura_erro: null,
-          status: 'em_validacao',
-          updated_at: new Date().toISOString(),
-        })
+    if (forcarOcrLocal || refreshed.leitura_status === 'sem_texto') {
+      await (supabase.from as any)('cotacoes')
+        .update({ leitura_status: 'processando', leitura_erro: null, updated_at: new Date().toISOString() })
         .eq('id', cotacaoId);
-      if (updateOcrError) throw updateOcrError;
 
-      const { error: deleteItensError } = await (supabase.from as any)('cotacao_itens')
-        .delete()
-        .eq('cotacao_id', cotacaoId);
-      if (deleteItensError) throw deleteItensError;
+      try {
+        toast.info('PDF digitalizado detectado. Fazendo a leitura local por OCR...');
+        const ocrImages = await renderizarPdfParaOcr(arquivo);
+        const ocrText = await extrairTextoOcrLocal(ocrImages);
+        const linhas = ocrText
+          .split(/\r?\n/)
+          .map((linha) => linha.split('\u0000').join('').trim())
+          .filter(Boolean);
+        const parsed = parseCotacaoDocumento(linhas, arquivoNome);
+        const { itens: itensExtraidos, diagnostico, ...camposExtraidos } = parsed;
 
-      if (itensExtraidos.length > 0) {
-        const { error: insertItensError } = await (supabase.from as any)('cotacao_itens').insert(
-          itensExtraidos.map((item, ordem) => ({ ...item, cotacao_id: cotacaoId, ordem })),
-        );
-        if (insertItensError) throw insertItensError;
+        const { error: updateOcrError } = await (supabase.from as any)('cotacoes')
+          .update({
+            ...camposExtraidos,
+            texto_extraido: ocrText.slice(0, 200000),
+            leitura_json: { ...parsed, diagnostico, ocr_aplicado: true },
+            leitura_status: 'concluida',
+            leitura_erro: null,
+            status: 'em_validacao',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', cotacaoId);
+        if (updateOcrError) throw updateOcrError;
+
+        const { error: deleteItensError } = await (supabase.from as any)('cotacao_itens')
+          .delete()
+          .eq('cotacao_id', cotacaoId);
+        if (deleteItensError) throw deleteItensError;
+
+        if (itensExtraidos.length > 0) {
+          const { error: insertItensError } = await (supabase.from as any)('cotacao_itens').insert(
+            itensExtraidos.map((item, ordem) => ({ ...item, cotacao_id: cotacaoId, ordem })),
+          );
+          if (insertItensError) throw insertItensError;
+        }
+
+        const resultadoOcr = await (supabase.from as any)('cotacoes')
+          .select('*')
+          .eq('id', cotacaoId)
+          .single();
+        if (resultadoOcr.error) throw resultadoOcr.error;
+        refreshed = resultadoOcr.data;
+      } catch (ocrError: any) {
+        const mensagem = ocrError?.message || 'Não foi possível transcrever o PDF pelo OCR local.';
+        await (supabase.from as any)('cotacoes')
+          .update({ leitura_status: 'falhou', leitura_erro: mensagem, updated_at: new Date().toISOString() })
+          .eq('id', cotacaoId);
+        throw new Error(mensagem);
       }
-
-      const resultadoOcr = await (supabase.from as any)('cotacoes')
-        .select('*')
-        .eq('id', cotacaoId)
-        .single();
-      if (resultadoOcr.error) throw resultadoOcr.error;
-      refreshed = resultadoOcr.data;
     }
 
     return refreshed as Cotacao;
@@ -777,7 +796,12 @@ export function CentralCotacoes() {
         .download(cotacao.arquivo_path);
       if (downloadError || !arquivo) throw downloadError || new Error('Não foi possível baixar o PDF para reprocessar.');
 
-      const refreshed = await executarLeituraPdf(cotacao.id, arquivo, cotacao.arquivo_nome || 'orcamento.pdf');
+      const refreshed = await executarLeituraPdf(
+        cotacao.id,
+        arquivo,
+        cotacao.arquivo_nome || 'orcamento.pdf',
+        ['sem_texto', 'falhou'].includes(cotacao.leitura_status),
+      );
 
       await carregar();
       await abrirEdicao(refreshed);
@@ -796,14 +820,31 @@ export function CentralCotacoes() {
 
   const abrirPdf = async (cotacao: Cotacao) => {
     if (!cotacao.arquivo_path) return;
-    const { data, error } = await supabase.storage
-      .from('cotacoes-documentos')
-      .createSignedUrl(cotacao.arquivo_path, 60 * 10);
-    if (error || !data?.signedUrl) {
-      toast.error('Não foi possível abrir o PDF.');
-      return;
+    const janela = window.open('', '_blank');
+    try {
+      const { data, error } = await supabase.storage
+        .from('cotacoes-documentos')
+        .download(cotacao.arquivo_path);
+      if (error || !data) throw error || new Error('Arquivo não encontrado no armazenamento.');
+
+      const pdf = data.type === 'application/pdf'
+        ? data
+        : new Blob([data], { type: 'application/pdf' });
+      const urlLocal = URL.createObjectURL(pdf);
+      if (janela) {
+        janela.location.href = urlLocal;
+      } else {
+        const link = document.createElement('a');
+        link.href = urlLocal;
+        link.download = cotacao.arquivo_nome || 'orcamento.pdf';
+        link.click();
+      }
+      window.setTimeout(() => URL.revokeObjectURL(urlLocal), 5 * 60 * 1000);
+    } catch (error: any) {
+      janela?.close();
+      console.error(error);
+      toast.error(error?.message || 'Não foi possível abrir o PDF.');
     }
-    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
   };
 
   const excluirCotacao = async (cotacao: Cotacao) => {
