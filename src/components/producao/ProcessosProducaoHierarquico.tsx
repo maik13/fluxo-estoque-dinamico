@@ -1192,6 +1192,100 @@ export const ProcessosProducaoHierarquico = ({
     }
 
     if (grupoSelecionado) {
+      const projetoGrupoAberto = grupoSelecionado.projetos.find(
+        (resumo) => resumo.projeto.id === projetoGrupoExpandidoId,
+      ) ?? null;
+
+      if (projetoGrupoAberto) {
+        return (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setProjetoGrupoExpandidoId(null)}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Voltar aos projetos de {grupoSelecionado.nome}
+              </Button>
+            </div>
+
+            <div className="rounded-xl border bg-card p-5 shadow-sm">
+              <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Projeto / peça · {grupoSelecionado.nome}
+                  </p>
+                  <h3 className="mt-1 text-xl font-semibold leading-snug">
+                    {projetoGrupoAberto.projeto.nome}
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {projetoGrupoAberto.etapas.length} etapa(s) · {projetoGrupoAberto.ops.length} OP(s)
+                  </p>
+                </div>
+                <div className="min-w-40 md:text-right">
+                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs ${statusProjetoClassName(projetoGrupoAberto.status)}`}>
+                    {projetoGrupoAberto.status}
+                  </span>
+                  <p className="mt-2 text-2xl font-bold">{projetoGrupoAberto.percentual}%</p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <BarraProgresso valor={projetoGrupoAberto.percentual} />
+              </div>
+            </div>
+
+            <div>
+              <h4 className="mb-1 text-base font-semibold">Etapas e OPs</h4>
+              <p className="mb-3 text-sm text-muted-foreground">
+                Abra uma etapa para consultar as OPs existentes ou inserir uma nova OP.
+              </p>
+              <div className="space-y-3">
+                {projetoGrupoAberto.etapas.map((processo) => {
+                  const opsDaEtapa = [...(ordensPorProcesso[processo.id] ?? [])]
+                    .sort(compararOpsDaEtapa);
+                  const opsValidas = opsDaEtapa.filter((op) => op.status !== 'cancelada');
+                  const concluidas = opsValidas.filter((op) => op.status === 'concluida').length;
+                  const percentual = progressoEtapa(processo, opsDaEtapa);
+                  return (
+                    <button
+                      key={processo.id}
+                      type="button"
+                      aria-label={`Abrir ${processo.nome} de ${projetoGrupoAberto.projeto.nome} para consultar ou inserir OP`}
+                      onClick={() => {
+                        setProjetoSelecionadoId(projetoGrupoAberto.projeto.id);
+                        setProcessoSelecionadoId(processo.id);
+                        setOrdemSelecionadaId(null);
+                      }}
+                      className="flex w-full flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-5 py-4 text-left shadow-sm transition hover:border-primary/50 hover:bg-muted/30"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <ChevronRight className="h-4 w-4 shrink-0" />
+                        <div>
+                          <p className="font-semibold">{processo.nome}</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {opsValidas.length} OP(s) · {concluidas} concluída(s) · {statusEtapaLabel[processo.status] ?? processo.status}
+                          </p>
+                          <p className="mt-1 text-xs font-medium text-primary">
+                            Abrir etapa para consultar ou inserir OP
+                          </p>
+                        </div>
+                      </div>
+                      <div className="w-32 shrink-0 space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Progresso</span><span>{percentual}%</span>
+                        </div>
+                        <BarraProgresso valor={percentual} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1220,107 +1314,41 @@ export const ProcessosProducaoHierarquico = ({
           <div>
             <h4 className="mb-1 text-base font-semibold">Projetos de {grupoSelecionado.nome}</h4>
             <p className="mb-3 text-sm text-muted-foreground">
-              Selecione um projeto para expandir suas etapas e acessar as OPs correspondentes.
+              Selecione um projeto para abri-lo e acessar suas etapas e OPs.
             </p>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {[...grupoSelecionado.projetos]
                 .sort((a, b) => a.projeto.nome.localeCompare(b.projeto.nome, 'pt-BR'))
-                .map((resumo) => {
-                  const expandido = projetoGrupoExpandidoId === resumo.projeto.id;
-                  return (
-                    <section
-                      key={resumo.projeto.id}
-                      className={`overflow-hidden rounded-xl border bg-card shadow-sm transition-all ${
-                        expandido
-                          ? 'md:col-span-2 xl:col-span-3 border-primary/35 shadow-md'
-                          : 'hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md'
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        aria-expanded={expandido}
-                        aria-controls={`etapas-projeto-${resumo.projeto.id}`}
-                        onClick={() => setProjetoGrupoExpandidoId((atual) =>
-                          atual === resumo.projeto.id ? null : resumo.projeto.id
-                        )}
-                        className={`w-full px-5 py-4 text-left transition ${
-                          expandido ? 'border-b bg-primary/5' : 'bg-muted/20 hover:bg-muted/35'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              Projeto / peça
-                            </p>
-                            <h5 className="mt-1 text-lg font-semibold leading-snug">{resumo.projeto.nome}</h5>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {resumo.etapas.length} etapa(s) · {resumo.ops.length} OP(s)
-                            </p>
-                          </div>
-                          <ChevronDown
-                            className={`mt-1 h-5 w-5 shrink-0 text-muted-foreground transition-transform ${
-                              expandido ? 'rotate-180' : ''
-                            }`}
-                          />
-                        </div>
-                        <div className="mt-4 flex items-center justify-between gap-3 text-xs">
-                          <span className={`rounded-full border px-2.5 py-1 ${statusProjetoClassName(resumo.status)}`}>
-                            {resumo.status}
-                          </span>
-                          <strong>{resumo.percentual}% concluído</strong>
-                        </div>
-                        <div className="mt-2">
-                          <BarraProgresso valor={resumo.percentual} />
-                        </div>
-                      </button>
-
-                      {expandido && (
-                        <div id={`etapas-projeto-${resumo.projeto.id}`} className="divide-y">
-                          {resumo.etapas.map((processo) => {
-                            const opsDaEtapa = [...(ordensPorProcesso[processo.id] ?? [])]
-                              .sort(compararOpsDaEtapa);
-                            const opsValidas = opsDaEtapa.filter((op) => op.status !== 'cancelada');
-                            const concluidas = opsValidas.filter((op) => op.status === 'concluida').length;
-                            const percentual = progressoEtapa(processo, opsDaEtapa);
-                            return (
-                              <div key={processo.id} className="px-5 py-3">
-                                <button
-                                  type="button"
-                                  aria-label={`Abrir ${processo.nome} de ${resumo.projeto.nome} para consultar ou inserir OP`}
-                                  onClick={() => {
-                                    setProjetoSelecionadoId(resumo.projeto.id);
-                                    setProcessoSelecionadoId(processo.id);
-                                    setOrdemSelecionadaId(null);
-                                  }}
-                                  className="flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-left transition hover:border-primary/50 hover:bg-muted/30"
-                                >
-                                  <div className="flex min-w-0 items-center gap-3">
-                                    <ChevronRight className="h-4 w-4 shrink-0" />
-                                    <div>
-                                      <p className="font-semibold">{processo.nome}</p>
-                                      <p className="mt-0.5 text-xs text-muted-foreground">
-                                        {opsValidas.length} OP(s) · {concluidas} concluída(s) · {statusEtapaLabel[processo.status] ?? processo.status}
-                                      </p>
-                                      <p className="mt-1 text-xs font-medium text-primary">
-                                        Abrir etapa para consultar ou inserir OP
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="w-32 shrink-0 space-y-1">
-                                    <div className="flex justify-between text-xs text-muted-foreground">
-                                      <span>Progresso</span><span>{percentual}%</span>
-                                    </div>
-                                    <BarraProgresso valor={percentual} />
-                                  </div>
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </section>
-                  );
-                })}
+                .map((resumo) => (
+                  <button
+                    key={resumo.projeto.id}
+                    type="button"
+                    onClick={() => setProjetoGrupoExpandidoId(resumo.projeto.id)}
+                    className="overflow-hidden rounded-xl border bg-card px-5 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Projeto / peça
+                        </p>
+                        <h5 className="mt-1 text-lg font-semibold leading-snug">{resumo.projeto.nome}</h5>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {resumo.etapas.length} etapa(s) · {resumo.ops.length} OP(s)
+                        </p>
+                      </div>
+                      <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
+                    </div>
+                    <div className="mt-4 flex items-center justify-between gap-3 text-xs">
+                      <span className={`rounded-full border px-2.5 py-1 ${statusProjetoClassName(resumo.status)}`}>
+                        {resumo.status}
+                      </span>
+                      <strong>{resumo.percentual}% concluído</strong>
+                    </div>
+                    <div className="mt-2">
+                      <BarraProgresso valor={resumo.percentual} />
+                    </div>
+                  </button>
+                ))}
             </div>
           </div>
         </div>
