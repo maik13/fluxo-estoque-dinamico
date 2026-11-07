@@ -73,6 +73,7 @@ import { ApontamentosEncerradosOp } from './ApontamentosEncerradosOp';
 import { ExcluirProjetoProducao } from './ExcluirProjetoProducao';
 import { ModalExcluirProcesso } from './ModalExcluirProcesso';
 import { ModalFinalizarProcesso } from './ModalFinalizarProcesso';
+import { VisualizacaoOrdemProducaoConcluida } from './VisualizacaoOrdemProducaoConcluida';
 import {
   ModalIniciarOpComEquipe,
   type OcupacaoMembroProducao,
@@ -738,6 +739,15 @@ export const ProcessosProducaoHierarquico = ({
       setExcluindo(false);
     }
   };
+
+  if (ordemSelecionada && ['concluida', 'cancelada'].includes(ordemSelecionada.status)) {
+    return (
+      <VisualizacaoOrdemProducaoConcluida
+        ordem={ordemSelecionada}
+        onVoltar={() => setOrdemSelecionadaId(null)}
+      />
+    );
+  }
 
   if (!projetoSelecionadoId) {
     if (grupoSelecionado && etapaGrupoAtual) {
@@ -1600,6 +1610,15 @@ export const ProcessosProducaoHierarquico = ({
                         </p>
                       </div>
                       <div className="flex max-w-full flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
+                        {['concluida', 'cancelada'].includes(ordem.status) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setOrdemSelecionadaId(ordem.id)}
+                          >
+                            Visualizar OP
+                          </Button>
+                        )}
                         {canConfigurarProducao() && (
                           <FormEditarOrdemProducao ordem={ordem} onSuccess={recarregar} />
                         )}
