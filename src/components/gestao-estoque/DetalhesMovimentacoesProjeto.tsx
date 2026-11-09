@@ -7,7 +7,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ArrowDownCircle, ArrowUpCircle, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { isAcertoDeEstoque, isEntradaParaAcerto } from '@/utils/movimentacoes';

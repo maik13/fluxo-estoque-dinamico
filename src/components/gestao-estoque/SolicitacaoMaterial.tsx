@@ -17,7 +17,7 @@ import { ClipboardList, FileText, Plus, Trash2, Eye, Printer, Check, X, Chevrons
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { EstoqueItem } from '@/types/estoque';

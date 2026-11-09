@@ -108,14 +108,11 @@ export const useSolicitacoesCotacaoPendentes = ({ enabled }: Options) => {
     window.addEventListener('cotacao-solicitacao-atualizada', atualizarPorEventoLocal);
     window.addEventListener('focus', atualizarAoRetomar);
     document.addEventListener('visibilitychange', atualizarAoRetomar);
-    const polling = window.setInterval(() => void carregarPendentes(false), 30_000);
-
     return () => {
       window.removeEventListener('cotacao-solicitacao-criada', atualizarPorEventoLocal);
       window.removeEventListener('cotacao-solicitacao-atualizada', atualizarPorEventoLocal);
       window.removeEventListener('focus', atualizarAoRetomar);
       document.removeEventListener('visibilitychange', atualizarAoRetomar);
-      window.clearInterval(polling);
       void supabase.removeChannel(channel);
     };
   }, [enabled, carregarPendentes]);

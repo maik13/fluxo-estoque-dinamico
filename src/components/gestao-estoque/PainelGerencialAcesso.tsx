@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { GerencialProducaoIntegrado } from '@/components/producao/GerencialProducaoIntegrado';
 import { PainelGerencial } from './PainelGerencial';

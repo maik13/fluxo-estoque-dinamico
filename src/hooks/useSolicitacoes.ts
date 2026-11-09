@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { usePermissions } from './usePermissions';
-import { useConfiguracoes } from './useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { NovaSolicitacao, SolicitacaoCompleta, SolicitacaoItem } from '@/types/solicitacao';
 import { Item } from '@/types/estoque';
 import { toast } from 'sonner';

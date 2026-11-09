@@ -41,7 +41,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import type {
   LocalUtilizacaoConfig,
-} from '@/hooks/useConfiguracoes';
+} from '@/contexts/ConfiguracoesContext';
 import { calcularDuracaoProducao } from '@/hooks/useProducao';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
 import { useProcessosProducao } from '@/hooks/useProcessosProducao';

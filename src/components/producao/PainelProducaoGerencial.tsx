@@ -41,7 +41,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
+import type { LocalUtilizacaoConfig } from '@/contexts/ConfiguracoesContext';
 import { useProducao } from '@/hooks/useProducao';
 import { useProducaoGerencial } from '@/hooks/useProducaoGerencial';
 import { CalendarioFotosProducao } from './CalendarioFotosProducao';

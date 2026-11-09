@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PackageOpen, Plus, Trash2 } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';

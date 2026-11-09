@@ -47,7 +47,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
+import type { LocalUtilizacaoConfig } from '@/contexts/ConfiguracoesContext';
 import {
   formatarIdentificacaoOrdemProducao,
   formatarNumeroOrdemProducao,

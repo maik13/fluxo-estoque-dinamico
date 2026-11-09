@@ -46,6 +46,8 @@ export function useMensagensNaoLidas() {
   const inicializadoRef = useRef(false);
   const pushReadyRef = useRef(false);
   const promptExibidoRef = useRef(false);
+  const verificandoMensagensRef = useRef(false);
+  const carregandoContagemRef = useRef(false);
 
   const carregarNaoLidas = useCallback(async () => {
     if (!userId) {
@@ -53,13 +55,19 @@ export function useMensagensNaoLidas() {
       return;
     }
 
-    const { data, error } = await (supabase as any).rpc('contar_mensagens_nao_lidas_v1');
-    if (error) {
-      console.error('Erro ao contar mensagens não lidas:', error);
-      return;
-    }
+    if (carregandoContagemRef.current) return;
+    carregandoContagemRef.current = true;
+    try {
+      const { data, error } = await (supabase as any).rpc('contar_mensagens_nao_lidas_v1');
+      if (error) {
+        console.error('Erro ao contar mensagens não lidas:', error);
+        return;
+      }
 
-    setNaoLidas(Number(data || 0));
+      setNaoLidas(Number(data || 0));
+    } finally {
+      carregandoContagemRef.current = false;
+    }
   }, [userId]);
 
   const garantirInscricaoPush = useCallback(async (solicitarPermissao = false) => {
@@ -178,33 +186,39 @@ export function useMensagensNaoLidas() {
 
   const verificarNovasMensagens = useCallback(async () => {
     if (!userId) return;
+    if (verificandoMensagensRef.current) return;
+    verificandoMensagensRef.current = true;
 
-    const { data, error } = await (supabase as any).rpc('listar_mensagens_nao_lidas_detalhes_v1', {
-      p_limite: 50,
-    });
+    try {
+      const { data, error } = await (supabase as any).rpc('listar_mensagens_nao_lidas_detalhes_v1', {
+        p_limite: 50,
+      });
 
-    if (error) {
-      console.error('Erro ao verificar novas mensagens:', error);
-      return;
+      if (error) {
+        console.error('Erro ao verificar novas mensagens:', error);
+        return;
+      }
+
+      const mensagens = data || [];
+
+      if (mensagens.length > 0) {
+        await (supabase as any).rpc('marcar_mensagens_entregues_v1');
+      }
+
+      if (!inicializadoRef.current) {
+        mensagens.forEach((message: any) => mensagensConhecidasRef.current.add(message.id));
+        inicializadoRef.current = true;
+        return;
+      }
+
+      for (const message of [...mensagens].reverse()) {
+        await notificarMensagem(message);
+      }
+
+      await carregarNaoLidas();
+    } finally {
+      verificandoMensagensRef.current = false;
     }
-
-    const mensagens = data || [];
-
-    if (mensagens.length > 0) {
-      await (supabase as any).rpc('marcar_mensagens_entregues_v1');
-    }
-
-    if (!inicializadoRef.current) {
-      mensagens.forEach((message: any) => mensagensConhecidasRef.current.add(message.id));
-      inicializadoRef.current = true;
-      return;
-    }
-
-    for (const message of [...mensagens].reverse()) {
-      await notificarMensagem(message);
-    }
-
-    await carregarNaoLidas();
   }, [userId, carregarNaoLidas, notificarMensagem]);
 
   useEffect(() => {
@@ -277,8 +291,8 @@ export function useMensagensNaoLidas() {
 
     void verificarNovasMensagens();
     const fallback = window.setInterval(() => {
-      void verificarNovasMensagens();
-    }, 4000);
+      if (document.visibilityState === 'visible') void verificarNovasMensagens();
+    }, 60_000);
 
     return () => {
       supabase.removeChannel(channel);

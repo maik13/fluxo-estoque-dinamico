@@ -104,7 +104,7 @@ const validarCodigoSolicitante = async (
   return normalizado;
 };
 
-export const useConfiguracoes = () => {
+export const useConfiguracoesInterno = () => {
   const [estoques, setEstoques] = useState<EstoqueConfig[]>([]);
   const [tiposServico, setTiposServico] = useState<TipoServicoConfig[]>([]);
   const [subcategorias, setSubcategorias] = useState<SubcategoriaConfig[]>([]);
@@ -361,29 +361,22 @@ export const useConfiguracoes = () => {
       try {
         const tiposServicoSalvos = localStorage.getItem('tipos-servico-config');
 
-        // Carregar estoques do Supabase
-        await carregarEstoques();
-
         if (tiposServicoSalvos) {
           setTiposServico(JSON.parse(tiposServicoSalvos));
         }
 
-        // Carregar categorias, subcategorias e relacionamentos do Supabase
-        await carregarCategorias();
-        await carregarSubcategorias();
-        await carregarCategoriasSubcategorias();
-
-        // Carregar tipos de operação do Supabase
-        carregarTiposOperacao();
-
-        // Carregar solicitantes do Supabase
-        carregarSolicitantes();
-
-        // Carregar locais de utilização do Supabase
-        await carregarLocaisUtilizacao();
-
-        // Carregar grupos de projeto do Supabase
-        await carregarGruposProjeto();
+        // Uma única carga global, em paralelo, em vez de repetir esta sequência
+        // em cada componente da tela.
+        await Promise.all([
+          carregarEstoques(),
+          carregarCategorias(),
+          carregarSubcategorias(),
+          carregarCategoriasSubcategorias(),
+          carregarTiposOperacao(),
+          carregarSolicitantes(),
+          carregarLocaisUtilizacao(),
+          carregarGruposProjeto(),
+        ]);
       } catch (error) {
         console.error('Erro ao carregar configurações:', error);
         toast({
@@ -399,73 +392,34 @@ export const useConfiguracoes = () => {
     inicializarDados();
   }, []);
 
-  // Real-time updates para todas as configurações
+  // As configurações são compartilhadas por um único provider global. Evitamos
+  // manter oito assinaturas Realtime permanentes para dados que mudam raramente;
+  // isso multiplicava inscrições a cada componente que usava o hook e podia
+  // saturar o banco já na abertura do sistema.
   useEffect(() => {
-    const estoquesChannel = supabase
-      .channel('estoques-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'estoques' }, () => {
-        carregarEstoques();
-      })
-      .subscribe();
+    let ultimaAtualizacao = Date.now();
+    const atualizarAoRetomar = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - ultimaAtualizacao < 5 * 60_000) return;
+      ultimaAtualizacao = Date.now();
+      void Promise.all([
+        carregarEstoques(),
+        carregarCategorias(),
+        carregarSubcategorias(),
+        carregarCategoriasSubcategorias(),
+        carregarTiposOperacao(),
+        carregarSolicitantes(),
+        carregarLocaisUtilizacao(),
+        carregarGruposProjeto(),
+      ]);
+    };
 
-    const categoriasChannel = supabase
-      .channel('categorias-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'categorias' }, () => {
-        carregarCategorias();
-      })
-      .subscribe();
-
-    const subcategoriasChannel = supabase
-      .channel('subcategorias-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'subcategorias' }, () => {
-        carregarSubcategorias();
-      })
-      .subscribe();
-
-    const categoriasSubcategoriasChannel = supabase
-      .channel('categoria-subcategoria-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'categoria_subcategoria' }, () => {
-        carregarCategoriasSubcategorias();
-      })
-      .subscribe();
-
-    const tiposOperacaoChannel = supabase
-      .channel('tipos-operacao-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tipos_operacao' }, () => {
-        carregarTiposOperacao();
-      })
-      .subscribe();
-
-    const solicitantesChannel = supabase
-      .channel('solicitantes-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitantes' }, () => {
-        carregarSolicitantes();
-      })
-      .subscribe();
-
-    const locaisChannel = supabase
-      .channel('locais-utilizacao-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'locais_utilizacao' }, () => {
-        carregarLocaisUtilizacao();
-      })
-      .subscribe();
-
-    const gruposChannel = supabase
-      .channel('project-groups-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_groups' }, () => {
-        carregarGruposProjeto();
-      })
-      .subscribe();
+    window.addEventListener('focus', atualizarAoRetomar);
+    document.addEventListener('visibilitychange', atualizarAoRetomar);
 
     return () => {
-      supabase.removeChannel(estoquesChannel);
-      supabase.removeChannel(categoriasChannel);
-      supabase.removeChannel(subcategoriasChannel);
-      supabase.removeChannel(categoriasSubcategoriasChannel);
-      supabase.removeChannel(tiposOperacaoChannel);
-      supabase.removeChannel(solicitantesChannel);
-      supabase.removeChannel(locaisChannel);
-      supabase.removeChannel(gruposChannel);
+      window.removeEventListener('focus', atualizarAoRetomar);
+      document.removeEventListener('visibilitychange', atualizarAoRetomar);
     };
   }, []);
 

@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
+import type { LocalUtilizacaoConfig } from '@/contexts/ConfiguracoesContext';
 import {
   type MovimentoOficialProducao,
   useProducaoMateriais,

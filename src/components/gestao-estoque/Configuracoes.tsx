@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { GuiaImportacaoExcel } from './GuiaImportacaoExcel';
 import { UsuariosList } from './UsuariosList';
 import { PermissoesPanel } from './PermissoesPanel';

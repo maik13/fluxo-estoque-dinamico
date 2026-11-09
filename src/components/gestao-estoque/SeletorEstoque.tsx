@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Switch } from '@/components/ui/switch';
 import { Database, Moon, Sun } from 'lucide-react';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { CloudStorageIndicator } from '@/components/gestao-estoque/CloudStorageIndicator';
 import { OfflineSyncIndicator } from '@/components/gestao-estoque/OfflineSyncIndicator';

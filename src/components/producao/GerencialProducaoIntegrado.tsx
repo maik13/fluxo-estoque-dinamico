@@ -1,7 +1,7 @@
 import { ArrowLeft, BarChart3, Factory, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
+import type { LocalUtilizacaoConfig } from '@/contexts/ConfiguracoesContext';
 import { PainelProjetosProducaoAoVivo } from './PainelProjetosProducaoAoVivo';
 import { PainelProducaoGerencial } from './PainelProducaoGerencial';
 

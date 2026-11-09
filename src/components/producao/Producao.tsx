@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { useDiagnosticoProducao } from '@/hooks/useDiagnosticoProducao';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useProducao } from '@/hooks/useProducao';

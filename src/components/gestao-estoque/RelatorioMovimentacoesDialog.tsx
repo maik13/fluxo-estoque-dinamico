@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { isAcertoDeEstoque, isEntradaParaAcerto, normalizarMovimentacaoTexto } from '@/utils/movimentacoes';
 
 interface RelatorioMovimentacoesDialogProps {

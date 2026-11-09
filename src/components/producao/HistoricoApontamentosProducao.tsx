@@ -22,7 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
+import type { LocalUtilizacaoConfig } from '@/contexts/ConfiguracoesContext';
 import { useProducaoAnexos } from '@/hooks/useProducaoAnexos';
 import type {
   NovoApontamentoProducao,

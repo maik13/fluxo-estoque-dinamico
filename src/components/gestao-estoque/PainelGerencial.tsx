@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { useConsolidacao, ConsolidacaoFiltros } from '@/hooks/useConsolidacao';
 import { 
   BarChart3, Package, Truck, RotateCcw, Search, Filter, 

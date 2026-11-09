@@ -12,7 +12,7 @@ import type {
   ProducaoApontamentoMembro,
   ProducaoTarefa,
 } from '@/types/producao';
-import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
+import type { LocalUtilizacaoConfig } from '@/contexts/ConfiguracoesContext';
 import { cn } from '@/lib/utils';
 
 interface FotoCalendario {

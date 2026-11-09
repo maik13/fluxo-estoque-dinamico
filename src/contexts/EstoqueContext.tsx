@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { useEstoque } from '@/hooks/useEstoque';
 import { supabase } from '@/integrations/supabase/client';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { toast } from '@/hooks/use-toast';
 import {
   createOperationId,

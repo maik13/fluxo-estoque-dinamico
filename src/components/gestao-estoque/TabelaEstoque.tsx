@@ -22,7 +22,7 @@ import { gerarRelatorioPDF } from '@/utils/pdfExport';
 import { supabase } from '@/integrations/supabase/client';
 import { exportarExcel, exportarExcelContado } from '@/utils/excelExport';
 import { exportarPDFContado, imprimirRelatorioContado } from '@/utils/estoqueContadoReport';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useEstoqueContado } from '@/hooks/useEstoqueContado';
 import { toast } from 'sonner';

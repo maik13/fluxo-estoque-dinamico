@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, Calendar as CalendarIcon, Package, FileSpreadsheet, Printer, CheckCircle2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';

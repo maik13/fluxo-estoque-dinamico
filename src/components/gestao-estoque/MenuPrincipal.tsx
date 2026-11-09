@@ -27,7 +27,7 @@ import { PedidosCompraFormaisAlmoxarifado } from './PedidosCompraFormaisAlmoxari
 import { SolicitarOrcamento } from './SolicitarOrcamento';
 import { Badge } from '@/components/ui/badge';
 
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';

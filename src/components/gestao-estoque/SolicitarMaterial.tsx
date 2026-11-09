@@ -11,7 +11,7 @@ import { Trash2, Package, Plus, FileText, Printer, Eye, Check, X } from 'lucide-
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useSolicitacoes } from '@/hooks/useSolicitacoes';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Item } from '@/types/estoque';

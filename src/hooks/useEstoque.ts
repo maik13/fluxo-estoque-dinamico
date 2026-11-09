@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Item, Movimentacao, EstoqueItem } from '@/types/estoque';
 import { toast } from '@/hooks/use-toast';
-import { useConfiguracoes } from './useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { verificarFerramentaAlocada } from '@/utils/verificarPendencias';

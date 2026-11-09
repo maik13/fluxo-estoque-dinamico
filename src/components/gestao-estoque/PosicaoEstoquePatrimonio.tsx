@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, Filter, FileSpreadsheet, Package, Loader2, AlertTriangle, MapPin } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { calcularTotaisPosicao, usePosicaoPatrimonio } from '@/hooks/usePosicaoPatrimonio';
 import { exportarExcelPosicaoPatrimonio } from '@/utils/patrimonioExport';
 import { EstoqueItem } from '@/types/estoque';

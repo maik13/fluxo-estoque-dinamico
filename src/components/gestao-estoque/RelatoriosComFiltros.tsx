@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Checkbox } from '@/components/ui/checkbox';
 import { FileBarChart, Filter, Download, X, Package, Tag, Layers } from 'lucide-react';
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { EstoqueItem } from '@/types/estoque';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';

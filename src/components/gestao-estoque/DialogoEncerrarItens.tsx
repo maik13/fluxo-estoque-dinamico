@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ItemAgrupado } from '@/hooks/useConsolidacao';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { useToast } from '@/hooks/use-toast';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 

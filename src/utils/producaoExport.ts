@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import type { LocalUtilizacaoConfig } from '@/hooks/useConfiguracoes';
+import type { LocalUtilizacaoConfig } from '@/contexts/ConfiguracoesContext';
 import type {
   IndicadoresProducaoGerencial,
   ProducaoApontamento,

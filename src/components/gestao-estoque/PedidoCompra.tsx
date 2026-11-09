@@ -14,7 +14,7 @@ import { FileCheck2, Plus, Check, ChevronsUpDown, Eye, Trash2, CheckCircle, Ban,
 import { useEstoqueContext } from '@/contexts/EstoqueContext';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+import { useConfiguracoes } from '@/contexts/ConfiguracoesContext';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
