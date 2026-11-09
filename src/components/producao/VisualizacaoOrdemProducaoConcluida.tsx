@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { formatarIdentificacaoOrdemProducao } from '@/hooks/useOrdensProducao';
+import { ApontamentosEncerradosOp } from './ApontamentosEncerradosOp';
 import type {
   ProducaoApontamento,
   ProducaoApontamentoMembro,
@@ -274,6 +275,16 @@ export const VisualizacaoOrdemProducaoConcluida = ({ ordem, onVoltar }: Props) =
                   })}
                 </div>
               )}
+            </div>
+
+            <div className="rounded-lg border p-4">
+              <h4 className="text-base font-semibold">Evidências e retificações</h4>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Abra os apontamentos encerrados para consultar ou adicionar fotos sem reabrir a OP.
+              </p>
+              <div className="mt-3">
+                <ApontamentosEncerradosOp ordem={ordem} />
+              </div>
             </div>
           </div>
         )}
