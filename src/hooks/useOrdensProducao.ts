@@ -161,9 +161,10 @@ export const formatarIdentificacaoOrdemProducao = (ordem: {
   if (atividade && descricao) {
     const atividadeNormalizada = atividade.toLocaleLowerCase('pt-BR');
     const descricaoNormalizada = descricao.toLocaleLowerCase('pt-BR');
-    return atividadeNormalizada === descricaoNormalizada
-      ? `${numero} — ${atividade}`
-      : `${numero} — ${atividade} · ${descricao}`;
+    void atividadeNormalizada;
+    void descricaoNormalizada;
+    // O nome da OP (renomeável) é o título; a descrição não deve parecer parte do nome.
+    return `${numero} — ${atividade}`;
   }
 
   const identificacao = atividade || descricao;

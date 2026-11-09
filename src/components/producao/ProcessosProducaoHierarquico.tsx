@@ -1635,16 +1635,16 @@ export const ProcessosProducaoHierarquico = ({
                             <RotateCcw className="mr-2 h-4 w-4" /> Reabrir
                           </Button>
                         )}
-                        {['rascunho', 'liberada', 'em_execucao'].includes(ordem.status) && (
+                        {(canConfigurarProducao() || podeExcluirOps) && ['rascunho', 'liberada', 'em_execucao'].includes(ordem.status) && (
                           <Button
                             variant="outline"
                             size="sm"
-                            className="text-destructive"
+                            className="border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground"
                             onClick={() => void executarOp(ordem, 'cancelar')}
                             disabled={executandoId === ordem.id || Boolean(jornada)}
-                            title={jornada ? 'Encerre o apontamento aberto antes de cancelar a OP' : 'Cancelar OP'}
+                            title={jornada ? 'Encerre o apontamento aberto antes de excluir a OP' : 'Excluir OP'}
                           >
-                            Cancelar
+                            <Trash2 className="mr-2 h-4 w-4" /> Excluir OP
                           </Button>
                         )}
                       </div>
