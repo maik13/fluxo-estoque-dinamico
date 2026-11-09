@@ -2045,6 +2045,42 @@ export type Database = {
         }
         Relationships: []
       }
+      compras_documentos_exclusao_auditoria: {
+        Row: {
+          created_at: string
+          documento_id: string
+          documento_numero: number | null
+          documento_tipo: string
+          estado_anterior: Json
+          excluido_por: string | null
+          excluido_por_nome: string | null
+          id: string
+          motivo: string | null
+        }
+        Insert: {
+          created_at?: string
+          documento_id: string
+          documento_numero?: number | null
+          documento_tipo: string
+          estado_anterior: Json
+          excluido_por?: string | null
+          excluido_por_nome?: string | null
+          id?: string
+          motivo?: string | null
+        }
+        Update: {
+          created_at?: string
+          documento_id?: string
+          documento_numero?: number | null
+          documento_tipo?: string
+          estado_anterior?: Json
+          excluido_por?: string | null
+          excluido_por_nome?: string | null
+          id?: string
+          motivo?: string | null
+        }
+        Relationships: []
+      }
       cotacao_itens: {
         Row: {
           codigo_item: string | null
@@ -9571,6 +9607,10 @@ export type Database = {
         Args: { p_reserva_id: string }
         Returns: undefined
       }
+      compras_excluir_documento_v1: {
+        Args: { p_documento_id: string; p_motivo?: string; p_tipo: string }
+        Returns: Json
+      }
       concluir_primeiro_acesso: { Args: never; Returns: undefined }
       conferir_apontamento_producao: {
         Args: { p_apontamento_id: string }
@@ -10329,6 +10369,10 @@ export type Database = {
       financeiro_liberar_programacao: {
         Args: { p_lancamento_id: string }
         Returns: undefined
+      }
+      financeiro_normalizar_nome_duplicidade: {
+        Args: { p_texto: string }
+        Returns: string
       }
       financeiro_pagina54_extrair_cor: {
         Args: { p_dados: Json }
