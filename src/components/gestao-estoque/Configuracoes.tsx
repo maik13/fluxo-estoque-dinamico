@@ -192,14 +192,15 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false, somenteSolic
     onConfigChange?.();
   };
 
+  const carregarPerfisAcesso = async () => {
+    const { data, error } = await (supabase as any)
+      .from('permissoes_tipo_usuario')
+      .select('tipo_usuario')
+      .order('tipo_usuario');
+    if (!error) setPerfisAcesso(data ?? []);
+  };
+
   useEffect(() => {
-    const carregarPerfisAcesso = async () => {
-      const { data, error } = await (supabase as any)
-        .from('permissoes_tipo_usuario')
-        .select('tipo_usuario')
-        .order('tipo_usuario');
-      if (!error) setPerfisAcesso(data ?? []);
-    };
     void carregarPerfisAcesso();
   }, []);
 
@@ -954,7 +955,7 @@ export const Configuracoes = ({ onConfigChange, modoPagina = false, somenteSolic
                   </div>
                   <div>
                     <Label htmlFor="tipoUsuario">Perfil de Acesso</Label>
-                    <Select value={novoUsuario.tipo} onValueChange={(value) => setNovoUsuario(prev => ({ ...prev, tipo: value }))}>
+                    <Select value={novoUsuario.tipo} onOpenChange={(aberto) => { if (aberto) void carregarPerfisAcesso(); }} onValueChange={(value) => setNovoUsuario(prev => ({ ...prev, tipo: value }))}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o perfil" />
                       </SelectTrigger>
