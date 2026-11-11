@@ -64,6 +64,26 @@ function Inner() {
     onError:(e:any)=>toast.error(e?.message||"Não foi possível criar o planejamento."),
   });
 
+  const novoProjeto = useMutation({
+    mutationFn: async () => {
+      const nome = window.prompt("Nome do novo projeto (ex.: PARQUE DO JAPÃO):")?.trim().toUpperCase();
+      if (!nome) return null;
+      const existente = list.data?.projects.find(p => p.name.trim().toUpperCase() === nome);
+      if (existente) return existente;
+      const ordem = Math.max(0, ...(list.data?.projects || []).map(p => p.order)) + 1;
+      const { data, error } = await ac.from("settings").insert({ tipo: "projeto", valor: nome, ativo: true, ordem }).select("id,valor,ordem").single();
+      if (error) throw error;
+      return { id: String(data.id), name: String(data.valor), order: Number(data.ordem || 0) } as Project;
+    },
+    onSuccess: async (project) => {
+      if (!project) return;
+      await qc.invalidateQueries({ queryKey: ["integracao-appcontrole-planejamento-lista"] });
+      const ws = list.data?.workspaces.find(w => w.appProjectSettingId === project.id);
+      if (ws) setWorkspaceId(ws.id); else create.mutate(project);
+    },
+    onError: (e: any) => toast.error(e?.message || "Não foi possível criar o projeto."),
+  });
+
   if(list.isLoading) return <div className="flex min-h-64 items-center justify-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin"/>Carregando Planejamento 2.0...</div>;
   if(list.error) return <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{String((list.error as any)?.message||list.error)}</div>;
 
@@ -76,7 +96,7 @@ function Inner() {
   return <div className="space-y-4">
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div><h2 className="text-xl font-semibold">Planejamento 2.0</h2><p className="text-sm text-muted-foreground">Tela do Fluxo; dados e regras oficiais permanecem no App Controle.</p></div>
-      <Button variant="outline" size="sm" onClick={()=>void list.refetch()}><RefreshCw className="mr-2 h-4 w-4"/>Atualizar</Button>
+      <div className="flex gap-2"><Button size="sm" disabled={novoProjeto.isPending||create.isPending} onClick={()=>novoProjeto.mutate()}>{novoProjeto.isPending?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Plus className="mr-2 h-4 w-4"/>}Novo projeto / cronograma</Button><Button variant="outline" size="sm" onClick={()=>void list.refetch()}><RefreshCw className="mr-2 h-4 w-4"/>Atualizar</Button></div>
     </div>
     <div className="overflow-hidden rounded-lg border bg-card">
       <Table>
