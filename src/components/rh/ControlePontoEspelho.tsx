@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EditableTimeCell } from "@/components/ponto/EditableTimeCell";
 import { MonthYearPicker } from "@/components/ponto/MonthYearPicker";
+import { AppControleSessionGate } from "@/components/integracoes/AppControleSessionGate";
 import { supabase } from "@/integrations/supabase/client";
 import { appControleSupabase } from "@/integrations/appcontrole/client";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -246,6 +247,7 @@ function ControlePontoEspelhoConteudo() {
   const [paidDays, setPaidDays] = useState<PaidDay[]>([]);
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [appControleConnected, setAppControleConnected] = useState(false);
+  const [sourceLoadError, setSourceLoadError] = useState("");
   const [colaboradorData, setColaboradorData] = useState<Colaborador | null>(null);
   const [jornadaData, setJornadaData] = useState<Jornada | null>(null);
   const entriesRefreshRef = useRef<(showLoading?: boolean) => Promise<void>>(async () => undefined);
@@ -359,6 +361,7 @@ function ControlePontoEspelhoConteudo() {
       // da origem. Esses registros têm precedência sobre a fotografia histórica do
       // banco do Fluxo, evitando que batidas novas desapareçam do espelho.
       if (appControleConnected) {
+        setSourceLoadError("");
         const appControleColaboradorId = collaborator?.origem_id || collaborator?.id || targetColaboradorId;
         const sourceResponse = await appControleSupabase
           .from("time_entries")
@@ -370,7 +373,14 @@ function ControlePontoEspelhoConteudo() {
 
         if (sourceResponse.error) {
           console.warn("Complemento do App Controle indisponível; mantendo os registros oficiais do Fluxo.", sourceResponse.error);
+          setSourceLoadError(
+            "Não foi possível consultar os registros oficiais no App Controle. O espelho abaixo pode estar incompleto.",
+          );
+          if (showLoading) {
+            toast.error("Falha ao consultar o App Controle. Nenhum resultado vazio será tratado como definitivo.");
+          }
         } else {
+          setSourceLoadError("");
           const sourceEntries = ((sourceResponse.data || []) as AppControleTimeEntry[]).map((entry) => ({
             id: entry.id,
             colaborador_id: targetColaboradorId,
@@ -1037,6 +1047,18 @@ function ControlePontoEspelhoConteudo() {
           </CardContent>
         </Card>
 
+        {sourceLoadError && (
+          <Card className="border-destructive/40 bg-destructive/5">
+            <CardContent className="flex gap-3 py-4 text-sm">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+              <div>
+                <p className="font-medium text-destructive">Leitura da origem indisponível</p>
+                <p className="text-muted-foreground">{sourceLoadError} Use Atualizar; se a falha continuar, reconecte a conta do App Controle.</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {colaboradorData && (
           <Card><CardContent className="py-4"><div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2 lg:grid-cols-4">
             <div><span className="text-muted-foreground">Colaborador: </span><span className="font-medium">{colaboradorData.nome}</span></div>
@@ -1188,5 +1210,9 @@ function ControlePontoEspelhoConteudo() {
 }
 
 export default function ControlePontoEspelhoCorrigido() {
-  return <ControlePontoEspelhoConteudo />;
+  return (
+    <AppControleSessionGate moduleName="Controle de Ponto">
+      <ControlePontoEspelhoConteudo />
+    </AppControleSessionGate>
+  );
 }
