@@ -1,0 +1,30 @@
+.planejamento-v2-workspace [data-link-target] {
+  opacity: 0.45 !important;
+  transition: opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+
+.planejamento-v2-workspace [data-link-target]:hover,
+.planejamento-v2-workspace [data-link-target]:focus-visible {
+  opacity: 1 !important;
+  transform: translateY(-50%) scale(1.12);
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.16);
+}
+
+/* A alça de saída é o botão circular posicionado depois da barra da atividade. */
+.planejamento-v2-workspace .absolute.z-30 > button.absolute.-right-3.rounded-full {
+  opacity: 0.45 !important;
+  transition: opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+
+.planejamento-v2-workspace .absolute.z-30:hover > button.absolute.-right-3.rounded-full,
+.planejamento-v2-workspace .absolute.z-30 > button.absolute.-right-3.rounded-full:hover,
+.planejamento-v2-workspace .absolute.z-30 > button.absolute.-right-3.rounded-full:focus-visible {
+  opacity: 1 !important;
+  transform: translateY(-50%) scale(1.12);
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.16);
+}
+
+.planejamento-v2-workspace [data-link-target],
+.planejamento-v2-workspace .absolute.z-30 > button.absolute.-right-3.rounded-full {
+  cursor: crosshair;
+}
