@@ -6066,6 +6066,51 @@ export type Database = {
           },
         ]
       }
+      producao_ops_excluidas_auditoria: {
+        Row: {
+          excluido_em: string
+          excluido_por_id: string | null
+          excluido_por_nome_snapshot: string | null
+          id: string
+          motivo: string
+          numero: number | null
+          op_snapshot: Json
+          ordem_producao_id: string
+          processo_id: string | null
+          projeto_id: string | null
+          status_anterior: string
+          tarefa_nome_snapshot: string | null
+        }
+        Insert: {
+          excluido_em?: string
+          excluido_por_id?: string | null
+          excluido_por_nome_snapshot?: string | null
+          id?: string
+          motivo?: string
+          numero?: number | null
+          op_snapshot: Json
+          ordem_producao_id: string
+          processo_id?: string | null
+          projeto_id?: string | null
+          status_anterior: string
+          tarefa_nome_snapshot?: string | null
+        }
+        Update: {
+          excluido_em?: string
+          excluido_por_id?: string | null
+          excluido_por_nome_snapshot?: string | null
+          id?: string
+          motivo?: string
+          numero?: number | null
+          op_snapshot?: Json
+          ordem_producao_id?: string
+          processo_id?: string | null
+          projeto_id?: string | null
+          status_anterior?: string
+          tarefa_nome_snapshot?: string | null
+        }
+        Relationships: []
+      }
       producao_ordem_eventos: {
         Row: {
           created_at: string
@@ -9543,6 +9588,10 @@ export type Database = {
           p_valor_itens?: number
         }
         Returns: string
+      }
+      apagar_ordem_producao_sem_registros_v1: {
+        Args: { p_ordem_producao_id: string }
+        Returns: undefined
       }
       aprovar_solicitacao_material_com_pns: {
         Args: { p_itens_ids: string[]; p_solicitacao_material_id: string }
