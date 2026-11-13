@@ -104,7 +104,12 @@ export function AppControleSessionGate({ children, moduleName }: Props) {
       if (recoveryError) throw recoveryError;
       setRecoverySent(true);
     } catch (err: any) {
-      setError(err?.message || "Não foi possível enviar a recuperação de senha do App Controle.");
+      const message = err?.message || "";
+      setError(
+        /rate limit/i.test(message)
+          ? "Limite de envio de e-mails atingido. Aguarde cerca de 1 hora e tente redefinir novamente, ou use o último e-mail de redefinição já recebido."
+          : message || "Não foi possível enviar a recuperação de senha do App Controle.",
+      );
     } finally {
       setSendingRecovery(false);
     }
