@@ -56,7 +56,7 @@ export function AppControleSessionGate({ children, moduleName }: Props) {
     const appEmail = appSession?.user?.email?.trim().toLowerCase();
     if (!fluxoEmail || !appEmail || fluxoEmail === appEmail) return;
 
-    void appControleSupabase.auth.signOut().finally(() => {
+    void appControleSupabase.auth.signOut({ scope: "local" }).finally(() => {
       setAppSession(null);
       setPassword("");
       setError("Conecte a conta do App Controle correspondente ao usuário atual do Fluxo.");
