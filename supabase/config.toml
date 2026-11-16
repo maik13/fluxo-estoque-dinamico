@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.push-notification]
 verify_jwt = false
+
+[functions.appcontrole-sync-senha]
+verify_jwt = false
