@@ -23,7 +23,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EditableTimeCell } from "@/components/ponto/EditableTimeCell";
 import { MonthYearPicker } from "@/components/ponto/MonthYearPicker";
-import { AppControleSessionGate } from "@/components/integracoes/AppControleSessionGate";
 import { supabase } from "@/integrations/supabase/client";
 import { appControleSupabase } from "@/integrations/appcontrole/client";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -1210,9 +1209,9 @@ function ControlePontoEspelhoConteudo() {
 }
 
 export default function ControlePontoEspelhoCorrigido() {
-  return (
-    <AppControleSessionGate moduleName="Controle de Ponto">
-      <ControlePontoEspelhoConteudo />
-    </AppControleSessionGate>
-  );
+  // O Controle de Ponto pertence à sessão já autenticada do Fluxo de Estoque.
+  // A consulta direta ao App Controle é apenas um complemento quando uma sessão
+  // anterior ainda estiver disponível; ela nunca deve bloquear o espelho nem
+  // exigir uma segunda senha do usuário.
+  return <ControlePontoEspelhoConteudo />;
 }
