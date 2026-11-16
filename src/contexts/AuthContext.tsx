@@ -124,16 +124,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      // Conecta o App Controle (Ponto/Planejamento) com a mesma senha, sem pedir de novo.
+      // Conecta o App Controle (Ponto/Planejamento) com a mesma senha do Fluxo.
+      // Se a senha do App Controle estiver diferente, ela é igualada automaticamente.
       try {
-        const { appControleSupabase } = await import("@/integrations/appcontrole/client");
-        const { data: atual } = await appControleSupabase.auth.getSession();
-        const emailAtual = atual.session?.user?.email?.toLowerCase();
-        if (emailAtual !== email.trim().toLowerCase()) {
-          if (atual.session) await appControleSupabase.auth.signOut({ scope: "local" });
-          await appControleSupabase.auth.signInWithPassword({ email: email.trim(), password });
-        }
-      } catch {}
+        const { conectarAppControleComSenhaFluxo } = await import("@/integrations/appcontrole/conectar");
+        await conectarAppControleComSenhaFluxo(email, password);
+      } catch (err) {
+        console.warn("App Controle não conectado no login:", err);
+      }
       window.location.href = "/";
     } catch (e: any) {
       setError(e?.message ?? "Falha ao entrar");

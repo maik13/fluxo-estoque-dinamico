@@ -3,6 +3,7 @@ import { FormEvent, ReactNode, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { KeyRound, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { appControleSupabase } from "@/integrations/appcontrole/client";
+import { conectarAppControleComSenhaFluxo } from "@/integrations/appcontrole/conectar";
 import { useAuth } from "@/hooks/useAuth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -69,17 +70,13 @@ export function AppControleSessionGate({ children, moduleName }: Props) {
     setError("");
     setConnecting(true);
     try {
-      const { error: signInError } = await appControleSupabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-      if (signInError) throw signInError;
+      await conectarAppControleComSenhaFluxo(email, password);
       setPassword("");
     } catch (err: any) {
       const message = err?.message || "Não foi possível conectar ao App Controle.";
       setError(
-        /invalid login credentials/i.test(message)
-          ? "A senha informada não corresponde à conta do App Controle. Redefina a senha abaixo e depois conecte novamente."
+        /senha do fluxo incorreta|invalid login credentials/i.test(message)
+          ? "Senha incorreta. Digite a mesma senha que você usa para entrar no Fluxo de Estoque."
           : message,
       );
     } finally {
@@ -136,7 +133,7 @@ export function AppControleSessionGate({ children, moduleName }: Props) {
           <CardTitle>Conectar {moduleName}</CardTitle>
           <CardDescription>
             Esta tela roda dentro do Fluxo de Estoque, mas usa as permissões e os dados oficiais do App Controle.
-            A conexão fica salva neste navegador.
+            Digite a mesma senha que você usa para entrar no Fluxo. Depois disso, a conexão fica salva neste navegador.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -153,7 +150,7 @@ export function AppControleSessionGate({ children, moduleName }: Props) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="appcontrole-password">Senha do App Controle</Label>
+              <Label htmlFor="appcontrole-password">Sua senha do Fluxo de Estoque</Label>
               <Input
                 id="appcontrole-password"
                 type="password"
@@ -180,7 +177,7 @@ export function AppControleSessionGate({ children, moduleName }: Props) {
             )}
             <Button type="submit" className="w-full" disabled={connecting}>
               {connecting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
-              Conectar uma vez
+              Conectar
             </Button>
             <Button
               type="button"
