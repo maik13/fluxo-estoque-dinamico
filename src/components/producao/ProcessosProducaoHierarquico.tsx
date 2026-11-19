@@ -301,7 +301,7 @@ export const ProcessosProducaoHierarquico = ({
 
   useEffect(() => {
     let ativo = true;
-    void (supabase.rpc as any)('usuario_pode_excluir_op_v1').then(({ data, error }: { data: boolean | null; error: unknown }) => {
+    void supabase.rpc('usuario_pode_excluir_op_v1').then(({ data, error }) => {
       if (ativo) setPodeExcluirOps(!error && data === true);
     });
     return () => { ativo = false; };
@@ -383,6 +383,9 @@ export const ProcessosProducaoHierarquico = ({
   const ordensPorProcesso = useMemo(
     () =>
       ordens.reduce<Record<string, ProducaoOrdemProducao[]>>((acc, ordem) => {
+        // OP excluída é preservada no banco para auditoria, mas não pertence mais
+        // à visão operacional de Produção.
+        if (ordem.status === 'cancelada') return acc;
         acc[ordem.processo_id] = acc[ordem.processo_id] ?? [];
         acc[ordem.processo_id].push(ordem);
         return acc;
@@ -579,7 +582,9 @@ export const ProcessosProducaoHierarquico = ({
   const processoSelecionado = processos.find(
     (processo) => processo.id === processoSelecionadoId,
   );
-  const ordemSelecionada = ordens.find((ordem) => ordem.id === ordemSelecionadaId) ?? null;
+  const ordemSelecionada = ordens.find(
+    (ordem) => ordem.id === ordemSelecionadaId && ordem.status !== 'cancelada',
+  ) ?? null;
 
   const voltarProjetos = () => {
     setOrdemSelecionadaId(null);
@@ -691,13 +696,17 @@ export const ProcessosProducaoHierarquico = ({
         const justificativa = precisaJustificativa
           ? window.prompt('Informe a justificativa para esta alteração da OP:')?.trim()
           : null;
-        if (precisaJustificativa && !justificativa) return;
+        if (precisaJustificativa && !justificativa) {
+          toast.error('A justificativa é obrigatória para excluir a OP.');
+          return;
+        }
         if (acao === 'cancelar') {
-          const { error } = await (supabase.rpc as any)('cancelar_ordem_producao_v1', {
+          const { error } = await supabase.rpc('cancelar_ordem_producao_v1', {
             p_ordem_producao_id: ordem.id,
             p_justificativa: justificativa,
           });
           if (error) throw error;
+          setOrdemSelecionadaId(null);
         } else {
           await transicaoOrdem(ordem.id, acao, justificativa);
         }

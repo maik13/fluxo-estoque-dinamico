@@ -225,6 +225,9 @@ export const ProcessosProducao = ({ tarefas }: Props) => {
   const ordensPorProcesso = useMemo(
     () =>
       ordens.reduce<Record<string, ProducaoOrdemProducao[]>>((acc, ordem) => {
+        // OP excluída permanece somente no histórico/auditoria e não deve
+        // reaparecer na lista operacional da etapa.
+        if (ordem.status === 'cancelada') return acc;
         acc[ordem.processo_id] = acc[ordem.processo_id] ?? [];
         acc[ordem.processo_id].push(ordem);
         return acc;
