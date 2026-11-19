@@ -29,6 +29,9 @@ export async function conectarAppControleComSenhaFluxo(email: string, password: 
         /* ignore */
       }
     }
+    if (/não configurada/i.test(msg)) {
+      throw new Error("A senha do ponto (App Controle) está diferente da senha do Fluxo.");
+    }
     throw new Error(msg || error?.message || "Não foi possível sincronizar a senha do App Controle.");
   }
 
